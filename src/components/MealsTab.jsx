@@ -1,6 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, Animated, Image, Modal } from 'react-native';
+import { useTheme } from '../lib/theme';
+import { TAB_BAR_HEIGHT } from '../lib/tokens';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -16,7 +18,10 @@ const REVIEWS = [
 ];
 
 const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onMakeRecipe, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked }) => {
-  const mealLogStreak = (() => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+
+  const mealLogStreak = useMemo(() => {
     let s = 0;
     const now = new Date();
     for (let i = 0; i < 365; i++) {
@@ -27,7 +32,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
       else break;
     }
     return s;
-  })();
+  }, [recentMeals]);
 
   const [mealsActiveSection, setMealsActiveSection] = useState('meals');
   const [showLogMealOptions, setShowLogMealOptions] = useState(false);
@@ -106,7 +111,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
         </TouchableOpacity>
       </View>
 
-      {Platform.OS === 'web' && <View style={{ height: 81 }} />}
+      {Platform.OS === 'web' && <View style={{ height: TAB_BAR_HEIGHT }} />}
 
       <ScrollView style={styles.mealsScrollContent} showsVerticalScrollIndicator={false}>
       {/* Large Cutlery Display */}
@@ -121,16 +126,15 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
         <TouchableOpacity
           style={[styles.logMealBtnIntegrated, isFasting && styles.logMealBtnDisabled]}
           onPress={handleLogButtonPress}
-          disabled={isFasting}
+          activeOpacity={isFasting ? 1 : 0.8}
         >
-          <View style={styles.logMealBtnIconWrapper}>
-            <Text style={styles.logMealBtnIcon}>+</Text>
-          </View>
-          <Text style={styles.logMealBtnText}>Log Meal</Text>
+          {!isFasting && (
+            <View style={styles.logMealBtnIconWrapper}>
+              <Text style={styles.logMealBtnIcon}>+</Text>
+            </View>
+          )}
+          <Text style={styles.logMealBtnText}>{isFasting ? 'End fast to log meals' : 'Log Meal'}</Text>
         </TouchableOpacity>
-        {isFasting && (
-          <Text style={styles.logMealBlockedText}>You’re in a fasted state—end the fast before logging food.</Text>
-        )}
       </View>
 
       {/* Today's Nutrition */}
@@ -163,6 +167,15 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
       <View style={styles.recentMealsSectionClean}>
         <Text style={styles.recentMealsTitleClean}>Recent Meals</Text>
         <View style={styles.recentMealsListClean}>
+          {recentMeals.length === 0 && (
+            <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <Text style={{ fontSize: 36 }}>🍽️</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 10 }}>No meals logged yet</Text>
+              <Text style={{ fontSize: 13, color: colors.subtext, marginTop: 4, textAlign: 'center' }}>
+                Tap "Log Meal" to add your first meal today
+              </Text>
+            </View>
+          )}
           {recentMeals.map((meal) => {
             return (
               <TouchableOpacity
@@ -239,8 +252,8 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
               style={styles.logMealCard}
               onPress={() => handleLogMethod('scan')}
             >
-              <View style={[styles.logMealCardIcon, { backgroundColor: '#ECFDF5' }]}>
-                <Ionicons name="camera-outline" size={26} color="#059669" />
+              <View style={[styles.logMealCardIcon, { backgroundColor: colors.accentLight }]}>
+                <Ionicons name="camera-outline" size={26} color={colors.accent} />
               </View>
               <Text style={styles.logMealCardTitle}>Scan</Text>
               <Text style={styles.logMealCardDesc}>Take a photo of your food</Text>
@@ -250,7 +263,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
               style={styles.logMealCard}
               onPress={() => handleLogMethod('say')}
             >
-              <View style={[styles.logMealCardIcon, { backgroundColor: '#EFF6FF' }]}>
+              <View style={[styles.logMealCardIcon, { backgroundColor: colors.cardAlt }]}>
                 <Ionicons name="mic-outline" size={26} color="#3B82F6" />
               </View>
               <Text style={styles.logMealCardTitle}>Say it</Text>
@@ -263,7 +276,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
               style={styles.logMealCard}
               onPress={() => handleLogMethod('write')}
             >
-              <View style={[styles.logMealCardIcon, { backgroundColor: '#FFF7ED' }]}>
+              <View style={[styles.logMealCardIcon, { backgroundColor: colors.cardAlt }]}>
                 <Ionicons name="create-outline" size={26} color="#F97316" />
               </View>
               <Text style={styles.logMealCardTitle}>Write it</Text>
@@ -274,7 +287,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
               style={styles.logMealCard}
               onPress={() => { setShowLogMealOptions(false); onMakeRecipe && onMakeRecipe(); }}
             >
-              <View style={[styles.logMealCardIcon, { backgroundColor: '#F5F3FF' }]}>
+              <View style={[styles.logMealCardIcon, { backgroundColor: colors.cardAlt }]}>
                 <Ionicons name="restaurant-outline" size={26} color="#8B5CF6" />
               </View>
               <Text style={styles.logMealCardTitle}>Make it</Text>
@@ -330,10 +343,10 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c) => StyleSheet.create({
   mealsContainerClean: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: c.bg,
   },
   mealsScrollContent: {
     flex: 1,
@@ -346,16 +359,16 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 12,
     paddingHorizontal: 20,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: c.bg,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.04)',
     ...(Platform.OS === 'web' ? { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10 } : {}),
   },
   mealsDateArrow: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#fff',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: c.card,
     borderWidth: 1,
     borderColor: 'rgba(5, 150, 105, 0.1)',
     alignItems: 'center',
@@ -372,11 +385,11 @@ const styles = StyleSheet.create({
   mealsDateText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
   },
   mealsDateFull: {
     fontSize: 12,
-    color: '#888',
+    color: c.textMuted,
     marginTop: 2,
   },
   cutlerySection: {
@@ -403,10 +416,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginTop: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 28,
     backgroundColor: '#059669',
-    borderRadius: 30,
+    borderRadius: 14,
     shadowColor: '#059669',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
@@ -441,7 +454,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: -120,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     zIndex: 9999,
     paddingHorizontal: 24,
     overflow: 'hidden',
@@ -453,12 +466,12 @@ const styles = StyleSheet.create({
   logMealPageTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#1F1F1F',
+    color: c.text,
     marginBottom: 4,
   },
   logMealPageSub: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: c.textMuted,
     marginBottom: 16,
   },
   streakBanner: {
@@ -506,7 +519,7 @@ const styles = StyleSheet.create({
   },
   logMealCard: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: c.bg,
     borderRadius: 16,
     padding: 18,
     paddingBottom: 20,
@@ -528,12 +541,12 @@ const styles = StyleSheet.create({
   logMealCardTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
     marginBottom: 4,
   },
   logMealCardDesc: {
     fontSize: 13,
-    color: '#9CA3AF',
+    color: c.textMuted,
     lineHeight: 18,
   },
   reviewsSection: {
@@ -549,7 +562,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   reviewCard: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: c.bg,
     borderRadius: 14,
     padding: 16,
   },
@@ -560,13 +573,13 @@ const styles = StyleSheet.create({
   },
   reviewText: {
     fontSize: 14,
-    color: '#374151',
+    color: c.text,
     lineHeight: 20,
     fontStyle: 'italic',
   },
   reviewName: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: c.textMuted,
     fontWeight: '600',
     marginTop: 8,
   },
@@ -607,7 +620,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   recentMealsSectionClean: {
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderRadius: 20,
     padding: 16,
     shadowColor: '#000',
@@ -619,7 +632,7 @@ const styles = StyleSheet.create({
   recentMealsTitleClean: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F1F1F',
+    color: c.text,
     marginBottom: 12,
   },
   recentMealsListClean: {
@@ -663,7 +676,7 @@ const styles = StyleSheet.create({
   recentMealNameClean: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1F1F1F',
+    color: c.text,
   },
   recentMealMetaRow: {
     flexDirection: 'row',
@@ -672,7 +685,7 @@ const styles = StyleSheet.create({
   },
   recentMealTimeClean: {
     fontSize: 10,
-    color: '#888',
+    color: c.textMuted,
   },
   recentMealMoreTag: {
     backgroundColor: '#ECFDF5',
@@ -701,7 +714,7 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   deleteModal: {
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderRadius: 20,
     padding: 28,
     width: '100%',
@@ -714,10 +727,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   deleteTitle: {
-    fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 8,
+    fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 8,
   },
   deleteSubtitle: {
-    fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 20, marginBottom: 24,
+    fontSize: 14, color: c.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 24,
   },
   deleteConfirmBtn: {
     width: '100%', backgroundColor: '#EF4444',
@@ -731,7 +744,7 @@ const styles = StyleSheet.create({
     borderRadius: 14, paddingVertical: 14, alignItems: 'center',
   },
   deleteCancelText: {
-    color: '#374151', fontSize: 15, fontWeight: '600',
+    color: c.text, fontSize: 15, fontWeight: '600',
   },
   recentMealCaloriesClean: {
     fontSize: 13,
@@ -772,17 +785,17 @@ const styles = StyleSheet.create({
   },
   macroDetailLabel: {
     fontSize: 11,
-    color: '#888',
+    color: c.textMuted,
     marginBottom: 2,
   },
   macroDetailValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
   },
   macroDetailPct: {
     fontSize: 11,
-    color: '#aaa',
+    color: c.textMuted,
     marginTop: 1,
   },
   macroItemsList: {
@@ -793,7 +806,7 @@ const styles = StyleSheet.create({
   },
   macroItemText: {
     fontSize: 12,
-    color: '#666',
+    color: c.textSecondary,
     paddingVertical: 2,
   },
 });

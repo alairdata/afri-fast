@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Modal, Dimensions, Image, Platform, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FastingQuizPage from './FastingQuizPage';
+import { useTheme } from '../lib/theme';
 
 const COUNTRIES = [
   'Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria',
@@ -31,9 +32,14 @@ const SettingsTab = ({
   userName, userEmail, userCountry, onSetCountry, profileImage, onEditProfile, onShowPlanPage, onShowFastingQuiz, onShowNutritionQuiz, selectedPlan,
   userIcon, userIconColor,
   notifyFastStart, onToggleNotifyFastStart,
+  fastStartReminderTime,
   notifyFastEnd, onToggleNotifyFastEnd,
+  fastEndReminderTime,
   notifyMealReminder, onToggleNotifyMealReminder,
+  mealReminderTime,
   notifyMilestones, onToggleNotifyMilestones,
+  milestoneConfig, onSetMilestoneConfig,
+  darkMode, onToggleDarkMode,
   onLogout,
   height, setHeight,
   heightUnit, setHeightUnit,
@@ -49,8 +55,8 @@ const SettingsTab = ({
   targetWeight, setTargetWeight,
   startingWeight, setStartingWeight,
 }) => {
+  const { isDark, colors } = useTheme();
   const [showMakeItYours, setShowMakeItYours] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [showFastingQuiz, setShowFastingQuiz] = useState(false);
   const [showNutritionQuiz, setShowNutritionQuiz] = useState(false);
   const [showMeasurementGuide, setShowMeasurementGuide] = useState(false);
@@ -58,6 +64,38 @@ const SettingsTab = ({
   const [showHydrationUnitDropdown, setShowHydrationUnitDropdown] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
+
+  // ─── Time Picker state ───
+  // timePicker: { visible, type ('fastStart'|'fastEnd'|'meal'), hour (1-12), minute (0-55), isPM, onConfirm }
+  const [timePicker, setTimePicker] = useState({ visible: false, type: '', hour: 8, minute: 0, isPM: false });
+  // ─── Milestone config state ───
+  const [showMilestoneConfig, setShowMilestoneConfig] = useState(false);
+  const [milestoneDraft, setMilestoneDraft] = useState(milestoneConfig || { streak: true, streakDays: 7, hydration: false, weight: false });
+
+  const fmt12 = (h24, m) => {
+    const isPM = h24 >= 12;
+    const h = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+    return `${h}:${String(m).padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
+  };
+
+  const openTimePicker = (type, currentTime) => {
+    const h24 = currentTime?.hour ?? (type === 'fastStart' ? 20 : type === 'fastEnd' ? 12 : 19);
+    const m = currentTime?.minute ?? 0;
+    const isPM = h24 >= 12;
+    const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+    setTimePicker({ visible: true, type, hour: h12, minute: m, isPM });
+  };
+
+  const confirmTimePicker = () => {
+    const h24 = timePicker.isPM
+      ? (timePicker.hour === 12 ? 12 : timePicker.hour + 12)
+      : (timePicker.hour === 12 ? 0 : timePicker.hour);
+    const time = { hour: h24, minute: timePicker.minute };
+    if (timePicker.type === 'fastStart') onToggleNotifyFastStart?.(true, time);
+    else if (timePicker.type === 'fastEnd') onToggleNotifyFastEnd?.(true, time);
+    else if (timePicker.type === 'meal') onToggleNotifyMealReminder?.(true, time);
+    setTimePicker(p => ({ ...p, visible: false }));
+  };
   const macrosEditable = macroStyle === 'custom';
   const macroStyleNote = macroStyle === 'balanced'
     ? 'Balanced keeps your macros evenly distributed for a steady, everyday nutrition target.'
@@ -199,15 +237,15 @@ const SettingsTab = ({
   );
 
   return (
-    <View style={styles.settingsContainer}>
+    <View style={[styles.settingsContainer, { backgroundColor: colors.bg }]}>
       {/* Sticky Profile Section */}
-      <View style={styles.settingsProfileCard}>
+      <View style={[styles.settingsProfileCard, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={[styles.settingsProfileAvatar, userIconColor ? { backgroundColor: userIconColor } : {}]}>
           <Text style={styles.settingsProfileInitial}>{userIcon || userName.charAt(0)}</Text>
         </View>
         <View style={styles.settingsProfileInfo}>
-          <Text style={styles.settingsProfileName}>{userName}</Text>
-          <Text style={styles.settingsProfileEmail}>{userEmail}</Text>
+          <Text style={[styles.settingsProfileName, { color: colors.text }]}>{userName}</Text>
+          <Text style={[styles.settingsProfileEmail, { color: colors.textSecondary }]}>{userEmail}</Text>
           <TouchableOpacity onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}>
             <Text style={[styles.settingsProfileCountry, !userCountry && { color: '#9CA3AF' }]}>
               {userCountry || 'Select your country'}
@@ -221,27 +259,27 @@ const SettingsTab = ({
 
       {/* Make it Yours — full page overlay */}
       {showMakeItYours && (
-        <View style={styles.makeItYoursPage}>
-          <View style={styles.makeItYoursHeader}>
+        <View style={[styles.makeItYoursPage, { backgroundColor: colors.bg }]}>
+          <View style={[styles.makeItYoursHeader, { backgroundColor: colors.bg, borderBottomColor: colors.border }]}>
             <TouchableOpacity onPress={() => setShowMakeItYours(false)}>
-              <Ionicons name="chevron-back" size={24} color="#1F1F1F" />
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={styles.makeItYoursHeaderTitle}>Make it Yours</Text>
+            <Text style={[styles.makeItYoursHeaderTitle, { color: colors.text }]}>Make it Yours</Text>
           </View>
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
 
             {/* Fasting Preferences */}
-            <View style={styles.settingsSection}>
+            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.settingsSectionTitleRow}>
-                <Text style={[styles.settingsSectionTitle, { marginBottom: 0 }]}>Fasting Preferences</Text>
+                <Text style={[styles.settingsSectionTitle, { marginBottom: 0, color: colors.textSecondary }]}>Fasting Preferences</Text>
                 <TouchableOpacity onPress={onShowFastingQuiz}>
                   <Text style={styles.takeQuizBtn}>Take a Quiz</Text>
                 </TouchableOpacity>
               </View>
               <TouchableOpacity style={styles.settingsItem} onPress={onShowPlanPage}>
                 <View style={styles.settingsItemLeft}>
-                  <Text style={styles.settingsItemLabel}>Fasting Schedule</Text>
-                  <Text style={styles.settingsItemDesc}>Your default fasting window</Text>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Fasting Schedule</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Your default fasting window</Text>
                 </View>
                 <View style={styles.settingsSelectRow}>
                   <Text style={styles.settingsSelectText}>{selectedPlan || '--'}</Text>
@@ -250,24 +288,32 @@ const SettingsTab = ({
               </TouchableOpacity>
               <View style={styles.settingsItem}>
                 <View style={styles.settingsItemLeft}>
-                  <Text style={styles.settingsItemLabel}>Fasting Reminders</Text>
-                  <Text style={styles.settingsItemDesc}>Get reminded to start/end fast</Text>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Fasting Reminders</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Get reminded to start/end fast</Text>
                 </View>
-                {renderToggle(notifyFastStart && notifyFastEnd, () => { onToggleNotifyFastStart?.(!(notifyFastStart && notifyFastEnd)); onToggleNotifyFastEnd?.(!(notifyFastStart && notifyFastEnd)); })}
+                {renderToggle(notifyFastStart && notifyFastEnd, () => {
+                  const turnOn = !(notifyFastStart && notifyFastEnd);
+                  if (turnOn) {
+                    openTimePicker('fastStart', fastStartReminderTime);
+                  } else {
+                    onToggleNotifyFastStart?.(false);
+                    onToggleNotifyFastEnd?.(false);
+                  }
+                })}
               </View>
             </View>
 
             {/* Nutrition Goals */}
-            <View style={styles.settingsSection}>
+            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.settingsSectionTitleRow}>
-                <Text style={[styles.settingsSectionTitle, { marginBottom: 0 }]}>Nutrition Goals</Text>
+                <Text style={[styles.settingsSectionTitle, { marginBottom: 0, color: colors.textSecondary }]}>Nutrition Goals</Text>
                 <TouchableOpacity onPress={onShowNutritionQuiz}>
                   <Text style={styles.takeQuizBtn}>Take a Quiz</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.settingsItem}>
                 <View style={styles.settingsItemLeft}>
-                  <Text style={styles.settingsItemLabel}>Starting Weight</Text>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Starting Weight</Text>
                 </View>
                 <View style={styles.settingsInputWrapper}>
                   <TextInput
@@ -286,7 +332,7 @@ const SettingsTab = ({
               </View>
               <View style={styles.settingsItem}>
                 <View style={styles.settingsItemLeft}>
-                  <Text style={styles.settingsItemLabel}>Target Weight</Text>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Target Weight</Text>
                 </View>
                 <View style={styles.settingsInputWrapper}>
                   <TextInput
@@ -305,7 +351,7 @@ const SettingsTab = ({
               </View>
               <View style={styles.settingsItem}>
                 <View style={styles.settingsItemLeft}>
-                  <Text style={styles.settingsItemLabel}>Daily Calories</Text>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Daily Calories</Text>
                 </View>
                 <View style={styles.settingsInputWrapper}>
                   <TextInput
@@ -319,8 +365,8 @@ const SettingsTab = ({
               </View>
               <View style={styles.settingsItemBlock}>
                 <View style={styles.settingsItemLeft}>
-                  <Text style={styles.settingsItemLabel}>Macro Style</Text>
-                  <Text style={styles.settingsItemDesc}>How calories are split across protein, carbs, and fats</Text>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Macro Style</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>How calories are split across protein, carbs, and fats</Text>
                 </View>
                 <View style={styles.settingsMacroStyleControl}>
                   {['balanced', 'highProtein', 'lowCarb', 'custom'].map((ms) => (
@@ -356,7 +402,7 @@ const SettingsTab = ({
               <Text style={styles.settingsHelperText}>{macroStyleNote}</Text>
               <View style={styles.settingsItem}>
                 <View style={styles.settingsItemLeft}>
-                  <Text style={styles.settingsItemLabel}>Daily Hydration</Text>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Daily Hydration</Text>
                 </View>
                 <View style={styles.settingsInputWrapper}>
                   <TextInput
@@ -392,16 +438,16 @@ const SettingsTab = ({
             </View>
 
             {/* Log Settings */}
-            <View style={styles.settingsSection}>
+            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.settingsSectionTitleRow}>
-                <Text style={[styles.settingsSectionTitle, { marginBottom: 0 }]}>Log Settings</Text>
+                <Text style={[styles.settingsSectionTitle, { marginBottom: 0, color: colors.textSecondary }]}>Log Settings</Text>
                 <TouchableOpacity onPress={() => setShowMeasurementGuide(true)}>
                   <Text style={styles.takeQuizBtn}>Visual Guide</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.settingsItem}>
                 <View style={styles.settingsItemLeft}>
-                  <Text style={styles.settingsItemLabel}>Height</Text>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Height</Text>
                 </View>
                 <View style={styles.settingsInputWrapper}>
                   <TextInput
@@ -422,7 +468,7 @@ const SettingsTab = ({
               </View>
               <View style={styles.settingsItem}>
                 <View style={styles.settingsItemLeft}>
-                  <Text style={styles.settingsItemLabel}>Weight Unit</Text>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Weight Unit</Text>
                 </View>
                 <View style={styles.settingsSegmentedControl}>
                   {['kg', 'lbs'].map((u) => (
@@ -434,7 +480,7 @@ const SettingsTab = ({
               </View>
               <View style={styles.settingsItem}>
                 <View style={styles.settingsItemLeft}>
-                  <Text style={styles.settingsItemLabel}>Volume Unit</Text>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Volume Unit</Text>
                 </View>
                 <View style={styles.settingsSegmentedControl}>
                   {['oz', 'mL', 'sachet', 'bottle'].map((u) => (
@@ -446,7 +492,7 @@ const SettingsTab = ({
               </View>
               <View style={styles.settingsItem}>
                 <View style={styles.settingsItemLeft}>
-                  <Text style={styles.settingsItemLabel}>Food Measurement</Text>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Food Measurement</Text>
                 </View>
                 <View style={styles.settingsSegmentedControl}>
                   {['cups', 'tbsp', 'tsp'].map((u) => (
@@ -462,71 +508,103 @@ const SettingsTab = ({
         </View>
       )}
 
-      <ScrollView style={styles.settingsScrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.settingsScrollContent, { backgroundColor: colors.bg }]} showsVerticalScrollIndicator={false}>
       {/* Make it Yours entry row */}
-      <View style={styles.settingsSection}>
+      <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowMakeItYours(true)}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="options-outline" size={18} color="#374151" />
-            <Text style={styles.settingsActionLabel}>Make it Yours</Text>
+            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Make it Yours</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
       </View>
 
       {/* Notifications */}
-      <View style={styles.settingsSection}>
-        <Text style={styles.settingsSectionTitle}>Notifications</Text>
+      <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Notifications</Text>
 
         <View style={styles.settingsItem}>
           <View style={styles.settingsItemLeft}>
-            <Text style={styles.settingsItemLabel}>Fast Start Reminder</Text>
+            <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Fast Start Reminder</Text>
+            {notifyFastStart && fastStartReminderTime && (
+              <TouchableOpacity onPress={() => openTimePicker('fastStart', fastStartReminderTime)}>
+                <Text style={styles.settingsItemSub}>{fmt12(fastStartReminderTime.hour, fastStartReminderTime.minute)} · tap to change</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          {renderToggle(notifyFastStart, () => onToggleNotifyFastStart?.(!notifyFastStart))}
+          {renderToggle(notifyFastStart, () => {
+            if (!notifyFastStart) openTimePicker('fastStart', fastStartReminderTime);
+            else onToggleNotifyFastStart?.(false);
+          })}
         </View>
 
         <View style={styles.settingsItem}>
           <View style={styles.settingsItemLeft}>
-            <Text style={styles.settingsItemLabel}>Fast End Reminder</Text>
+            <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Break-Fast Reminder</Text>
+            {notifyFastEnd && fastEndReminderTime && (
+              <TouchableOpacity onPress={() => openTimePicker('fastEnd', fastEndReminderTime)}>
+                <Text style={styles.settingsItemSub}>{fmt12(fastEndReminderTime.hour, fastEndReminderTime.minute)} · tap to change</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          {renderToggle(notifyFastEnd, () => onToggleNotifyFastEnd?.(!notifyFastEnd))}
+          {renderToggle(notifyFastEnd, () => {
+            if (!notifyFastEnd) openTimePicker('fastEnd', fastEndReminderTime);
+            else onToggleNotifyFastEnd?.(false);
+          })}
         </View>
 
         <View style={styles.settingsItem}>
           <View style={styles.settingsItemLeft}>
-            <Text style={styles.settingsItemLabel}>Meal Logging Reminder</Text>
+            <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Meal Logging Reminder</Text>
+            {notifyMealReminder && mealReminderTime && (
+              <TouchableOpacity onPress={() => openTimePicker('meal', mealReminderTime)}>
+                <Text style={styles.settingsItemSub}>{fmt12(mealReminderTime.hour, mealReminderTime.minute)} · tap to change</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          {renderToggle(notifyMealReminder, () => onToggleNotifyMealReminder?.(!notifyMealReminder))}
+          {renderToggle(notifyMealReminder, () => {
+            if (!notifyMealReminder) openTimePicker('meal', mealReminderTime);
+            else onToggleNotifyMealReminder?.(false);
+          })}
         </View>
 
         <View style={styles.settingsItem}>
           <View style={styles.settingsItemLeft}>
-            <Text style={styles.settingsItemLabel}>Progress Milestones</Text>
+            <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Progress Milestones</Text>
+            {notifyMilestones && (
+              <TouchableOpacity onPress={() => { setMilestoneDraft(milestoneConfig || { streak: true, streakDays: 7, hydration: false, weight: false }); setShowMilestoneConfig(true); }}>
+                <Text style={styles.settingsItemSub}>Tap to configure</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          {renderToggle(notifyMilestones, () => onToggleNotifyMilestones?.(!notifyMilestones))}
+          {renderToggle(notifyMilestones, () => {
+            if (!notifyMilestones) { setMilestoneDraft(milestoneConfig || { streak: true, streakDays: 7, hydration: false, weight: false }); setShowMilestoneConfig(true); }
+            else onToggleNotifyMilestones?.(false);
+          })}
         </View>
       </View>
 
       {/* App Settings */}
-      <View style={styles.settingsSection}>
-        <Text style={styles.settingsSectionTitle}>App Settings</Text>
+      <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>App Settings</Text>
 
         <View style={styles.settingsItem}>
           <View style={styles.settingsItemLeft}>
-            <Text style={styles.settingsItemLabel}>Dark Mode</Text>
+            <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Dark Mode</Text>
           </View>
-          {renderToggle(darkMode, () => setDarkMode(!darkMode))}
+          {renderToggle(darkMode, () => onToggleDarkMode?.(!darkMode))}
         </View>
       </View>
 
       {/* Data & Privacy */}
-      <View style={styles.settingsSection}>
-        <Text style={styles.settingsSectionTitle}>Data & Privacy</Text>
+      <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Data & Privacy</Text>
 
         <TouchableOpacity style={styles.settingsActionItem}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="download-outline" size={18} color="#374151" />
-            <Text style={styles.settingsActionLabel}>Export My Data</Text>
+            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Export My Data</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
@@ -534,7 +612,7 @@ const SettingsTab = ({
         <TouchableOpacity style={styles.settingsActionItem}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="trash-outline" size={18} color="#374151" />
-            <Text style={styles.settingsActionLabel}>Clear History</Text>
+            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Clear History</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
@@ -542,20 +620,20 @@ const SettingsTab = ({
         <TouchableOpacity style={styles.settingsActionItem}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="shield-checkmark-outline" size={18} color="#374151" />
-            <Text style={styles.settingsActionLabel}>Privacy Settings</Text>
+            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Privacy Settings</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
       </View>
 
       {/* Support */}
-      <View style={styles.settingsSection}>
-        <Text style={styles.settingsSectionTitle}>Support</Text>
+      <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Support</Text>
 
         <TouchableOpacity style={styles.settingsActionItem}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="help-circle-outline" size={18} color="#374151" />
-            <Text style={styles.settingsActionLabel}>Help & FAQ</Text>
+            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Help & FAQ</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
@@ -563,7 +641,7 @@ const SettingsTab = ({
         <TouchableOpacity style={styles.settingsActionItem}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="mail-outline" size={18} color="#374151" />
-            <Text style={styles.settingsActionLabel}>Contact Support</Text>
+            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Contact Support</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
@@ -571,7 +649,7 @@ const SettingsTab = ({
         <TouchableOpacity style={styles.settingsActionItem}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="star-outline" size={18} color="#374151" />
-            <Text style={styles.settingsActionLabel}>Rate the App</Text>
+            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Rate the App</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
@@ -884,6 +962,152 @@ const SettingsTab = ({
             )}
             ItemSeparatorComponent={() => <View style={styles.countryDivider} />}
           />
+        </View>
+      </Modal>
+
+      {/* ─── Time Picker Modal ─── */}
+      <Modal visible={timePicker.visible} animationType="fade" transparent onRequestClose={() => setTimePicker(p => ({ ...p, visible: false }))}>
+        <View style={styles.tpOverlay}>
+          <View style={styles.tpCard}>
+            <Text style={styles.tpTitle}>
+              {timePicker.type === 'fastStart' ? 'Fast Start Reminder' : timePicker.type === 'fastEnd' ? 'Break-Fast Reminder' : 'Meal Logging Reminder'}
+            </Text>
+            <Text style={styles.tpSubtitle}>
+              {timePicker.type === 'fastStart' ? 'What time should we remind you to start fasting?' : timePicker.type === 'fastEnd' ? 'What time should we remind you to break your fast?' : 'What time should we remind you to log your meals?'}
+            </Text>
+
+            <View style={styles.tpDisplay}>
+              {/* Hour */}
+              <View style={styles.tpColumn}>
+                <TouchableOpacity style={styles.tpBtn} onPress={() => setTimePicker(p => ({ ...p, hour: p.hour === 12 ? 1 : p.hour + 1 }))}>
+                  <Ionicons name="chevron-up" size={22} color="#1F1F1F" />
+                </TouchableOpacity>
+                <Text style={styles.tpNumber}>{String(timePicker.hour).padStart(2, '0')}</Text>
+                <TouchableOpacity style={styles.tpBtn} onPress={() => setTimePicker(p => ({ ...p, hour: p.hour === 1 ? 12 : p.hour - 1 }))}>
+                  <Ionicons name="chevron-down" size={22} color="#1F1F1F" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.tpColon}>:</Text>
+
+              {/* Minute */}
+              <View style={styles.tpColumn}>
+                <TouchableOpacity style={styles.tpBtn} onPress={() => setTimePicker(p => ({ ...p, minute: p.minute === 55 ? 0 : p.minute + 5 }))}>
+                  <Ionicons name="chevron-up" size={22} color="#1F1F1F" />
+                </TouchableOpacity>
+                <Text style={styles.tpNumber}>{String(timePicker.minute).padStart(2, '0')}</Text>
+                <TouchableOpacity style={styles.tpBtn} onPress={() => setTimePicker(p => ({ ...p, minute: p.minute === 0 ? 55 : p.minute - 5 }))}>
+                  <Ionicons name="chevron-down" size={22} color="#1F1F1F" />
+                </TouchableOpacity>
+              </View>
+
+              {/* AM / PM */}
+              <View style={styles.tpAmPmCol}>
+                <TouchableOpacity
+                  style={[styles.tpAmPmBtn, !timePicker.isPM && styles.tpAmPmActive]}
+                  onPress={() => setTimePicker(p => ({ ...p, isPM: false }))}
+                >
+                  <Text style={[styles.tpAmPmText, !timePicker.isPM && styles.tpAmPmTextActive]}>AM</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tpAmPmBtn, timePicker.isPM && styles.tpAmPmActive]}
+                  onPress={() => setTimePicker(p => ({ ...p, isPM: true }))}
+                >
+                  <Text style={[styles.tpAmPmText, timePicker.isPM && styles.tpAmPmTextActive]}>PM</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.tpActions}>
+              <TouchableOpacity style={styles.tpCancelBtn} onPress={() => setTimePicker(p => ({ ...p, visible: false }))}>
+                <Text style={styles.tpCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.tpSaveBtn} onPress={confirmTimePicker}>
+                <Text style={styles.tpSaveText}>Set Reminder</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Milestone Config Modal ─── */}
+      <Modal visible={showMilestoneConfig} animationType="slide" transparent onRequestClose={() => setShowMilestoneConfig(false)}>
+        <View style={styles.msOverlay}>
+          <View style={styles.msCard}>
+            <Text style={styles.msTitle}>What counts as progress?</Text>
+            <Text style={styles.msSubtitle}>Choose what you want to celebrate. We'll notify you when you hit it.</Text>
+
+            {/* Streak */}
+            <TouchableOpacity style={[styles.msOption, milestoneDraft.streak && styles.msOptionActive]} onPress={() => setMilestoneDraft(d => ({ ...d, streak: !d.streak }))}>
+              <View style={styles.msOptionHeader}>
+                <Text style={styles.msOptionIcon}>🔥</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.msOptionTitle}>Fasting Streak</Text>
+                  <Text style={styles.msOptionDesc}>Complete your fasting plan every day for a streak.</Text>
+                </View>
+                <View style={[styles.msCheckBox, milestoneDraft.streak && styles.msCheckBoxActive]}>
+                  {milestoneDraft.streak && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </View>
+              </View>
+              {milestoneDraft.streak && (
+                <View style={styles.msStreakRow}>
+                  <TouchableOpacity
+                    style={[styles.msStreakChip, milestoneDraft.streakDays === 7 && styles.msStreakChipActive]}
+                    onPress={() => setMilestoneDraft(d => ({ ...d, streakDays: 7 }))}
+                  >
+                    <Text style={[styles.msStreakChipText, milestoneDraft.streakDays === 7 && styles.msStreakChipTextActive]}>7 days</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.msStreakChip, milestoneDraft.streakDays === 30 && styles.msStreakChipActive]}
+                    onPress={() => setMilestoneDraft(d => ({ ...d, streakDays: 30 }))}
+                  >
+                    <Text style={[styles.msStreakChipText, milestoneDraft.streakDays === 30 && styles.msStreakChipTextActive]}>30 days</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Hydration */}
+            <TouchableOpacity style={[styles.msOption, milestoneDraft.hydration && styles.msOptionActive]} onPress={() => setMilestoneDraft(d => ({ ...d, hydration: !d.hydration }))}>
+              <View style={styles.msOptionHeader}>
+                <Text style={styles.msOptionIcon}>💧</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.msOptionTitle}>Hydration Consistency</Text>
+                  <Text style={styles.msOptionDesc}>Hit your daily water goal 7 days in a row.</Text>
+                </View>
+                <View style={[styles.msCheckBox, milestoneDraft.hydration && styles.msCheckBoxActive]}>
+                  {milestoneDraft.hydration && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            {/* Weight */}
+            <TouchableOpacity style={[styles.msOption, milestoneDraft.weight && styles.msOptionActive]} onPress={() => setMilestoneDraft(d => ({ ...d, weight: !d.weight }))}>
+              <View style={styles.msOptionHeader}>
+                <Text style={styles.msOptionIcon}>⚖️</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.msOptionTitle}>Weight Drop</Text>
+                  <Text style={styles.msOptionDesc}>Drop 5kg from your starting weight — we'll celebrate you!</Text>
+                </View>
+                <View style={[styles.msCheckBox, milestoneDraft.weight && styles.msCheckBoxActive]}>
+                  {milestoneDraft.weight && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.tpActions}>
+              <TouchableOpacity style={styles.tpCancelBtn} onPress={() => setShowMilestoneConfig(false)}>
+                <Text style={styles.tpCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.tpSaveBtn} onPress={() => {
+                onSetMilestoneConfig?.(milestoneDraft);
+                onToggleNotifyMilestones?.(true);
+                setShowMilestoneConfig(false);
+              }}>
+                <Text style={styles.tpSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </View>
@@ -1868,6 +2092,215 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(0,0,0,0.04)',
     marginHorizontal: 20,
+  },
+  settingsItemSub: {
+    fontSize: 12,
+    color: '#059669',
+    marginTop: 2,
+  },
+
+  // ─── Time Picker ───
+  tpOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  tpCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+  },
+  tpTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F1F1F',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  tpSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 28,
+    lineHeight: 18,
+  },
+  tpDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 28,
+  },
+  tpColumn: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  tpBtn: {
+    padding: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+  },
+  tpNumber: {
+    fontSize: 40,
+    fontWeight: '700',
+    color: '#1F1F1F',
+    width: 64,
+    textAlign: 'center',
+  },
+  tpColon: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#1F1F1F',
+    marginTop: -8,
+  },
+  tpAmPmCol: {
+    gap: 8,
+    marginLeft: 4,
+  },
+  tpAmPmBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+  },
+  tpAmPmActive: {
+    backgroundColor: '#059669',
+  },
+  tpAmPmText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  tpAmPmTextActive: {
+    color: '#fff',
+  },
+  tpActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  tpCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  tpCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  tpSaveBtn: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+  },
+  tpSaveText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+
+  // ─── Milestone Config ───
+  msOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  msCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 36,
+  },
+  msTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F1F1F',
+    marginBottom: 6,
+  },
+  msSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 20,
+    lineHeight: 18,
+  },
+  msOption: {
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+  },
+  msOptionActive: {
+    borderColor: '#059669',
+    backgroundColor: '#ECFDF5',
+  },
+  msOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  msOptionIcon: {
+    fontSize: 24,
+    marginTop: 2,
+  },
+  msOptionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1F1F1F',
+    marginBottom: 2,
+  },
+  msOptionDesc: {
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 18,
+  },
+  msCheckBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  msCheckBoxActive: {
+    backgroundColor: '#059669',
+    borderColor: '#059669',
+  },
+  msStreakRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+    marginLeft: 36,
+  },
+  msStreakChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#fff',
+  },
+  msStreakChipActive: {
+    borderColor: '#059669',
+    backgroundColor: '#059669',
+  },
+  msStreakChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  msStreakChipTextActive: {
+    color: '#fff',
   },
 });
 

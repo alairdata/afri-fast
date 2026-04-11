@@ -3,6 +3,7 @@ import { SafeAreaView, StatusBar, View, ActivityIndicator, Text, TextInput, Plat
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './src/lib/supabase';
 import AuthScreen from './src/components/AuthScreen';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import FastingApp from './src/FastingApp';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -68,7 +69,11 @@ export default function App() {
       } else {
         setSession(session);
       }
-      setPreAuthData(storedPreAuth ? JSON.parse(storedPreAuth) : null);
+      try {
+        setPreAuthData(storedPreAuth ? JSON.parse(storedPreAuth) : null);
+      } catch {
+        setPreAuthData(null);
+      }
       setLoading(false);
     });
 
@@ -107,7 +112,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <ErrorBoundary>
       <StatusBar barStyle="dark-content" backgroundColor="#FAFBFF" />
       <SafeAreaView style={{ flex: 1 }}>
         <FastingApp
@@ -119,6 +124,6 @@ export default function App() {
           }}
         />
       </SafeAreaView>
-    </>
+    </ErrorBoundary>
   );
 }

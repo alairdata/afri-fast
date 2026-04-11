@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
-const EditProfileModal = ({ show, onClose, userName, userEmail, setUserName, setUserEmail, userCountry, setUserCountry, profileImage, setProfileImage }) => {
+const EditProfileModal = ({ show, onClose, onSave, userName, userEmail, setUserName, setUserEmail, userCountry, setUserCountry, profileImage, setProfileImage }) => {
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -21,6 +21,7 @@ const EditProfileModal = ({ show, onClose, userName, userEmail, setUserName, set
 
   return (
     <View style={styles.editProfileOverlay}>
+      <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
       <View style={styles.editProfileCard}>
         <View style={styles.editProfileHeader}>
           <Text style={styles.editProfileTitle}>Edit Profile</Text>
@@ -45,7 +46,7 @@ const EditProfileModal = ({ show, onClose, userName, userEmail, setUserName, set
           <TextInput style={styles.editProfileInput} value={userName} onChangeText={setUserName} />
         </View>
 
-        <TouchableOpacity style={styles.editProfileSaveBtn} onPress={onClose}>
+        <TouchableOpacity style={styles.editProfileSaveBtn} onPress={() => { onSave?.(); onClose(); }}>
           <Text style={styles.editProfileSaveBtnText}>Save</Text>
         </TouchableOpacity>
       </View>

@@ -31,7 +31,8 @@
       "shortName": "Afri Fast"
     },
     "plugins": [
-      "expo-audio"
+      "expo-audio",
+      "expo-notifications"
     ]
   }
 }

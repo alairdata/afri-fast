@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Vibration } from 'react-native';
+import { useTheme } from '../lib/theme';
 
 const ALL_TABS = [
   { id: 'today', label: 'Today', icon: 'home-outline', iconActive: 'home' },
@@ -11,24 +12,35 @@ const ALL_TABS = [
 ];
 
 const BottomTabBar = ({ activeTab, onTabChange, whispersUnlocked = false }) => {
+  const { colors } = useTheme();
   const tabs = ALL_TABS.filter(t => t.id !== 'whispers' || whispersUnlocked);
 
   return (
-    <View style={styles.tabBar}>
+    <View style={[styles.tabBar, { backgroundColor: colors.tabBar, borderTopColor: colors.tabBarBorder }]}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         return (
           <TouchableOpacity
             key={tab.id}
             style={styles.tab}
-            onPress={() => onTabChange(tab.id)}
+            onPress={() => {
+              if (Platform.OS === 'web') {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(6);
+              } else {
+                Vibration.vibrate(10);
+              }
+              onTabChange(tab.id);
+            }}
+            accessibilityLabel={tab.label}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
           >
             <Ionicons
               name={isActive ? tab.iconActive : tab.icon}
               size={22}
-              color={isActive ? '#059669' : '#9CA3AF'}
+              color={isActive ? colors.accent : colors.textMuted}
             />
-            <Text style={isActive ? styles.tabLabel : styles.tabLabelInactive}>{tab.label}</Text>
+            <Text style={[isActive ? styles.tabLabel : styles.tabLabelInactive, { color: isActive ? colors.accent : colors.textMuted }]}>{tab.label}</Text>
           </TouchableOpacity>
         );
       })}
@@ -47,9 +59,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 24,
     paddingHorizontal: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.97)',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.06)',
     zIndex: 20,
   },
   tab: {
@@ -62,12 +72,10 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#059669',
   },
   tabLabelInactive: {
     fontSize: 10,
     fontWeight: '500',
-    color: '#9CA3AF',
   },
 });
 

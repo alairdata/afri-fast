@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef } from 'react';
+import { useTheme } from '../lib/theme';
 import {
   View,
   Text,
@@ -334,6 +335,9 @@ const SAMPLE_POSTS = [
 ];
 
 export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPosts: externalSetPosts, userName = 'You', profileImage = null, userId = '' }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+
   const [localPosts, setLocalPosts] = useState(SAMPLE_POSTS);
   const posts = externalPosts && externalPosts.length > 0 ? externalPosts : localPosts;
   const setPosts = externalSetPosts || setLocalPosts;
@@ -953,10 +957,10 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFBFF',
+    backgroundColor: c.appBg,
   },
 
   // Header
@@ -966,7 +970,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 10,
-    backgroundColor: '#FAFBFF',
+    backgroundColor: c.appBg,
     ...(Platform.OS === 'web' ? { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10 } : {}),
   },
   headerAvatar: {
@@ -982,7 +986,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: c.cardAlt,
     borderRadius: 20,
     paddingHorizontal: 14,
     height: 38,
@@ -990,7 +994,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#374151',
+    color: c.text,
     paddingVertical: 0,
   },
   bellBtn: {
@@ -1002,7 +1006,7 @@ const styles = StyleSheet.create({
   filterContainer: {
     paddingTop: 4,
     paddingBottom: 8,
-    backgroundColor: '#FAFBFF',
+    backgroundColor: c.appBg,
     ...(Platform.OS === 'web' ? { position: 'fixed', top: 84, left: 0, right: 0, zIndex: 9 } : {}),
   },
   filterScroll: {
@@ -1013,7 +1017,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: c.cardAlt,
     marginRight: 8,
   },
   filterPillActive: {
@@ -1022,7 +1026,7 @@ const styles = StyleSheet.create({
   filterText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6b7280',
+    color: c.textSecondary,
   },
   filterTextActive: {
     color: '#fff',
@@ -1036,12 +1040,12 @@ const styles = StyleSheet.create({
   emptyFilterTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: c.text,
     marginTop: 12,
   },
   emptyFilterSub: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: c.textMuted,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -1057,7 +1061,7 @@ const styles = StyleSheet.create({
 
   // Post card
   postCard: {
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -1107,14 +1111,14 @@ const styles = StyleSheet.create({
   postName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: c.text,
   },
   postMenuDropdown: {
     position: 'absolute',
     top: 36,
     right: 0,
     width: 140,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.06)',
@@ -1138,11 +1142,11 @@ const styles = StyleSheet.create({
   postMenuItemText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#374151',
+    color: c.text,
   },
   postTimestamp: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: c.textMuted,
     marginRight: 6,
   },
   postMenuBtn: {
@@ -1186,7 +1190,7 @@ const styles = StyleSheet.create({
   },
   followDot: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: c.textMuted,
     fontWeight: '700',
   },
   followLink: {
@@ -1197,7 +1201,7 @@ const styles = StyleSheet.create({
   followingLink: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#9ca3af',
+    color: c.textMuted,
   },
   pollContainer: {
     marginBottom: 4,
@@ -1205,7 +1209,7 @@ const styles = StyleSheet.create({
   pollQuestion: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#111827',
+    color: c.text,
     lineHeight: 24,
     marginBottom: 14,
   },
@@ -1235,13 +1239,13 @@ const styles = StyleSheet.create({
   },
   pollOptionLabel: {
     fontSize: 14,
-    color: '#374151',
+    color: c.text,
     fontWeight: '500',
     zIndex: 1,
   },
   pollOptionPercent: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: c.textMuted,
     fontWeight: '500',
     zIndex: 1,
   },
@@ -1269,7 +1273,7 @@ const styles = StyleSheet.create({
   },
   topCommentBubble: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: c.cardAlt,
     borderRadius: 16,
     borderTopLeftRadius: 4,
     paddingHorizontal: 14,
@@ -1277,7 +1281,7 @@ const styles = StyleSheet.create({
   },
   topCommentText: {
     fontSize: 14,
-    color: '#374151',
+    color: c.text,
     lineHeight: 20,
   },
   viewAllCommentsBtn: {
@@ -1292,7 +1296,7 @@ const styles = StyleSheet.create({
   postText: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#1f2937',
+    color: c.text,
     marginBottom: 10,
   },
   categoryChipRow: {
@@ -1300,14 +1304,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   categoryChip: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: c.cardAlt,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
   },
   categoryChipText: {
     fontSize: 12,
-    color: '#6b7280',
+    color: c.textSecondary,
     fontWeight: '500',
   },
   postActions: {
@@ -1324,7 +1328,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: c.textMuted,
     marginLeft: 5,
     fontWeight: '500',
   },
@@ -1343,7 +1347,7 @@ const styles = StyleSheet.create({
   categoriesTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1f2937',
+    color: c.text,
   },
   seeAllLink: {
     fontSize: 14,
@@ -1401,7 +1405,7 @@ const styles = StyleSheet.create({
   // New post page
   newPostPage: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
   },
   newPostHeader: {
     flexDirection: 'row',
@@ -1487,12 +1491,12 @@ const styles = StyleSheet.create({
   },
   newPostCategoryDefaultText: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: c.textMuted,
     fontWeight: '500',
   },
   newPostInput: {
     fontSize: 17,
-    color: '#1F1F1F',
+    color: c.text,
     lineHeight: 24,
     minHeight: 120,
     textAlignVertical: 'top',
@@ -1502,7 +1506,7 @@ const styles = StyleSheet.create({
     top: 36,
     left: 52,
     width: 170,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.06)',
@@ -1525,7 +1529,7 @@ const styles = StyleSheet.create({
   },
   newPostDropdownText: {
     fontSize: 13,
-    color: '#374151',
+    color: c.text,
   },
   categoryDot: {
     width: 10,
@@ -1536,7 +1540,7 @@ const styles = StyleSheet.create({
   // Comment page
   commentPageContainer: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
   },
   commentPageHeader: {
     flexDirection: 'row',
@@ -1573,11 +1577,11 @@ const styles = StyleSheet.create({
   },
   commentOriginalTimestamp: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: c.textMuted,
   },
   commentOriginalText: {
     fontSize: 16,
-    color: '#1F1F1F',
+    color: c.text,
     lineHeight: 23,
     marginBottom: 10,
   },
@@ -1604,13 +1608,13 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.1)',
   },
   commentFilterPillActive: {
-    backgroundColor: '#1F1F1F',
+    backgroundColor: c.cardAlt,
     borderColor: '#1F1F1F',
   },
   commentFilterText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#374151',
+    color: c.text,
   },
   commentFilterTextActive: {
     color: '#fff',
@@ -1623,7 +1627,7 @@ const styles = StyleSheet.create({
   },
   commentDisclaimerText: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: c.textMuted,
   },
   commentsList: {
     flex: 1,
@@ -1666,15 +1670,15 @@ const styles = StyleSheet.create({
   commentName: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#374151',
+    color: c.text,
   },
   commentTime: {
     fontSize: 11,
-    color: '#9ca3af',
+    color: c.textMuted,
   },
   commentBody: {
     fontSize: 14,
-    color: '#4B5563',
+    color: c.textSecondary,
     lineHeight: 20,
   },
   commentActionsRow: {
@@ -1689,7 +1693,7 @@ const styles = StyleSheet.create({
   },
   commentActionText: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: c.textMuted,
     fontWeight: '500',
   },
   noCommentsContainer: {
@@ -1700,12 +1704,12 @@ const styles = StyleSheet.create({
   noCommentsText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: c.text,
     marginTop: 12,
   },
   noCommentsSub: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: c.textMuted,
     marginTop: 4,
   },
   commentInputRow: {
@@ -1716,16 +1720,16 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.06)',
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
   },
   commentInput: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: c.cardAlt,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#374151',
+    color: c.text,
   },
   commentSendBtn: {
     width: 38,

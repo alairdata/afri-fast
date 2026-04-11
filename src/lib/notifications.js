@@ -13,7 +13,7 @@ export const requestNotificationPermissions = async () => {
   return status === 'granted';
 };
 
-// ─── Fast End ───
+// ─── Fast End (session-specific — fires when the current fast is complete) ───
 export const scheduleFastEndNotification = async (fastStartTimestamp, planHours) => {
   await Notifications.cancelScheduledNotificationAsync('fast-end').catch(() => {});
   const endTime = new Date(fastStartTimestamp + planHours * 60 * 60 * 1000);
@@ -61,8 +61,8 @@ export const cancelFastingNotifications = async () => {
   await Promise.all(ids.map(id => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})));
 };
 
-// ─── Daily Fast Start Reminder (8pm) ───
-export const scheduleFastStartReminder = async () => {
+// ─── Daily Fast Start Reminder ───
+export const scheduleFastStartReminder = async (hour = 20, minute = 0) => {
   await Notifications.cancelScheduledNotificationAsync('fast-start-daily').catch(() => {});
   await Notifications.scheduleNotificationAsync({
     identifier: 'fast-start-daily',
@@ -72,8 +72,8 @@ export const scheduleFastStartReminder = async () => {
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: 20,
-      minute: 0,
+      hour,
+      minute,
     },
   });
 };
@@ -82,8 +82,29 @@ export const cancelFastStartReminder = async () => {
   await Notifications.cancelScheduledNotificationAsync('fast-start-daily').catch(() => {});
 };
 
-// ─── Meal Log Reminder (7pm) ───
-export const scheduleMealReminder = async () => {
+// ─── Daily Fast End / Break-fast Reminder ───
+export const scheduleFastEndReminderDaily = async (hour = 12, minute = 0) => {
+  await Notifications.cancelScheduledNotificationAsync('fast-end-daily').catch(() => {});
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'fast-end-daily',
+    content: {
+      title: 'Ready to break your fast? 🍽️',
+      body: 'Your eating window is open. Break your fast mindfully.',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour,
+      minute,
+    },
+  });
+};
+
+export const cancelFastEndReminderDaily = async () => {
+  await Notifications.cancelScheduledNotificationAsync('fast-end-daily').catch(() => {});
+};
+
+// ─── Meal Log Reminder ───
+export const scheduleMealReminder = async (hour = 19, minute = 0) => {
   await Notifications.cancelScheduledNotificationAsync('meal-reminder').catch(() => {});
   await Notifications.scheduleNotificationAsync({
     identifier: 'meal-reminder',
@@ -93,12 +114,20 @@ export const scheduleMealReminder = async () => {
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: 19,
-      minute: 0,
+      hour,
+      minute,
     },
   });
 };
 
 export const cancelMealReminder = async () => {
   await Notifications.cancelScheduledNotificationAsync('meal-reminder').catch(() => {});
+};
+
+// ─── Celebration / Achievement notification (fires immediately) ───
+export const fireCelebrationNotification = async (title, body) => {
+  await Notifications.scheduleNotificationAsync({
+    content: { title, body },
+    trigger: null,
+  });
 };

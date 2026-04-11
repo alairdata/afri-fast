@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
+import { useTheme } from '../lib/theme';
 import { LineChart } from 'react-native-chart-kit';
 import { Rect } from 'react-native-svg';
 
@@ -10,6 +11,9 @@ const ProgressTab = ({
   fastingSessions = [], recentMeals = [], weightLogs = [], waterLogs = [], checkInHistory = [],
   height = '', heightUnit = 'cm', volumeUnit = 'oz', targetWeight = null, startingWeight = null,
 }) => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+
   const [progressRange, setProgressRange] = useState('7 days');
   const [weightTooltip, setWeightTooltip] = useState(null);
   const [calTooltip, setCalTooltip] = useState(null);
@@ -346,9 +350,9 @@ const ProgressTab = ({
                         width={SCREEN_WIDTH + 22}
                         height={190}
                         chartConfig={{
-                          backgroundColor: '#fff',
-                          backgroundGradientFrom: '#fff',
-                          backgroundGradientTo: '#fff',
+                          backgroundColor: colors.card,
+                          backgroundGradientFrom: colors.card,
+                          backgroundGradientTo: colors.card,
                           decimalPlaces: 1,
                           color: (opacity = 1) => `rgba(5, 150, 105, ${opacity})`,
                           labelColor: () => '#888',
@@ -372,7 +376,7 @@ const ProgressTab = ({
                         segments={5}
                       />
                       {weightTooltip && (
-                        <View style={[styles.chartTooltip, { left: weightTooltip.x - 30, top: weightTooltip.y - 36 }]} pointerEvents="none">
+                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(weightTooltip.x - 30, SCREEN_WIDTH - 120)), top: Math.max(4, weightTooltip.y - 36) }]} pointerEvents="none">
                           <Text style={styles.chartTooltipText}>{weightTooltip.value} kg</Text>
                         </View>
                       )}
@@ -441,9 +445,9 @@ const ProgressTab = ({
                         width={SCREEN_WIDTH + 22}
                         height={190}
                         chartConfig={{
-                          backgroundColor: '#fff',
-                          backgroundGradientFrom: '#fff',
-                          backgroundGradientTo: '#fff',
+                          backgroundColor: colors.card,
+                          backgroundGradientFrom: colors.card,
+                          backgroundGradientTo: colors.card,
                           decimalPlaces: 0,
                           color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
                           labelColor: () => '#888',
@@ -466,7 +470,7 @@ const ProgressTab = ({
                         withHorizontalLabels={false}
                       />
                       {calTooltip && (
-                        <View style={[styles.chartTooltip, { left: calTooltip.x - 30, top: calTooltip.y - 36 }]} pointerEvents="none">
+                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(calTooltip.x - 30, SCREEN_WIDTH - 120)), top: Math.max(4, calTooltip.y - 36) }]} pointerEvents="none">
                           <Text style={styles.chartTooltipText}>{calTooltip.value} cal</Text>
                         </View>
                       )}
@@ -531,9 +535,9 @@ const ProgressTab = ({
                         width={SCREEN_WIDTH + 22}
                         height={190}
                         chartConfig={{
-                          backgroundColor: '#fff',
-                          backgroundGradientFrom: '#fff',
-                          backgroundGradientTo: '#fff',
+                          backgroundColor: colors.card,
+                          backgroundGradientFrom: colors.card,
+                          backgroundGradientTo: colors.card,
                           decimalPlaces: 1,
                           color: (opacity = 1) => `rgba(14, 165, 233, ${opacity})`,
                           labelColor: () => '#888',
@@ -556,7 +560,7 @@ const ProgressTab = ({
                         withHorizontalLabels={false}
                       />
                       {waterTooltip && (
-                        <View style={[styles.chartTooltip, { left: waterTooltip.x - 30, top: waterTooltip.y - 36 }]} pointerEvents="none">
+                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(waterTooltip.x - 30, SCREEN_WIDTH - 120)), top: Math.max(4, waterTooltip.y - 36) }]} pointerEvents="none">
                           <Text style={styles.chartTooltipText}>{waterTooltip.value} L</Text>
                         </View>
                       )}
@@ -599,10 +603,10 @@ const ProgressTab = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c) => StyleSheet.create({
   progressTab: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: c.appBg,
     overflow: Platform.OS === 'web' ? 'hidden' : 'visible',
   },
   progressHeaderCompact: {
@@ -612,7 +616,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 10,
     paddingHorizontal: 16,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.06)',
     ...(Platform.OS === 'web' ? { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10 } : {}),
@@ -620,7 +624,7 @@ const styles = StyleSheet.create({
   progressTitleCompact: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
   },
   filterBtnSmall: {
     width: 34,
@@ -635,7 +639,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.04)',
     ...(Platform.OS === 'web' ? { position: 'fixed', top: 69, left: 0, right: 0, zIndex: 9 } : {}),
@@ -654,7 +658,7 @@ const styles = StyleSheet.create({
   timeRangeBtnText: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#666',
+    color: c.textSecondary,
   },
   timeRangeBtnTextActive: {
     color: '#fff',
@@ -676,7 +680,7 @@ const styles = StyleSheet.create({
   progressSectionTitleCompact: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F1F1F',
+    color: c.text,
     marginBottom: 8,
   },
   seeAllBtnSmall: {
@@ -685,7 +689,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chartCardCompact: {
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
@@ -693,7 +697,7 @@ const styles = StyleSheet.create({
   },
   chartTooltip: {
     position: 'absolute',
-    backgroundColor: '#1F1F1F',
+    backgroundColor: c.cardAlt,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -717,11 +721,11 @@ const styles = StyleSheet.create({
   streakValueCompact: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
   },
   streakLabelCompact: {
     fontSize: 9,
-    color: '#666',
+    color: c.textSecondary,
     marginTop: 2,
     textAlign: 'center',
   },
@@ -731,7 +735,7 @@ const styles = StyleSheet.create({
   },
   overviewTileCompact: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
@@ -742,11 +746,11 @@ const styles = StyleSheet.create({
   overviewValueCompact: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
   },
   overviewLabelCompact: {
     fontSize: 11,
-    color: '#666',
+    color: c.textSecondary,
   },
   overviewTrendCompact: {
     fontSize: 10,
@@ -767,7 +771,7 @@ const styles = StyleSheet.create({
   bmiValue: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
   },
   bmiCategoryBadge: {
     paddingVertical: 4,
@@ -785,12 +789,12 @@ const styles = StyleSheet.create({
   },
   bmiWeightLabel: {
     fontSize: 10,
-    color: '#666',
+    color: c.textSecondary,
   },
   bmiWeightValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F1F1F',
+    color: c.text,
   },
   bmiBarContainer: {
     marginTop: 8,
@@ -810,7 +814,7 @@ const styles = StyleSheet.create({
     top: -3,
     width: 4,
     height: 16,
-    backgroundColor: '#1F1F1F',
+    backgroundColor: c.cardAlt,
     borderRadius: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -825,7 +829,7 @@ const styles = StyleSheet.create({
   },
   bmiLabel: {
     fontSize: 8,
-    color: '#888',
+    color: c.textMuted,
     textAlign: 'center',
     flex: 1,
   },
@@ -844,7 +848,7 @@ const styles = StyleSheet.create({
   },
   chartPlaceholderSubtext: {
     fontSize: 11,
-    color: '#888',
+    color: c.textMuted,
     marginTop: 4,
   },
   xAxisLabelsCompact: {
@@ -858,7 +862,7 @@ const styles = StyleSheet.create({
   },
   xAxisLabelSmall: {
     fontSize: 9,
-    color: '#666',
+    color: c.textSecondary,
     textAlign: 'center',
     flex: 1,
   },
@@ -881,7 +885,7 @@ const styles = StyleSheet.create({
   },
   weightStatLabelCompact: {
     fontSize: 9,
-    color: '#666',
+    color: c.textSecondary,
     marginTop: 2,
   },
   chartLegendCompact: {
@@ -902,7 +906,7 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 9,
-    color: '#666',
+    color: c.textSecondary,
   },
   weightActionsCompact: {
     flexDirection: 'row',
@@ -949,11 +953,11 @@ const styles = StyleSheet.create({
   calorieStatValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
   },
   calorieStatLabel: {
     fontSize: 10,
-    color: '#888',
+    color: c.textMuted,
   },
   calorieStatDivider: {
     width: 1,

@@ -44,10 +44,10 @@ import TimeEditModal from './components/TimeEditModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const dbSave = (promise, label) => {
+
+const dbSave = (promise, label, onError) => {
   promise.then(({ error }) => {
-    if (error) console.error(`[DB Error - ${label}]`, error);
-    else console.log(`[DB OK - ${label}]`);
+    if (error) onError?.(`Failed to save. Try again.`);
   });
 };
 
@@ -152,7 +152,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [showFastingQuiz, setShowFastingQuiz] = useState(false);
   const [showNutritionQuiz, setShowNutritionQuiz] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
   const toastAnim = useRef(new Animated.Value(-80)).current;
+  const [isOffline, setIsOffline] = useState(false);
   const [showLogMealModal, setShowLogMealModal] = useState(false);
   const [showMakeRecipePage, setShowMakeRecipePage] = useState(false);
   const [showFindRecipePage, setShowFindRecipePage] = useState(false);
@@ -338,7 +340,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch meals from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('meals').select('*').eq('user_id', session.user.id).order('logged_at', { ascending: false })
+    supabase.from('meals')
+      .select('id, user_id, name, calories, protein, carbs, fats, date, logged_at, method, image_url, notes, photo, detected_name')
+      .eq('user_id', session.user.id)
+      .order('logged_at', { ascending: false })
+      .limit(200)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch meals]', error); return; }
         if (data) setRecentMeals(data);
@@ -348,7 +354,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch fasting sessions
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('fasting_sessions').select('*').eq('user_id', session.user.id).order('logged_at', { ascending: false })
+    supabase.from('fasting_sessions')
+      .select('id, start_time, end_time, duration_hours, duration_minutes, plan, date')
+      .eq('user_id', session.user.id)
+      .order('logged_at', { ascending: false })
+      .limit(100)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch fasting_sessions]', error); return; }
         if (data) setFastingSessions(data.map(r => ({
@@ -362,7 +372,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch check-ins
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('check_ins').select('*').eq('user_id', session.user.id).order('logged_at', { ascending: false })
+    supabase.from('check_ins')
+      .select('id, date, feelings, fasting_status, hunger_level, moods, symptoms, fast_break, activities, other_factors, water_count, volume_unit, notes, fasting_hours, fasting_minutes')
+      .eq('user_id', session.user.id)
+      .order('logged_at', { ascending: false })
+      .limit(100)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch check_ins]', error); return; }
         if (data) setCheckInHistory(data.map(r => ({
@@ -380,7 +394,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch weight logs
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('weight_logs').select('*').eq('user_id', session.user.id).order('logged_at', { ascending: false })
+    supabase.from('weight_logs')
+      .select('id, date, weight, unit')
+      .eq('user_id', session.user.id)
+      .order('logged_at', { ascending: false })
+      .limit(50)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch weight_logs]', error); return; }
         if (data) setWeightLogs(data.map(r => ({ id: r.id, date: r.date, timestamp: r.id, weight: r.weight, unit: r.unit })));
@@ -390,7 +408,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch water logs
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('water_logs').select('*').eq('user_id', session.user.id).order('logged_at', { ascending: false })
+    supabase.from('water_logs')
+      .select('id, date, display_date, amount, unit')
+      .eq('user_id', session.user.id)
+      .order('logged_at', { ascending: false })
+      .limit(100)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch water_logs]', error); return; }
         if (data) setWaterLogs(data.map(r => ({ id: r.id, date: r.date, displayDate: r.display_date, amount: r.amount, unit: r.unit })));
@@ -436,6 +458,20 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     }, 1000);
     return () => clearInterval(timer);
   }, [isFasting, fastStartTime]);
+
+  // === Offline detection (web) ===
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const onOnline = () => setIsOffline(false);
+    const onOffline = () => setIsOffline(true);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    setIsOffline(!navigator.onLine);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
 
   // === Progress ring calculation ===
   const planFastHours = parseInt((selectedPlan || '16:8').split(':')[0]) || 16;
@@ -606,7 +642,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         start_time: fastSession.startTime, end_time: fastSession.endTime,
         duration_hours: fastSession.durationHours, duration_minutes: fastSession.durationMinutes,
         plan: fastSession.plan, date: fastSession.date,
-      }), 'save fasting_session');
+      }), 'save fasting_session', (msg) => showToast(msg, 'error'));
     }
     setIsFasting(false);
     setFastStartTime(null);
@@ -616,11 +652,22 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     upsertProfile({ is_fasting: false, fast_start_time: null }, 'clear fast on end');
   };
 
-  const showToast = (msg) => {
+  const prefersReducedMotion = Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
+  const showToast = (msg, type = 'success') => {
     setToastMessage(msg);
+    setToastType(type);
+    toastAnim.setValue(-80);
+    if (prefersReducedMotion) {
+      toastAnim.setValue(50);
+      setTimeout(() => { toastAnim.setValue(-80); setToastMessage(''); }, 2500);
+      return;
+    }
     Animated.sequence([
       Animated.spring(toastAnim, { toValue: 50, useNativeDriver: true, tension: 80, friction: 10 }),
-      Animated.delay(2000),
+      Animated.delay(2500),
       Animated.timing(toastAnim, { toValue: -80, duration: 300, useNativeDriver: true }),
     ]).start(() => setToastMessage(''));
   };
@@ -654,7 +701,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       activities: checkIn.activities, other_factors: checkIn.otherFactors,
       water_count: checkIn.waterCount, volume_unit: checkIn.volumeUnit,
       notes: checkIn.notes, fasting_hours: checkIn.fastingHours, fasting_minutes: checkIn.fastingMinutes,
-    }), 'save check_in');
+    }), 'save check_in', (msg) => showToast(msg, 'error'));
     // Also log water to waterLogs if any was tracked
     if (waterCount > 0) {
       const wId = Date.now() + 1;
@@ -666,7 +713,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         unit: volumeUnit,
       };
       setWaterLogs(prev => [waterLog, ...prev]);
-      dbSave(supabase.from('water_logs').insert({ id: wId, user_id: session?.user?.id, date: waterLog.date, display_date: waterLog.displayDate, amount: waterLog.amount, unit: waterLog.unit }), 'save water_log from check-in');
+      dbSave(supabase.from('water_logs').insert({ id: wId, user_id: session?.user?.id, date: waterLog.date, display_date: waterLog.displayDate, amount: waterLog.amount, unit: waterLog.unit }), 'save water_log from check-in', (msg) => showToast(msg, 'error'));
     }
     setCheckedIn(true);
     setShowCheckInPage(false);
@@ -761,7 +808,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         start_time: fastSession.startTime, end_time: fastSession.endTime,
         duration_hours: fastSession.durationHours, duration_minutes: fastSession.durationMinutes,
         plan: fastSession.plan, date: fastSession.date,
-      }), 'save fasting_session');
+      }), 'save fasting_session', (msg) => showToast(msg, 'error'));
       setIsFasting(false);
       setFastStartTime(null);
       setFastingHours(0); setFastingMinutes(0); setFastingSeconds(0);
@@ -778,7 +825,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const handleDeleteFastSession = async (sessionToDelete) => {
     if (!sessionToDelete?.id) return;
 
-    setFastingSessions((prev) => prev.filter((session) => session.id !== sessionToDelete.id));
+    const prevSessions = fastingSessions;
+    setFastingSessions((prev) => prev.filter((s) => s.id !== sessionToDelete.id));
 
     const { error } = await supabase
       .from('fasting_sessions')
@@ -787,7 +835,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .eq('user_id', session?.user?.id);
 
     if (error) {
-      console.error('[DB Error - delete fasting_session]', error);
+      setFastingSessions(prevSessions);
+      showToast('Failed to delete session. Try again.', 'error');
       return;
     }
 
@@ -796,6 +845,12 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
   return (
     <View style={styles.container}>
+      {/* === Offline banner === */}
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>No internet connection</Text>
+        </View>
+      )}
       {/* === Tab Content === */}
       {activeTab === 'today' && (
         <TodayTab
@@ -856,9 +911,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           onFindRecipe={() => setShowFindRecipePage(true)}
           onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setShowLogMealModal(true); }}
           onDeleteMeal={async (id) => {
+            const prevMeals = recentMeals;
             setRecentMeals(prev => prev.filter(m => m.id !== id));
             const { error } = await supabase.from('meals').delete().eq('id', id).eq('user_id', session.user.id);
-            if (error) console.error('[DB Error - delete meal]', error);
+            if (error) {
+              setRecentMeals(prevMeals);
+              showToast('Failed to delete meal. Try again.', 'error');
+            }
           }}
         />
       )}
@@ -1016,8 +1075,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         setWeightLogs={setWeightLogs}
         weightUnit={weightUnit}
         setWeightUnit={setWeightUnit}
-        onWeightSaved={(log) => dbSave(supabase.from('weight_logs').insert({ id: log.timestamp, user_id: session?.user?.id, date: log.date, weight: log.weight, unit: log.unit }), 'save weight_log')}
-        onWeightDeleted={(log) => dbSave(supabase.from('weight_logs').delete().eq('id', log.timestamp).eq('user_id', session?.user?.id), 'delete weight_log')}
+        onWeightSaved={(log) => dbSave(supabase.from('weight_logs').insert({ id: log.timestamp, user_id: session?.user?.id, date: log.date, weight: log.weight, unit: log.unit }), 'save weight_log', (msg) => showToast(msg, 'error'))}
+        onWeightDeleted={(log) => dbSave(supabase.from('weight_logs').delete().eq('id', log.timestamp).eq('user_id', session?.user?.id), 'delete weight_log', (msg) => showToast(msg, 'error'))}
       />
 
       <HydrationDetailsPage
@@ -1027,8 +1086,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         setWaterLogs={setWaterLogs}
         waterUnit={waterUnit}
         setWaterUnit={setWaterUnit}
-        onWaterSaved={(log) => dbSave(supabase.from('water_logs').insert({ id: log.id, user_id: session?.user?.id, date: log.date, display_date: log.displayDate, amount: log.amount, unit: log.unit }), 'save water_log')}
-        onWaterDeleted={(log) => dbSave(supabase.from('water_logs').delete().eq('id', log.id).eq('user_id', session?.user?.id), 'delete water_log')}
+        onWaterSaved={(log) => dbSave(supabase.from('water_logs').insert({ id: log.id, user_id: session?.user?.id, date: log.date, display_date: log.displayDate, amount: log.amount, unit: log.unit }), 'save water_log', (msg) => showToast(msg, 'error'))}
+        onWaterDeleted={(log) => dbSave(supabase.from('water_logs').delete().eq('id', log.id).eq('user_id', session?.user?.id), 'delete water_log', (msg) => showToast(msg, 'error'))}
       />
 
       <CalorieDetailsPage
@@ -1062,8 +1121,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         onSaveMeal={async (meal) => {
           setRecentMeals(prev => [meal, ...prev]);
           const { error } = await supabase.from('meals').insert({ ...meal, user_id: session.user.id });
-          if (error) console.error('[DB Error - save meal]', error);
-          else console.log('[DB OK - save meal]', meal.name);
+          if (error) showToast('Failed to save meal. Try again.', 'error');
+          else showToast(`${meal.name || 'Meal'} logged!`);
         }}
         dailyCalorieGoal={dailyCalorieGoal}
         recentMeals={recentMeals}
@@ -1201,13 +1260,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       {/* Toast notification */}
       {toastMessage !== '' && (
         <Animated.View style={[styles.toast, { transform: [{ translateY: toastAnim }] }]}>
-          <View style={styles.toastIconCircle}>
-            <Text style={styles.toastCheckmark}>{'\u2713'}</Text>
+          <View style={[styles.toastIconCircle, toastType === 'error' && { backgroundColor: '#DC2626' }]}>
+            <Text style={styles.toastCheckmark}>{toastType === 'error' ? '✕' : '✓'}</Text>
           </View>
-          <View style={styles.toastContent}>
-            <Text style={styles.toastTitle}>{toastMessage}</Text>
-            <Text style={styles.toastSubtitle}>Your progress has been recorded</Text>
-          </View>
+          <Text style={styles.toastTitle}>{toastMessage}</Text>
         </Animated.View>
       )}
     </View>
@@ -1220,6 +1276,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFBFF',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0,
     paddingBottom: 84,
+  },
+  offlineBanner: {
+    backgroundColor: '#EF4444',
+    paddingVertical: 6,
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  offlineBannerText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
   toast: {
     position: 'absolute',

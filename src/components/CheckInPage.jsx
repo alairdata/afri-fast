@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Pressable, ScrollView, TextInput, StyleSheet, Dimensions, Modal, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, ScrollView, TextInput, StyleSheet, Dimensions, Modal, Platform, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // SCREEN_HEIGHT kept for reference only
@@ -294,7 +294,7 @@ const CheckInPage = ({
 
               {/* Saved water entries for this check-in */}
               {waterEntries.length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.waterEntriesScroll} contentContainerStyle={styles.waterEntriesScrollContent}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.waterEntriesScroll} contentContainerStyle={styles.waterEntriesScrollContent}>
                   {waterEntries.map((entry, i) => (
                     <TouchableOpacity key={i} style={styles.waterEntryChip} onPress={() => setWaterEntries(waterEntries.filter((_, idx) => idx !== i))}>
                       <Text style={styles.waterEntryText}>{entry.amount} {entry.unit}</Text>
@@ -325,6 +325,7 @@ const CheckInPage = ({
 
 
           {/* Section 11: Notes */}
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={styles.checkInSection}>
             <Text style={styles.checkInSectionTitle}>{'\u{1F4DD}'} Notes</Text>
             <View style={styles.notesCard}>
@@ -338,6 +339,7 @@ const CheckInPage = ({
               />
             </View>
           </View>
+          </KeyboardAvoidingView>
 
           <View style={{ height: 40 }} />
         </ScrollView>

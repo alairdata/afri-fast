@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { useTheme } from '../lib/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -44,6 +45,9 @@ const TodayTab = ({
   volumeUnit,
   onShowCalendar,
 }) => {
+  const { colors, isDark } = useTheme();
+  const styles = makeStyles(colors);
+
   const formatDate = () => {
     const options = { weekday: 'long', month: 'short', day: 'numeric' };
     return new Date().toLocaleDateString('en-US', options);
@@ -160,7 +164,7 @@ const TodayTab = ({
           <Text style={styles.dateTextSmall}>{formatDate()}</Text>
         </View>
         <TouchableOpacity style={styles.calendarBtnSmall} onPress={onShowCalendar}>
-          <Ionicons name="calendar-outline" size={20} color="#1F1F1F" />
+          <Ionicons name="calendar-outline" size={20} color={colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -271,12 +275,12 @@ const TodayTab = ({
         {/* Today's Insights */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <Text style={styles.sectionTitleTight}>Today's Insights</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.insightsScrollCompact}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.insightsScrollCompact}>
             {insights.map((insight, i) => (
-              <TouchableOpacity key={i} style={[styles.insightCardCompact, { backgroundColor: insight.color }]}>
+              <TouchableOpacity key={i} style={[styles.insightCardCompact, { backgroundColor: isDark ? colors.card : insight.color }]}>
                 <View style={[styles.insightAccentSmall, { backgroundColor: insight.accent }]} />
-                <Text style={styles.insightTitleSmall}>{insight.title}</Text>
-                <Text style={styles.insightSubSmall}>{insight.subtitle}</Text>
+                <Text style={[styles.insightTitleSmall, isDark && { color: colors.text }]}>{insight.title}</Text>
+                <Text style={[styles.insightSubSmall, isDark && { color: colors.textSecondary }]}>{insight.subtitle}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -285,7 +289,7 @@ const TodayTab = ({
         {/* Education Cards */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <Text style={styles.sectionTitleTight}>{'\u{1F4A1}'} Just for You</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.eduScrollCompact}>
             <View style={styles.educationCard}>
               <View style={styles.eduContent}>
                 <Text style={styles.eduTitle}>Hunger spikes are normal around hour 16</Text>
@@ -319,7 +323,7 @@ const TodayTab = ({
         {/* Based on Your Pattern */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <Text style={styles.sectionTitleTight}>Based on Your Pattern</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.patternScrollCompact}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.patternScrollCompact}>
             {patternCards.map((card, i) => (
               <TouchableOpacity key={i} style={styles.patternCardLarge} onPress={() => setSelectedArticle(card)}>
                 <Image source={card.image} style={styles.patternImageArea} resizeMode="cover" />
@@ -360,14 +364,14 @@ const TodayTab = ({
                   <View style={[
                     styles.historyDot,
                     {
-                      backgroundColor: fastHistory[i] === null ? '#E0E0E0' : fastHistory[i] ? '#059669' : 'transparent',
+                      backgroundColor: fastHistory[i] === null ? colors.cardAlt : fastHistory[i] ? '#059669' : 'transparent',
                       borderWidth: fastHistory[i] === false ? 2 : 0,
-                      borderColor: fastHistory[i] === false ? '#E0E0E0' : 'transparent',
+                      borderColor: fastHistory[i] === false ? colors.border : 'transparent',
                     }
                   ]}>
                     {fastHistory[i] && fastHistory[i] !== null && <Text style={styles.dotCheck}>{'\u2713'}</Text>}
                   </View>
-                  <Text style={[styles.dayLabel, { color: i === (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1) ? '#059669' : '#9E9E9E' }]}>{day}</Text>
+                  <Text style={[styles.dayLabel, { color: i === (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1) ? '#059669' : colors.textMuted }]}>{day}</Text>
                 </View>
               ))}
             </View>
@@ -523,7 +527,7 @@ const TodayTab = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c) => StyleSheet.create({
   wrapper: {
     flex: 1,
   },
@@ -534,7 +538,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 8,
     paddingHorizontal: 16,
-    backgroundColor: '#FAFBFF',
+    backgroundColor: c.appBg,
     zIndex: 100,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(5, 150, 105, 0.08)',
@@ -565,7 +569,7 @@ const styles = StyleSheet.create({
   dateTextSmall: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1F1F1F',
+    color: c.text,
   },
   calendarBtnSmall: {
     width: 34,
@@ -584,7 +588,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     padding: 16,
     paddingBottom: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: c.card,
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(5, 150, 105, 0.1)',
@@ -660,7 +664,7 @@ const styles = StyleSheet.create({
   timeDisplayCompact: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
     letterSpacing: -1,
     textAlign: 'center',
   },
@@ -749,20 +753,20 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: '600',
     letterSpacing: 1.2,
-    color: '#999',
+    color: c.textMuted,
     marginBottom: 4,
   },
   fastTimeValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
     textAlign: 'center',
     letterSpacing: -0.2,
     marginBottom: 1,
   },
   fastTimeDate: {
     fontSize: 9,
-    color: '#888',
+    color: c.textMuted,
     marginTop: 2,
     textAlign: 'center',
     lineHeight: 12,
@@ -798,14 +802,14 @@ const styles = StyleSheet.create({
   sectionTitleTight: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
     marginBottom: 8,
     letterSpacing: -0.3,
   },
   sectionTitleTightInline: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
     letterSpacing: -0.3,
   },
   insightsScrollCompact: {
@@ -831,14 +835,14 @@ const styles = StyleSheet.create({
   insightTitleSmall: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#1F1F1F',
+    color: c.text,
     marginLeft: 10,
     marginBottom: 2,
     lineHeight: 14,
   },
   insightSubSmall: {
     fontSize: 10,
-    color: '#666',
+    color: c.textSecondary,
     marginLeft: 10,
     lineHeight: 12,
   },
@@ -849,7 +853,7 @@ const styles = StyleSheet.create({
   educationCard: {
     width: 280,
     minHeight: 220,
-    backgroundColor: '#1F1F1F',
+    backgroundColor: c.cardAlt,
     borderRadius: 24,
     overflow: 'hidden',
     padding: 24,
@@ -911,13 +915,13 @@ const styles = StyleSheet.create({
   patternTitleLarge: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
     lineHeight: 20,
     marginBottom: 4,
   },
   patternTimeLarge: {
     fontSize: 12,
-    color: '#999',
+    color: c.textMuted,
     fontWeight: '400',
   },
   alertCard: {
@@ -970,7 +974,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   historyCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
@@ -1007,7 +1011,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: c.card,
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 10,
@@ -1019,12 +1023,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
     letterSpacing: -1,
   },
   statLabel: {
     fontSize: 10,
-    color: '#666',
+    color: c.textSecondary,
     textAlign: 'center',
   },
   statBadge: {
@@ -1041,7 +1045,7 @@ const styles = StyleSheet.create({
   },
   wellnessCard: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
@@ -1062,12 +1066,12 @@ const styles = StyleSheet.create({
   },
   wellnessLabel: {
     fontSize: 12,
-    color: '#666',
+    color: c.textSecondary,
   },
   wellnessValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F1F1F',
+    color: c.text,
   },
   wellnessActions: {
     flexDirection: 'row',
@@ -1146,7 +1150,7 @@ const styles = StyleSheet.create({
   premiumBtn: {
     width: '100%',
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderRadius: 12,
     alignItems: 'center',
     shadowColor: '#000',
@@ -1165,7 +1169,7 @@ const styles = StyleSheet.create({
   },
   articleModal: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
   },
   articleHeader: {
     flexDirection: 'row',
@@ -1184,13 +1188,13 @@ const styles = StyleSheet.create({
   },
   articleCloseText: {
     fontSize: 20,
-    color: '#1F1F1F',
+    color: c.text,
     fontWeight: '300',
   },
   articleHeaderTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F1F1F',
+    color: c.text,
   },
   articleScroll: {
     flex: 1,
@@ -1199,7 +1203,7 @@ const styles = StyleSheet.create({
   articleTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#1F1F1F',
+    color: c.text,
     lineHeight: 34,
     marginTop: 20,
     marginBottom: 16,
@@ -1213,7 +1217,7 @@ const styles = StyleSheet.create({
   articleBody: {
     fontSize: 16,
     lineHeight: 26,
-    color: '#333',
+    color: c.text,
     letterSpacing: 0.2,
   },
 });

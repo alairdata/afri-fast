@@ -15,9 +15,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [touched, setTouched] = useState({});
   const [screen, setScreen] = useState(preAuthData?.completedAt ? 'auth' : 'gate'); // 'gate' | 'onboarding' | 'auth'
 
   const handleLogin = async () => {
+    setTouched({ email: true, password: true });
     if (!email || !password) { setError('Please fill in all fields.'); return; }
     setLoading(true); setError(''); setMessage('');
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -26,8 +28,9 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   };
 
   const handleSignUp = async () => {
+    setTouched({ name: true, email: true, password: true });
     if (!name || !email || !password) { setError('Please fill in all fields.'); return; }
-    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setLoading(true); setError(''); setMessage('');
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) { setError(error.message); setLoading(false); return; }
@@ -138,11 +141,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             <View style={styles.field}>
               <Text style={styles.label}>Full Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, touched.name && !name && styles.inputError]}
                 placeholder="e.g. Amara Osei"
                 placeholderTextColor="#aaa"
                 value={name}
-                onChangeText={setName}
+                onChangeText={(v) => { setName(v); setTouched(t => ({ ...t, name: true })); }}
                 autoCapitalize="words"
               />
             </View>
@@ -151,11 +154,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
           <View style={styles.field}>
             <Text style={styles.label}>Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, touched.email && !email && styles.inputError]}
               placeholder="you@example.com"
               placeholderTextColor="#aaa"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(v) => { setEmail(v); setTouched(t => ({ ...t, email: true })); }}
               autoCapitalize="none"
               keyboardType="email-address"
             />
@@ -164,13 +167,20 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
           <View style={styles.field}>
             <Text style={styles.label}>Password</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, touched.password && !password && styles.inputError]}
               placeholder="••••••••"
               placeholderTextColor="#aaa"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(v) => { setPassword(v); setTouched(t => ({ ...t, password: true })); }}
               secureTextEntry
             />
+            {mode === 'signup' && (
+              <Text style={[styles.fieldHint, touched.password && password.length > 0 && password.length < 8 && { color: '#EF4444' }]}>
+                {touched.password && password.length > 0 && password.length < 8
+                  ? `${password.length}/8 characters minimum`
+                  : 'Minimum 8 characters'}
+              </Text>
+            )}
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -257,6 +267,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#111',
     backgroundColor: '#FAFAFA',
   },
+  inputError: { borderColor: '#EF4444', backgroundColor: '#FFF5F5' },
+  fieldHint: { fontSize: 12, color: '#9CA3AF', marginTop: 4, marginLeft: 2 },
   error: { color: '#EF4444', fontSize: 13, marginBottom: 12, textAlign: 'center' },
   successMsg: { color: '#059669', fontSize: 13, marginBottom: 12, textAlign: 'center' },
   btn: {

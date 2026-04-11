@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAudioRecorder, AudioModule, setAudioModeAsync, RecordingPresets } from 'expo-audio';
+import { Audio } from 'expo-av';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Animated, Image, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import Svg, { Path, Line, Polyline, Rect } from 'react-native-svg';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -32,45 +32,47 @@ const readUriAsBase64 = async (uri) => {
 
 const DOT_COLORS = ['#4ade80', '#f59e0b', '#60a5fa', '#f472b6', '#a78bfa'];
 
-const uploadMealPhoto = async (uri, mealName) => {
-  console.log('[uploadMealPhoto] uri:', uri);
-  if (!uri) { console.log('[uploadMealPhoto] no uri'); return null; }
+const SUPABASE_URL = 'https://exvbplhajnvuhanykumm.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4dmJwbGhham52dWhhbnlrdW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwODY2NTEsImV4cCI6MjA5MDY2MjY1MX0.L-D_1nnehcjcQZ52XEl0rhKOoUm7HmOMC4_wGIwQETE';
+
+const uploadMealPhoto = async (uri) => {
+  if (!uri) return null;
   if (uri.startsWith('https://')) return uri; // already uploaded
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { console.log('[Upload] No session'); return null; }
-    const safeName = mealName ? mealName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().slice(0, 40) : 'meal';
-    const fileName = `${session.user.id}/${Date.now()}-${safeName}.jpg`;
-    let uploadData;
-    if (Platform.OS === 'web') {
-      const response = await fetch(uri);
-      uploadData = await response.blob();
-    } else {
-      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-      const clean = base64.replace(/\s/g, '');
-      const bytes = [];
-      for (let i = 0; i < clean.length; i += 4) {
-        const b0 = chars.indexOf(clean[i]);
-        const b1 = chars.indexOf(clean[i + 1]);
-        const b2 = clean[i + 2] === '=' ? 0 : chars.indexOf(clean[i + 2]);
-        const b3 = clean[i + 3] === '=' ? 0 : chars.indexOf(clean[i + 3]);
-        bytes.push((b0 << 2) | (b1 >> 4));
-        if (clean[i + 2] !== '=') bytes.push(((b1 & 0xf) << 4) | (b2 >> 2));
-        if (clean[i + 3] !== '=') bytes.push(((b2 & 0x3) << 6) | b3);
+    if (!session) return null;
+    const fileName = `${session.user.id}/${Date.now()}.jpg`;
+
+    if (Platform.OS !== 'web') {
+      // Native: fetch() can't upload local file URIs — use FileSystem.uploadAsync instead
+      const result = await FileSystem.uploadAsync(
+        `${SUPABASE_URL}/storage/v1/object/meal-photos/${fileName}`,
+        uri,
+        {
+          httpMethod: 'POST',
+          uploadType: FileSystem.FileSystemUploadType?.BINARY_CONTENT ?? 0,
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: SUPABASE_ANON_KEY,
+            'Content-Type': 'image/jpeg',
+            'x-upsert': 'false',
+          },
+        }
+      );
+      if (result.status !== 200) {
+        console.log('[Upload Error] native:', result.status, result.body);
+        return null;
       }
-      uploadData = new Uint8Array(bytes);
+    } else {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const { error } = await supabase.storage
+        .from('meal-photos')
+        .upload(fileName, blob, { contentType: 'image/jpeg', upsert: false });
+      if (error) { console.log('[Upload Error]', error.message); return null; }
     }
-    const { error } = await supabase.storage
-      .from('meal-photos')
-      .upload(fileName, uploadData, {
-        contentType: 'image/jpeg',
-        upsert: false,
-        metadata: { detected_name: mealName || 'Unknown meal' },
-      });
-    if (error) { console.log('[Upload Error]', error.message); return null; }
+
     const { data } = supabase.storage.from('meal-photos').getPublicUrl(fileName);
-    console.log('[Upload OK]', data.publicUrl);
     return data.publicUrl;
   } catch (e) {
     console.log('[Upload Error]', e.message);
@@ -79,32 +81,6 @@ const uploadMealPhoto = async (uri, mealName) => {
 };
 
 const GEMINI_API_KEY = 'AIzaSyC4EzCRJDTTjX-wwZNkR_igY_P6fn5PGAs';
-const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
-
-const geminiPost = async (model, body) => {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-  );
-  return response;
-};
-
-const geminiPostWithFallback = async (body, onProgress, startPct, endPct) => {
-  for (const model of GEMINI_MODELS) {
-    const response = await geminiPost(model, body);
-    const rawText = await streamResponseText(response, onProgress, startPct, endPct);
-    if (response.status === 503) {
-      console.log(`[Gemini] ${model} unavailable, trying next...`);
-      continue;
-    }
-    if (!response.ok) {
-      console.log('[Gemini] API error:', response.status, rawText);
-      throw new Error(`Gemini API ${response.status}: ${rawText}`);
-    }
-    return rawText;
-  }
-  throw new Error('All Gemini models unavailable');
-};
 
 const streamResponseText = async (response, onProgress, startPct = 20, endPct = 88) => {
   if (response.body?.getReader) {
@@ -135,11 +111,16 @@ const analyzeWithGemini = async (photoUri, onProgress) => {
     const base64 = await readUriAsBase64(photoUri);
     onProgress?.(15);
     console.log('[Gemini] Base64 length:', base64.length);
-    const body = {
-      contents: [{
-        parts: [
-          {
-            text: `You are a nutrition expert specializing in foods, particularly African meals since that is the target market. Analyze this food image and identify every food item visible.
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              {
+                text: `You are a nutrition expert specializing in foods, particularly African meals since that is the target market. Analyze this food image and identify every food item visible.
 
 IMPORTANT: First check if this image actually contains food. If it does NOT contain food, respond with exactly this format:
 NOT_FOOD: [what you see in the image]
@@ -157,14 +138,16 @@ If it IS food, return a JSON object with three fields:
    - fiber: fiber in grams as a number
 
 Return ONLY a valid JSON object with no explanation, no markdown, no code blocks. Just the raw JSON.`
-          },
-          { inline_data: { mime_type: 'image/jpeg', data: base64 } }
-        ]
-      }],
-      generationConfig: { temperature: 0.1 },
-    };
+              },
+              { inline_data: { mime_type: 'image/jpeg', data: base64 } }
+            ]
+          }],
+          generationConfig: { temperature: 0.1 },
+        }),
+      }
+    );
     onProgress?.(18);
-    const rawText = await geminiPostWithFallback(body, onProgress, 18, 88);
+    const rawText = await streamResponseText(response, onProgress, 18, 88);
     onProgress?.(90);
     const data = JSON.parse(rawText);
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
@@ -204,10 +187,15 @@ Return ONLY a valid JSON object with no explanation, no markdown, no code blocks
 const analyzeTextWithGemini = async (mealText, onProgress) => {
   try {
     onProgress?.(8);
-    const body = {
-      contents: [{
-        parts: [{
-          text: `You are a nutrition expert specializing in African meals. The user has typed the name of a meal they ate.
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `You are a nutrition expert specializing in African meals. The user has typed the name of a meal they ate.
 
 IMPORTANT: Before deciding something is NOT_FOOD, first attempt to interpret it as a misspelled or abbreviated meal name. Only return NOT_FOOD if you genuinely cannot identify any food — even after trying to correct for typos, abbreviations, or phonetic spelling. A Ghanaian typing "bknu" likely means "Banku". Give it the benefit of the doubt.
 
@@ -225,12 +213,14 @@ If it IS a food or meal, return ONLY raw JSON with these fields:
 The meal the user typed: "${mealText}"
 
 Return ONLY a valid JSON object with no explanation, no markdown, no code blocks. Just the raw JSON.`
-        }]
-      }],
-      generationConfig: { temperature: 0.1 },
-    };
+            }]
+          }],
+          generationConfig: { temperature: 0.1 },
+        }),
+      }
+    );
     onProgress?.(15);
-    const rawText = await geminiPostWithFallback(body, onProgress, 15, 88);
+    const rawText = await streamResponseText(response, onProgress, 15, 88);
     onProgress?.(90);
     const data = JSON.parse(rawText);
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
@@ -263,10 +253,15 @@ Return ONLY a valid JSON object with no explanation, no markdown, no code blocks
 
 const lookupItemNutrition = async (itemName) => {
   try {
-    const body = {
-      contents: [{
-        parts: [{
-          text: `You are a nutrition expert. Give the nutritional info for one typical serving of "${itemName}".
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `You are a nutrition expert. Give the nutritional info for one typical serving of "${itemName}".
 Return ONLY a raw JSON object with these fields:
 - name: the proper food name
 - qty: typical single serving size (e.g. "1 medium egg", "1 cup of rice") — be specific, no brackets or metric units
@@ -276,12 +271,13 @@ Return ONLY a raw JSON object with these fields:
 - fats: fat in grams as a number
 - fiber: fiber in grams as a number
 No explanation, no markdown, just raw JSON.`
-        }]
-      }],
-      generationConfig: { temperature: 0.1 },
-    };
-    const rawText = await geminiPostWithFallback(body, null, 0, 100);
-    const data = JSON.parse(rawText);
+            }]
+          }],
+          generationConfig: { temperature: 0.1 },
+        }),
+      }
+    );
+    const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (text) {
       const match = text.match(/\{[\s\S]*\}/);
@@ -319,10 +315,15 @@ const recalculateFoodPortionWithGemini = async (foodName, oldQty, newQty, curren
   const normalizedQty = normalizeEditedQty(foodName, oldQty, newQty);
 
   try {
-    const body = {
-      contents: [{
-        parts: [{
-          text: `You are a nutrition expert specializing in African and global meals. Recalculate the nutrition for this food item based on the new portion or measurement the user entered.
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `You are a nutrition expert specializing in African and global meals. Recalculate the nutrition for this food item based on the new portion or measurement the user entered.
 
 Food item: "${foodName}"
 Old portion: "${oldQty}" → calories: ${currentNutrition.cal ?? 0} kcal, protein: ${currentNutrition.protein ?? 0}g, carbs: ${currentNutrition.carbs ?? 0}g, fats: ${currentNutrition.fats ?? 0}g, fiber: ${currentNutrition.fiber ?? 0}g
@@ -339,12 +340,13 @@ Rules:
 {"name": "food name", "qty": "new portion text", "cal": 0, "protein": 0, "carbs": 0, "fats": 0, "fiber": 0}
 
 No explanation, no markdown, no extra text.`
-        }]
-      }],
-      generationConfig: { temperature: 0.1 },
-    };
-    const rawText = await geminiPostWithFallback(body, null, 0, 100);
-    const data = JSON.parse(rawText);
+            }]
+          }],
+          generationConfig: { temperature: 0.1 },
+        }),
+      }
+    );
+    const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (text) {
       const match = text.match(/\{[\s\S]*\}/);
@@ -417,7 +419,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const [addItemDetecting, setAddItemDetecting] = useState(false);
   const voiceIntervalRef = useRef(null);
   const typeIntervalRef = useRef(null);
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recordingRef = useRef(null);
   const [waveBars, setWaveBars] = useState(() => Array.from({ length: 30 }, () => 4));
   const waveIntervalRef = useRef(null);
   const detectIntervalRef = useRef(null);
@@ -605,15 +607,14 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     if (detectedFoods.length > 0 && onSaveMeal) {
       const now = new Date();
       const timeStr = `Today, ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-      const photoUrl = await uploadMealPhoto(capturedPhoto, mealTitle || detectedFoods[0]?.name) || await convertToDataUrl(capturedPhoto);
+      const photoUrl = await uploadMealPhoto(capturedPhoto) || await convertToDataUrl(capturedPhoto);
       onSaveMeal({
         id: Date.now(),
         name: mealTitle || detectedFoods.map(f => f.name).join(', '),
-        detected_name: mealTitle || null,
-        calories: Math.round(detectedFoods.reduce((sum, f) => sum + f.cal, 0)),
-        protein: Math.round(detectedFoods.reduce((sum, f) => sum + (f.protein || 0), 0)),
-        carbs: Math.round(detectedFoods.reduce((sum, f) => sum + (f.carbs || 0), 0)),
-        fats: Math.round(detectedFoods.reduce((sum, f) => sum + (f.fats || 0), 0)),
+        calories: detectedFoods.reduce((sum, f) => sum + f.cal, 0),
+        protein: detectedFoods.reduce((sum, f) => sum + (f.protein || 0), 0),
+        carbs: detectedFoods.reduce((sum, f) => sum + (f.carbs || 0), 0),
+        fats: detectedFoods.reduce((sum, f) => sum + (f.fats || 0), 0),
         time: timeStr,
         items: detectedFoods.map(f => `${f.name} (${f.qty})`),
         date: now.toDateString(),
@@ -638,14 +639,14 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const startRec = async () => {
     try {
       if (!micPermSaved) {
-        const { granted } = await AudioModule.requestRecordingPermissionsAsync();
+        const { granted } = await Audio.requestPermissionsAsync();
         if (!granted) return;
         setMicPermSaved(true);
         AsyncStorage.setItem('afri-fast-mic-perm', 'granted');
       }
-      await setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      await recorder.prepareToRecordAsync();
-      recorder.record();
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      recordingRef.current = recording;
       setIsRecording(true);
       setSayPhase('recording');
       setVoiceTranscript('');
@@ -659,14 +660,20 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
   const cancelRec = async () => {
     clearInterval(waveIntervalRef.current);
-    try { await recorder.stop(); } catch (_) {}
+    try {
+      await recordingRef.current?.stopAndUnloadAsync();
+      recordingRef.current = null;
+    } catch (_) {}
     resetSay();
   };
 
   const confirmRec = async () => {
     clearInterval(waveIntervalRef.current);
-    try { await recorder.stop(); } catch (_) {}
-    const uri = recorder.uri;
+    try {
+      await recordingRef.current?.stopAndUnloadAsync();
+    } catch (_) {}
+    const uri = recordingRef.current?.getURI();
+    recordingRef.current = null;
     setIsRecording(false);
     if (!uri) return;
     setSayPhase('detecting');
@@ -735,21 +742,19 @@ Return ONLY raw JSON, no markdown, no explanation.`
   const getTotalCal = () => detectedFoods.reduce((sum, f) => sum + f.cal, 0);
 
   const logMeal = async () => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-    const photoUrl = await uploadMealPhoto(capturedPhoto, mealTitle || detectedFoods[0]?.name) || await convertToDataUrl(capturedPhoto);
-    if (photoUrl) setCapturedPhoto(photoUrl);
+    const photoUrl = await uploadMealPhoto(capturedPhoto) || await convertToDataUrl(capturedPhoto);
+    // Don't update capturedPhoto state — keep the local URI for instant share card display.
+    // photoUrl (Supabase URL) is only used for saving to DB below.
     if (detectedFoods.length > 0 && onSaveMeal) {
       const now = new Date();
       const timeStr = `Today, ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
       onSaveMeal({
         id: Date.now(),
         name: mealTitle || detectedFoods.map(f => f.name).join(', '),
-        detected_name: mealTitle || null,
-        calories: Math.round(detectedFoods.reduce((sum, f) => sum + f.cal, 0)),
-        protein: Math.round(detectedFoods.reduce((sum, f) => sum + (f.protein || 0), 0)),
-        carbs: Math.round(detectedFoods.reduce((sum, f) => sum + (f.carbs || 0), 0)),
-        fats: Math.round(detectedFoods.reduce((sum, f) => sum + (f.fats || 0), 0)),
+        calories: detectedFoods.reduce((sum, f) => sum + f.cal, 0),
+        protein: detectedFoods.reduce((sum, f) => sum + (f.protein || 0), 0),
+        carbs: detectedFoods.reduce((sum, f) => sum + (f.carbs || 0), 0),
+        fats: detectedFoods.reduce((sum, f) => sum + (f.fats || 0), 0),
         time: timeStr,
         items: detectedFoods.map(f => `${f.name} (${f.qty})`),
         date: now.toDateString(),
@@ -757,7 +762,6 @@ Return ONLY raw JSON, no markdown, no explanation.`
         foods: detectedFoods,
       });
     }
-    setIsProcessing(false);
     setScanPhase('shareCard');
   };
 
@@ -989,8 +993,8 @@ Return ONLY raw JSON, no markdown, no explanation.`
                   </View>
 
                   {/* Log Meal */}
-                  <TouchableOpacity style={[styles.logBtn, isProcessing && { opacity: 0.6 }]} onPress={logMeal} disabled={isProcessing}>
-                    {isProcessing ? <ActivityIndicator color="#fff" /> : <Text style={styles.logBtnText}>Log Meal</Text>}
+                  <TouchableOpacity style={styles.logBtn} onPress={logMeal}>
+                    <Text style={styles.logBtnText}>Log Meal</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1288,17 +1292,8 @@ Return ONLY raw JSON, no markdown, no explanation.`
 
                 {/* INFO PANEL — everything below the image */}
                 <View style={styles.shareCardInfoPanel}>
-                  {/* Top row: brand + on track badge */}
+                  {/* Top row: on track label (left) + streak (right) */}
                   <View style={styles.shareCardTopRow}>
-                    <View style={styles.shareCardBrandBadge}>
-                      <LinearGradient colors={['#22c55e', '#16a34a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.shareCardBrandIcon}>
-                        <Text style={styles.shareCardBrandIconText}>🌿</Text>
-                      </LinearGradient>
-                      <Text style={styles.shareCardBrandName}>
-                        <Text style={{ color: '#fff' }}>Afri</Text>
-                        <Text style={{ color: '#4ade80' }}>-Fast</Text>
-                      </Text>
-                    </View>
                     {(() => {
                       const todayCal = recentMeals.filter(m => m.date === new Date().toDateString()).reduce((s, m) => s + (m.calories || 0), 0);
                       const over = todayCal > dailyCalorieGoal;
@@ -1310,19 +1305,9 @@ Return ONLY raw JSON, no markdown, no explanation.`
                         </View>
                       );
                     })()}
-                  </View>
-
-                  {/* Meal name + streak */}
-                  <View style={styles.shareCardMealInfo}>
-                    <Text style={styles.shareCardTodayLabel}>Today's Meal</Text>
-                    <View style={styles.shareCardMealNameRow}>
-                      {detectedFoods.length > 0 && (
-                        <Text style={styles.shareCardMealName} numberOfLines={2} ellipsizeMode="tail">{mealTitle || detectedFoods[0].name} 🌱</Text>
-                      )}
-                      <View style={styles.shareCardStreakBadge}>
-                        <Text style={styles.shareCardStreakNum}>{streak}🔥</Text>
-                        <Text style={styles.shareCardStreakLabel}>Day Streak</Text>
-                      </View>
+                    <View style={styles.shareCardStreakBadge}>
+                      <Text style={styles.shareCardStreakNum}>{streak}🔥</Text>
+                      <Text style={styles.shareCardStreakLabel}>Day Streak</Text>
                     </View>
                   </View>
                 </View>
@@ -1359,35 +1344,6 @@ Return ONLY raw JSON, no markdown, no explanation.`
                   );
                 })()}
 
-                {/* FOOD ITEMS */}
-                <View style={styles.shareCardItems}>
-                  {detectedFoods.slice(0, 5).map((f, i) => (
-                    <View key={i} style={[styles.shareCardItem, i === Math.min(detectedFoods.length, 5) - 1 && { borderBottomWidth: 0 }]}>
-                      <View style={[styles.shareCardDot, { backgroundColor: DOT_COLORS[i % DOT_COLORS.length] }]} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.shareCardItemName} numberOfLines={1} ellipsizeMode="tail">{f.name}</Text>
-                        <Text style={styles.shareCardItemPortion} numberOfLines={1} ellipsizeMode="tail">{f.qty}</Text>
-                      </View>
-                      <Text style={styles.shareCardItemCal}>{f.cal} cal</Text>
-                    </View>
-                  ))}
-                </View>
-
-                {/* MACROS */}
-                <View style={styles.shareCardMacrosWrapper}>
-                  {[
-                    { label: 'Carbs', val: Math.round(detectedFoods.reduce((s, f) => s + (f.carbs || 0), 0)) },
-                    { label: 'Protein', val: Math.round(detectedFoods.reduce((s, f) => s + (f.protein || 0), 0)) },
-                    { label: 'Fat', val: Math.round(detectedFoods.reduce((s, f) => s + (f.fats || 0), 0)) },
-                    { label: 'Fiber', val: Math.round(Math.min(detectedFoods.reduce((s, f) => s + (f.fiber || 0), 0), 200)) },
-                  ].map((m, i) => (
-                    <View key={i} style={styles.shareCardMacroItem}>
-                      <Text style={styles.shareCardMacroVal}>{m.val}g</Text>
-                      <Text style={styles.shareCardMacroLabel}>{m.label}</Text>
-                    </View>
-                  ))}
-                </View>
-
                 {/* FOOTER */}
                 {(() => {
                   const now = new Date();
@@ -1410,35 +1366,42 @@ Return ONLY raw JSON, no markdown, no explanation.`
               {/* Action buttons */}
               <View style={styles.shareCardActions}>
                 <TouchableOpacity style={styles.shareCardShareBtn} onPress={async () => {
+                  const now = new Date();
+                  const h = now.getHours();
+                  const mealType = h < 12 ? 'Breakfast' : h < 16 ? 'Lunch' : 'Dinner';
+                  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                  const name = mealTitle || (detectedFoods[0]?.name ?? 'My meal');
+                  const lines = detectedFoods.map(f => `  • ${f.name}${f.qty ? ` (${f.qty})` : ''} — ${f.cal} cal`).join('\n');
+                  const mealTotal = detectedFoods.reduce((s, f) => s + f.cal, 0);
+                  const dayTotal = recentMeals.filter(m => m.date === now.toDateString()).reduce((s, m) => s + (m.calories || 0), 0);
+                  const protein = recentMeals.filter(m => m.date === now.toDateString()).reduce((s, m) => s + (m.protein || 0), 0);
+                  const carbs = recentMeals.filter(m => m.date === now.toDateString()).reduce((s, m) => s + (m.carbs || 0), 0);
+                  const fats = recentMeals.filter(m => m.date === now.toDateString()).reduce((s, m) => s + (m.fats || 0), 0);
+                  const message =
+`*🌿 My ${mealType} on ${dateStr} on Afri-Fast*
+
+🍽️ ${name}: ${mealTotal} cal
+
+${lines}
+
+*🌿 Overall Food Intake Totals for Today*
+  Calories: ${dayTotal} cal
+  Protein: ${Math.round(protein)}g · Carbs: ${Math.round(carbs)}g · Fats: ${Math.round(fats)}g
+
+Tracked with Afri-Fast — the African food & fasting app`;
                   try {
                     if (Platform.OS === 'web') {
-                      const html2canvas = (await import('html2canvas')).default;
-                      const canvas = await html2canvas(shareCardRef.current, { useCORS: true, scale: 2 });
-                      canvas.toBlob(async (blob) => {
-                        const file = new File([blob], 'meal-afri-fast.png', { type: 'image/png' });
-                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                          await navigator.share({ files: [file], title: 'My meal on Afri Fast' });
-                        } else {
-                          // Fallback: download the image
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = 'meal-afri-fast.png';
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }
-                      }, 'image/png');
-                    } else {
-                      const uri = await captureRef(shareCardRef, { format: 'png', quality: 1 });
-                      if (await Sharing.isAvailableAsync()) {
-                        await Sharing.shareAsync(uri, { dialogTitle: 'Share your meal' });
+                      if (navigator.share) {
+                        await navigator.share({ title: `My ${mealType} on Afri-Fast`, text: message });
+                      } else {
+                        await navigator.clipboard.writeText(message);
+                        alert('Copied to clipboard!');
                       }
+                    } else {
+                      const { Share } = require('react-native');
+                      await Share.share({ message });
                     }
-                  } catch (e) {
-                    const mealText = detectedFoods.map(f => `${f.name} (${f.qty}) — ${f.cal} cal`).join('\n');
-                    const total = detectedFoods.reduce((s, f) => s + f.cal, 0);
-                    try { await require('react-native').Share.share({ message: `My meal today:\n${mealText}\n\nTotal: ${total} cal\n\n— tracked with Afri Fast` }); } catch (_) {}
-                  }
+                  } catch (_) {}
                 }}>
                   <Ionicons name="share-social-outline" size={20} color="#fff" />
                   <Text style={styles.shareCardShareBtnText}>Share</Text>
@@ -1736,14 +1699,15 @@ Return ONLY raw JSON, no markdown, no explanation.`
             </View>
           ) : (
             <>
-              <CameraView ref={cameraRef} style={StyleSheet.absoluteFillObject} facing="back" zoom={0} />
-              <View style={styles.scanOverlay} pointerEvents="none">
-                <View style={styles.scanCornerTL} />
-                <View style={styles.scanCornerTR} />
-                <View style={styles.scanCornerBL} />
-                <View style={styles.scanCornerBR} />
-              </View>
-              <Text style={[styles.scanHint, { position: 'absolute', bottom: 180, alignSelf: 'center' }]} pointerEvents="none">Step back so your whole meal fits in frame</Text>
+              <CameraView ref={cameraRef} style={StyleSheet.absoluteFillObject} facing="back" zoom={0}>
+                <View style={styles.scanOverlay}>
+                  <View style={styles.scanCornerTL} />
+                  <View style={styles.scanCornerTR} />
+                  <View style={styles.scanCornerBL} />
+                  <View style={styles.scanCornerBR} />
+                </View>
+                <Text style={styles.scanHint}>Step back so your whole meal fits in frame</Text>
+              </CameraView>
               {/* Back button */}
               <TouchableOpacity style={styles.cameraBackBtn} onPress={handleClose}>
                 <Ionicons name="chevron-back" size={26} color="#fff" />
@@ -2252,7 +2216,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 4,
   },
   // Brand badge
   shareCardBrandBadge: {
@@ -2343,7 +2307,7 @@ const styles = StyleSheet.create({
   // Kcal section
   shareCardKcalSection: {
     paddingHorizontal: 24,
-    paddingTop: 18,
+    paddingTop: 8,
     paddingBottom: 14,
     backgroundColor: '#111',
   },
