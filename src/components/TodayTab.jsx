@@ -1,9 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, ActivityIndicator } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
+import { getGeminiInsight } from '../lib/geminiInsights';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -44,9 +44,52 @@ const TodayTab = ({
   waterLogs,
   volumeUnit,
   onShowCalendar,
+  checkInHistory,
+  weightLogs,
+  targetWeight,
+  startingWeight,
+  dailyCalorieGoal,
+  hydrationGoal,
+  userName,
+  userCountry,
+  userId,
+  proteinGoal,
+  carbsGoal,
+  fatsGoal,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
+
+  const [aiInsight, setAiInsight] = useState(null);
+  const [insightLoading, setInsightLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    setInsightLoading(true);
+    getGeminiInsight({
+      profile: {
+        userId,
+        userName,
+        userCountry,
+        selectedPlan,
+        targetWeight,
+        startingWeight,
+        dailyCalorieGoal,
+        hydrationGoal,
+        volumeUnit,
+        proteinGoal,
+        carbsGoal,
+        fatsGoal,
+      },
+      fastingSessions: fastingSessions || [],
+      checkInHistory: checkInHistory || [],
+      recentMeals: recentMeals || [],
+      weightLogs: weightLogs || [],
+      waterLogs: waterLogs || [],
+    })
+      .then(insight => { setAiInsight(insight); setInsightLoading(false); })
+      .catch(() => setInsightLoading(false));
+  }, [userId]);
 
   const formatDate = () => {
     const options = { weekday: 'long', month: 'short', day: 'numeric' };
@@ -81,12 +124,139 @@ const TodayTab = ({
     return { stage: 'Goal Reached', desc: 'You have reached your fasting goal and are now fasting beyond it.' };
   };
 
-  const insights = [
-    { title: "Today's fasting stage", subtitle: "Understanding fat burning", color: '#E8F5E9', accent: '#4CAF50' },
-    { title: "What to expect at hour 12", subtitle: "Your body at midpoint", color: '#FFF3E0', accent: '#FF9800' },
-    { title: "Hydration tip", subtitle: "Stay energized today", color: '#E3F2FD', accent: '#2196F3' },
-    { title: "Electrolyte guide", subtitle: "3 min read", color: '#FCE4EC', accent: '#E91E63' },
-  ];
+  // === Dynamic Today's Insights ===
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const todayWater = (waterLogs || [])
+    .filter(w => w.date === todayStr)
+    .reduce((sum, w) => sum + (w.amount || 1), 0);
+
+  const completedDates = new Set(
+    (fastingSessions || []).filter(s => s.endTime).map(s => (s.date || s.startTime || '').split('T')[0])
+  );
+  let streak = 0;
+  const streakDate = new Date();
+  for (let i = 0; i < 30; i++) {
+    if (completedDates.has(streakDate.toISOString().split('T')[0])) {
+      streak++;
+      streakDate.setDate(streakDate.getDate() - 1);
+    } else break;
+  }
+
+  const sortedWeights = [...(weightLogs || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const currentWeightVal = sortedWeights.length ? sortedWeights[sortedWeights.length - 1].weight : null;
+  const weightUnitVal = sortedWeights.length ? sortedWeights[sortedWeights.length - 1].unit : 'kg';
+  const weightLostVal = startingWeight && currentWeightVal
+    ? parseFloat((startingWeight - currentWeightVal).toFixed(1))
+    : null;
+
+  const stageInfo = getStageInfo();
+
+  const insights = [];
+
+  // Card 1: Fasting stage
+  if (isFasting) {
+    const stageMessages = {
+      'Fed State':         { subtitle: 'Your body is still winding down from your last meal' },
+      'Settling In':       { subtitle: 'Your fast is underway — the hard part is behind you' },
+      'Fat-Burning Shift': { subtitle: 'This is where the magic starts to happen' },
+      'Almost There':      { subtitle: "You're so close — don't quit now" },
+      'Goal Reached':      { subtitle: "You've hit your goal — your body is thriving" },
+    };
+    const msg = stageMessages[stageInfo.stage] || { subtitle: 'Your body is working hard for you' };
+    insights.push({ title: stageInfo.stage, subtitle: msg.subtitle, color: '#E8F5E9', accent: '#4CAF50' });
+  } else {
+    insights.push({ title: "Today's fasting stage", subtitle: "Understanding fat burning", color: '#E8F5E9', accent: '#4CAF50' });
+  }
+
+  // Card 2: Meal quality nudge
+  if (todayCalories > 0 && dailyCalorieGoal) {
+    const ratio = todayCalories / dailyCalorieGoal;
+    const over = ratio > 1.1;
+    const under = ratio < 0.5;
+    insights.push({
+      title: over ? 'Watch your next meal' : under ? 'Make sure you eat enough' : "You're eating well today",
+      subtitle: over ? 'You may have gone a bit heavy — keep it light next time'
+               : under ? 'Under-eating can slow your progress just like overeating'
+               : 'Your body is getting what it needs',
+      color: over ? '#FFF3E0' : '#E3F2FD', accent: over ? '#FF9800' : '#2196F3',
+    });
+  } else {
+    insights.push({ title: "What to expect at hour 12", subtitle: "Your body at midpoint", color: '#FFF3E0', accent: '#FF9800' });
+  }
+
+  // Card 3: Hydration nudge
+  if ((waterLogs || []).length > 0 && hydrationGoal) {
+    const hitGoal = todayWater >= hydrationGoal;
+    const low = todayWater === 0;
+    insights.push({
+      title: hitGoal ? 'Hydrated and thriving' : low ? 'Your body is thirsty' : 'Keep sipping',
+      subtitle: hitGoal ? 'Great job — hydration makes fasting so much easier'
+               : low ? "You haven't had any water yet today — that matters"
+               : "You're on your way — don't stop now",
+      color: '#E3F2FD', accent: '#2196F3',
+    });
+  } else {
+    insights.push({ title: "Hydration tip", subtitle: "Stay energized today", color: '#E3F2FD', accent: '#2196F3' });
+  }
+
+  // Card 4: Motivation — streak or weight progress
+  if (streak > 1) {
+    insights.push({
+      title: streak >= 7 ? 'You are unstoppable' : 'You are building a habit',
+      subtitle: streak >= 7 ? 'A full week of consistency — that is rare and powerful'
+               : 'Every day you show up makes the next one easier',
+      color: '#FCE4EC', accent: '#E91E63',
+    });
+  } else if (weightLostVal != null && weightLostVal > 0) {
+    insights.push({
+      title: 'Your body is changing',
+      subtitle: 'The scale is moving — what you are doing is working. Stay the course.',
+      color: '#FCE4EC', accent: '#E91E63',
+    });
+  } else {
+    insights.push({ title: "Electrolyte guide", subtitle: "3 min read", color: '#FCE4EC', accent: '#E91E63' });
+  }
+
+  // === Alert card — real observation from user data ===
+  const recentCheckIns = (checkInHistory || []).filter(c => {
+    const d = new Date(c.date);
+    return Date.now() - d.getTime() < 14 * 24 * 60 * 60 * 1000;
+  });
+  const recentSessions14 = (fastingSessions || []).filter(s => {
+    const d = new Date(s.date || s.startTime);
+    return Date.now() - d.getTime() < 14 * 24 * 60 * 60 * 1000;
+  });
+  const completedRecent = recentSessions14.filter(s => s.endTime).length;
+  const abandonedRecent = recentSessions14.length - completedRecent;
+
+  const calorieRatio = dailyCalorieGoal > 0 ? todayCalories / dailyCalorieGoal : null;
+  const significantlyOver = calorieRatio !== null && calorieRatio > 1.15;
+  const significantlyUnder = calorieRatio !== null && calorieRatio < 0.5 && todayCalories > 0;
+
+  // Use AI alert if available, otherwise fall back to computed logic
+  let alertInsight = aiInsight?.alert || null;
+  if (!alertInsight) {
+    if (recentSessions14.length > 0 && recentCheckIns.length === 0) {
+      alertInsight = "You haven't checked in during any of your recent fasts. Check-ins help us understand how your body is responding and give you better coaching.";
+    } else if (abandonedRecent >= 2 && abandonedRecent > completedRecent) {
+      alertInsight = "You've abandoned more fasts than you've completed lately. That's okay — your coach can help figure out what's getting in the way.";
+    } else if (significantlyOver) {
+      alertInsight = "You've gone over your calorie target today. That doesn't erase your fast — but your coach can help you understand how to balance it so your progress stays on track.";
+    } else if (significantlyUnder) {
+      alertInsight = "You've eaten well below your calorie target today. Under-eating can slow your metabolism and make fasting harder tomorrow — your coach can help you find the right balance.";
+    } else if (todayWater === 0 && (waterLogs || []).length > 0) {
+      alertInsight = "You haven't logged any water today. Dehydration makes fasting significantly harder — your coach can share some tips to stay on top of it.";
+    } else if (weightLostVal != null && weightLostVal <= 0 && (weightLogs || []).length >= 3) {
+      alertInsight = "Your weight hasn't moved recently despite fasting. This is common — your coach can help identify what might need adjusting.";
+    } else if (streak === 0 && (fastingSessions || []).length > 0) {
+      alertInsight = "You haven't completed a fast recently. Getting back on track starts with one good day — your coach is here to help.";
+    } else if (streak >= 7) {
+      alertInsight = "You've been incredibly consistent. Your coach wants to make sure you're not overdoing it — check in to talk about your progress.";
+    } else {
+      alertInsight = "Your coach is watching your patterns and has some thoughts on how you can get even better results. Tap to chat.";
+    }
+  }
 
   const patternCards = [
     {
@@ -168,7 +338,7 @@ const TodayTab = ({
         </TouchableOpacity>
       </View>
 
-      {Platform.OS === 'web' && <View style={{ height: 77 }} />}
+      {Platform.OS === 'web' && <View style={{ height: 20 }} />}
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Primary Status Card */}
@@ -275,12 +445,12 @@ const TodayTab = ({
         {/* Today's Insights */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <Text style={styles.sectionTitleTight}>Today's Insights</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.insightsScrollCompact}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.insightsScrollCompact}>
             {insights.map((insight, i) => (
               <TouchableOpacity key={i} style={[styles.insightCardCompact, { backgroundColor: isDark ? colors.card : insight.color }]}>
                 <View style={[styles.insightAccentSmall, { backgroundColor: insight.accent }]} />
-                <Text style={[styles.insightTitleSmall, isDark && { color: colors.text }]}>{insight.title}</Text>
-                <Text style={[styles.insightSubSmall, isDark && { color: colors.textSecondary }]}>{insight.subtitle}</Text>
+                <Text style={[styles.insightTitleSmall, isDark && { color: colors.text }]} numberOfLines={2}>{insight.title}</Text>
+                <Text style={[styles.insightSubSmall, isDark && { color: colors.textSecondary }]} numberOfLines={2}>{insight.subtitle}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -289,12 +459,12 @@ const TodayTab = ({
         {/* Education Cards */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <Text style={styles.sectionTitleTight}>{'\u{1F4A1}'} Just for You</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.eduScrollCompact}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
             <View style={styles.educationCard}>
               <View style={styles.eduContent}>
                 <Text style={styles.eduTitle}>Hunger spikes are normal around hour 16</Text>
                 <Text style={styles.eduDesc}>Understanding ghrelin waves can help you push through the hardest moments.</Text>
-                <TouchableOpacity style={styles.eduBtn}>
+                <TouchableOpacity style={styles.eduBtn} onPress={() => setSelectedArticle({ title: 'Hunger spikes are normal around hour 16', body: "Around hour 14-16 of fasting, many people experience a strong wave of hunger. This is caused by ghrelin — your hunger hormone — which spikes on a schedule based on when you usually eat.\n\nThe good news: ghrelin waves only last 20-30 minutes. If you push through without eating, the hunger actually fades on its own.\n\nStaying busy, drinking water or black coffee, and reminding yourself that the feeling is temporary are the most effective strategies. Over time, as your body adapts to your fasting schedule, these spikes become less intense and easier to manage." })}>
                   <Text style={styles.eduBtnText}>Learn more</Text>
                 </TouchableOpacity>
               </View>
@@ -303,7 +473,7 @@ const TodayTab = ({
               <View style={styles.eduContent}>
                 <Text style={styles.eduTitle}>What breaks a fast?</Text>
                 <Text style={styles.eduDesc}>Learn which foods and drinks will kick you out of your fasted state.</Text>
-                <TouchableOpacity style={styles.eduBtn}>
+                <TouchableOpacity style={styles.eduBtn} onPress={() => setSelectedArticle({ title: 'What breaks a fast?', body: "Not everything ends a fast — and knowing the difference can make your fasting experience much more flexible.\n\nWhat definitely breaks a fast: any food with calories, sugary drinks, milk or cream in coffee, fruit juices, and most supplements with calories or sugar.\n\nWhat does NOT break a fast: plain water, black coffee, plain tea (no milk or sugar), sparkling water, electrolytes with no calories, and most medications (always check with your doctor).\n\nThe grey area: Apple cider vinegar (small amounts), diet sodas, and flavoured water are debated. They technically have near-zero calories but may trigger an insulin response in some people.\n\nFor most fasting goals — weight loss, blood sugar control, mental clarity — the key is keeping insulin low. Stick to zero-calorie drinks and you'll be fine." })}>
                   <Text style={styles.eduBtnText}>Learn more</Text>
                 </TouchableOpacity>
               </View>
@@ -312,7 +482,7 @@ const TodayTab = ({
               <View style={styles.eduContent}>
                 <Text style={styles.eduTitle}>Electrolytes during fasting</Text>
                 <Text style={styles.eduDesc}>Stay energized and avoid fatigue with proper mineral balance.</Text>
-                <TouchableOpacity style={styles.eduBtn}>
+                <TouchableOpacity style={styles.eduBtn} onPress={() => setSelectedArticle({ title: 'Electrolytes during fasting', body: "One of the most overlooked aspects of fasting is electrolyte balance. When you fast, your kidneys excrete more sodium, which causes you to lose potassium and magnesium as well. This is why many people experience headaches, fatigue, and muscle cramps during fasts.\n\nThe three key electrolytes to focus on:\n\n• Sodium — Add a small pinch of pink Himalayan salt or sea salt to your water. This alone solves most fasting headaches.\n\n• Potassium — Found in avocados, leafy greens, and sweet potatoes during your eating window.\n\n• Magnesium — Helps with sleep, muscle cramps, and stress. A magnesium glycinate supplement before bed is a great addition.\n\nYou can buy electrolyte powders with no sugar or calories that are safe to take during a fast. Look for ones without sweeteners if you want to be strict.\n\nProper electrolyte intake can be the difference between a miserable fast and an energised, clear-headed one." })}>
                   <Text style={styles.eduBtnText}>Learn more</Text>
                 </TouchableOpacity>
               </View>
@@ -323,7 +493,7 @@ const TodayTab = ({
         {/* Based on Your Pattern */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <Text style={styles.sectionTitleTight}>Based on Your Pattern</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.patternScrollCompact}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.patternScrollCompact}>
             {patternCards.map((card, i) => (
               <TouchableOpacity key={i} style={styles.patternCardLarge} onPress={() => setSelectedArticle(card)}>
                 <Image source={card.image} style={styles.patternImageArea} resizeMode="cover" />
@@ -341,9 +511,9 @@ const TodayTab = ({
               <Text style={{ fontSize: 18 }}>{'\u26A1'}</Text>
             </View>
             <View style={styles.alertContent}>
-              <Text style={styles.alertText}>We noticed longer fasts may affect your energy. Consider shorter fasts on busy days.</Text>
-              <TouchableOpacity style={styles.alertBtn} onPress={onShowChat}>
-                <Text style={styles.alertBtnText}>Review insight</Text>
+              <Text style={styles.alertText}>{alertInsight}</Text>
+              <TouchableOpacity style={styles.alertBtn} onPress={() => onShowChat(alertInsight)}>
+                <Text style={styles.alertBtnText}>Talk to coach</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -502,10 +672,10 @@ const TodayTab = ({
       <Modal
         visible={selectedArticle !== null}
         animationType="slide"
-        presentationStyle="pageSheet"
+        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
         onRequestClose={() => setSelectedArticle(null)}
       >
-        <SafeAreaView style={styles.articleModal}>
+        <View style={[styles.articleModal, Platform.OS !== 'ios' && { paddingTop: 44 }]}>
           <View style={styles.articleHeader}>
             <TouchableOpacity onPress={() => setSelectedArticle(null)} style={styles.articleCloseBtn}>
               <Text style={styles.articleCloseText}>✕</Text>
@@ -516,12 +686,14 @@ const TodayTab = ({
           {selectedArticle && (
             <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false}>
               <Text style={styles.articleTitle}>{selectedArticle.title}</Text>
-              <Image source={selectedArticle.image} style={styles.articleImage} resizeMode="cover" />
+              {selectedArticle.image && (
+                <Image source={selectedArticle.image} style={styles.articleImage} resizeMode="cover" />
+              )}
               <Text style={styles.articleBody}>{selectedArticle.body}</Text>
               <View style={{ height: 60 }} />
             </ScrollView>
           )}
-        </SafeAreaView>
+        </View>
       </Modal>
     </View>
   );
@@ -535,7 +707,7 @@ const makeStyles = (c) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 8,
+    paddingTop: 0,
     paddingBottom: 8,
     paddingHorizontal: 16,
     backgroundColor: c.appBg,
@@ -818,7 +990,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   insightCardCompact: {
     width: 130,
-    minHeight: 80,
+    height: 80,
     padding: 16,
     borderRadius: 14,
     marginRight: 10,
@@ -852,8 +1024,8 @@ const makeStyles = (c) => StyleSheet.create({
   },
   educationCard: {
     width: 280,
-    minHeight: 220,
-    backgroundColor: c.cardAlt,
+    height: 220,
+    backgroundColor: '#1D4ED8',
     borderRadius: 24,
     overflow: 'hidden',
     padding: 24,
@@ -1165,7 +1337,7 @@ const makeStyles = (c) => StyleSheet.create({
     color: '#059669',
   },
   bottomSpacer: {
-    height: 20,
+    height: 90,
   },
   articleModal: {
     flex: 1,

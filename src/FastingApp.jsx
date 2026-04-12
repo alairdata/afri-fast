@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Dimensions, Animated, Platform, StatusBar } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './lib/supabase';
+
+const ACTIVE_FAST_KEY = 'afri_active_fast_v1';
 import {
   requestNotificationPermissions,
   scheduleFastEndNotification,
@@ -142,6 +145,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [showPlanPage, setShowPlanPage] = useState(false);
   const [showCheckInPage, setShowCheckInPage] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [chatOpeningContext, setChatOpeningContext] = useState(null);
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showFastingDetails, setShowFastingDetails] = useState(false);
   const [showBMIDetails, setShowBMIDetails] = useState(false);
@@ -179,9 +183,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [notes, setNotes] = useState('');
 
   // === Chat state ===
-  const [chatMessages, setChatMessages] = useState([
-    { role: 'assistant', content: "Hi! \u{1F44B}\u{1F3FF} I noticed your longer fasts may be affecting your energy levels. I'm here to help you optimize your fasting schedule. What would you like to know?" }
-  ]);
+  const [chatMessages, setChatMessages] = useState([]);
 
   // === User/profile state ===
   const [userName, setUserName] = useState('');
@@ -239,11 +241,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // === Meals state ===
   const [selectedMealDate, setSelectedMealDate] = useState(new Date());
   const [recentMeals, setRecentMeals] = useState([]);
-  const [savedRecipes, setSavedRecipes] = useState([
-    { id: 1, name: 'Jollof Rice & Grilled Chicken', calories: 520, image: { uri: 'https://www.foodfusion.com/wp-content/uploads/2025/07/Nigerian-Jollof-Rice-with-Grilled-Chicken-5.jpg' } },
-    { id: 2, name: 'Egusi Soup & Pounded Yam', calories: 630, image: { uri: 'https://nutriscan.app/calories-nutrition/images/egusi-soup-fe0df.webp' } },
-    { id: 3, name: 'Plantain & Egg Sauce', calories: 395, image: { uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFC5A5GVaaXRxZNY5M89-DEsTGXC5IjHK1wQ&s' } },
-  ]);
+  const [savedRecipes, setSavedRecipes] = useState([]);
 
   // === Time edit state ===
   const [startDay, setStartDay] = useState('');
@@ -272,7 +270,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     const { data, error } = await supabase
       .from('profiles')
       .upsert(payload, { onConflict: 'id' })
-      .select('id, name, email, country, selected_plan, is_fasting, fast_start_time')
+      .select('id, name, email, country, selected_plan')
       .maybeSingle();
 
     if (error) {
@@ -288,7 +286,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch profile from Supabase (including fasting state)
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, is_fasting, fast_start_time, target_weight, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -300,12 +298,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           if (!createdProfile) return;
           data = createdProfile;
         }
-        console.log('[Profile restored]', {
-          id: session.user.id,
-          selected_plan: data.selected_plan,
-          is_fasting: data.is_fasting,
-          fast_start_time: data.fast_start_time,
-        });
         if (data.name) setUserName(data.name);
         if (data.country) setUserCountry(data.country);
         if (data.selected_plan) setSelectedPlan(data.selected_plan);
@@ -318,13 +310,29 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.carbs_goal) setCarbsGoal(data.carbs_goal);
         if (data.fats_goal) setFatsGoal(data.fats_goal);
         if (data.hydration_goal) setHydrationGoal(data.hydration_goal);
-        if (data.is_fasting && data.fast_start_time) {
-          const savedStartTime = Number(data.fast_start_time);
-          if (savedStartTime) {
-            setIsFasting(true);
-            setFastStartTime(savedStartTime);
+        // Restore active fast from AsyncStorage (sole source of truth for active fast)
+        try {
+          const local = await AsyncStorage.getItem(ACTIVE_FAST_KEY);
+          if (local) {
+            const parsed = JSON.parse(local);
+            if (parsed.userId === session.user.id && parsed.startTime > 0) {
+              const restoredStartTime = parsed.startTime;
+              const restoredPlan = parsed.plan || data.selected_plan || '16:8';
+              setIsFasting(true);
+              setFastStartTime(restoredStartTime);
+              const toLabel = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+              const startDate = new Date(restoredStartTime);
+              setStartDay(toLabel(startDate));
+              setStartHour(startDate.getHours());
+              setStartMinute(startDate.getMinutes());
+              const planHours = parseInt(restoredPlan.split(':')[0]) || 16;
+              const endDate = new Date(restoredStartTime + planHours * 60 * 60 * 1000);
+              setEndDay(toLabel(endDate));
+              setEndHour(endDate.getHours());
+              setEndMinute(endDate.getMinutes());
+            }
           }
-        }
+        } catch (_) {}
       });
   }, [session]);
 
@@ -578,24 +586,21 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       return;
     }
     const now = new Date();
-    setFastStartTime(Date.now());
+    const startTs = now.getTime();
+    setFastStartTime(startTs);
     setFastingHours(0);
     setFastingMinutes(0);
     setFastingSeconds(0);
     setIsFasting(true);
     setCheckedIn(false);
-    const startTs = Date.now();
     const planHours = parseInt((selectedPlan || '16:8').split(':')[0]) || 16;
     if (notifyFastEnd) scheduleFastEndNotification(startTs, planHours);
     if (notifyMilestones) scheduleMilestoneNotifications(startTs, planHours);
-    upsertProfile({ is_fasting: true, fast_start_time: startTs }, 'start fast')
-      .then((data) => {
-        if (!data) {
-          console.warn('[Start fast save warning] Fast state was not persisted for user', session?.user?.id);
-          return;
-        }
-        console.log('[Fast started, saved row]', data);
-      });
+    AsyncStorage.setItem(ACTIVE_FAST_KEY, JSON.stringify({
+      userId: session?.user?.id,
+      startTime: startTs,
+      plan: selectedPlan,
+    })).catch(() => {});
     // Update start time display
     setStartDay(formatDateLabel(now));
     setStartHour(now.getHours());
@@ -649,7 +654,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     setFastingHours(0);
     setFastingMinutes(0);
     setFastingSeconds(0);
-    upsertProfile({ is_fasting: false, fast_start_time: null }, 'clear fast on end');
+    AsyncStorage.removeItem(ACTIVE_FAST_KEY).catch(() => {});
   };
 
   const prefersReducedMotion = Platform.OS === 'web' &&
@@ -812,7 +817,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       setIsFasting(false);
       setFastStartTime(null);
       setFastingHours(0); setFastingMinutes(0); setFastingSeconds(0);
-      upsertProfile({ is_fasting: false, fast_start_time: null }, 'end fast via time edit');
+      AsyncStorage.removeItem(ACTIVE_FAST_KEY).catch(() => {});
       showToast('Fast ended!');
     }
     setShowTimeModal(false);
@@ -869,7 +874,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           strokeDashoffset={strokeDashoffset}
           onShowPlanPage={handleOpenPlanPage}
           onShowCheckInPage={() => setShowCheckInPage(true)}
-          onShowChat={() => setShowChat(true)}
+          onShowChat={(context) => { setChatOpeningContext(context || null); setShowChat(true); }}
           onStartFast={handleStartFast}
           onEndFast={handleEndFast}
           fastingSessions={fastingSessions}
@@ -892,6 +897,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           endDay={endDay}
           endHour={endHour}
           endMinute={endMinute}
+          checkInHistory={checkInHistory}
+          weightLogs={weightLogs}
+          targetWeight={targetWeight}
+          startingWeight={startingWeight}
+          dailyCalorieGoal={dailyCalorieGoal}
+          hydrationGoal={hydrationGoal}
+          userName={userName}
+          userCountry={userCountry}
+          userId={session?.user?.id}
+          proteinGoal={proteinGoal}
+          carbsGoal={carbsGoal}
+          fatsGoal={fatsGoal}
         />
       )}
 
@@ -1012,9 +1029,27 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       {/* === Overlay Pages === */}
       <ChatScreen
         show={showChat}
-        onClose={() => setShowChat(false)}
+        onClose={() => { setShowChat(false); setChatOpeningContext(null); }}
         messages={chatMessages}
         setMessages={setChatMessages}
+        openingContext={chatOpeningContext}
+        userId={session?.user?.id}
+        userName={userName}
+        userCountry={userCountry}
+        selectedPlan={selectedPlan}
+        targetWeight={targetWeight}
+        startingWeight={startingWeight}
+        dailyCalorieGoal={dailyCalorieGoal}
+        hydrationGoal={hydrationGoal}
+        volumeUnit={volumeUnit}
+        proteinGoal={proteinGoal}
+        carbsGoal={carbsGoal}
+        fatsGoal={fatsGoal}
+        fastingSessions={fastingSessions}
+        checkInHistory={checkInHistory}
+        recentMeals={recentMeals}
+        weightLogs={weightLogs}
+        waterLogs={waterLogs}
       />
 
       <FastingCalendarPage

@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Animated, Image, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Animated, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Share } from 'react-native';
 import Svg, { Path, Line, Polyline, Rect } from 'react-native-svg';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Sharing from 'expo-sharing';
@@ -371,13 +371,18 @@ No explanation, no markdown, no extra text.`
 
 const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null }) => {
   const [permission, requestPermission] = useCameraPermissions();
-  const [camPermSaved, setCamPermSaved] = useState(false);
   const [micPermSaved, setMicPermSaved] = useState(false);
 
+  // Auto-request camera permission when scan tab is opened — OS handles "don't ask again"
   useEffect(() => {
-    AsyncStorage.multiGet(['afri-fast-cam-perm', 'afri-fast-mic-perm']).then(([cam, mic]) => {
-      if (cam[1] === 'granted') setCamPermSaved(true);
-      if (mic[1] === 'granted') setMicPermSaved(true);
+    if (logMealMethod === 'scan') {
+      requestPermission();
+    }
+  }, [logMealMethod]);
+
+  useEffect(() => {
+    AsyncStorage.getItem('afri-fast-mic-perm').then((mic) => {
+      if (mic === 'granted') setMicPermSaved(true);
     });
   }, []);
   const cameraRef = useRef(null);
@@ -1366,42 +1371,58 @@ Return ONLY raw JSON, no markdown, no explanation.`
               {/* Action buttons */}
               <View style={styles.shareCardActions}>
                 <TouchableOpacity style={styles.shareCardShareBtn} onPress={async () => {
-                  const now = new Date();
-                  const h = now.getHours();
-                  const mealType = h < 12 ? 'Breakfast' : h < 16 ? 'Lunch' : 'Dinner';
-                  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-                  const name = mealTitle || (detectedFoods[0]?.name ?? 'My meal');
-                  const lines = detectedFoods.map(f => `  • ${f.name}${f.qty ? ` (${f.qty})` : ''} — ${f.cal} cal`).join('\n');
-                  const mealTotal = detectedFoods.reduce((s, f) => s + f.cal, 0);
-                  const dayTotal = recentMeals.filter(m => m.date === now.toDateString()).reduce((s, m) => s + (m.calories || 0), 0);
-                  const protein = recentMeals.filter(m => m.date === now.toDateString()).reduce((s, m) => s + (m.protein || 0), 0);
-                  const carbs = recentMeals.filter(m => m.date === now.toDateString()).reduce((s, m) => s + (m.carbs || 0), 0);
-                  const fats = recentMeals.filter(m => m.date === now.toDateString()).reduce((s, m) => s + (m.fats || 0), 0);
-                  const message =
-`*🌿 My ${mealType} on ${dateStr} on Afri-Fast*
-
-🍽️ ${name}: ${mealTotal} cal
-
-${lines}
-
-*🌿 Overall Food Intake Totals for Today*
-  Calories: ${dayTotal} cal
-  Protein: ${Math.round(protein)}g · Carbs: ${Math.round(carbs)}g · Fats: ${Math.round(fats)}g
-
-Tracked with Afri-Fast — the African food & fasting app`;
                   try {
+                    // Build text details to share alongside the card image
+                    const todayStr = new Date().toDateString();
+                    const todayMeals = recentMeals.filter(m => m.date === todayStr);
+                    const totalCal = todayMeals.reduce((s, m) => s + (m.calories || 0), 0);
+                    const totalProtein = todayMeals.reduce((s, m) => s + (m.protein || 0), 0);
+                    const totalCarbs = todayMeals.reduce((s, m) => s + (m.carbs || 0), 0);
+                    const totalFats = todayMeals.reduce((s, m) => s + (m.fats || 0), 0);
+                    const mealCal = detectedFoods.reduce((s, f) => s + (f.cal || 0), 0);
+                    const mealProtein = detectedFoods.reduce((s, f) => s + (f.protein || 0), 0);
+                    const mealCarbs = detectedFoods.reduce((s, f) => s + (f.carbs || 0), 0);
+                    const mealFats = detectedFoods.reduce((s, f) => s + (f.fats || 0), 0);
+                    const foodLines = detectedFoods.map(f => `  • ${f.name} (${f.qty}) — ${f.cal} cal`).join('\n');
+                    const detailsText = [
+                      `🍽️ ${mealTitle || 'My Meal'} — AfriFast`,
+                      '',
+                      foodLines,
+                      '',
+                      `Meal: ${mealCal} kcal  |  P: ${mealProtein}g · C: ${mealCarbs}g · F: ${mealFats}g`,
+                      `Today: ${totalCal.toLocaleString()} / ${dailyCalorieGoal.toLocaleString()} kcal  |  P: ${totalProtein}g · C: ${totalCarbs}g · F: ${totalFats}g`,
+                      `${streak}🔥 day streak`,
+                      '',
+                      'Tracked on AfriFast',
+                    ].join('\n');
+
                     if (Platform.OS === 'web') {
-                      if (navigator.share) {
-                        await navigator.share({ title: `My ${mealType} on Afri-Fast`, text: message });
+                      // Capture the card as a PNG on web
+                      const dataUrl = await captureRef(shareCardRef, { format: 'png', quality: 0.95 });
+                      const res = await fetch(dataUrl);
+                      const blob = await res.blob();
+                      const file = new File([blob], 'afri-fast-meal.png', { type: 'image/png' });
+                      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file], title: 'My Meal — AfriFast', text: detailsText });
                       } else {
-                        await navigator.clipboard.writeText(message);
-                        alert('Copied to clipboard!');
+                        // Fallback: download the image
+                        const a = document.createElement('a');
+                        a.href = dataUrl;
+                        a.download = 'afri-fast-meal.png';
+                        a.click();
                       }
                     } else {
-                      const { Share } = require('react-native');
-                      await Share.share({ message });
+                      // Native: share text + image together via native share sheet
+                      const uri = await captureRef(shareCardRef, { format: 'png', quality: 0.95 });
+                      await Share.share({
+                        title: 'My Meal — AfriFast',
+                        message: detailsText,
+                        url: uri, // iOS includes image alongside message; Android uses message only
+                      });
                     }
-                  } catch (_) {}
+                  } catch (e) {
+                    console.warn('Share capture failed:', e);
+                  }
                 }}>
                   <Ionicons name="share-social-outline" size={20} color="#fff" />
                   <Text style={styles.shareCardShareBtnText}>Share</Text>
@@ -1683,19 +1704,11 @@ Tracked with Afri-Fast — the African food & fasting app`;
       {/* Scan — Camera (absolute full screen overlay) */}
       {logMealMethod === 'scan' && scanPhase === 'camera' && (
         <View style={styles.cameraAbsolute}>
-          {!permission?.granted && !camPermSaved ? (
+          {!permission?.granted ? (
             <View style={styles.cameraPermission}>
               <Ionicons name="camera-outline" size={48} color="#D1D5DB" />
-              <Text style={styles.cameraPermissionText}>Camera access needed to scan your meal</Text>
-              <TouchableOpacity style={styles.cameraPermissionBtn} onPress={async () => {
-                const result = await requestPermission();
-                if (result?.granted) {
-                  setCamPermSaved(true);
-                  AsyncStorage.setItem('afri-fast-cam-perm', 'granted');
-                }
-              }}>
-                <Text style={styles.cameraPermissionBtnText}>Allow Camera</Text>
-              </TouchableOpacity>
+              <Text style={styles.cameraPermissionText}>Camera access is required to scan your meal</Text>
+              <Text style={[styles.cameraPermissionText, { fontSize: 13, marginTop: -8 }]}>Please enable it in your device Settings</Text>
             </View>
           ) : (
             <>

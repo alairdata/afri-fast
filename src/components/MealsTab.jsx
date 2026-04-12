@@ -223,7 +223,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
 
       {/* Log Meal Options - Full Screen overlay (outside ScrollView) */}
       {showLogMealOptions && (
-        <View style={styles.logMealPage}>
+        <View style={[styles.logMealPage, Platform.OS === 'web' && { position: 'fixed', bottom: 0, overflowY: 'auto' }]}>
           <View style={styles.logMealPageHeader}>
             <TouchableOpacity onPress={() => setShowLogMealOptions(false)}>
               <Ionicons name="chevron-back" size={24} color="#1F1F1F" />

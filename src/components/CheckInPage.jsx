@@ -294,7 +294,7 @@ const CheckInPage = ({
 
               {/* Saved water entries for this check-in */}
               {waterEntries.length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.waterEntriesScroll} contentContainerStyle={styles.waterEntriesScrollContent}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.waterEntriesScroll} contentContainerStyle={styles.waterEntriesScrollContent}>
                   {waterEntries.map((entry, i) => (
                     <TouchableOpacity key={i} style={styles.waterEntryChip} onPress={() => setWaterEntries(waterEntries.filter((_, idx) => idx !== i))}>
                       <Text style={styles.waterEntryText}>{entry.amount} {entry.unit}</Text>
