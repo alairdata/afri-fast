@@ -403,14 +403,6 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
           )}
         </View>
 
-        {/* Mode toggle */}
-        <TouchableOpacity onPress={() => { setMode(m => m === 'login' ? 'signup' : 'login'); setShowEmailForm(false); }} style={styles.modeToggle}>
-          <Text style={styles.modeToggleText}>
-            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-            <Text style={styles.modeToggleLink}>{mode === 'login' ? 'Sign up' : 'Log in'}</Text>
-          </Text>
-        </TouchableOpacity>
-
         <Text style={styles.footer}>Eat well. Fast well. Live well. 🌍</Text>
       </ScrollView>
     </KeyboardAvoidingView>
