@@ -204,6 +204,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [message, setMessage] = useState('');
   const [touched, setTouched] = useState({});
   const [screen, setScreen] = useState(preAuthData?.completedAt ? 'auth' : 'gate'); // 'gate' | 'onboarding' | 'auth'
+  const [showEmailForm, setShowEmailForm] = useState(false);
 
   const handleLogin = async () => {
     setTouched({ email: true, password: true });
@@ -315,67 +316,100 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         {/* Card */}
         <View style={styles.card}>
 
-          {/* Fields */}
-          {mode === 'signup' && (
-            <View style={styles.field}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={[styles.input, touched.name && !name && styles.inputError]}
-                placeholder="e.g. Amara Osei"
-                placeholderTextColor="#aaa"
-                value={name}
-                onChangeText={(v) => { setName(v); setTouched(t => ({ ...t, name: true })); }}
-                autoCapitalize="words"
-              />
+          {/* Google button */}
+          <TouchableOpacity style={styles.socialBtnGoogle} activeOpacity={0.85}>
+            <Ionicons name="logo-google" size={20} color="#444" />
+            <Text style={styles.socialBtnGoogleText}>Continue with Google</Text>
+          </TouchableOpacity>
+
+          {/* Apple button */}
+          <TouchableOpacity style={styles.socialBtnApple} activeOpacity={0.85}>
+            <Ionicons name="logo-apple" size={22} color="#fff" />
+            <Text style={styles.socialBtnAppleText}>Continue with Apple</Text>
+          </TouchableOpacity>
+
+          {/* Email toggle */}
+          <TouchableOpacity
+            style={styles.emailToggle}
+            onPress={() => setShowEmailForm(v => !v)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.emailToggleLine} />
+            <Text style={styles.emailToggleText}>
+              {showEmailForm ? 'hide email sign in' : 'or continue with email'}
+            </Text>
+            <View style={styles.emailToggleLine} />
+          </TouchableOpacity>
+
+          {/* Email form — hidden by default */}
+          {showEmailForm && (
+            <View>
+              {mode === 'signup' && (
+                <View style={styles.field}>
+                  <Text style={styles.label}>Full Name</Text>
+                  <TextInput
+                    style={[styles.input, touched.name && !name && styles.inputError]}
+                    placeholder="e.g. Amara Osei"
+                    placeholderTextColor="#9CA3AF"
+                    value={name}
+                    onChangeText={(v) => { setName(v); setTouched(t => ({ ...t, name: true })); }}
+                    autoCapitalize="words"
+                  />
+                </View>
+              )}
+              <View style={styles.field}>
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={[styles.input, touched.email && !email && styles.inputError]}
+                  placeholder="you@example.com"
+                  placeholderTextColor="#9CA3AF"
+                  value={email}
+                  onChangeText={(v) => { setEmail(v); setTouched(t => ({ ...t, email: true })); }}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={[styles.input, touched.password && !password && styles.inputError]}
+                  placeholder="••••••••"
+                  placeholderTextColor="#9CA3AF"
+                  value={password}
+                  onChangeText={(v) => { setPassword(v); setTouched(t => ({ ...t, password: true })); }}
+                  secureTextEntry
+                />
+                {mode === 'signup' && (
+                  <Text style={[styles.fieldHint, touched.password && password.length > 0 && password.length < 8 && { color: '#EF4444' }]}>
+                    {touched.password && password.length > 0 && password.length < 8
+                      ? `${password.length}/8 characters minimum`
+                      : 'Minimum 8 characters'}
+                  </Text>
+                )}
+              </View>
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+              {message ? <Text style={styles.successMsg}>{message}</Text> : null}
+              <TouchableOpacity
+                style={[styles.btn, loading && styles.btnDisabled]}
+                onPress={mode === 'login' ? handleLogin : handleSignUp}
+                disabled={loading}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.btnText}>{mode === 'login' ? 'Log In' : 'Create Account'}</Text>
+                }
+              </TouchableOpacity>
             </View>
           )}
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={[styles.input, touched.email && !email && styles.inputError]}
-              placeholder="you@example.com"
-              placeholderTextColor="#aaa"
-              value={email}
-              onChangeText={(v) => { setEmail(v); setTouched(t => ({ ...t, email: true })); }}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={[styles.input, touched.password && !password && styles.inputError]}
-              placeholder="••••••••"
-              placeholderTextColor="#aaa"
-              value={password}
-              onChangeText={(v) => { setPassword(v); setTouched(t => ({ ...t, password: true })); }}
-              secureTextEntry
-            />
-            {mode === 'signup' && (
-              <Text style={[styles.fieldHint, touched.password && password.length > 0 && password.length < 8 && { color: '#EF4444' }]}>
-                {touched.password && password.length > 0 && password.length < 8
-                  ? `${password.length}/8 characters minimum`
-                  : 'Minimum 8 characters'}
-              </Text>
-            )}
-          </View>
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          {message ? <Text style={styles.successMsg}>{message}</Text> : null}
-
-          <TouchableOpacity
-            style={[styles.btn, loading && styles.btnDisabled]}
-            onPress={mode === 'login' ? handleLogin : handleSignUp}
-            disabled={loading}
-          >
-            {loading
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.btnText}>{mode === 'login' ? 'Log In' : 'Create Account'}</Text>
-            }
-          </TouchableOpacity>
         </View>
+
+        {/* Mode toggle */}
+        <TouchableOpacity onPress={() => { setMode(m => m === 'login' ? 'signup' : 'login'); setShowEmailForm(false); }} style={styles.modeToggle}>
+          <Text style={styles.modeToggleText}>
+            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+            <Text style={styles.modeToggleLink}>{mode === 'login' ? 'Sign up' : 'Log in'}</Text>
+          </Text>
+        </TouchableOpacity>
 
         <Text style={styles.footer}>Eat well. Fast well. Live well. 🌍</Text>
       </ScrollView>
@@ -480,11 +514,33 @@ const styles = StyleSheet.create({
   fieldHint: { fontSize: 12, color: '#9CA3AF', marginTop: 4, marginLeft: 2 },
   error: { color: '#EF4444', fontSize: 13, marginBottom: 12, textAlign: 'center' },
   successMsg: { color: '#059669', fontSize: 13, marginBottom: 12, textAlign: 'center' },
+  socialBtnGoogle: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FFFFFF', borderRadius: 14, paddingVertical: 15,
+    marginBottom: 12, gap: 10,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+  },
+  socialBtnGoogleText: { fontSize: 15, fontWeight: '600', color: '#111', fontFamily: 'Inter, sans-serif' },
+  socialBtnApple: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#111111', borderRadius: 14, paddingVertical: 15,
+    marginBottom: 4, gap: 10,
+  },
+  socialBtnAppleText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', fontFamily: 'Inter, sans-serif' },
+  emailToggle: {
+    flexDirection: 'row', alignItems: 'center', marginVertical: 20, gap: 10,
+  },
+  emailToggleLine: { flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' },
+  emailToggleText: { fontSize: 12, color: 'rgba(0,0,0,0.35)', fontWeight: '400', fontFamily: 'Inter, sans-serif' },
   btn: {
-    backgroundColor: '#059669', borderRadius: 14, paddingVertical: 15,
+    backgroundColor: '#0F9D78', borderRadius: 14, paddingVertical: 15,
     alignItems: 'center', marginTop: 4,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  footer: { textAlign: 'center', marginTop: 32, color: '#9CA3AF', fontSize: 13 },
+  btnText: { color: '#fff', fontSize: 15, fontWeight: '700', fontFamily: 'Inter, sans-serif' },
+  modeToggle: { marginTop: 20, alignItems: 'center' },
+  modeToggleText: { fontSize: 13, color: 'rgba(0,0,0,0.4)' },
+  modeToggleLink: { color: '#0F9D78', fontWeight: '600' },
+  footer: { textAlign: 'center', marginTop: 24, color: '#9CA3AF', fontSize: 12 },
 });
