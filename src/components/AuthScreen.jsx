@@ -205,6 +205,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [touched, setTouched] = useState({});
   const [screen, setScreen] = useState(preAuthData?.completedAt ? 'auth' : 'gate'); // 'gate' | 'onboarding' | 'auth'
   const [showEmailForm, setShowEmailForm] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     setTouched({ email: true, password: true });
@@ -376,14 +377,19 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Password</Text>
-                <TextInput
-                  style={[styles.input, touched.password && !password && styles.inputError]}
-                  placeholder="••••••••"
-                  placeholderTextColor="#9CA3AF"
-                  value={password}
-                  onChangeText={(v) => { setPassword(v); setTouched(t => ({ ...t, password: true })); }}
-                  secureTextEntry
-                />
+                <View style={styles.passwordWrap}>
+                  <TextInput
+                    style={[styles.inputPassword, touched.password && !password && styles.inputError]}
+                    placeholder="••••••••"
+                    placeholderTextColor="#9CA3AF"
+                    value={password}
+                    onChangeText={(v) => { setPassword(v); setTouched(t => ({ ...t, password: true })); }}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(v => !v)}>
+                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(0,0,0,0.35)" />
+                  </TouchableOpacity>
+                </View>
                 {mode === 'signup' && (
                   <Text style={[styles.fieldHint, touched.password && password.length > 0 && password.length < 8 && { color: '#EF4444' }]}>
                     {touched.password && password.length > 0 && password.length < 8
@@ -514,6 +520,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
   },
   inputError: { borderColor: '#EF4444', backgroundColor: '#FFF5F5' },
+  passwordWrap: { flexDirection: 'row', alignItems: 'center' },
+  inputPassword: {
+    flex: 1, borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#111',
+    backgroundColor: '#FAFAFA',
+  },
+  eyeBtn: { position: 'absolute', right: 14 },
   fieldHint: { fontSize: 12, color: '#9CA3AF', marginTop: 4, marginLeft: 2 },
   error: { color: '#EF4444', fontSize: 13, marginBottom: 12, textAlign: 'center' },
   successMsg: { color: '#059669', fontSize: 13, marginBottom: 12, textAlign: 'center' },
