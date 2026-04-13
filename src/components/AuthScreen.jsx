@@ -46,17 +46,16 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   if (screen === 'gate') {
     return (
       <View style={styles.gateContainer}>
+        <Image
+          source={{ uri: 'https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?w=800&q=80' }}
+          style={styles.gateHeroImage}
+          resizeMode="cover"
+        />
         <View style={styles.gateInner}>
           <View style={styles.gateLogoWrap}>
-            <Image
-              source={require('../../assets/icon.png')}
-              style={styles.gateLogoImage}
-            />
             <Text style={styles.gateAppName}>Afri Fast</Text>
             <Text style={styles.gateTagline}>Your African wellness companion</Text>
           </View>
-
-          <Text style={styles.gateQuestion}>Welcome back</Text>
 
           <TouchableOpacity
             style={styles.gateCard}
@@ -205,14 +204,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
 const styles = StyleSheet.create({
   // Gate screen
   gateContainer: { flex: 1, backgroundColor: '#FFFFFF' },
-  gateInner: { flex: 1, justifyContent: 'center', paddingHorizontal: 26, paddingBottom: 40 },
-  gateLogoWrap: { alignItems: 'center', marginBottom: 48 },
-  gateLogoImage: { width: 80, height: 80, marginBottom: 12, resizeMode: 'contain' },
+  gateHeroImage: { width: '100%', height: '48%' },
+  gateInner: { flex: 1, justifyContent: 'center', paddingHorizontal: 26, paddingBottom: 40, paddingTop: 28 },
+  gateLogoWrap: { alignItems: 'center', marginBottom: 32 },
   gateAppName: { fontSize: 26, fontWeight: '700', color: '#111', marginBottom: 4 },
   gateTagline: { fontSize: 13, color: 'rgba(0,0,0,0.4)', fontWeight: '300' },
-  gateQuestion: {
-    fontSize: 22, fontWeight: '600', color: '#111', textAlign: 'center', marginBottom: 24,
-  },
   gateCard: {
     flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 16,
     borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#fff',
