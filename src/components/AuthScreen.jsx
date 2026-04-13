@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image,
@@ -17,6 +17,21 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [message, setMessage] = useState('');
   const [touched, setTouched] = useState({});
   const [screen, setScreen] = useState(preAuthData?.completedAt ? 'auth' : 'gate'); // 'gate' | 'onboarding' | 'auth'
+  const [heroIndex, setHeroIndex] = useState(0);
+
+  const heroImages = [
+    require('../../assets/gate-hero.png'),
+    require('../../assets/gate-hero-2.png'),
+    require('../../assets/gate-hero-3.png'),
+  ];
+
+  useEffect(() => {
+    if (screen !== 'gate') return;
+    const timer = setInterval(() => {
+      setHeroIndex(prev => (prev + 1) % heroImages.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [screen]);
 
   const handleLogin = async () => {
     setTouched({ email: true, password: true });
@@ -48,12 +63,17 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
       <View style={styles.gateContainer}>
         <View style={styles.gateHeroWrap}>
           <Image
-            source={require('../../assets/gate-hero.png')}
+            source={heroImages[heroIndex]}
             style={styles.gateHeroImage}
             resizeMode="cover"
           />
           <View style={styles.gateHeroPill}>
             <Text style={styles.gateHeroPillText}>Break your fast with{'\n'}food that knows{'\n'}your roots.</Text>
+          </View>
+          <View style={styles.gateHeroDots}>
+            {heroImages.map((_, i) => (
+              <View key={i} style={[styles.gateHeroDot, i === heroIndex && styles.gateHeroDotActive]} />
+            ))}
           </View>
         </View>
         <View style={styles.gateInner}>
@@ -226,6 +246,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     lineHeight: 20,
+  },
+  gateHeroDots: {
+    position: 'absolute',
+    bottom: 18,
+    right: 18,
+    flexDirection: 'row',
+    gap: 6,
+  },
+  gateHeroDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  gateHeroDotActive: {
+    backgroundColor: '#FFFFFF',
+    width: 18,
   },
   gateInner: { flex: 1, justifyContent: 'center', paddingHorizontal: 26, paddingBottom: 40, paddingTop: 20 },
   gateLogoWrap: { alignItems: 'center', marginBottom: 24 },
