@@ -69,7 +69,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={(e) => {
-              const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+              const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+              setHeroIndex(index);
+            }}
+            onScrollEndDrag={(e) => {
+              const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
               setHeroIndex(index);
             }}
             style={styles.gateHeroScroll}
