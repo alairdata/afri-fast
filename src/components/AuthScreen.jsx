@@ -2,11 +2,106 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image,
-  useWindowDimensions, Animated, Easing,
+  Animated, Easing, useWindowDimensions,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { supabase } from '../lib/supabase';
 import PreAuthOnboarding from './PreAuthOnboarding';
 import Ionicons from '@expo/vector-icons/Ionicons';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+const DOODLE_SHAPES = [
+  // Bowl body
+  { d: 'M 80 158 Q 170 122 260 158 L 252 182 Q 170 212 88 182 Z', length: 370, delay: 0, strokeWidth: 2.5 },
+  // Steam 1
+  { d: 'M 143 120 C 130 100 150 84 138 64', length: 78, delay: 520, strokeWidth: 2 },
+  // Steam 2
+  { d: 'M 170 117 C 157 97 177 81 165 61', length: 78, delay: 680, strokeWidth: 2 },
+  // Steam 3
+  { d: 'M 197 120 C 184 100 204 84 192 64', length: 78, delay: 840, strokeWidth: 2 },
+  // Leaf top-left
+  { d: 'M 36 50 C 14 72 20 110 48 114 C 76 110 82 72 60 50 C 54 43 42 46 36 50', length: 168, delay: 180, strokeWidth: 2 },
+  // Leaf stem
+  { d: 'M 48 114 L 48 138', length: 24, delay: 348, strokeWidth: 2 },
+  // S-curve right
+  { d: 'M 298 65 C 316 83 298 108 316 126 C 334 144 316 166 298 184', length: 148, delay: 280, strokeWidth: 2 },
+  // Small leaf bottom-right
+  { d: 'M 290 205 C 272 185 280 162 300 169 C 312 174 307 198 290 205', length: 108, delay: 740, strokeWidth: 2 },
+  // Decorative dot cluster top-right
+  { d: 'M 268 38 C 268 34 272 34 272 38 C 272 42 268 42 268 38', length: 14, delay: 950, strokeWidth: 2.5 },
+  { d: 'M 280 28 C 280 24 284 24 284 28 C 284 32 280 32 280 28', length: 14, delay: 1020, strokeWidth: 2.5 },
+  { d: 'M 292 40 C 292 36 296 36 296 40 C 296 44 292 44 292 40', length: 14, delay: 1090, strokeWidth: 2.5 },
+];
+
+function DoodleHero() {
+  const anims = useRef(DOODLE_SHAPES.map(s => new Animated.Value(s.length))).current;
+
+  useEffect(() => {
+    const timeouts = [];
+    const running = [];
+
+    DOODLE_SHAPES.forEach((shape, i) => {
+      const t = setTimeout(() => {
+        const a = Animated.loop(
+          Animated.sequence([
+            Animated.timing(anims[i], {
+              toValue: 0,
+              duration: 1400,
+              easing: Easing.inOut(Easing.quad),
+              useNativeDriver: false,
+            }),
+            Animated.delay(700),
+            Animated.timing(anims[i], {
+              toValue: shape.length,
+              duration: 900,
+              easing: Easing.in(Easing.quad),
+              useNativeDriver: false,
+            }),
+            Animated.delay(500),
+          ])
+        );
+        a.start();
+        running.push(a);
+      }, shape.delay);
+      timeouts.push(t);
+    });
+
+    return () => {
+      timeouts.forEach(clearTimeout);
+      running.forEach(a => a.stop());
+    };
+  }, []);
+
+  return (
+    <View style={doodleStyles.container}>
+      <Svg width="100%" height="100%" viewBox="0 0 340 240" preserveAspectRatio="xMidYMid meet">
+        {DOODLE_SHAPES.map((shape, i) => (
+          <AnimatedPath
+            key={i}
+            d={shape.d}
+            stroke="#0F9D78"
+            strokeWidth={shape.strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+            strokeDasharray={`${shape.length}`}
+            strokeDashoffset={anims[i]}
+          />
+        ))}
+      </Svg>
+    </View>
+  );
+}
+
+const doodleStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F4F1EA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 const HONEY_LETTERS = 'Afri Fast'.split('');
 
@@ -88,21 +183,6 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [message, setMessage] = useState('');
   const [touched, setTouched] = useState({});
   const [screen, setScreen] = useState(preAuthData?.completedAt ? 'auth' : 'gate'); // 'gate' | 'onboarding' | 'auth'
-  const [heroIndex, setHeroIndex] = useState(0);
-
-  const heroImages = [
-    require('../../assets/gate-hero.png'),
-    require('../../assets/gate-hero-2.png'),
-    require('../../assets/gate-hero-3.png'),
-  ];
-
-  const heroPills = [
-    'Break your fast with food\nthat knows your roots.',
-    'The only scanner that knows\nyour African food — no "meal not found".',
-    "Can't scan it?\nJust say it.",
-  ];
-
-  const heroScrollRef = useRef(null);
 
   const handleLogin = async () => {
     setTouched({ email: true, password: true });
@@ -133,33 +213,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     return (
       <View style={styles.gateContainer}>
         <View style={styles.gateHeroWrap}>
-          <ScrollView
-            ref={heroScrollRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(e) => {
-              const index = Math.round(e.nativeEvent.contentOffset.x / (screenWidth - 32));
-              setHeroIndex(index);
-            }}
-            onScrollEndDrag={(e) => {
-              const index = Math.round(e.nativeEvent.contentOffset.x / (screenWidth - 32));
-              setHeroIndex(index);
-            }}
-            style={styles.gateHeroScroll}
-          >
-            {heroImages.map((img, i) => (
-              <Image key={i} source={img} style={[styles.gateHeroImage, { width: screenWidth - 32 }]} resizeMode="cover" />
-            ))}
-          </ScrollView>
-          <View style={styles.gateHeroPill}>
-            <Text style={styles.gateHeroPillText}>{heroPills[heroIndex]}</Text>
-          </View>
-          <View style={styles.gateHeroDots}>
-            {heroImages.map((_, i) => (
-              <View key={i} style={[styles.gateHeroDot, i === heroIndex && styles.gateHeroDotActive]} />
-            ))}
-          </View>
+          <DoodleHero />
         </View>
         <View style={styles.gateInner}>
           <View style={styles.gateLogoWrap}>
