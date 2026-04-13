@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image, Dimensions,
 } from 'react-native';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 import { supabase } from '../lib/supabase';
 import PreAuthOnboarding from './PreAuthOnboarding';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -25,13 +27,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     require('../../assets/gate-hero-3.png'),
   ];
 
-  useEffect(() => {
-    if (screen !== 'gate') return;
-    const timer = setInterval(() => {
-      setHeroIndex(prev => (prev + 1) % heroImages.length);
-    }, 3500);
-    return () => clearInterval(timer);
-  }, [screen]);
+  const heroScrollRef = useRef(null);
 
   const handleLogin = async () => {
     setTouched({ email: true, password: true });
@@ -62,11 +58,21 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     return (
       <View style={styles.gateContainer}>
         <View style={styles.gateHeroWrap}>
-          <Image
-            source={heroImages[heroIndex]}
-            style={styles.gateHeroImage}
-            resizeMode="cover"
-          />
+          <ScrollView
+            ref={heroScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+              setHeroIndex(index);
+            }}
+            style={styles.gateHeroScroll}
+          >
+            {heroImages.map((img, i) => (
+              <Image key={i} source={img} style={styles.gateHeroImage} resizeMode="cover" />
+            ))}
+          </ScrollView>
           <View style={styles.gateHeroPill}>
             <Text style={styles.gateHeroPillText}>Break your fast with{'\n'}food that knows{'\n'}your roots.</Text>
           </View>
@@ -230,7 +236,8 @@ const styles = StyleSheet.create({
   // Gate screen
   gateContainer: { flex: 1, backgroundColor: '#FFFFFF' },
   gateHeroWrap: { width: '100%', height: '58%', position: 'relative' },
-  gateHeroImage: { width: '100%', height: '100%' },
+  gateHeroScroll: { width: '100%', height: '100%' },
+  gateHeroImage: { width: SCREEN_WIDTH, height: '100%' },
   gateHeroPill: {
     position: 'absolute',
     bottom: 18,
