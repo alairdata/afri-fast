@@ -46,11 +46,16 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   if (screen === 'gate') {
     return (
       <View style={styles.gateContainer}>
-        <Image
-          source={require('../../assets/gate-hero.png')}
-          style={styles.gateHeroImage}
-          resizeMode="cover"
-        />
+        <View style={styles.gateHeroWrap}>
+          <Image
+            source={require('../../assets/gate-hero.png')}
+            style={styles.gateHeroImage}
+            resizeMode="cover"
+          />
+          <View style={styles.gateHeroPill}>
+            <Text style={styles.gateHeroPillText}>Break your fast with{'\n'}food that knows{'\n'}your roots.</Text>
+          </View>
+        </View>
         <View style={styles.gateInner}>
           <View style={styles.gateLogoWrap}>
             <Text style={styles.gateAppName}>Afri Fast</Text>
@@ -204,7 +209,24 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
 const styles = StyleSheet.create({
   // Gate screen
   gateContainer: { flex: 1, backgroundColor: '#FFFFFF' },
-  gateHeroImage: { width: '100%', height: '58%' },
+  gateHeroWrap: { width: '100%', height: '58%', position: 'relative' },
+  gateHeroImage: { width: '100%', height: '100%' },
+  gateHeroPill: {
+    position: 'absolute',
+    bottom: 18,
+    left: 18,
+    backgroundColor: 'rgba(0,0,0,0.82)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    maxWidth: '65%',
+  },
+  gateHeroPillText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
   gateInner: { flex: 1, justifyContent: 'center', paddingHorizontal: 26, paddingBottom: 40, paddingTop: 20 },
   gateLogoWrap: { alignItems: 'center', marginBottom: 24 },
   gateAppName: { fontSize: 26, fontWeight: '700', color: '#111', marginBottom: 4 },
