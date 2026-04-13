@@ -139,17 +139,17 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={(e) => {
-              const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+              const index = Math.round(e.nativeEvent.contentOffset.x / (screenWidth - 32));
               setHeroIndex(index);
             }}
             onScrollEndDrag={(e) => {
-              const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+              const index = Math.round(e.nativeEvent.contentOffset.x / (screenWidth - 32));
               setHeroIndex(index);
             }}
             style={styles.gateHeroScroll}
           >
             {heroImages.map((img, i) => (
-              <Image key={i} source={img} style={[styles.gateHeroImage, { width: screenWidth }]} resizeMode="cover" />
+              <Image key={i} source={img} style={[styles.gateHeroImage, { width: screenWidth - 32 }]} resizeMode="cover" />
             ))}
           </ScrollView>
           <View style={styles.gateHeroPill}>
@@ -314,7 +314,18 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
 const styles = StyleSheet.create({
   // Gate screen
   gateContainer: { flex: 1, backgroundColor: '#FFFFFF' },
-  gateHeroWrap: { width: '100%', height: '58%', position: 'relative' },
+  gateHeroWrap: {
+    marginHorizontal: 16,
+    height: '58%',
+    position: 'relative',
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
   gateHeroScroll: { width: '100%', height: '100%' },
   gateHeroImage: { height: '100%' },
   gateHeroPill: {
