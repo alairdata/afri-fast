@@ -756,7 +756,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 0,
   },
   heroCardCompact: {
-    marginTop: 8,
+    marginTop: 28,
     marginHorizontal: 20,
     padding: 16,
     paddingBottom: 14,
