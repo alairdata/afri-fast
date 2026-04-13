@@ -22,23 +22,23 @@ function HoneyTitle() {
         const a = Animated.loop(
           Animated.sequence([
             Animated.timing(anims[i], {
-              toValue: -6,
-              duration: 420,
-              easing: Easing.inOut(Easing.sin),
+              toValue: 9,
+              duration: 260,
+              easing: Easing.in(Easing.quad),
               useNativeDriver: true,
             }),
             Animated.timing(anims[i], {
               toValue: 0,
-              duration: 420,
-              easing: Easing.inOut(Easing.sin),
+              duration: 520,
+              easing: Easing.out(Easing.back(2.5)),
               useNativeDriver: true,
             }),
-            Animated.delay(680),
+            Animated.delay(900),
           ])
         );
         a.start();
         running.push(a);
-      }, i * 90);
+      }, i * 100);
       timeouts.push(t);
     });
 
@@ -72,7 +72,7 @@ const honeyStyles = StyleSheet.create({
   letter: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#C4800A',
+    color: '#0F9D78',
     fontFamily: 'Inter, sans-serif',
   },
 });
