@@ -27,6 +27,12 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     require('../../assets/gate-hero-3.png'),
   ];
 
+  const heroPills = [
+    'Break your fast with food\nthat knows your roots.',
+    'The only scanner that knows\nyour African food — no "meal not found".',
+    "Can't scan it?\nJust say it.",
+  ];
+
   const heroScrollRef = useRef(null);
 
   const handleLogin = async () => {
@@ -74,7 +80,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             ))}
           </ScrollView>
           <View style={styles.gateHeroPill}>
-            <Text style={styles.gateHeroPillText}>Break your fast with{'\n'}food that knows{'\n'}your roots.</Text>
+            <Text style={styles.gateHeroPillText}>{heroPills[heroIndex]}</Text>
           </View>
           <View style={styles.gateHeroDots}>
             {heroImages.map((_, i) => (
@@ -251,8 +257,9 @@ const styles = StyleSheet.create({
   gateHeroPillText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '700',
     lineHeight: 20,
+    fontFamily: 'Inter, sans-serif',
   },
   gateHeroDots: {
     position: 'absolute',
