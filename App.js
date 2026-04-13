@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView, StatusBar, View, ActivityIndicator, Text, TextInput, Platform } from 'react-native';
 import { useFonts } from 'expo-font';
-import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './src/lib/supabase';
 import AuthScreen from './src/components/AuthScreen';
@@ -52,7 +51,10 @@ TextInput.defaultProps.style = [
 const PRE_AUTH_STORAGE_KEY = 'afri-fast-preauth';
 
 export default function App() {
-  const [fontsLoaded] = useFonts({ ...Ionicons.font });
+  const [fontsLoaded] = useFonts({
+    // eslint-disable-next-line import/no-unresolved
+    ionicons: require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf'),
+  });
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [preAuthData, setPreAuthData] = useState(null);
