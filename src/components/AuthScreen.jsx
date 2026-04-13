@@ -305,6 +305,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
+        {/* Back button */}
+        <TouchableOpacity style={styles.authBackBtn} onPress={() => setScreen('gate')} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={20} color="rgba(0,0,0,0.5)" />
+        </TouchableOpacity>
+
         {/* Doodle header */}
         <View style={styles.authDoodleWrap}>
           <DoodleAuth />
@@ -480,6 +485,12 @@ const styles = StyleSheet.create({
 
   container: { flex: 1, backgroundColor: '#F4F1EA' },
   scroll: { flexGrow: 1, padding: 24, alignItems: 'center', justifyContent: 'center' },
+  authBackBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    alignItems: 'center', justifyContent: 'center',
+    alignSelf: 'flex-start', marginBottom: 12,
+  },
   authDoodleWrap: { width: '100%', height: 200, marginBottom: 16, borderRadius: 24, overflow: 'hidden' },
   onboardingContainer: { flex: 1, backgroundColor: '#FFFFFF' },
   onboardingScroll: { flexGrow: 1 },
