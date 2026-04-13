@@ -103,6 +103,95 @@ const doodleStyles = StyleSheet.create({
   },
 });
 
+const AUTH_DOODLE_SHAPES = [
+  // Large arc across top
+  { d: 'M 20 95 Q 170 22 320 95', length: 342, delay: 0, strokeWidth: 2.5 },
+  // Timer circle
+  { d: 'M 170 62 A 33 33 0 1 0 170 128 A 33 33 0 1 0 170 62', length: 208, delay: 220, strokeWidth: 2 },
+  // Hour hand
+  { d: 'M 170 95 L 170 70', length: 25, delay: 430, strokeWidth: 2.5 },
+  // Minute hand
+  { d: 'M 170 95 L 190 95', length: 20, delay: 460, strokeWidth: 2.5 },
+  // Left leaf
+  { d: 'M 42 138 C 22 116 30 92 54 98 C 68 102 62 126 42 138', length: 112, delay: 350, strokeWidth: 2 },
+  // Left stem
+  { d: 'M 42 138 L 52 158', length: 22, delay: 462, strokeWidth: 2 },
+  // Right leaf
+  { d: 'M 298 138 C 318 116 310 92 286 98 C 272 102 278 126 298 138', length: 112, delay: 500, strokeWidth: 2 },
+  // Right stem
+  { d: 'M 298 138 L 288 158', length: 22, delay: 612, strokeWidth: 2 },
+  // Left wavy accent
+  { d: 'M 72 58 C 88 46 104 68 120 56', length: 58, delay: 750, strokeWidth: 1.8 },
+  // Right wavy accent
+  { d: 'M 220 58 C 236 46 252 68 268 56', length: 58, delay: 900, strokeWidth: 1.8 },
+  // Small dot top-left
+  { d: 'M 50 32 A 4 4 0 1 0 50 31.9', length: 25, delay: 660, strokeWidth: 2 },
+  // Small dot top-right
+  { d: 'M 290 32 A 4 4 0 1 0 290 31.9', length: 25, delay: 780, strokeWidth: 2 },
+  // Tiny dot center-top
+  { d: 'M 170 32 A 3 3 0 1 0 170 31.9', length: 19, delay: 840, strokeWidth: 2 },
+];
+
+function DoodleAuth() {
+  const anims = useRef(AUTH_DOODLE_SHAPES.map(s => new Animated.Value(s.length))).current;
+
+  useEffect(() => {
+    const timeouts = [];
+    const running = [];
+
+    AUTH_DOODLE_SHAPES.forEach((shape, i) => {
+      const t = setTimeout(() => {
+        const a = Animated.loop(
+          Animated.sequence([
+            Animated.timing(anims[i], {
+              toValue: 0,
+              duration: 1400,
+              easing: Easing.inOut(Easing.quad),
+              useNativeDriver: false,
+            }),
+            Animated.delay(700),
+            Animated.timing(anims[i], {
+              toValue: shape.length,
+              duration: 900,
+              easing: Easing.in(Easing.quad),
+              useNativeDriver: false,
+            }),
+            Animated.delay(500),
+          ])
+        );
+        a.start();
+        running.push(a);
+      }, shape.delay);
+      timeouts.push(t);
+    });
+
+    return () => {
+      timeouts.forEach(clearTimeout);
+      running.forEach(a => a.stop());
+    };
+  }, []);
+
+  return (
+    <View style={doodleStyles.container}>
+      <Svg width="100%" height="100%" viewBox="0 0 340 180" preserveAspectRatio="xMidYMid meet">
+        {AUTH_DOODLE_SHAPES.map((shape, i) => (
+          <AnimatedPath
+            key={i}
+            d={shape.d}
+            stroke="#0F9D78"
+            strokeWidth={shape.strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+            strokeDasharray={`${shape.length}`}
+            strokeDashoffset={anims[i]}
+          />
+        ))}
+      </Svg>
+    </View>
+  );
+}
+
 
 export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const { width: screenWidth } = useWindowDimensions();
@@ -215,14 +304,9 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Image
-            source={require('../../assets/icon.png')}
-            style={styles.authLogoImage}
-          />
-          <Text style={styles.appName}>Afri Fast</Text>
-          <Text style={styles.tagline}>Your African wellness companion</Text>
+        {/* Doodle header */}
+        <View style={styles.authDoodleWrap}>
+          <DoodleAuth />
         </View>
 
         {/* Card */}
@@ -366,8 +450,9 @@ const styles = StyleSheet.create({
   gateCardTitle: { fontSize: 15, fontWeight: '600', color: '#111', marginBottom: 2 },
   gateCardSub: { fontSize: 12, color: 'rgba(0,0,0,0.4)', fontWeight: '300' },
 
-  container: { flex: 1, backgroundColor: '#F0FDF4' },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  container: { flex: 1, backgroundColor: '#F4F1EA' },
+  scroll: { flexGrow: 1, padding: 24 },
+  authDoodleWrap: { width: '100%', height: 200, marginBottom: 8, borderRadius: 24, overflow: 'hidden' },
   onboardingContainer: { flex: 1, backgroundColor: '#FFFFFF' },
   onboardingScroll: { flexGrow: 1 },
   header: { alignItems: 'center', marginBottom: 32 },
