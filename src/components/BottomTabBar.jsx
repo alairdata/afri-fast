@@ -16,7 +16,7 @@ const BottomTabBar = ({ activeTab, onTabChange, whispersUnlocked = false }) => {
   const tabs = ALL_TABS.filter(t => t.id !== 'whispers' || whispersUnlocked);
 
   return (
-    <View style={[styles.tabBar, { backgroundColor: colors.tabBar }]}>
+    <View style={[styles.tabBar, { backgroundColor: 'green' }]}>
       <View style={[styles.separator, { backgroundColor: colors.tabBarBorder }]} />
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
