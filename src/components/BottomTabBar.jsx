@@ -16,7 +16,7 @@ const BottomTabBar = ({ activeTab, onTabChange, whispersUnlocked = false }) => {
   const tabs = ALL_TABS.filter(t => t.id !== 'whispers' || whispersUnlocked);
 
   return (
-    <View style={[styles.tabBar, { backgroundColor: 'green' }]}>
+    <View style={[styles.tabBar, { backgroundColor: colors.tabBar }]}>
       <View style={[styles.separator, { backgroundColor: colors.tabBarBorder }]} />
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
@@ -58,6 +58,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 8,
     paddingHorizontal: 8,
     zIndex: 20,
     overflow: 'hidden',

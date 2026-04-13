@@ -1310,7 +1310,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFBFF',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0,
-    paddingBottom: 84,
   },
   offlineBanner: {
     backgroundColor: '#EF4444',
