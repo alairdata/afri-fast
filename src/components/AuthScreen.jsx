@@ -47,7 +47,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     return (
       <View style={styles.gateContainer}>
         <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?w=800&q=80' }}
+          source={require('../../assets/gate-hero.png')}
           style={styles.gateHeroImage}
           resizeMode="cover"
         />
