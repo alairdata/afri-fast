@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView, StatusBar, View, ActivityIndicator, Text, TextInput, Platform } from 'react-native';
-import { useFonts } from 'expo-font';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './src/lib/supabase';
 import AuthScreen from './src/components/AuthScreen';
@@ -8,6 +7,13 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import FastingApp from './src/FastingApp';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  // Load Ionicons font via CSS (Metro doesn't auto-load icon fonts like webpack did)
+  // eslint-disable-next-line import/no-unresolved
+  const ioniconsFontUrl = require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf');
+  const iconStyle = document.createElement('style');
+  iconStyle.textContent = `@font-face{font-family:'ionicons';src:url('${ioniconsFontUrl}') format('truetype');font-display:block;}`;
+  document.head.appendChild(iconStyle);
+
   // Load Inter from Google Fonts
   const link = document.createElement('link');
   link.rel = 'stylesheet';
@@ -51,10 +57,6 @@ TextInput.defaultProps.style = [
 const PRE_AUTH_STORAGE_KEY = 'afri-fast-preauth';
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
-    // eslint-disable-next-line import/no-unresolved
-    ionicons: require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf'),
-  });
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [preAuthData, setPreAuthData] = useState(null);
@@ -92,7 +94,7 @@ export default function App() {
     };
   }, []);
 
-  if (loading || !fontsLoaded) {
+  if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F0FDF4', alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color="#059669" />
