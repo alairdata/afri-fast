@@ -458,7 +458,7 @@ const TodayTab = ({
 
         {/* Education Cards */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
-          <Text style={styles.sectionTitleTight}>{'\u{1F4A1}'} Just for You</Text>
+          <Text style={styles.sectionTitleTight}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
             <View style={styles.educationCard}>
               <View style={styles.eduContent}>
@@ -675,7 +675,7 @@ const TodayTab = ({
         presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
         onRequestClose={() => setSelectedArticle(null)}
       >
-        <View style={[styles.articleModal, Platform.OS !== 'ios' && { paddingTop: 44 }]}>
+        <View style={[styles.articleModal, Platform.OS === 'android' && { paddingTop: 44 }]}>
           <View style={styles.articleHeader}>
             <TouchableOpacity onPress={() => setSelectedArticle(null)} style={styles.articleCloseBtn}>
               <Text style={styles.articleCloseText}>✕</Text>
