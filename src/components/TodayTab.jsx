@@ -338,7 +338,7 @@ const TodayTab = ({
         </TouchableOpacity>
       </View>
 
-      {Platform.OS === 'web' && <View style={{ height: 20 }} />}
+      {Platform.OS === 'web' && <View style={{ height: 70 }} />}
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Primary Status Card */}
