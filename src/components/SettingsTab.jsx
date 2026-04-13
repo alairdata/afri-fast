@@ -40,7 +40,7 @@ const SettingsTab = ({
   notifyMilestones, onToggleNotifyMilestones,
   milestoneConfig, onSetMilestoneConfig,
   darkMode, onToggleDarkMode,
-  onLogout,
+  onLogout, onDeleteAccount,
   height, setHeight,
   heightUnit, setHeightUnit,
   dailyCalorieGoal, setDailyCalorieGoal,
@@ -658,6 +658,11 @@ const SettingsTab = ({
       {/* Log Out */}
       <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
         <Text style={styles.logoutBtnText}>Log Out</Text>
+      </TouchableOpacity>
+
+      {/* Delete Account */}
+      <TouchableOpacity style={styles.deleteAccountBtn} onPress={onDeleteAccount}>
+        <Text style={styles.deleteAccountBtnText}>Delete Account</Text>
       </TouchableOpacity>
 
       {/* App Version */}
@@ -2020,6 +2025,19 @@ const styles = StyleSheet.create({
   },
   logoutBtnText: {
     color: '#EF4444',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  deleteAccountBtn: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+  },
+  deleteAccountBtnText: {
+    color: '#fff',
     fontSize: 15,
     fontWeight: '700',
   },

@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+const geminiUrl = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 const CACHE_KEY = 'gemini_insight_cache_v7';
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -283,18 +285,20 @@ Return ONLY valid JSON, no markdown:
 }`;
 
   const callGemini = async () => {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
+    const body = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+    });
+    for (const model of GEMINI_MODELS) {
+      const response = await fetch(geminiUrl(model), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
-        }),
-      }
-    );
-    return response.json();
+        body,
+      });
+      const data = await response.json();
+      if (response.status !== 503) return data;
+      console.log('[GeminiInsight] Model overloaded, trying next...');
+    }
   };
 
   try {

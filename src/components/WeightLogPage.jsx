@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform, Keyboard } from 'react-native';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -35,6 +35,7 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
 
   const saveWeight = () => {
     if (!newWeight) return;
+    Keyboard.dismiss();
     const chosen = dateOptions[selectedDateIdx];
     const newLog = { date: chosen.dateStr, timestamp: chosen.date.getTime(), weight: parseFloat(newWeight), unit: weightUnit };
     setWeightLogs([newLog, ...weightLogs]);
@@ -92,6 +93,8 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
                   placeholderTextColor="#ccc"
                   value={newWeight}
                   onChangeText={(text) => setNewWeight(text)}
+                  onSubmitEditing={saveWeight}
+                  returnKeyType="done"
                   style={styles.weightInputMedium}
                   keyboardType="decimal-pad"
                 />

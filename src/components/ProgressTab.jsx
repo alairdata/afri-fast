@@ -382,10 +382,10 @@ const ProgressTab = ({
                       )}
                       </>
                     ) : (
-                      <>
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={styles.chartPlaceholderText}>{hasData ? `${latest.weight} ${unit}` : 'No weight data'}</Text>
                         <Text style={styles.chartPlaceholderSubtext}>{hasData ? 'Log more to see trends' : 'Log your weight to start'}</Text>
-                      </>
+                      </View>
                     )}
                   </View>
                   <View style={styles.weightStatsCompact}>
@@ -476,10 +476,10 @@ const ProgressTab = ({
                       )}
                       </>
                     ) : (
-                      <>
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={styles.chartPlaceholderText}>{hasData ? `${dailyData[0].calories} cal` : 'No calorie data'}</Text>
                         <Text style={styles.chartPlaceholderSubtext}>{hasData ? 'Log more meals to see trends' : 'Log a meal to start'}</Text>
-                      </>
+                      </View>
                     )}
                   </View>
                   <View style={styles.calorieStatsRow}>
@@ -566,10 +566,10 @@ const ProgressTab = ({
                       )}
                       </>
                     ) : (
-                      <>
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={styles.chartPlaceholderText}>{hasWaterData ? `${progressData.avgWaterL} L` : 'No hydration data'}</Text>
                         <Text style={styles.chartPlaceholderSubtext}>{hasWaterData ? 'Log more to see trends' : 'Log water to start'}</Text>
-                      </>
+                      </View>
                     )}
                   </View>
                   <View style={styles.calorieStatsRow}>
@@ -597,7 +597,7 @@ const ProgressTab = ({
           </View>
         </View>
 
-        <View style={{ height: 20 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
     </View>
   );

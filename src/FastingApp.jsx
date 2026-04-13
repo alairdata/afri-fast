@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Dimensions, Animated, Platform, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, Dimensions, Animated, Platform, StatusBar, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './lib/supabase';
 
 const ACTIVE_FAST_KEY = 'afri_active_fast_v1';
+const SETTINGS_KEY = 'afri_user_settings_v2';
 import {
   requestNotificationPermissions,
   scheduleFastEndNotification,
@@ -283,10 +284,93 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   };
 
   // === Recalculate end time when plan changes ===
-  // Fetch profile from Supabase (including fasting state)
+  // Restore active fast from AsyncStorage — runs independently of profile fetch
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal').eq('id', session.user.id).maybeSingle()
+    (async () => {
+      try {
+        const local = await AsyncStorage.getItem(ACTIVE_FAST_KEY);
+        if (!local) return;
+        const parsed = JSON.parse(local);
+        if (parsed.userId !== session.user.id || !(parsed.startTime > 0)) return;
+        const restoredStartTime = parsed.startTime;
+        const restoredPlan = parsed.plan || selectedPlan || '16:8';
+        const toLabel = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        setIsFasting(true);
+        setFastStartTime(restoredStartTime);
+        const startDate = new Date(restoredStartTime);
+        setStartDay(toLabel(startDate));
+        setStartHour(startDate.getHours());
+        setStartMinute(startDate.getMinutes());
+        const planHours = parseInt(restoredPlan.split(':')[0]) || 16;
+        const endDate = new Date(restoredStartTime + planHours * 60 * 60 * 1000);
+        setEndDay(toLabel(endDate));
+        setEndHour(endDate.getHours());
+        setEndMinute(endDate.getMinutes());
+      } catch (_) {}
+    })();
+  }, [session]);
+
+  // Restore Make it Yours settings from AsyncStorage (instant — before DB fetch)
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(SETTINGS_KEY);
+        if (!stored) return;
+        const s = JSON.parse(stored);
+        if (s.userId !== session.user.id) return;
+        if (s.userName) setUserName(s.userName);
+        if (s.userCountry) setUserCountry(s.userCountry);
+        if (s.height != null) setHeight(s.height);
+        if (s.heightUnit) setHeightUnit(s.heightUnit);
+        if (s.weightUnit) setWeightUnit(s.weightUnit);
+        if (s.volumeUnit) setVolumeUnit(s.volumeUnit);
+        if (s.foodMeasurement) setFoodMeasurement(s.foodMeasurement);
+        if (s.dailyCalorieGoal != null) setDailyCalorieGoal(s.dailyCalorieGoal);
+        if (s.macroStyle) setMacroStyle(s.macroStyle);
+        if (s.proteinGoal != null) setProteinGoal(s.proteinGoal);
+        if (s.carbsGoal != null) setCarbsGoal(s.carbsGoal);
+        if (s.fatsGoal != null) setFatsGoal(s.fatsGoal);
+        if (s.hydrationGoal != null) setHydrationGoal(s.hydrationGoal);
+        if (s.startingWeight != null) setStartingWeight(s.startingWeight);
+        if (s.targetWeight != null) setTargetWeight(s.targetWeight);
+      } catch (_) {}
+    })();
+  }, [session]);
+
+  // Save Make it Yours settings to AsyncStorage whenever they change
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      userId: session.user.id,
+      userName, userCountry,
+      height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
+      dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
+      hydrationGoal, startingWeight, targetWeight,
+    })).catch(() => {});
+  }, [userName, userCountry, height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
+      dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
+      hydrationGoal, startingWeight, targetWeight, session]);
+
+  // Auto-detect country from IP if not set
+  useEffect(() => {
+    if (!session?.user?.id || userCountry) return;
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json())
+      .then(geo => {
+        if (geo?.country_name) {
+          setUserCountry(geo.country_name);
+          upsertProfile({ country: geo.country_name }, 'auto-detect country');
+        }
+      })
+      .catch(() => {});
+  }, [session, userCountry]);
+
+  // Fetch profile from Supabase
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -301,38 +385,19 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.name) setUserName(data.name);
         if (data.country) setUserCountry(data.country);
         if (data.selected_plan) setSelectedPlan(data.selected_plan);
-        if (data.target_weight) setTargetWeight(parseFloat(data.target_weight));
+        if (data.target_weight != null) setTargetWeight(parseFloat(data.target_weight));
+        if (data.starting_weight != null) setStartingWeight(parseFloat(data.starting_weight));
+        if (data.height != null) setHeight(data.height);
+        if (data.height_unit) setHeightUnit(data.height_unit);
+        if (data.weight_unit) setWeightUnit(data.weight_unit);
         if (data.volume_unit) setVolumeUnit(data.volume_unit);
         if (data.food_measurement) setFoodMeasurement(data.food_measurement);
-        if (data.daily_calorie_goal) setDailyCalorieGoal(data.daily_calorie_goal);
+        if (data.daily_calorie_goal != null) setDailyCalorieGoal(data.daily_calorie_goal);
         if (data.macro_style) setMacroStyle(data.macro_style);
-        if (data.protein_goal) setProteinGoal(data.protein_goal);
-        if (data.carbs_goal) setCarbsGoal(data.carbs_goal);
-        if (data.fats_goal) setFatsGoal(data.fats_goal);
-        if (data.hydration_goal) setHydrationGoal(data.hydration_goal);
-        // Restore active fast from AsyncStorage (sole source of truth for active fast)
-        try {
-          const local = await AsyncStorage.getItem(ACTIVE_FAST_KEY);
-          if (local) {
-            const parsed = JSON.parse(local);
-            if (parsed.userId === session.user.id && parsed.startTime > 0) {
-              const restoredStartTime = parsed.startTime;
-              const restoredPlan = parsed.plan || data.selected_plan || '16:8';
-              setIsFasting(true);
-              setFastStartTime(restoredStartTime);
-              const toLabel = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-              const startDate = new Date(restoredStartTime);
-              setStartDay(toLabel(startDate));
-              setStartHour(startDate.getHours());
-              setStartMinute(startDate.getMinutes());
-              const planHours = parseInt(restoredPlan.split(':')[0]) || 16;
-              const endDate = new Date(restoredStartTime + planHours * 60 * 60 * 1000);
-              setEndDay(toLabel(endDate));
-              setEndHour(endDate.getHours());
-              setEndMinute(endDate.getMinutes());
-            }
-          }
-        } catch (_) {}
+        if (data.protein_goal != null) setProteinGoal(data.protein_goal);
+        if (data.carbs_goal != null) setCarbsGoal(data.carbs_goal);
+        if (data.fats_goal != null) setFatsGoal(data.fats_goal);
+        if (data.hydration_goal != null) setHydrationGoal(data.hydration_goal);
       });
   }, [session]);
 
@@ -782,6 +847,12 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       setEndDay(formatDateLabel(endTime));
       setEndHour(endTime.getHours());
       setEndMinute(endTime.getMinutes());
+      // Persist to both AsyncStorage and DB
+      AsyncStorage.setItem(ACTIVE_FAST_KEY, JSON.stringify({
+        userId: session?.user?.id,
+        startTime: newStartTime,
+        plan: selectedPlan,
+      })).catch(() => {});
       upsertProfile({ fast_start_time: newStartTime }, 'update fast_start_time');
       showToast('Start time updated!');
     } else if (editingTime === 'end' && fastStartTime) {
@@ -965,7 +1036,45 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
       {activeTab === 'settings' && (
         <SettingsTab
-          onLogout={() => supabase.auth.signOut()}
+          onLogout={() => {
+            Alert.alert('Log Out', 'Are you sure you want to log out?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Log Out', style: 'destructive', onPress: () => supabase.auth.signOut() },
+            ]);
+          }}
+          onDeleteAccount={() => {
+            Alert.alert(
+              'Delete Account',
+              'This will permanently delete your account and all your data. This cannot be undone.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: async () => {
+                    const uid = session?.user?.id;
+                    if (!uid) return;
+                    try {
+                      // Delete all user data from tables
+                      await Promise.all([
+                        supabase.from('meals').delete().eq('user_id', uid),
+                        supabase.from('weight_logs').delete().eq('user_id', uid),
+                        supabase.from('fasting_sessions').delete().eq('user_id', uid),
+                        supabase.from('water_logs').delete().eq('user_id', uid),
+                        supabase.from('check_ins').delete().eq('user_id', uid),
+                        supabase.from('profiles').delete().eq('id', uid),
+                      ]);
+                      await AsyncStorage.clear();
+                      await supabase.auth.signOut();
+                    } catch (e) {
+                      console.error('[DeleteAccount]', e);
+                      showToast('Failed to delete account. Try again.', 'error');
+                    }
+                  },
+                },
+              ]
+            );
+          }}
           userName={userName}
           userEmail={userEmail}
           userCountry={userCountry}
@@ -1154,8 +1263,16 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         onClose={() => { setShowLogMealModal(false); setViewingMeal(null); }}
         logMealMethod={logMealMethod}
         onSaveMeal={async (meal) => {
+          if (meal._updatePhoto) {
+            // Background photo upload completed — update the photo URL silently
+            setRecentMeals(prev => prev.map(m => m.id === meal.id ? { ...m, photo: meal.photo } : m));
+            supabase.from('meals').update({ photo: meal.photo }).eq('id', meal.id);
+            return;
+          }
           setRecentMeals(prev => [meal, ...prev]);
-          const { error } = await supabase.from('meals').insert({ ...meal, user_id: session.user.id });
+          // Strip client-only fields before inserting to DB
+          const { localPhoto, ...dbMeal } = meal;
+          const { error } = await supabase.from('meals').insert({ ...dbMeal, user_id: session.user.id });
           if (error) showToast('Failed to save meal. Try again.', 'error');
           else showToast(`${meal.name || 'Meal'} logged!`);
         }}
@@ -1219,6 +1336,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         setUserCountry={setUserCountry}
         profileImage={profileImage}
         setProfileImage={setProfileImage}
+        onSave={() => upsertProfile({ name: userName }, 'save profile name')}
       />
 
       <TimeEditModal

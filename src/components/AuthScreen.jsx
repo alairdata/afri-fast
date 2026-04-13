@@ -212,7 +212,21 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     if (!email || !password) { setError('Please fill in all fields.'); return; }
     setLoading(true); setError(''); setMessage('');
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError(error.message);
+    if (error) {
+      // Check if this email exists in our profiles table
+      const { count } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('email', email.trim().toLowerCase());
+      if (count === 0) {
+        // No account found — send them to onboarding
+        setLoading(false);
+        setError('');
+        setScreen('no_account');
+        return;
+      }
+      setError(error.message);
+    }
     setLoading(false);
   };
 
@@ -270,6 +284,50 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             <View style={styles.gateCardText}>
               <Text style={styles.gateCardTitle}>I'm new here</Text>
               <Text style={styles.gateCardSub}>Let's set up your profile</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="rgba(0,0,0,0.25)" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (screen === 'no_account') {
+    return (
+      <View style={styles.gateContainer}>
+        <View style={styles.gateHeroWrap}>
+          <DoodleHero />
+        </View>
+        <View style={styles.gateInner}>
+          <View style={styles.gateLogoWrap}>
+            <Text style={styles.gateAppName}>No account found</Text>
+            <Text style={styles.gateTagline}>We couldn't find an account for{'\n'}{email}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.gateCard}
+            onPress={() => setScreen('onboarding')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.gateCardIcon}>
+              <Ionicons name="leaf-outline" size={20} color="#111" />
+            </View>
+            <View style={styles.gateCardText}>
+              <Text style={styles.gateCardTitle}>Let's get you set up</Text>
+              <Text style={styles.gateCardSub}>Create your profile and join Afri Fast</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="rgba(0,0,0,0.25)" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.gateCard, { marginTop: 4 }]}
+            onPress={() => { setError(''); setScreen('auth'); }}
+            activeOpacity={0.85}
+          >
+            <View style={styles.gateCardIcon}>
+              <Ionicons name="arrow-back-outline" size={20} color="#111" />
+            </View>
+            <View style={styles.gateCardText}>
+              <Text style={styles.gateCardTitle}>Try a different email</Text>
+              <Text style={styles.gateCardSub}>Go back and try again</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="rgba(0,0,0,0.25)" />
           </TouchableOpacity>

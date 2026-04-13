@@ -5,6 +5,8 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimens
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+const geminiUrl = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
 function buildUserContext({ userName, userCountry, selectedPlan, targetWeight, startingWeight, dailyCalorieGoal, hydrationGoal, volumeUnit, proteinGoal, carbsGoal, fatsGoal, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs }) {
   const sessions = fastingSessions || [];
@@ -147,24 +149,23 @@ Open the conversation by addressing this observation directly and personally. As
 User context:
 ${userContext}`;
 
-      fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.8, maxOutputTokens: 2048 },
-          }),
-        }
-      )
-        .then(r => r.json())
-        .then(raw => {
+      (async () => {
+        try {
+          const body = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.8, maxOutputTokens: 2048 } });
+          let raw;
+          for (const model of GEMINI_MODELS) {
+            const r = await fetch(geminiUrl(model), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+            raw = await r.json();
+            if (r.status !== 503) break;
+          }
           const text = raw?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
           setMessages([{ role: 'assistant', content: text || openingContext }]);
-        })
-        .catch(() => setMessages([{ role: 'assistant', content: openingContext }]))
-        .finally(() => setIsTyping(false));
+        } catch {
+          setMessages([{ role: 'assistant', content: openingContext }]);
+        } finally {
+          setIsTyping(false);
+        }
+      })();
 
     } else if (messages.length === 0) {
       const greeting = userName
@@ -207,19 +208,14 @@ ${userContext}`;
     ];
 
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents,
-            generationConfig: { temperature: 0.8, maxOutputTokens: 2048 },
-          }),
-        }
-      );
+      const body = JSON.stringify({ contents, generationConfig: { temperature: 0.8, maxOutputTokens: 2048 } });
+      let raw;
+      for (const model of GEMINI_MODELS) {
+        const response = await fetch(geminiUrl(model), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+        raw = await response.json();
+        if (response.status !== 503) break;
+      }
 
-      const raw = await response.json();
       const text = raw?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
       if (!text) throw new Error('Empty Gemini response');

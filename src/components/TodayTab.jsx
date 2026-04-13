@@ -645,25 +645,6 @@ const TodayTab = ({
           </View>
         </View>
 
-        {/* Premium Upsell */}
-        <View style={styles.sectionTight}>
-          <View style={styles.premiumCard}>
-            <View style={styles.premiumContent}>
-              <View style={styles.premiumBadge}>
-                <Text style={styles.premiumBadgeText}>{'\u2728'} PREMIUM</Text>
-              </View>
-              <Text style={styles.premiumTitle}>Unlock personalized fasting insights</Text>
-              <View style={styles.premiumList}>
-                <Text style={styles.premiumItem}>{'\u2022'} AI-powered recommendations</Text>
-                <Text style={styles.premiumItem}>{'\u2022'} Advanced analytics</Text>
-                <Text style={styles.premiumItem}>{'\u2022'} Custom fasting plans</Text>
-              </View>
-              <TouchableOpacity style={styles.premiumBtn}>
-                <Text style={styles.premiumBtnText}>Start free trial</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -754,6 +735,7 @@ const makeStyles = (c) => StyleSheet.create({
   scrollContainer: {
     flex: 1,
     paddingHorizontal: 0,
+    overflow: 'hidden',
   },
   heroCardCompact: {
     marginTop: 28,

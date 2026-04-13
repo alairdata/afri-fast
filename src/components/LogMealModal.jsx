@@ -82,6 +82,20 @@ const uploadMealPhoto = async (uri) => {
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
+// Fallback chain — tried in order if a model returns 503
+const GEMINI_MODELS = [
+  'gemini-3.1-pro-preview',
+  'gemini-3.1-flash-lite-preview',
+  'gemini-3-flash-preview',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+];
+
+const geminiUrl = (model) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
 const streamResponseText = async (response, onProgress, startPct = 20, endPct = 88) => {
   if (response.body?.getReader) {
     const reader = response.body.getReader();
@@ -111,16 +125,12 @@ const analyzeWithGemini = async (photoUri, onProgress) => {
     const base64 = await readUriAsBase64(photoUri);
     onProgress?.(15);
     console.log('[Gemini] Base64 length:', base64.length);
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                text: `You are a nutrition expert specializing in foods, particularly African meals since that is the target market. Analyze this food image and identify every food item visible.
+
+    const requestBody = JSON.stringify({
+      contents: [{
+        parts: [
+          {
+            text: `You are a nutrition expert specializing in foods, particularly African meals since that is the target market. Analyze this food image and identify every food item visible.
 
 IMPORTANT: First check if this image actually contains food. If it does NOT contain food, respond with exactly this format:
 NOT_FOOD: [what you see in the image]
@@ -138,19 +148,31 @@ If it IS food, return a JSON object with three fields:
    - fiber: fiber in grams as a number
 
 Return ONLY a valid JSON object with no explanation, no markdown, no code blocks. Just the raw JSON.`
-              },
-              { inline_data: { mime_type: 'image/jpeg', data: base64 } }
-            ]
-          }],
-          generationConfig: { temperature: 0.1 },
-        }),
-      }
-    );
-    onProgress?.(18);
-    const rawText = await streamResponseText(response, onProgress, 18, 88);
+          },
+          { inline_data: { mime_type: 'image/jpeg', data: base64 } }
+        ]
+      }],
+      generationConfig: { temperature: 0.1 },
+    });
+
+    let response, data;
+    for (const model of GEMINI_MODELS) {
+      console.log('[Gemini] Trying model:', model);
+      response = await fetch(geminiUrl(model), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: requestBody,
+      });
+      onProgress?.(18);
+      const rawText = await streamResponseText(response, onProgress, 18, 88);
+      data = JSON.parse(rawText);
+      console.log('[Gemini] Response status:', response.status, '| error:', data.error?.message || 'none');
+      if (response.status !== 503) break;
+      console.log('[Gemini] Model overloaded, trying next...');
+    }
+
     onProgress?.(90);
-    const data = JSON.parse(rawText);
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     onProgress?.(95);
     if (text) {
       if (text.startsWith('NOT_FOOD:')) {
@@ -174,28 +196,18 @@ Return ONLY a valid JSON object with no explanation, no markdown, no code blocks
     }
   } catch (e) {
     console.log('[Gemini] Error:', e.message, e.stack);
+    return { error: true, message: e.message };
   }
-  // Fallback if API fails
-  await new Promise(r => setTimeout(r, 1500));
-  return [
-    { name: 'Jollof Rice', qty: '1 cup', cal: 350, protein: 8, carbs: 55, fats: 10, fiber: 3 },
-    { name: 'Grilled Chicken', qty: '1 piece (medium)', cal: 220, protein: 28, carbs: 0, fats: 12, fiber: 0 },
-    { name: 'Fried Plantain', qty: '3 slices', cal: 180, protein: 1, carbs: 32, fats: 7, fiber: 2 },
-  ];
+  return { error: true, message: 'Could not analyse the image. Please try again.' };
 };
 
 const analyzeTextWithGemini = async (mealText, onProgress) => {
   try {
     onProgress?.(8);
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `You are a nutrition expert specializing in African meals. The user has typed the name of a meal they ate.
+    const requestBody = JSON.stringify({
+      contents: [{
+        parts: [{
+          text: `You are a nutrition expert specializing in African meals. The user has typed the name of a meal they ate.
 
 IMPORTANT: Before deciding something is NOT_FOOD, first attempt to interpret it as a misspelled or abbreviated meal name. Only return NOT_FOOD if you genuinely cannot identify any food — even after trying to correct for typos, abbreviations, or phonetic spelling. A Ghanaian typing "bknu" likely means "Banku". Give it the benefit of the doubt.
 
@@ -213,17 +225,27 @@ If it IS a food or meal, return ONLY raw JSON with these fields:
 The meal the user typed: "${mealText}"
 
 Return ONLY a valid JSON object with no explanation, no markdown, no code blocks. Just the raw JSON.`
-            }]
-          }],
-          generationConfig: { temperature: 0.1 },
-        }),
-      }
-    );
-    onProgress?.(15);
-    const rawText = await streamResponseText(response, onProgress, 15, 88);
+        }]
+      }],
+      generationConfig: { temperature: 0.1 },
+    });
+
+    let data;
+    for (const model of GEMINI_MODELS) {
+      const response = await fetch(geminiUrl(model), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: requestBody,
+      });
+      onProgress?.(15);
+      const rawText = await streamResponseText(response, onProgress, 15, 88);
+      data = JSON.parse(rawText);
+      if (response.status !== 503) break;
+      console.log('[Gemini text] Model overloaded, trying next...');
+    }
+
     onProgress?.(90);
-    const data = JSON.parse(rawText);
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     onProgress?.(95);
     if (text) {
       if (text.startsWith('NOT_FOOD:')) {
@@ -409,6 +431,86 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const [showSuccess, setShowSuccess] = useState(false);
   const [sayPhase, setSayPhase] = useState('idle'); // 'idle' | 'recording' | 'detecting' | 'results'
   const [writePhase, setWritePhase] = useState('idle'); // 'idle' | 'detecting' | 'results'
+
+  const SCAN_MESSAGES = [
+    'Checking food distribution...',
+    'Identifying ingredients...',
+    'Calculating macros...',
+    'Recognising portion sizes...',
+    'Cross-checking calorie data...',
+    'Analysing protein content...',
+    'Checking carb levels...',
+    'Estimating fat content...',
+    'Looking up fibre data...',
+    'Almost there...',
+  ];
+  const [scanMsgIndex, setScanMsgIndex] = useState(0);
+  const [sayMsgIndex, setSayMsgIndex] = useState(0);
+  const [writeMsgIndex, setWriteMsgIndex] = useState(0);
+
+  useEffect(() => {
+    if (scanPhase !== 'results' || detectedFoods.length > 0 || scanError) return;
+    const id = setInterval(() => {
+      setScanMsgIndex(prev => (prev + 1) % SCAN_MESSAGES.length);
+    }, 1800);
+    return () => clearInterval(id);
+  }, [scanPhase, detectedFoods.length, scanError]);
+
+  // Trickle the progress bar so it never looks frozen during API wait
+  useEffect(() => {
+    if (scanPhase !== 'results' || detectedFoods.length > 0 || scanError) return;
+    const id = setInterval(() => {
+      setScanProgress(prev => {
+        if (prev >= 94) return prev; // hold before 95 — let real updates finish it
+        const step = prev < 18 ? 0.6 : prev < 88 ? 0.25 : 0.1;
+        return Math.min(94, prev + step);
+      });
+    }, 150);
+    return () => clearInterval(id);
+  }, [scanPhase, detectedFoods.length, scanError]);
+
+  // Write phase: trickle progress + rotating messages
+  useEffect(() => {
+    if (writePhase !== 'detecting') return;
+    const id = setInterval(() => {
+      setWriteDetectProgress(prev => {
+        if (prev >= 94) return prev;
+        const step = prev < 18 ? 0.6 : prev < 88 ? 0.25 : 0.1;
+        return Math.min(94, prev + step);
+      });
+    }, 150);
+    return () => clearInterval(id);
+  }, [writePhase]);
+
+  useEffect(() => {
+    if (writePhase !== 'detecting') return;
+    const id = setInterval(() => {
+      setWriteMsgIndex(prev => (prev + 1) % SCAN_MESSAGES.length);
+    }, 1800);
+    return () => clearInterval(id);
+  }, [writePhase]);
+
+  // Say phase: trickle progress + rotating messages
+  useEffect(() => {
+    if (sayPhase !== 'detecting') return;
+    const id = setInterval(() => {
+      setDetectProgress(prev => {
+        if (prev >= 94) return prev;
+        const step = prev < 18 ? 0.6 : prev < 88 ? 0.25 : 0.1;
+        return Math.min(94, prev + step);
+      });
+    }, 150);
+    return () => clearInterval(id);
+  }, [sayPhase]);
+
+  useEffect(() => {
+    if (sayPhase !== 'detecting') return;
+    const id = setInterval(() => {
+      setSayMsgIndex(prev => (prev + 1) % SCAN_MESSAGES.length);
+    }, 1800);
+    return () => clearInterval(id);
+  }, [sayPhase]);
+
   const [writeError, setWriteError] = useState(null);
   const [correctedInput, setCorrectedInput] = useState(null);
   const [recentWrites, setRecentWrites] = useState([
@@ -431,7 +533,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
   useEffect(() => {
     if (viewingMeal && show) {
-      setCapturedPhoto(viewingMeal.photo || null);
+      setCapturedPhoto(viewingMeal.localPhoto || viewingMeal.photo || null);
       setDetectedFoods(viewingMeal.foods || []);
       setMealTitle(viewingMeal.name || null);
       setScanPhase('shareCard');
@@ -476,23 +578,26 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       setScanPhase('results');
       setDetectedFoods([]);
       setScanProgress(0);
+      setScanError(null);
       const results = await analyzeWithGemini(photo.uri, setScanProgress);
       setScanProgress(100);
-      // Check if Gemini says it's not food
+      if (results?.error) {
+        setScanError("Couldn't reach the server. Check your connection and try again.");
+        return;
+      }
       if (results?.notFood) {
-        setScanError(results.identified);
-        setScanPhase('camera');
+        setScanError(`No food detected — ${results.identified}. Try a clearer photo.`);
         return;
       }
       setScanFromScreen(results?.fromScreen || false);
       setMealTitle(results?.title || null);
       setTimeout(() => {
-        setDetectedFoods((results?.foods || results || []).map((f, i) => ({ ...f, id: i })));
+        setDetectedFoods((results?.foods || []).map((f, i) => ({ ...f, id: i })));
       }, 300);
     } catch (e) {
       console.log('Camera error:', e);
       if (scanProgressRef.current) clearInterval(scanProgressRef.current);
-      setScanPhase('camera');
+      setScanError("Couldn't reach the server. Check your connection and try again.");
     }
   };
 
@@ -513,15 +618,18 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setScanError(null);
     const results = await analyzeWithGemini(asset.uri, setScanProgress);
     setScanProgress(100);
+    if (results?.error) {
+      setScanError("Couldn't reach the server. Check your connection and try again.");
+      return;
+    }
     if (results?.notFood) {
-      setScanError(results.identified);
-      setScanPhase('camera');
+      setScanError(`No food detected — ${results.identified}. Try a clearer photo.`);
       return;
     }
     setScanFromScreen(results?.fromScreen || false);
     setMealTitle(results?.title || null);
     setTimeout(() => {
-      setDetectedFoods((results?.foods || results || []).map((f, i) => ({ ...f, id: i })));
+      setDetectedFoods((results?.foods || []).map((f, i) => ({ ...f, id: i })));
     }, 300);
   };
 
@@ -568,14 +676,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     });
     setWritePhase('detecting');
     setWriteDetectProgress(0);
-    // Animate progress while waiting for Gemini
-    let pct = 0;
-    writeDetectRef.current = setInterval(() => {
-      pct = Math.min(pct + 2, 90);
-      setWriteDetectProgress(pct);
-    }, 100);
     const results = await analyzeTextWithGemini(mealInput.trim());
-    clearInterval(writeDetectRef.current);
     setWriteDetectProgress(100);
     if (!results || results.notFood) {
       setWriteError(results?.identified || 'that input');
@@ -683,11 +784,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     if (!uri) return;
     setSayPhase('detecting');
     setDetectProgress(0);
-    let pct = 0;
-    detectIntervalRef.current = setInterval(() => {
-      pct = Math.min(pct + 1.2, 95);
-      setDetectProgress(pct);
-    }, 20);
     try {
       const base64 = await readUriAsBase64(uri);
       const response = await fetch(
@@ -722,7 +818,6 @@ Return ONLY raw JSON, no markdown, no explanation.`
       );
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      clearInterval(detectIntervalRef.current);
       setDetectProgress(100);
       if (!text || text.startsWith('NOT_FOOD:')) { setSayPhase('idle'); return; }
       const match = text.match(/\{[\s\S]*\}/);
@@ -739,22 +834,20 @@ Return ONLY raw JSON, no markdown, no explanation.`
       } else { setSayPhase('idle'); }
     } catch (e) {
       console.log('[Gemini Audio] Error:', e.message);
-      clearInterval(detectIntervalRef.current);
       setSayPhase('idle');
     }
   };
 
   const getTotalCal = () => detectedFoods.reduce((sum, f) => sum + f.cal, 0);
 
-  const logMeal = async () => {
-    const photoUrl = await uploadMealPhoto(capturedPhoto) || await convertToDataUrl(capturedPhoto);
-    // Don't update capturedPhoto state — keep the local URI for instant share card display.
-    // photoUrl (Supabase URL) is only used for saving to DB below.
+  const logMeal = () => {
     if (detectedFoods.length > 0 && onSaveMeal) {
       const now = new Date();
+      const mealId = Date.now();
       const timeStr = `Today, ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+      // Save immediately with local photo URI so it appears in the list right away
       onSaveMeal({
-        id: Date.now(),
+        id: mealId,
         name: mealTitle || detectedFoods.map(f => f.name).join(', '),
         calories: detectedFoods.reduce((sum, f) => sum + f.cal, 0),
         protein: detectedFoods.reduce((sum, f) => sum + (f.protein || 0), 0),
@@ -763,9 +856,19 @@ Return ONLY raw JSON, no markdown, no explanation.`
         time: timeStr,
         items: detectedFoods.map(f => `${f.name} (${f.qty})`),
         date: now.toDateString(),
-        photo: photoUrl,
+        photo: capturedPhoto,        // local URI — loads instantly in same session
+        localPhoto: capturedPhoto,   // kept even after remote URL replaces photo
         foods: detectedFoods,
       });
+      // Upload photo in background, then swap in the remote URL (localPhoto stays for fast display)
+      if (capturedPhoto) {
+        uploadMealPhoto(capturedPhoto).then(photoUrl => {
+          if (photoUrl) {
+            Image.prefetch(photoUrl).catch(() => {}); // warm the cache for next session
+            onSaveMeal({ id: mealId, _updatePhoto: true, photo: photoUrl });
+          }
+        }).catch(() => {});
+      }
     }
     setScanPhase('shareCard');
   };
@@ -795,15 +898,33 @@ Return ONLY raw JSON, no markdown, no explanation.`
 
               {detectedFoods.length === 0 ? (
                 <View style={styles.detectSection}>
-                  <View style={styles.detectLabelRow}>
-                    <Text style={styles.detectLabel}>
-                      {scanProgress >= 100 ? 'Foods detected!' : 'Detecting foods...'}
-                    </Text>
-                    <Text style={styles.detectPct}>{Math.round(scanProgress)}%</Text>
-                  </View>
-                  <View style={styles.detectTrack}>
-                    <View style={[styles.detectFill, { width: Math.round(scanProgress) + '%' }]} />
-                  </View>
+                  {scanError ? (
+                    <View style={{ alignItems: 'center', paddingVertical: 16, gap: 12 }}>
+                      <Ionicons name="cloud-offline-outline" size={36} color="#EF4444" />
+                      <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 15, textAlign: 'center' }}>{scanError}</Text>
+                      <TouchableOpacity onPress={resetScan} style={{ marginTop: 4, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#059669', borderRadius: 20 }}>
+                        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Try again</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : scanProgress >= 100 ? (
+                    <View style={{ alignItems: 'center', paddingVertical: 16, gap: 12 }}>
+                      <Ionicons name="search-outline" size={36} color="#9CA3AF" />
+                      <Text style={{ color: '#6B7280', fontWeight: '600', fontSize: 15, textAlign: 'center' }}>Couldn't identify any food items.{'\n'}Try a clearer photo.</Text>
+                      <TouchableOpacity onPress={resetScan} style={{ marginTop: 4, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#059669', borderRadius: 20 }}>
+                        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Try again</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <>
+                      <View style={styles.detectLabelRow}>
+                        <Text style={styles.detectLabel}>{SCAN_MESSAGES[scanMsgIndex]}</Text>
+                        <Text style={styles.detectPct}>{Math.round(scanProgress)}%</Text>
+                      </View>
+                      <View style={styles.detectTrack}>
+                        <View style={[styles.detectFill, { width: Math.round(scanProgress) + '%' }]} />
+                      </View>
+                    </>
+                  )}
                 </View>
               ) : (
                 <View>
@@ -1068,7 +1189,7 @@ Return ONLY raw JSON, no markdown, no explanation.`
               <View style={styles.detectSection}>
                 <View style={styles.detectLabelRow}>
                   <Text style={styles.detectLabel}>
-                    {writeDetectProgress >= 100 ? 'Foods detected!' : 'Detecting foods...'}
+                    {writeDetectProgress >= 100 ? 'Foods detected!' : SCAN_MESSAGES[writeMsgIndex]}
                   </Text>
                   <Text style={styles.detectPct}>{Math.round(writeDetectProgress)}%</Text>
                 </View>
@@ -1383,15 +1504,18 @@ Return ONLY raw JSON, no markdown, no explanation.`
                     const mealProtein = detectedFoods.reduce((s, f) => s + (f.protein || 0), 0);
                     const mealCarbs = detectedFoods.reduce((s, f) => s + (f.carbs || 0), 0);
                     const mealFats = detectedFoods.reduce((s, f) => s + (f.fats || 0), 0);
-                    const foodLines = detectedFoods.map(f => `  • ${f.name} (${f.qty}) — ${f.cal} cal`).join('\n');
+                    const foodLines = detectedFoods.map(f => `${f.name} - ${f.cal} cal`).join('\n');
+                    const now2 = new Date();
+                    const hour = now2.getHours();
+                    const mealType = hour < 11 ? 'breakfast' : hour < 15 ? 'lunch' : hour < 18 ? 'snack' : 'dinner';
+                    const dateStr = now2.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
                     const detailsText = [
-                      `🍽️ ${mealTitle || 'My Meal'} — AfriFast`,
+                      `Today ${dateStr}'s ${mealType} was ${mealTitle || 'my meal'} — ${mealCal} cal`,
                       '',
+                      '*Here is the breakdown:*',
                       foodLines,
                       '',
-                      `Meal: ${mealCal} kcal  |  P: ${mealProtein}g · C: ${mealCarbs}g · F: ${mealFats}g`,
-                      `Today: ${totalCal.toLocaleString()} / ${dailyCalorieGoal.toLocaleString()} kcal  |  P: ${totalProtein}g · C: ${totalCarbs}g · F: ${totalFats}g`,
-                      `${streak}🔥 day streak`,
+                      `Overall Calories for Today: ${totalCal.toLocaleString()} / ${dailyCalorieGoal.toLocaleString()} kcal`,
                       '',
                       'Tracked on AfriFast',
                     ].join('\n');
@@ -1468,7 +1592,7 @@ Return ONLY raw JSON, no markdown, no explanation.`
               {sayPhase === 'detecting' && (
                 <View style={styles.detectSection}>
                   <Text style={styles.detectLabel}>
-                    {detectProgress >= 100 ? 'Foods detected!' : 'Detecting foods...'}
+                    {detectProgress >= 100 ? 'Foods detected!' : SCAN_MESSAGES[sayMsgIndex]}
                   </Text>
                   <View style={styles.detectTrack}>
                     <View style={[styles.detectFill, { width: detectProgress + '%' }]} />
