@@ -1,15 +1,14 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image, Dimensions,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image, useWindowDimensions,
 } from 'react-native';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
 import { supabase } from '../lib/supabase';
 import PreAuthOnboarding from './PreAuthOnboarding';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
+  const { width: screenWidth } = useWindowDimensions();
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [name, setName] = useState(preAuthData?.preferredName || '');
   const [email, setEmail] = useState('');
@@ -76,7 +75,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             style={styles.gateHeroScroll}
           >
             {heroImages.map((img, i) => (
-              <Image key={i} source={img} style={styles.gateHeroImage} resizeMode="cover" />
+              <Image key={i} source={img} style={[styles.gateHeroImage, { width: screenWidth }]} resizeMode="cover" />
             ))}
           </ScrollView>
           <View style={styles.gateHeroPill}>
@@ -243,7 +242,7 @@ const styles = StyleSheet.create({
   gateContainer: { flex: 1, backgroundColor: '#FFFFFF' },
   gateHeroWrap: { width: '100%', height: '58%', position: 'relative' },
   gateHeroScroll: { width: '100%', height: '100%' },
-  gateHeroImage: { width: SCREEN_WIDTH, height: '100%' },
+  gateHeroImage: { height: '100%' },
   gateHeroPill: {
     position: 'absolute',
     bottom: 18,
