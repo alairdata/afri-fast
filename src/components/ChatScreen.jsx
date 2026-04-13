@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimens
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const GEMINI_API_KEY = 'AIzaSyC4EzCRJDTTjX-wwZNkR_igY_P6fn5PGAs';
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
 function buildUserContext({ userName, userCountry, selectedPlan, targetWeight, startingWeight, dailyCalorieGoal, hydrationGoal, volumeUnit, proteinGoal, carbsGoal, fatsGoal, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs }) {
   const sessions = fastingSessions || [];

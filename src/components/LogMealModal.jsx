@@ -80,7 +80,7 @@ const uploadMealPhoto = async (uri) => {
   }
 };
 
-const GEMINI_API_KEY = 'AIzaSyC4EzCRJDTTjX-wwZNkR_igY_P6fn5PGAs';
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
 const streamResponseText = async (response, onProgress, startPct = 20, endPct = 88) => {
   if (response.body?.getReader) {
