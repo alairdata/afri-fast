@@ -754,6 +754,7 @@ const makeStyles = (c) => StyleSheet.create({
   scrollContainer: {
     flex: 1,
     paddingHorizontal: 0,
+    paddingBottom: 90,
   },
   heroCardCompact: {
     marginTop: 28,
