@@ -707,7 +707,7 @@ const makeStyles = (c) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 0,
+    paddingTop: 14,
     paddingBottom: 8,
     paddingHorizontal: 16,
     backgroundColor: c.appBg,
