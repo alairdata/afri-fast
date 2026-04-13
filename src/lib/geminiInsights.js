@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const GEMINI_API_KEY = 'AIzaSyC4EzCRJDTTjX-wwZNkR_igY_P6fn5PGAs';
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 const CACHE_KEY = 'gemini_insight_cache_v7';
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
