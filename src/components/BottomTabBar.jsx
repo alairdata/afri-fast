@@ -58,7 +58,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingTop: 10,
-    paddingBottom: 10,
     paddingHorizontal: 8,
     zIndex: 20,
     overflow: 'hidden',
