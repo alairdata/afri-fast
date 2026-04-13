@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Dimensions, Animated, Platform, StatusBar } from 'react-native';
-import { useFonts } from 'expo-font';
-import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './lib/supabase';
 
@@ -127,8 +125,6 @@ const getUserColor = (str = '') => {
 };
 
 const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
-  const [fontsLoaded] = useFonts({ ...Ionicons.font });
-
   // === Core fasting state ===
   const [currentTime, setCurrentTime] = useState(new Date());
   const [fastingHours, setFastingHours] = useState(0);
@@ -851,8 +847,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
     showToast('Fast deleted');
   };
-
-  if (!fontsLoaded) return null;
 
   return (
     <View style={styles.container}>
