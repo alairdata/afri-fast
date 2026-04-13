@@ -7,13 +7,6 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import FastingApp from './src/FastingApp';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
-  // Load Ionicons font via CSS (Metro doesn't auto-load icon fonts like webpack did)
-  // eslint-disable-next-line import/no-unresolved
-  const ioniconsFontUrl = require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf');
-  const iconStyle = document.createElement('style');
-  iconStyle.textContent = `@font-face{font-family:'ionicons';src:url('${ioniconsFontUrl}') format('truetype');font-display:block;}`;
-  document.head.appendChild(iconStyle);
-
   // Load Inter from Google Fonts
   const link = document.createElement('link');
   link.rel = 'stylesheet';

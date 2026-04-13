@@ -24,7 +24,7 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro",
+      "bundler": "webpack",
       "themeColor": "#E6F4FE",
       "description": "African meal fasting and calorie tracker",
       "name": "Afri Fast",
