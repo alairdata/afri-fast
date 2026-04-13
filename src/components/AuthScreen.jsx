@@ -46,8 +46,6 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   if (screen === 'gate') {
     return (
       <View style={styles.gateContainer}>
-        <View style={styles.bgGlowTop} />
-        <View style={styles.bgGlowBottom} />
         <View style={styles.gateInner}>
           <View style={styles.gateLogoWrap}>
             <Image
@@ -58,7 +56,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             <Text style={styles.gateTagline}>Your African wellness companion</Text>
           </View>
 
-          <Text style={styles.gateQuestion}>Have we met before?</Text>
+          <Text style={styles.gateQuestion}>Welcome back</Text>
 
           <TouchableOpacity
             style={styles.gateCard}
@@ -66,7 +64,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             activeOpacity={0.85}
           >
             <View style={styles.gateCardIcon}>
-              <Text style={styles.gateCardIconText}>👋</Text>
+              <Ionicons name="person-outline" size={20} color="#111" />
             </View>
             <View style={styles.gateCardText}>
               <Text style={styles.gateCardTitle}>I already have an account</Text>
@@ -76,18 +74,18 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.gateCard, styles.gateCardNew]}
+            style={styles.gateCard}
             onPress={() => setScreen('onboarding')}
             activeOpacity={0.85}
           >
-            <View style={[styles.gateCardIcon, styles.gateCardIconNew]}>
-              <Text style={styles.gateCardIconText}>🌱</Text>
+            <View style={styles.gateCardIcon}>
+              <Ionicons name="leaf-outline" size={20} color="#111" />
             </View>
             <View style={styles.gateCardText}>
-              <Text style={[styles.gateCardTitle, styles.gateCardTitleNew]}>I'm new here</Text>
-              <Text style={[styles.gateCardSub, styles.gateCardSubNew]}>Let's set up your profile</Text>
+              <Text style={styles.gateCardTitle}>I'm new here</Text>
+              <Text style={styles.gateCardSub}>Let's set up your profile</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="rgba(15,157,120,0.5)" />
+            <Ionicons name="chevron-forward" size={16} color="rgba(0,0,0,0.25)" />
           </TouchableOpacity>
         </View>
       </View>
@@ -206,20 +204,10 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
 
 const styles = StyleSheet.create({
   // Gate screen
-  gateContainer: { flex: 1, backgroundColor: '#FCFBF7' },
-  bgGlowTop: {
-    position: 'absolute', top: -90, right: -30, width: 220, height: 220,
-    borderRadius: 999, backgroundColor: 'rgba(245,158,11,0.10)',
-  },
-  bgGlowBottom: {
-    position: 'absolute', left: -80, bottom: 100, width: 220, height: 220,
-    borderRadius: 999, backgroundColor: 'rgba(16,185,129,0.10)',
-  },
+  gateContainer: { flex: 1, backgroundColor: '#FFFFFF' },
   gateInner: { flex: 1, justifyContent: 'center', paddingHorizontal: 26, paddingBottom: 40 },
   gateLogoWrap: { alignItems: 'center', marginBottom: 48 },
-  gateLogoImage: {
-    width: 80, height: 80, marginBottom: 12, resizeMode: 'contain',
-  },
+  gateLogoImage: { width: 80, height: 80, marginBottom: 12, resizeMode: 'contain' },
   gateAppName: { fontSize: 26, fontWeight: '700', color: '#111', marginBottom: 4 },
   gateTagline: { fontSize: 13, color: 'rgba(0,0,0,0.4)', fontWeight: '300' },
   gateQuestion: {
@@ -231,20 +219,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
   },
-  gateCardNew: {
-    borderColor: 'rgba(15,157,120,0.25)', backgroundColor: 'rgba(15,157,120,0.04)',
-  },
   gateCardIcon: {
     width: 44, height: 44, borderRadius: 12, backgroundColor: '#F3F4F6',
     alignItems: 'center', justifyContent: 'center', marginRight: 14,
   },
-  gateCardIconNew: { backgroundColor: 'rgba(15,157,120,0.1)' },
-  gateCardIconText: { fontSize: 22 },
   gateCardText: { flex: 1 },
   gateCardTitle: { fontSize: 15, fontWeight: '600', color: '#111', marginBottom: 2 },
-  gateCardTitleNew: { color: '#0A6650' },
   gateCardSub: { fontSize: 12, color: 'rgba(0,0,0,0.4)', fontWeight: '300' },
-  gateCardSubNew: { color: 'rgba(15,157,120,0.7)' },
 
   container: { flex: 1, backgroundColor: '#F0FDF4' },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
