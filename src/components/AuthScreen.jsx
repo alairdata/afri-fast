@@ -367,7 +367,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
 
 const styles = StyleSheet.create({
   // Gate screen
-  gateContainer: { flex: 1, backgroundColor: '#FFFFFF' },
+  gateContainer: { flex: 1, backgroundColor: '#F4F1EA' },
   gateHeroWrap: {
     marginHorizontal: 16,
     height: '58%',
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
   gateTagline: { fontSize: 13, color: 'rgba(0,0,0,0.4)', fontWeight: '300' },
   gateCard: {
     flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 16,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#fff',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#FDFCF8',
     marginBottom: 12,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
   },
