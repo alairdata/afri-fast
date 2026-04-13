@@ -103,74 +103,6 @@ const doodleStyles = StyleSheet.create({
   },
 });
 
-const HONEY_LETTERS = 'Afri Fast'.split('');
-
-function HoneyTitle() {
-  const anims = useRef(HONEY_LETTERS.map(() => new Animated.Value(0))).current;
-
-  useEffect(() => {
-    const timeouts = [];
-    const running = [];
-
-    HONEY_LETTERS.forEach((_, i) => {
-      const t = setTimeout(() => {
-        const a = Animated.loop(
-          Animated.sequence([
-            Animated.timing(anims[i], {
-              toValue: 9,
-              duration: 260,
-              easing: Easing.in(Easing.quad),
-              useNativeDriver: true,
-            }),
-            Animated.timing(anims[i], {
-              toValue: 0,
-              duration: 520,
-              easing: Easing.out(Easing.back(2.5)),
-              useNativeDriver: true,
-            }),
-            Animated.delay(900),
-          ])
-        );
-        a.start();
-        running.push(a);
-      }, i * 100);
-      timeouts.push(t);
-    });
-
-    return () => {
-      timeouts.forEach(clearTimeout);
-      running.forEach(a => a.stop());
-    };
-  }, []);
-
-  return (
-    <View style={honeyStyles.row}>
-      {HONEY_LETTERS.map((letter, i) => (
-        <Animated.Text
-          key={i}
-          style={[honeyStyles.letter, { transform: [{ translateY: anims[i] }] }]}
-        >
-          {letter === ' ' ? '\u00A0' : letter}
-        </Animated.Text>
-      ))}
-    </View>
-  );
-}
-
-const honeyStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    marginBottom: 4,
-  },
-  letter: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#0F9D78',
-    fontFamily: 'Inter, sans-serif',
-  },
-});
 
 export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const { width: screenWidth } = useWindowDimensions();
@@ -217,7 +149,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         </View>
         <View style={styles.gateInner}>
           <View style={styles.gateLogoWrap}>
-            <HoneyTitle />
+            <Text style={styles.gateAppName}>Afri Fast</Text>
             <Text style={styles.gateTagline}>Your African wellness companion</Text>
           </View>
 
@@ -418,7 +350,7 @@ const styles = StyleSheet.create({
   },
   gateInner: { flex: 1, justifyContent: 'center', paddingHorizontal: 26, paddingBottom: 40, paddingTop: 20 },
   gateLogoWrap: { alignItems: 'center', marginBottom: 24 },
-  gateAppName: { fontSize: 26, fontWeight: '700', color: '#111', marginBottom: 4 },
+  gateAppName: { fontSize: 26, fontWeight: '700', color: '#0F9D78', marginBottom: 4, fontFamily: 'Inter, sans-serif' },
   gateTagline: { fontSize: 13, color: 'rgba(0,0,0,0.4)', fontWeight: '300' },
   gateCard: {
     flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 16,
