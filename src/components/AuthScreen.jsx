@@ -204,9 +204,9 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
 const styles = StyleSheet.create({
   // Gate screen
   gateContainer: { flex: 1, backgroundColor: '#FFFFFF' },
-  gateHeroImage: { width: '100%', height: '48%' },
-  gateInner: { flex: 1, justifyContent: 'center', paddingHorizontal: 26, paddingBottom: 40, paddingTop: 28 },
-  gateLogoWrap: { alignItems: 'center', marginBottom: 32 },
+  gateHeroImage: { width: '100%', height: '58%' },
+  gateInner: { flex: 1, justifyContent: 'center', paddingHorizontal: 26, paddingBottom: 40, paddingTop: 20 },
+  gateLogoWrap: { alignItems: 'center', marginBottom: 24 },
   gateAppName: { fontSize: 26, fontWeight: '700', color: '#111', marginBottom: 4 },
   gateTagline: { fontSize: 13, color: 'rgba(0,0,0,0.4)', fontWeight: '300' },
   gateCard: {
