@@ -309,9 +309,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
           <DoodleAuth />
         </View>
 
+        {/* Title outside card */}
+        <Text style={styles.authTitle}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</Text>
+
         {/* Card */}
         <View style={styles.card}>
-          <Text style={styles.authTitle}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</Text>
 
           {/* Fields */}
           {mode === 'signup' && (
@@ -451,19 +453,21 @@ const styles = StyleSheet.create({
   gateCardSub: { fontSize: 12, color: 'rgba(0,0,0,0.4)', fontWeight: '300' },
 
   container: { flex: 1, backgroundColor: '#F4F1EA' },
-  scroll: { flexGrow: 1, padding: 24 },
-  authDoodleWrap: { width: '100%', height: 200, marginBottom: 8, borderRadius: 24, overflow: 'hidden' },
+  scroll: { flexGrow: 1, padding: 24, alignItems: 'center', justifyContent: 'center' },
+  authDoodleWrap: { width: '100%', height: 200, marginBottom: 16, borderRadius: 24, overflow: 'hidden' },
   onboardingContainer: { flex: 1, backgroundColor: '#FFFFFF' },
   onboardingScroll: { flexGrow: 1 },
   header: { alignItems: 'center', marginBottom: 32 },
   authLogoImage: { width: 80, height: 80, borderRadius: 16, marginBottom: 12, resizeMode: 'contain' },
   appName: { fontSize: 28, fontWeight: '800', color: '#064E3B', marginBottom: 4 },
   tagline: { fontSize: 14, color: '#6B7280' },
-  authTitle: { fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 20 },
+  authTitle: {
+    fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 16,
+    textAlign: 'center', fontFamily: 'Inter, sans-serif', alignSelf: 'center',
+  },
   card: {
-    backgroundColor: '#fff', borderRadius: 20, padding: 24,
-    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    backgroundColor: '#F4F1EA', borderRadius: 20, padding: 24, width: '100%',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
   },
   field: { marginBottom: 16 },
   label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
