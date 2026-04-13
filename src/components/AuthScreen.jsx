@@ -1,11 +1,81 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image, useWindowDimensions,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image,
+  useWindowDimensions, Animated, Easing,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import PreAuthOnboarding from './PreAuthOnboarding';
 import Ionicons from '@expo/vector-icons/Ionicons';
+
+const HONEY_LETTERS = 'Afri Fast'.split('');
+
+function HoneyTitle() {
+  const anims = useRef(HONEY_LETTERS.map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    const timeouts = [];
+    const running = [];
+
+    HONEY_LETTERS.forEach((_, i) => {
+      const t = setTimeout(() => {
+        const a = Animated.loop(
+          Animated.sequence([
+            Animated.timing(anims[i], {
+              toValue: -6,
+              duration: 420,
+              easing: Easing.inOut(Easing.sin),
+              useNativeDriver: true,
+            }),
+            Animated.timing(anims[i], {
+              toValue: 0,
+              duration: 420,
+              easing: Easing.inOut(Easing.sin),
+              useNativeDriver: true,
+            }),
+            Animated.delay(680),
+          ])
+        );
+        a.start();
+        running.push(a);
+      }, i * 90);
+      timeouts.push(t);
+    });
+
+    return () => {
+      timeouts.forEach(clearTimeout);
+      running.forEach(a => a.stop());
+    };
+  }, []);
+
+  return (
+    <View style={honeyStyles.row}>
+      {HONEY_LETTERS.map((letter, i) => (
+        <Animated.Text
+          key={i}
+          style={[honeyStyles.letter, { transform: [{ translateY: anims[i] }] }]}
+        >
+          {letter === ' ' ? '\u00A0' : letter}
+        </Animated.Text>
+      ))}
+    </View>
+  );
+}
+
+const honeyStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    marginBottom: 4,
+  },
+  letter: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#C4800A',
+    fontFamily: 'Inter, sans-serif',
+  },
+});
 
 export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const { width: screenWidth } = useWindowDimensions();
@@ -93,7 +163,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         </View>
         <View style={styles.gateInner}>
           <View style={styles.gateLogoWrap}>
-            <Text style={styles.gateAppName}>Afri Fast</Text>
+            <HoneyTitle />
             <Text style={styles.gateTagline}>Your African wellness companion</Text>
           </View>
 
