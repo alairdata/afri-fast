@@ -133,6 +133,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [fastingSeconds, setFastingSeconds] = useState(0);
   const [isFasting, setIsFasting] = useState(false);
   const [fastStartTime, setFastStartTime] = useState(null);
+  const [isRestoringFast, setIsRestoringFast] = useState(true);
   const [fastingSessions, setFastingSessions] = useState([]);
   const [checkedIn, setCheckedIn] = useState(false);
   const [hunger, setHunger] = useState('medium');
@@ -339,6 +340,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           })).catch(() => {});
         }
       } catch (_) {}
+      finally {
+        setIsRestoringFast(false);
+      }
     })();
   }, [session]);
 
@@ -1007,6 +1011,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           onShowChat={(context) => { setChatOpeningContext(context || null); setShowChat(true); }}
           onStartFast={handleStartFast}
           onEndFast={handleEndFast}
+          isRestoringFast={isRestoringFast}
           fastingSessions={fastingSessions}
           recentMeals={recentMeals}
           waterCount={waterCount}

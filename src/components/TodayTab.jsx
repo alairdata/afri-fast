@@ -56,6 +56,7 @@ const TodayTab = ({
   proteinGoal,
   carbsGoal,
   fatsGoal,
+  isRestoringFast,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
@@ -407,8 +408,14 @@ const TodayTab = ({
 
             <View style={styles.fastingControlsContainer}>
               {!isFasting ? (
-                <TouchableOpacity style={styles.fastActionBtn} onPress={onStartFast}>
-                  <Text style={styles.fastActionBtnText}>Start Fast</Text>
+                <TouchableOpacity
+                  style={[styles.fastActionBtn, isRestoringFast && { opacity: 0.4 }]}
+                  onPress={isRestoringFast ? null : onStartFast}
+                  disabled={isRestoringFast}
+                >
+                  <Text style={styles.fastActionBtnText}>
+                    {isRestoringFast ? 'Restoring...' : 'Start Fast'}
+                  </Text>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity style={styles.fastActionBtn} onPress={onEndFast}>
