@@ -240,6 +240,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     setVolumeUnit(nextUnit);
   };
 
+  // === Welcome-back modal (returning OAuth user) ===
+  const [showWelcomeBackModal, setShowWelcomeBackModal] = useState(false);
+  const [welcomeBackInfo, setWelcomeBackInfo] = useState(null); // { name, joinDate }
+
   // === Meals state ===
   const [selectedMealDate, setSelectedMealDate] = useState(new Date());
   const [recentMeals, setRecentMeals] = useState([]);
@@ -409,7 +413,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch profile from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, created_at').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -435,6 +439,20 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           await supabase.auth.signOut();
           return;
         }
+
+        // Check if this is a returning user signing in via Google OAuth for the first time
+        const oauthPending = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('afri-fast-oauth-pending');
+        if (oauthPending) {
+          sessionStorage.removeItem('afri-fast-oauth-pending');
+          const joinDate = data.created_at ? new Date(data.created_at) : null;
+          const ageMs = joinDate ? Date.now() - joinDate.getTime() : 0;
+          // Only show the modal if the account is more than 5 minutes old (i.e. pre-existing)
+          if (joinDate && ageMs > 5 * 60 * 1000) {
+            setWelcomeBackInfo({ name: data.name || '', joinDate });
+            setShowWelcomeBackModal(true);
+          }
+        }
+
         if (data.name) setUserName(data.name);
         if (data.country) setUserCountry(data.country);
         if (data.selected_plan) setSelectedPlan(data.selected_plan);
@@ -1440,6 +1458,43 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         setEndMinute={setEndMinute}
         setEndSecond={setEndSecond}
       />
+
+      {/* === Welcome Back Modal (returning OAuth user) === */}
+      <Modal visible={showWelcomeBackModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalEmoji}>🎉</Text>
+            <Text style={styles.modalTitle}>
+              {welcomeBackInfo?.name ? `Welcome back, ${welcomeBackInfo.name.split(' ')[0]}!` : 'Welcome back!'}
+            </Text>
+            <Text style={[styles.modalDesc, { marginBottom: 6 }]}>
+              Your account has been with us since{' '}
+              <Text style={{ fontWeight: '700', color: '#059669' }}>
+                {welcomeBackInfo?.joinDate
+                  ? welcomeBackInfo.joinDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                  : ''}
+              </Text>
+              {welcomeBackInfo?.joinDate ? ` — ${(() => {
+                const ms = Date.now() - welcomeBackInfo.joinDate.getTime();
+                const days = Math.floor(ms / 86400000);
+                if (days < 7) return `${days} day${days !== 1 ? 's' : ''} ago`;
+                if (days < 30) return `${Math.floor(days / 7)} week${Math.floor(days / 7) !== 1 ? 's' : ''} ago`;
+                if (days < 365) return `${Math.floor(days / 30)} month${Math.floor(days / 30) !== 1 ? 's' : ''} ago`;
+                return `over ${Math.floor(days / 365)} year${Math.floor(days / 365) !== 1 ? 's' : ''}`;
+              })()}.` : '.'}
+            </Text>
+            <Text style={[styles.modalDesc, { marginBottom: 20 }]}>
+              All your data has been retained.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalPrimaryBtn}
+              onPress={() => setShowWelcomeBackModal(false)}
+            >
+              <Text style={styles.modalPrimaryBtnText}>Let's go!</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* === End Fast Warning Modal === */}
       <Modal visible={showLogoutModal} transparent animationType="fade">

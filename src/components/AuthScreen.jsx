@@ -404,6 +404,9 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
               const redirectTo = typeof window !== 'undefined'
                 ? (window.location.hostname === 'localhost' ? 'https://afri-fast.vercel.app' : window.location.origin)
                 : 'https://afri-fast.vercel.app';
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('afri-fast-oauth-pending', '1');
+              }
               const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: { redirectTo },
