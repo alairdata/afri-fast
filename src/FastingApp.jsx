@@ -415,7 +415,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           console.error('[Profile fetch error]', error);
           return;
         }
-        if (!data) return;
+        if (!data) {
+          // No profile found — account was deleted or never created.
+          // Force sign out so the user cannot continue using the app.
+          console.warn('[Auth] No profile found for session user — forcing sign out');
+          await supabase.auth.signOut();
+          return;
+        }
         if (data.name) setUserName(data.name);
         if (data.country) setUserCountry(data.country);
         if (data.selected_plan) setSelectedPlan(data.selected_plan);
