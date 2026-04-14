@@ -416,9 +416,22 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           return;
         }
         if (!data) {
-          // No profile found — account was deleted or never created.
-          // Force sign out so the user cannot continue using the app.
-          console.warn('[Auth] No profile found for session user — forcing sign out');
+          // No profile — check if this is a fresh OAuth/social login
+          const provider = session.user.app_metadata?.provider;
+          const isOAuth = provider && provider !== 'email';
+          if (isOAuth) {
+            // Create profile for new OAuth user and let them through
+            const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
+            await supabase.from('profiles').insert({
+              id: session.user.id,
+              email: session.user.email,
+              name,
+            });
+            if (name) setUserName(name);
+            return;
+          }
+          // Email user with no profile — account was deleted, force sign out
+          console.warn('[Auth] No profile found for email user — forcing sign out');
           await supabase.auth.signOut();
           return;
         }
