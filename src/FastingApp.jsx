@@ -440,13 +440,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           return;
         }
 
-        // Check if this is a returning user signing in via Google OAuth for the first time
+        // Show "your data has been retained" modal only when:
+        // 1. They came through the pre-auth onboarding (thought they were new)
+        // 2. Their profile already existed (account older than 5 minutes)
         const oauthPending = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('afri-fast-oauth-pending');
-        if (oauthPending) {
-          sessionStorage.removeItem('afri-fast-oauth-pending');
+        if (oauthPending) sessionStorage.removeItem('afri-fast-oauth-pending');
+        if (pendingPreAuthData) {
           const joinDate = data.created_at ? new Date(data.created_at) : null;
           const ageMs = joinDate ? Date.now() - joinDate.getTime() : 0;
-          // Only show the modal if the account is more than 5 minutes old (i.e. pre-existing)
           if (joinDate && ageMs > 5 * 60 * 1000) {
             setWelcomeBackInfo({ name: data.name || '', joinDate });
             setShowWelcomeBackModal(true);
