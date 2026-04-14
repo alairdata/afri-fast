@@ -329,6 +329,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           .select('start_time, plan')
           .eq('user_id', session.user.id)
           .maybeSingle();
+        console.log('[active_fasts restore]', { data, error, userId: session.user.id });
         if (error) { console.error('[active_fasts fetch error]', error); return; }
         if (data?.start_time > 0) {
           applyFastRestore(Number(data.start_time), data.plan);
