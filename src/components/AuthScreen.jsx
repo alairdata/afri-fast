@@ -238,7 +238,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
       if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already exists')) {
-        setError('An account with this email already exists. Please log in instead.');
+        setError(`Hey! We already have an account for ${email.trim()}. Log in below instead.`);
         setMode('login');
       } else {
         setError(error.message);
