@@ -370,7 +370,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch profile from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, active_fast_start, active_fast_plan').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -398,6 +398,32 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.carbs_goal != null) setCarbsGoal(data.carbs_goal);
         if (data.fats_goal != null) setFatsGoal(data.fats_goal);
         if (data.hydration_goal != null) setHydrationGoal(data.hydration_goal);
+
+        // DB-backed active fast restore — fallback if AsyncStorage was cleared (PWA)
+        if (data.active_fast_start != null) {
+          const restoredStart = parseInt(data.active_fast_start);
+          const restoredPlan = data.active_fast_plan || '16:8';
+          if (restoredStart > 0) {
+            const toLabel = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            setIsFasting(true);
+            setFastStartTime(restoredStart);
+            const startDate = new Date(restoredStart);
+            setStartDay(toLabel(startDate));
+            setStartHour(startDate.getHours());
+            setStartMinute(startDate.getMinutes());
+            const planHours = parseInt(restoredPlan.split(':')[0]) || 16;
+            const endDate = new Date(restoredStart + planHours * 60 * 60 * 1000);
+            setEndDay(toLabel(endDate));
+            setEndHour(endDate.getHours());
+            setEndMinute(endDate.getMinutes());
+            // Also refresh AsyncStorage so next restore is instant
+            AsyncStorage.setItem(ACTIVE_FAST_KEY, JSON.stringify({
+              userId: session.user.id,
+              startTime: restoredStart,
+              plan: restoredPlan,
+            })).catch(() => {});
+          }
+        }
       });
   }, [session]);
 
@@ -666,6 +692,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       startTime: startTs,
       plan: selectedPlan,
     })).catch(() => {});
+    upsertProfile({ active_fast_start: startTs, active_fast_plan: selectedPlan }, 'start fast');
     // Update start time display
     setStartDay(formatDateLabel(now));
     setStartHour(now.getHours());
@@ -720,6 +747,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     setFastingMinutes(0);
     setFastingSeconds(0);
     AsyncStorage.removeItem(ACTIVE_FAST_KEY).catch(() => {});
+    upsertProfile({ active_fast_start: null, active_fast_plan: null }, 'end fast');
   };
 
   const prefersReducedMotion = Platform.OS === 'web' &&
@@ -853,7 +881,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         startTime: newStartTime,
         plan: selectedPlan,
       })).catch(() => {});
-      upsertProfile({ fast_start_time: newStartTime }, 'update fast_start_time');
+      upsertProfile({ active_fast_start: newStartTime, active_fast_plan: selectedPlan }, 'update active fast start time');
       showToast('Start time updated!');
     } else if (editingTime === 'end' && fastStartTime) {
       const [yr, mo, dy] = editDateStr.split('-').map(Number);
@@ -889,6 +917,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       setFastStartTime(null);
       setFastingHours(0); setFastingMinutes(0); setFastingSeconds(0);
       AsyncStorage.removeItem(ACTIVE_FAST_KEY).catch(() => {});
+      upsertProfile({ active_fast_start: null, active_fast_plan: null }, 'end fast via edit time');
       showToast('Fast ended!');
     }
     setShowTimeModal(false);
