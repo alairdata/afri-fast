@@ -415,12 +415,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           console.error('[Profile fetch error]', error);
           return;
         }
-        if (!data) {
-          console.warn('[Profile restore] No profile row found for user', session.user.id);
-          const createdProfile = await upsertProfile({}, 'create missing profile on restore');
-          if (!createdProfile) return;
-          data = createdProfile;
-        }
+        if (!data) return;
         if (data.name) setUserName(data.name);
         if (data.country) setUserCountry(data.country);
         if (data.selected_plan) setSelectedPlan(data.selected_plan);
