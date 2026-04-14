@@ -1122,10 +1122,20 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       {activeTab === 'settings' && (
         <SettingsTab
           onLogout={() => {
-            Alert.alert('Log Out', 'Are you sure you want to log out?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Log Out', style: 'destructive', onPress: () => supabase.auth.signOut() },
-            ]);
+            if (Platform.OS === 'web') {
+              if (window.confirm('Are you sure you want to log out?')) {
+                AsyncStorage.clear().catch(() => {});
+                supabase.auth.signOut();
+              }
+            } else {
+              Alert.alert('Log Out', 'Are you sure you want to log out?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Log Out', style: 'destructive', onPress: () => {
+                  AsyncStorage.clear().catch(() => {});
+                  supabase.auth.signOut();
+                }},
+              ]);
+            }
           }}
           onDeleteAccount={() => {
             Alert.alert(
