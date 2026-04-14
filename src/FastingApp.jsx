@@ -283,32 +283,61 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     return data;
   };
 
-  // === Recalculate end time when plan changes ===
-  // Restore active fast from AsyncStorage — runs independently of profile fetch
+  // === Restore active fast — AsyncStorage first (instant), then active_fasts table (cross-device) ===
   useEffect(() => {
     if (!session?.user?.id) return;
+    const applyFastRestore = (startTime, plan) => {
+      const restoredPlan = plan || '16:8';
+      const toLabel = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      setIsFasting(true);
+      setFastStartTime(startTime);
+      const startDate = new Date(startTime);
+      setStartDay(toLabel(startDate));
+      setStartHour(startDate.getHours());
+      setStartMinute(startDate.getMinutes());
+      const planHours = parseInt(restoredPlan.split(':')[0]) || 16;
+      const endDate = new Date(startTime + planHours * 60 * 60 * 1000);
+      setEndDay(toLabel(endDate));
+      setEndHour(endDate.getHours());
+      setEndMinute(endDate.getMinutes());
+    };
+
     (async () => {
       try {
+        // 1. Try AsyncStorage first (instant, works on same device)
         const local = await AsyncStorage.getItem(ACTIVE_FAST_KEY);
-        if (!local) return;
-        const parsed = JSON.parse(local);
-        if (parsed.userId !== session.user.id || !(parsed.startTime > 0)) return;
-        const restoredStartTime = parsed.startTime;
-        const restoredPlan = parsed.plan || selectedPlan || '16:8';
-        const toLabel = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-        setIsFasting(true);
-        setFastStartTime(restoredStartTime);
-        const startDate = new Date(restoredStartTime);
-        setStartDay(toLabel(startDate));
-        setStartHour(startDate.getHours());
-        setStartMinute(startDate.getMinutes());
-        const planHours = parseInt(restoredPlan.split(':')[0]) || 16;
-        const endDate = new Date(restoredStartTime + planHours * 60 * 60 * 1000);
-        setEndDay(toLabel(endDate));
-        setEndHour(endDate.getHours());
-        setEndMinute(endDate.getMinutes());
-        // Sync to Supabase so other devices/browsers can also restore
-        upsertProfile({ active_fast_start: restoredStartTime, active_fast_plan: restoredPlan }, 'sync active fast to DB from AsyncStorage');
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (parsed.userId === session.user.id && parsed.startTime > 0) {
+            applyFastRestore(parsed.startTime, parsed.plan);
+            // Sync to active_fasts table so other devices can restore
+            supabase.from('active_fasts').upsert({
+              user_id: session.user.id,
+              start_time: parsed.startTime,
+              plan: parsed.plan || '16:8',
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' }).then(({ error }) => {
+              if (error) console.error('[active_fasts sync error]', error);
+            });
+            return;
+          }
+        }
+        // 2. Fallback: query active_fasts table (cross-device / PWA restore)
+        const { data, error } = await supabase
+          .from('active_fasts')
+          .select('start_time, plan')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+        if (error) { console.error('[active_fasts fetch error]', error); return; }
+        if (data?.start_time > 0) {
+          applyFastRestore(data.start_time, data.plan);
+          // Repopulate AsyncStorage for next time
+          AsyncStorage.setItem(ACTIVE_FAST_KEY, JSON.stringify({
+            userId: session.user.id,
+            startTime: data.start_time,
+            plan: data.plan,
+          })).catch(() => {});
+        }
       } catch (_) {}
     })();
   }, [session]);
@@ -372,7 +401,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch profile from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, active_fast_start, active_fast_plan').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -400,32 +429,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.carbs_goal != null) setCarbsGoal(data.carbs_goal);
         if (data.fats_goal != null) setFatsGoal(data.fats_goal);
         if (data.hydration_goal != null) setHydrationGoal(data.hydration_goal);
-
-        // DB-backed active fast restore — fallback if AsyncStorage was cleared (PWA)
-        if (data.active_fast_start != null) {
-          const restoredStart = parseInt(data.active_fast_start);
-          const restoredPlan = data.active_fast_plan || '16:8';
-          if (restoredStart > 0) {
-            const toLabel = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-            setIsFasting(true);
-            setFastStartTime(restoredStart);
-            const startDate = new Date(restoredStart);
-            setStartDay(toLabel(startDate));
-            setStartHour(startDate.getHours());
-            setStartMinute(startDate.getMinutes());
-            const planHours = parseInt(restoredPlan.split(':')[0]) || 16;
-            const endDate = new Date(restoredStart + planHours * 60 * 60 * 1000);
-            setEndDay(toLabel(endDate));
-            setEndHour(endDate.getHours());
-            setEndMinute(endDate.getMinutes());
-            // Also refresh AsyncStorage so next restore is instant
-            AsyncStorage.setItem(ACTIVE_FAST_KEY, JSON.stringify({
-              userId: session.user.id,
-              startTime: restoredStart,
-              plan: restoredPlan,
-            })).catch(() => {});
-          }
-        }
       });
   }, [session]);
 
@@ -694,7 +697,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       startTime: startTs,
       plan: selectedPlan,
     })).catch(() => {});
-    upsertProfile({ active_fast_start: startTs, active_fast_plan: selectedPlan }, 'start fast');
+    supabase.from('active_fasts').upsert({
+      user_id: session?.user?.id,
+      start_time: startTs,
+      plan: selectedPlan,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' }).then(({ error }) => {
+      if (error) console.error('[active_fasts write error]', error);
+    });
     // Update start time display
     setStartDay(formatDateLabel(now));
     setStartHour(now.getHours());
@@ -749,7 +759,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     setFastingMinutes(0);
     setFastingSeconds(0);
     AsyncStorage.removeItem(ACTIVE_FAST_KEY).catch(() => {});
-    upsertProfile({ active_fast_start: null, active_fast_plan: null }, 'end fast');
+    supabase.from('active_fasts').delete().eq('user_id', session?.user?.id).then(({ error }) => {
+      if (error) console.error('[active_fasts delete error]', error);
+    });
   };
 
   const prefersReducedMotion = Platform.OS === 'web' &&
@@ -883,7 +895,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         startTime: newStartTime,
         plan: selectedPlan,
       })).catch(() => {});
-      upsertProfile({ active_fast_start: newStartTime, active_fast_plan: selectedPlan }, 'update active fast start time');
+      supabase.from('active_fasts').upsert({
+        user_id: session?.user?.id,
+        start_time: newStartTime,
+        plan: selectedPlan,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' }).then(({ error }) => {
+        if (error) console.error('[active_fasts update error]', error);
+      });
       showToast('Start time updated!');
     } else if (editingTime === 'end' && fastStartTime) {
       const [yr, mo, dy] = editDateStr.split('-').map(Number);
@@ -919,7 +938,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       setFastStartTime(null);
       setFastingHours(0); setFastingMinutes(0); setFastingSeconds(0);
       AsyncStorage.removeItem(ACTIVE_FAST_KEY).catch(() => {});
-      upsertProfile({ active_fast_start: null, active_fast_plan: null }, 'end fast via edit time');
+      supabase.from('active_fasts').delete().eq('user_id', session?.user?.id).then(({ error }) => {
+        if (error) console.error('[active_fasts delete error]', error);
+      });
       showToast('Fast ended!');
     }
     setShowTimeModal(false);
