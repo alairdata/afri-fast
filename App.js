@@ -77,13 +77,27 @@ export default function App() {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || event === 'USER_DELETED' || !session) {
+        setSession(null);
+      } else {
+        setSession(session);
+      }
     });
+
+    // Poll every 30 seconds — if the user was deleted by admin, force sign out
+    const sessionPoll = setInterval(async () => {
+      const { error } = await supabase.auth.getSession();
+      if (error) {
+        supabase.auth.signOut();
+        setSession(null);
+      }
+    }, 30000);
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      clearInterval(sessionPoll);
     };
   }, []);
 
