@@ -748,6 +748,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   };
 
   const [showEndFastWarning, setShowEndFastWarning] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleEndFast = () => {
     // Check if fasting less than 30 minutes
@@ -1121,22 +1122,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
       {activeTab === 'settings' && (
         <SettingsTab
-          onLogout={() => {
-            if (Platform.OS === 'web') {
-              if (window.confirm('Are you sure you want to log out?')) {
-                AsyncStorage.clear().catch(() => {});
-                supabase.auth.signOut();
-              }
-            } else {
-              Alert.alert('Log Out', 'Are you sure you want to log out?', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Log Out', style: 'destructive', onPress: () => {
-                  AsyncStorage.clear().catch(() => {});
-                  supabase.auth.signOut();
-                }},
-              ]);
-            }
-          }}
+          onLogout={() => setShowLogoutModal(true)}
           onDeleteAccount={() => {
             Alert.alert(
               'Delete Account',
@@ -1456,6 +1442,26 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       />
 
       {/* === End Fast Warning Modal === */}
+      <Modal visible={showLogoutModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalEmoji}>👋</Text>
+            <Text style={styles.modalTitle}>Log Out</Text>
+            <Text style={styles.modalDesc}>Are you sure you want to log out?</Text>
+            <TouchableOpacity style={styles.modalPrimaryBtn} onPress={() => setShowLogoutModal(false)}>
+              <Text style={styles.modalPrimaryBtnText}>Stay</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalSecondaryBtn} onPress={() => {
+              setShowLogoutModal(false);
+              AsyncStorage.clear().catch(() => {});
+              supabase.auth.signOut();
+            }}>
+              <Text style={[styles.modalSecondaryBtnText, { color: '#ef4444' }]}>Log Out</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={showEndFastWarning} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
