@@ -324,12 +324,15 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           }
         }
         // 2. Fallback: query active_fasts table (cross-device / PWA restore)
+        // Re-fetch live session to ensure Supabase client is authenticated before querying
+        const { data: { session: liveSession } } = await supabase.auth.getSession();
+        const userId = liveSession?.user?.id || session.user.id;
         const { data, error } = await supabase
           .from('active_fasts')
           .select('start_time, plan')
-          .eq('user_id', session.user.id)
+          .eq('user_id', userId)
           .maybeSingle();
-        console.log('[active_fasts restore]', { data, error, userId: session.user.id });
+        console.log('[active_fasts restore]', { data, error, userId });
         if (error) { console.error('[active_fasts fetch error]', error); return; }
         if (data?.start_time > 0) {
           applyFastRestore(Number(data.start_time), data.plan);
