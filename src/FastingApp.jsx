@@ -593,28 +593,39 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
     const applyPreAuthData = async () => {
       if (!pendingPreAuthData.skipped) {
-        if (pendingPreAuthData.preferredName && !userName) {
-          setUserName(pendingPreAuthData.preferredName);
-        }
+        // Build a single patch with everything from onboarding
+        const patch = {};
 
+        if (pendingPreAuthData.preferredName) {
+          setUserName(pendingPreAuthData.preferredName);
+          patch.name = pendingPreAuthData.preferredName;
+        }
         if (pendingPreAuthData.height) {
           setHeight(String(pendingPreAuthData.height));
+          patch.height = String(pendingPreAuthData.height);
         }
-
         if (pendingPreAuthData.heightUnit) {
           setHeightUnit(pendingPreAuthData.heightUnit);
+          patch.height_unit = pendingPreAuthData.heightUnit;
         }
-
+        if (pendingPreAuthData.weightUnit) {
+          setWeightUnit(pendingPreAuthData.weightUnit);
+          patch.weight_unit = pendingPreAuthData.weightUnit;
+        }
         if (pendingPreAuthData.targetWeight) {
           const tw = parseFloat(pendingPreAuthData.targetWeight);
           setTargetWeight(tw);
-          upsertProfile({ target_weight: tw }, 'save onboarding target_weight');
+          patch.target_weight = tw;
         }
-
         if (pendingPreAuthData.currentWeight) {
           const sw = parseFloat(pendingPreAuthData.currentWeight);
           setStartingWeight(sw);
-          upsertProfile({ starting_weight: sw }, 'save onboarding starting_weight');
+          patch.starting_weight = sw;
+        }
+
+        // Single upsert with all onboarding data
+        if (Object.keys(patch).length > 0) {
+          upsertProfile(patch, 'save full onboarding data');
         }
 
         if (pendingPreAuthData.currentWeight && weightLogs.length === 0) {
@@ -638,10 +649,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
               'save onboarding weight_log'
             );
           }
-        }
-
-        if (pendingPreAuthData.preferredName) {
-          upsertProfile({ name: pendingPreAuthData.preferredName }, 'save onboarding name');
         }
       }
 
