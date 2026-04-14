@@ -330,7 +330,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           .maybeSingle();
         if (error) { console.error('[active_fasts fetch error]', error); return; }
         if (data?.start_time > 0) {
-          applyFastRestore(data.start_time, data.plan);
+          applyFastRestore(Number(data.start_time), data.plan);
           // Repopulate AsyncStorage for next time
           AsyncStorage.setItem(ACTIVE_FAST_KEY, JSON.stringify({
             userId: session.user.id,
