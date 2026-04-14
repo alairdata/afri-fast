@@ -80,7 +80,12 @@ const uploadMealPhoto = async (uri) => {
   }
 };
 
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+import Constants from 'expo-constants';
+
+const GEMINI_API_KEY =
+  Constants.expoConfig?.extra?.geminiApiKey ||
+  process.env.EXPO_PUBLIC_GEMINI_API_KEY ||
+  '';
 
 // Fallback chain — tried in order if a model returns 503
 const GEMINI_MODELS = [
