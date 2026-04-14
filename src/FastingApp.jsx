@@ -717,7 +717,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       start_time: startTs,
       plan: selectedPlan,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' }).then(({ error }) => {
+    }, { onConflict: 'user_id' }).then(({ error, data }) => {
+      console.log('[active_fasts WRITE fired - handleStartFast]', { error, userId: session?.user?.id, startTs });
       if (error) console.error('[active_fasts write error]', error);
     });
     // Update start time display
@@ -775,6 +776,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     setFastingSeconds(0);
     AsyncStorage.removeItem(ACTIVE_FAST_KEY).catch(() => {});
     supabase.from('active_fasts').delete().eq('user_id', session?.user?.id).then(({ error }) => {
+      console.log('[active_fasts DELETE fired - confirmEndFast]', { error });
       if (error) console.error('[active_fasts delete error]', error);
     });
   };
@@ -954,6 +956,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       setFastingHours(0); setFastingMinutes(0); setFastingSeconds(0);
       AsyncStorage.removeItem(ACTIVE_FAST_KEY).catch(() => {});
       supabase.from('active_fasts').delete().eq('user_id', session?.user?.id).then(({ error }) => {
+        console.log('[active_fasts DELETE fired - handleSaveTime end]', { error });
         if (error) console.error('[active_fasts delete error]', error);
       });
       showToast('Fast ended!');
