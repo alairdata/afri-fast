@@ -307,6 +307,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         setEndDay(toLabel(endDate));
         setEndHour(endDate.getHours());
         setEndMinute(endDate.getMinutes());
+        // Sync to Supabase so other devices/browsers can also restore
+        upsertProfile({ active_fast_start: restoredStartTime, active_fast_plan: restoredPlan }, 'sync active fast to DB from AsyncStorage');
       } catch (_) {}
     })();
   }, [session]);
