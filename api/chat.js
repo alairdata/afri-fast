@@ -43,6 +43,11 @@ function buildUserContext(data) {
   });
   const topFoods = Object.entries(foodCount).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([f]) => f);
 
+  // How meals are being logged
+  const methodCount = {};
+  meals.forEach(m => { if (m.method) methodCount[m.method] = (methodCount[m.method] || 0) + 1; });
+  const loggingMethods = Object.entries(methodCount).sort((a, b) => b[1] - a[1]).map(([method, count]) => `${method} (${count}x)`).join(', ');
+
   // Macro distributions from logged meals
   const totalProtein = meals.reduce((s, m) => s + (m.protein || 0), 0);
   const totalCarbs = meals.reduce((s, m) => s + (m.carbs || 0), 0);
@@ -86,7 +91,8 @@ CHECK-INS:
 NUTRITION:
 - Meals logged: ${meals.length} | Most eaten: ${topFoods.join(', ') || 'none recorded'}
 - Avg daily calories: ${avgCals} kcal (goal: ${dailyCalorieGoal || 2000} kcal)
-- Avg daily macros: ${avgProtein}g protein (goal: ${proteinGoal || '?'}g) | ${avgCarbs}g carbs (goal: ${carbsGoal || '?'}g) | ${avgFats}g fats (goal: ${fatsGoal || '?'}g)`;
+- Avg daily macros: ${avgProtein}g protein (goal: ${proteinGoal || '?'}g) | ${avgCarbs}g carbs (goal: ${carbsGoal || '?'}g) | ${avgFats}g fats (goal: ${fatsGoal || '?'}g)
+- How meals are logged: ${loggingMethods || 'not recorded'}`;
 }
 
 function buildChatSystemPrompt(personality, userContext) {
