@@ -662,7 +662,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     return () => {
       cancelled = true;
     };
-  }, [session, pendingPreAuthData, onPreAuthDataApplied, userName, weightLogs.length]);
+  }, [session, pendingPreAuthData, onPreAuthDataApplied, weightLogs.length]);
 
   // === Handlers ===
   const formatDateLabel = (date) => {
