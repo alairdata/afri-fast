@@ -236,10 +236,26 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setLoading(true); setError(''); setMessage('');
     const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) { setError(error.message); setLoading(false); return; }
+    if (error) {
+      if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already exists')) {
+        setError('An account with this email already exists. Please log in instead.');
+        setMode('login');
+      } else {
+        setError(error.message);
+      }
+      setLoading(false);
+      return;
+    }
     if (data.user) {
       const { error: profileError } = await supabase.from('profiles').insert({ id: data.user.id, name, email });
-      if (profileError) console.error('[DB Error - create profile]', profileError);
+      if (profileError) {
+        console.error('[DB Error - create profile]', profileError);
+        // Profile creation failed — delete the auth user to avoid orphaned accounts
+        await supabase.auth.signOut();
+        setError('Account setup failed. Please try again.');
+        setLoading(false);
+        return;
+      }
     }
     setMessage('Account created! Check your email to confirm, then log in.');
     setMode('login');
