@@ -385,7 +385,9 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             style={styles.socialBtnGoogle}
             activeOpacity={0.85}
             onPress={async () => {
-              const redirectTo = typeof window !== 'undefined' ? window.location.origin : undefined;
+              const redirectTo = typeof window !== 'undefined'
+                ? (window.location.hostname === 'localhost' ? 'https://afri-fast.vercel.app' : window.location.origin)
+                : 'https://afri-fast.vercel.app';
               const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: { redirectTo },
