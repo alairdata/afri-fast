@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, ActivityIndicator } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
-import { getGeminiInsight } from '../lib/geminiInsights';
+import { getDailyInsights, getJustForYou } from '../lib/claudeInsights';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -61,13 +61,14 @@ const TodayTab = ({
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
 
-  const [aiInsight, setAiInsight] = useState(null);
+  const [dailyInsightCards, setDailyInsightCards] = useState(null);
+  const [justForYouCards, setJustForYouCards] = useState(null);
   const [insightLoading, setInsightLoading] = useState(true);
+  const [jfyLoading, setJfyLoading] = useState(true);
 
   useEffect(() => {
     if (!userId) return;
-    setInsightLoading(true);
-    getGeminiInsight({
+    const payload = {
       profile: {
         userId,
         userName,
@@ -87,9 +88,15 @@ const TodayTab = ({
       recentMeals: recentMeals || [],
       weightLogs: weightLogs || [],
       waterLogs: waterLogs || [],
-    })
-      .then(insight => { setAiInsight(insight); setInsightLoading(false); })
+    };
+    setInsightLoading(true);
+    setJfyLoading(true);
+    getDailyInsights(payload)
+      .then(cards => { setDailyInsightCards(cards); setInsightLoading(false); })
       .catch(() => setInsightLoading(false));
+    getJustForYou(payload)
+      .then(cards => { setJustForYouCards(cards); setJfyLoading(false); })
+      .catch(() => setJfyLoading(false));
   }, [userId]);
 
   const formatDate = () => {
@@ -235,8 +242,8 @@ const TodayTab = ({
   const significantlyOver = calorieRatio !== null && calorieRatio > 1.15;
   const significantlyUnder = calorieRatio !== null && calorieRatio < 0.5 && todayCalories > 0;
 
-  // Use AI alert if available, otherwise fall back to computed logic
-  let alertInsight = aiInsight?.alert || null;
+  // Fall back to computed logic for alert card
+  let alertInsight = null;
   if (!alertInsight) {
     if (recentSessions14.length > 0 && recentCheckIns.length === 0) {
       alertInsight = "You haven't checked in during any of your recent fasts. Check-ins help us understand how your body is responding and give you better coaching.";
@@ -453,9 +460,13 @@ const TodayTab = ({
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <Text style={styles.sectionTitleTight}>Today's Insights</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.insightsScrollCompact}>
-            {insights.map((insight, i) => (
-              <TouchableOpacity key={i} style={[styles.insightCardCompact, { backgroundColor: isDark ? colors.card : insight.color }]}>
-                <View style={[styles.insightAccentSmall, { backgroundColor: insight.accent }]} />
+            {insightLoading ? (
+              <View style={[styles.insightCardCompact, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="small" color="#059669" />
+              </View>
+            ) : (dailyInsightCards || insights).map((insight, i) => (
+              <TouchableOpacity key={i} style={[styles.insightCardCompact, { backgroundColor: isDark ? colors.card : (insight.color || '#E8F5E9') }]}>
+                <View style={[styles.insightAccentSmall, { backgroundColor: insight.accent || '#4CAF50' }]} />
                 <Text style={[styles.insightTitleSmall, isDark && { color: colors.text }]} numberOfLines={2}>{insight.title}</Text>
                 <Text style={[styles.insightSubSmall, isDark && { color: colors.textSecondary }]} numberOfLines={2}>{insight.subtitle}</Text>
               </TouchableOpacity>
@@ -463,37 +474,25 @@ const TodayTab = ({
           </ScrollView>
         </View>
 
-        {/* Education Cards */}
+        {/* Just for You Cards */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <Text style={styles.sectionTitleTight}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
-            <View style={styles.educationCard}>
-              <View style={styles.eduContent}>
-                <Text style={styles.eduTitle}>Hunger spikes are normal around hour 16</Text>
-                <Text style={styles.eduDesc}>Understanding ghrelin waves can help you push through the hardest moments.</Text>
-                <TouchableOpacity style={styles.eduBtn} onPress={() => setSelectedArticle({ title: 'Hunger spikes are normal around hour 16', body: "Around hour 14-16 of fasting, many people experience a strong wave of hunger. This is caused by ghrelin — your hunger hormone — which spikes on a schedule based on when you usually eat.\n\nThe good news: ghrelin waves only last 20-30 minutes. If you push through without eating, the hunger actually fades on its own.\n\nStaying busy, drinking water or black coffee, and reminding yourself that the feeling is temporary are the most effective strategies. Over time, as your body adapts to your fasting schedule, these spikes become less intense and easier to manage." })}>
-                  <Text style={styles.eduBtnText}>Learn more</Text>
-                </TouchableOpacity>
+            {jfyLoading ? (
+              <View style={[styles.educationCard, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="small" color="#fff" />
               </View>
-            </View>
-            <View style={[styles.educationCard, { backgroundColor: '#0F766E' }]}>
-              <View style={styles.eduContent}>
-                <Text style={styles.eduTitle}>What breaks a fast?</Text>
-                <Text style={styles.eduDesc}>Learn which foods and drinks will kick you out of your fasted state.</Text>
-                <TouchableOpacity style={styles.eduBtn} onPress={() => setSelectedArticle({ title: 'What breaks a fast?', body: "Not everything ends a fast — and knowing the difference can make your fasting experience much more flexible.\n\nWhat definitely breaks a fast: any food with calories, sugary drinks, milk or cream in coffee, fruit juices, and most supplements with calories or sugar.\n\nWhat does NOT break a fast: plain water, black coffee, plain tea (no milk or sugar), sparkling water, electrolytes with no calories, and most medications (always check with your doctor).\n\nThe grey area: Apple cider vinegar (small amounts), diet sodas, and flavoured water are debated. They technically have near-zero calories but may trigger an insulin response in some people.\n\nFor most fasting goals — weight loss, blood sugar control, mental clarity — the key is keeping insulin low. Stick to zero-calorie drinks and you'll be fine." })}>
-                  <Text style={styles.eduBtnText}>Learn more</Text>
-                </TouchableOpacity>
+            ) : (justForYouCards || []).map((card, i) => (
+              <View key={i} style={[styles.educationCard, { backgroundColor: ['#059669', '#0F766E', '#9333EA', '#1D4ED8', '#B45309'][i % 5] }]}>
+                <View style={styles.eduContent}>
+                  <Text style={styles.eduTitle}>{card.title}</Text>
+                  <Text style={styles.eduDesc} numberOfLines={3}>{card.desc}</Text>
+                  <TouchableOpacity style={styles.eduBtn} onPress={() => setSelectedArticle({ title: card.title, body: card.body })}>
+                    <Text style={styles.eduBtnText}>Learn more</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-            <View style={[styles.educationCard, { backgroundColor: '#9333EA' }]}>
-              <View style={styles.eduContent}>
-                <Text style={styles.eduTitle}>Electrolytes during fasting</Text>
-                <Text style={styles.eduDesc}>Stay energized and avoid fatigue with proper mineral balance.</Text>
-                <TouchableOpacity style={styles.eduBtn} onPress={() => setSelectedArticle({ title: 'Electrolytes during fasting', body: "One of the most overlooked aspects of fasting is electrolyte balance. When you fast, your kidneys excrete more sodium, which causes you to lose potassium and magnesium as well. This is why many people experience headaches, fatigue, and muscle cramps during fasts.\n\nThe three key electrolytes to focus on:\n\n• Sodium — Add a small pinch of pink Himalayan salt or sea salt to your water. This alone solves most fasting headaches.\n\n• Potassium — Found in avocados, leafy greens, and sweet potatoes during your eating window.\n\n• Magnesium — Helps with sleep, muscle cramps, and stress. A magnesium glycinate supplement before bed is a great addition.\n\nYou can buy electrolyte powders with no sugar or calories that are safe to take during a fast. Look for ones without sweeteners if you want to be strict.\n\nProper electrolyte intake can be the difference between a miserable fast and an energised, clear-headed one." })}>
-                  <Text style={styles.eduBtnText}>Learn more</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            ))}
           </ScrollView>
         </View>
 
