@@ -381,7 +381,18 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         <View style={styles.card}>
 
           {/* Google button */}
-          <TouchableOpacity style={styles.socialBtnGoogle} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.socialBtnGoogle}
+            activeOpacity={0.85}
+            onPress={async () => {
+              const redirectTo = typeof window !== 'undefined' ? window.location.origin : undefined;
+              const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo },
+              });
+              if (error) setError(error.message);
+            }}
+          >
             <Ionicons name="logo-google" size={20} color="#444" />
             <Text style={styles.socialBtnGoogleText}>Continue with Google</Text>
           </TouchableOpacity>
