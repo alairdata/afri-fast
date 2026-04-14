@@ -1,6 +1,35 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, ActivityIndicator, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+
+function TypingDots() {
+  const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
+  useEffect(() => {
+    const anims = dots.map((dot, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 150),
+          Animated.timing(dot, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.delay(450 - i * 150),
+        ])
+      )
+    );
+    anims.forEach(a => a.start());
+    return () => anims.forEach(a => a.stop());
+  }, []);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingVertical: 6, gap: 5 }}>
+      {dots.map((dot, i) => (
+        <Animated.View key={i} style={{
+          width: 7, height: 7, borderRadius: 4, backgroundColor: '#059669',
+          opacity: dot,
+          transform: [{ scale: dot.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.1] }) }],
+        }} />
+      ))}
+    </View>
+  );
+}
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -107,8 +136,8 @@ const ChatScreen = ({
 
     } else if (messages.length === 0) {
       const greeting = userName
-        ? `Hi ${userName}! I'm your personal fasting coach. I have access to all your data — your fasting history, meals, weight, and hydration. Ask me anything!`
-        : `Hi! I'm your personal fasting coach. I have access to all your data — ask me anything about your progress, goals, or how to improve!`;
+        ? `Hi ${userName}! I'm AfriFast Assistant, your personal health coach. I have access to all your data — your fasting history, meals, weight, and hydration. Ask me anything!`
+        : `Hi! I'm AfriFast Assistant, your personal health coach. I have access to all your data — ask me anything about your progress, goals, or how to improve!`;
       setMessages([{ role: 'assistant', content: greeting }]);
     }
   }, [show, openingContext]);
@@ -159,9 +188,9 @@ const ChatScreen = ({
               <Text style={{ fontSize: 22 }}>🤖</Text>
             </View>
             <View>
-              <Text style={styles.chatHeaderTitle}>Fasting Coach</Text>
+              <Text style={styles.chatHeaderTitle}>AfriFast Assistant</Text>
               <Text style={styles.chatHeaderStatus}>
-                {isTyping ? 'Thinking...' : 'Online • Knows your data'}
+                {isTyping ? 'Typing...' : 'Online • Knows your data'}
               </Text>
             </View>
           </View>
@@ -205,7 +234,7 @@ const ChatScreen = ({
                 <Text style={{ fontSize: 16 }}>🤖</Text>
               </View>
               <View style={[styles.chatBubble, styles.chatBubbleAssistant]}>
-                <ActivityIndicator size="small" color="#059669" />
+                <TypingDots />
               </View>
             </View>
           )}
