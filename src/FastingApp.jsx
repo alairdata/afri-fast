@@ -244,6 +244,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [showWelcomeBackModal, setShowWelcomeBackModal] = useState(false);
   const [welcomeBackInfo, setWelcomeBackInfo] = useState(null); // { name, joinDate }
 
+  // === AI personality profile ===
+  const [userPersonality, setUserPersonality] = useState('');
+  const [personalityUpdatedAt, setPersonalityUpdatedAt] = useState(null);
+
   // === Meals state ===
   const [selectedMealDate, setSelectedMealDate] = useState(new Date());
   const [recentMeals, setRecentMeals] = useState([]);
@@ -413,7 +417,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch profile from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, created_at').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, created_at, personality, personality_updated_at').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -470,6 +474,27 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.carbs_goal != null) setCarbsGoal(data.carbs_goal);
         if (data.fats_goal != null) setFatsGoal(data.fats_goal);
         if (data.hydration_goal != null) setHydrationGoal(data.hydration_goal);
+        if (data.personality) setUserPersonality(data.personality);
+        if (data.personality_updated_at) setPersonalityUpdatedAt(new Date(data.personality_updated_at));
+
+        // Trigger monthly personality rebuild in background if older than 30 days
+        const lastUpdate = data.personality_updated_at ? new Date(data.personality_updated_at) : null;
+        const needsRebuild = !lastUpdate || (Date.now() - lastUpdate.getTime() > 30 * 24 * 60 * 60 * 1000);
+        if (needsRebuild) {
+          fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'rebuild_personality', data: { personality: data.personality || '' } }),
+          }).then(r => r.json()).then(res => {
+            if (res.personality) {
+              setUserPersonality(res.personality);
+              supabase.from('profiles').update({
+                personality: res.personality,
+                personality_updated_at: new Date().toISOString(),
+              }).eq('id', session.user.id).then(() => {});
+            }
+          }).catch(() => {});
+        }
       });
   }, [session]);
 
@@ -1248,6 +1273,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         selectedPlan={selectedPlan}
         targetWeight={targetWeight}
         startingWeight={startingWeight}
+        weightUnit={weightUnit}
         dailyCalorieGoal={dailyCalorieGoal}
         hydrationGoal={hydrationGoal}
         volumeUnit={volumeUnit}
@@ -1259,6 +1285,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         recentMeals={recentMeals}
         weightLogs={weightLogs}
         waterLogs={waterLogs}
+        personality={userPersonality}
+        onUpdatePersonality={(updated) => {
+          setUserPersonality(updated);
+          supabase.from('profiles').update({
+            personality: updated,
+            personality_updated_at: new Date().toISOString(),
+          }).eq('id', session.user.id).then(() => {});
+        }}
       />
 
       <FastingCalendarPage

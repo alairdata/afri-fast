@@ -1,100 +1,22 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import Constants from 'expo-constants';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const GEMINI_API_KEY =
-  Constants.expoConfig?.extra?.geminiApiKey ||
-  process.env.EXPO_PUBLIC_GEMINI_API_KEY ||
-  '';
-const GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
-const geminiUrl = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+const API_URL = '/api/chat';
 
-function buildUserContext({ userName, userCountry, selectedPlan, targetWeight, startingWeight, dailyCalorieGoal, hydrationGoal, volumeUnit, proteinGoal, carbsGoal, fatsGoal, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs }) {
-  const sessions = fastingSessions || [];
-  const checkIns = checkInHistory || [];
-  const meals = recentMeals || [];
-  const weights = [...(weightLogs || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
-  const waterLs = waterLogs || [];
-
-  // Fasting
-  const completed = sessions.filter(s => s.endTime);
-  const durations = completed.map(s => (s.durationHours || 0) + (s.durationMinutes || 0) / 60).filter(d => d > 0);
-  const avgDuration = durations.length ? (durations.reduce((a, b) => a + b, 0) / durations.length).toFixed(1) : 0;
-  const completionRate = sessions.length ? Math.round((completed.length / sessions.length) * 100) : 0;
-
-  // Check-ins
-  const moodCount = {};
-  checkIns.forEach(c => {
-    (Array.isArray(c.moods) ? c.moods : c.moods ? [c.moods] : []).forEach(m => {
-      moodCount[m] = (moodCount[m] || 0) + 1;
-    });
+async function callChat(body) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
-  const topMoods = Object.entries(moodCount).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([m]) => m);
-
-  // Meals
-  const mealsByDate = {};
-  meals.forEach(m => {
-    const date = m.date || (m.loggedAt || '').split('T')[0];
-    if (!date) return;
-    if (!mealsByDate[date]) mealsByDate[date] = [];
-    mealsByDate[date].push(m);
-  });
-  const dailyCals = Object.values(mealsByDate).map(ms => ms.reduce((a, m) => a + (m.calories || 0), 0));
-  const avgCals = dailyCals.length ? Math.round(dailyCals.reduce((a, b) => a + b, 0) / dailyCals.length) : 0;
-
-  const foodCount = {};
-  meals.forEach(m => {
-    const name = m.detectedName || m.name;
-    if (name) foodCount[name] = (foodCount[name] || 0) + 1;
-  });
-  const topFoods = Object.entries(foodCount).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([f]) => f);
-
-  // Weight
-  const currentWeight = weights.length ? weights[weights.length - 1].weight : null;
-  const weightUnit = weights.length ? weights[weights.length - 1].unit : 'kg';
-  const weightLost = currentWeight && startingWeight ? parseFloat((startingWeight - currentWeight).toFixed(1)) : null;
-
-  // Hydration
-  const waterByDate = {};
-  waterLs.forEach(w => { if (w.date) waterByDate[w.date] = (waterByDate[w.date] || 0) + (w.amount || 1); });
-  const dailyWater = Object.values(waterByDate);
-  const avgWater = dailyWater.length ? parseFloat((dailyWater.reduce((a, b) => a + b, 0) / dailyWater.length).toFixed(1)) : 0;
-
-  return `
-USER PROFILE:
-- Name: ${userName || 'User'}
-- Country: ${userCountry || 'Africa'}
-- Fasting plan: ${selectedPlan || '16:8'}
-- Starting weight: ${startingWeight ? `${startingWeight} ${weightUnit}` : 'not set'}
-- Current weight: ${currentWeight ? `${currentWeight} ${weightUnit}` : 'not logged'}
-- Target weight: ${targetWeight ? `${targetWeight} ${weightUnit}` : 'not set'}
-- Weight lost so far: ${weightLost != null ? `${weightLost} ${weightUnit}` : 'unknown'}
-- Daily calorie goal: ${dailyCalorieGoal} kcal
-- Macro goals: ${proteinGoal}g protein, ${carbsGoal}g carbs, ${fatsGoal}g fats
-- Hydration goal: ${hydrationGoal} ${volumeUnit}s/day
-
-FASTING HISTORY:
-- Total fasting sessions: ${sessions.length}
-- Completed fasts: ${completed.length} (${completionRate}% completion rate)
-- Average fast duration: ${avgDuration} hours
-- Longest fast: ${durations.length ? Math.max(...durations).toFixed(1) : 0} hours
-
-CHECK-IN HISTORY:
-- Total check-ins: ${checkIns.length}
-- Most common moods: ${topMoods.join(', ') || 'none recorded'}
-
-NUTRITION:
-- Total meals logged: ${meals.length}
-- Average daily calories: ${avgCals} kcal (goal: ${dailyCalorieGoal} kcal)
-- Most eaten foods: ${topFoods.join(', ') || 'none recorded'}
-
-HYDRATION:
-- Average daily water: ${avgWater} ${volumeUnit}s (goal: ${hydrationGoal})
-`.trim();
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Chat API error');
+  return json;
 }
+
 
 const SUGGESTIONS = [
   'Why am I always hungry?',
@@ -114,8 +36,11 @@ const ChatScreen = ({
   userName,
   userCountry,
   selectedPlan,
+  goal,
+  conditions,
   targetWeight,
   startingWeight,
+  weightUnit,
   dailyCalorieGoal,
   hydrationGoal,
   volumeUnit,
@@ -127,49 +52,58 @@ const ChatScreen = ({
   recentMeals,
   weightLogs,
   waterLogs,
+  personality,
+  onUpdatePersonality,
 }) => {
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef(null);
 
+  const userData = {
+    userName, userCountry, selectedPlan, goal, conditions,
+    targetWeight, startingWeight, weightUnit,
+    dailyCalorieGoal, hydrationGoal, volumeUnit,
+    proteinGoal, carbsGoal, fatsGoal,
+    fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs,
+  };
+
+  // When chat closes with enough messages, update personality in background
+  const prevShowRef = useRef(show);
+  useEffect(() => {
+    const wasOpen = prevShowRef.current;
+    prevShowRef.current = show;
+    if (wasOpen && !show && messages.length >= 3 && onUpdatePersonality) {
+      const conversation = messages
+        .map(m => `${m.role === 'user' ? 'User' : 'Coach'}: ${m.content}`)
+        .join('\n');
+      callChat({
+        action: 'update_personality',
+        conversation,
+        personality,
+        data: userData,
+      }).then(res => {
+        if (res.personality) onUpdatePersonality(res.personality);
+      }).catch(() => {});
+    }
+  }, [show]);
+
   useEffect(() => {
     if (!show) return;
 
     if (openingContext) {
-      // Opened from alert card — reset and greet with the specific observation
       setMessages([]);
       setIsTyping(true);
-
-      const userContext = buildUserContext({
-        userName, userCountry, selectedPlan, targetWeight, startingWeight,
-        dailyCalorieGoal, hydrationGoal, volumeUnit, proteinGoal, carbsGoal, fatsGoal,
-        fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs,
-      });
-
-      const prompt = `You are a warm personal health coach in Afri Fast. You just flagged this observation to the user on their Today screen: "${openingContext}"
-
-Open the conversation by addressing this observation directly and personally. Ask them one follow-up question to understand their situation better. Keep it to 2-3 sentences max. Do not repeat the observation word for word — rephrase it naturally as if you're starting a real conversation.
-
-User context:
-${userContext}`;
-
-      (async () => {
-        try {
-          const body = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.8, maxOutputTokens: 2048 } });
-          let raw;
-          for (const model of GEMINI_MODELS) {
-            const r = await fetch(geminiUrl(model), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
-            raw = await r.json();
-            if (r.status !== 503) break;
-          }
-          const text = raw?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          setMessages([{ role: 'assistant', content: text || openingContext }]);
-        } catch {
-          setMessages([{ role: 'assistant', content: openingContext }]);
-        } finally {
-          setIsTyping(false);
-        }
-      })();
+      callChat({
+        action: 'message',
+        messages: [],
+        openingContext,
+        personality,
+        data: userData,
+      }).then(res => {
+        setMessages([{ role: 'assistant', content: res.reply || openingContext }]);
+      }).catch(() => {
+        setMessages([{ role: 'assistant', content: openingContext }]);
+      }).finally(() => setIsTyping(false));
 
     } else if (messages.length === 0) {
       const greeting = userName
@@ -188,45 +122,16 @@ ${userContext}`;
     setChatInput('');
     setIsTyping(true);
 
-    const userContext = buildUserContext({
-      userName, userCountry, selectedPlan, targetWeight, startingWeight,
-      dailyCalorieGoal, hydrationGoal, volumeUnit, proteinGoal, carbsGoal, fatsGoal,
-      fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs,
-    });
-
-    const systemInstruction = `You are a warm, knowledgeable personal health coach inside Afri Fast, an African fasting and nutrition app. You have access to the user's real data shown below. Always use their actual numbers when answering — never give generic advice when you have specific data. Be concise (2-4 sentences), encouraging, and practical. Speak like a coach, not a doctor.
-
-${userContext}`;
-
-    // Build conversation history for Gemini (last 10 messages to stay within limits)
-    const history = updatedMessages.slice(-10).map(m => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.content }],
-    }));
-
-    // Prepend system context as first user/model exchange
-    const contents = [
-      { role: 'user', parts: [{ text: systemInstruction }] },
-      { role: 'model', parts: [{ text: 'Understood. I have reviewed all the user data and I am ready to help.' }] },
-      ...history,
-    ];
-
     try {
-      const body = JSON.stringify({ contents, generationConfig: { temperature: 0.8, maxOutputTokens: 2048 } });
-      let raw;
-      for (const model of GEMINI_MODELS) {
-        const response = await fetch(geminiUrl(model), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
-        raw = await response.json();
-        if (response.status !== 503) break;
-      }
-
-      const text = raw?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
-      if (!text) throw new Error('Empty Gemini response');
-
-      setMessages(prev => [...prev, { role: 'assistant', content: text }]);
+      const res = await callChat({
+        action: 'message',
+        messages: updatedMessages,
+        personality,
+        data: userData,
+      });
+      setMessages(prev => [...prev, { role: 'assistant', content: res.reply }]);
     } catch (e) {
-      console.error('[Chat Gemini error]', e);
+      console.error('[Chat error]', e);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: "Sorry, I couldn't reach the server right now. Please try again in a moment.",
