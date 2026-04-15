@@ -828,6 +828,15 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         plan: fastSession.plan, date: fastSession.date,
       }), 'save fasting_session', (msg) => showToast(msg, 'error'));
     }
+    if (shouldLog && fastStartTime) {
+      const duration = Math.floor((Date.now() - fastStartTime) / 1000);
+      const hrs = Math.floor(duration / 3600);
+      const mins = Math.floor((duration % 3600) / 60);
+      const timeStr = hrs > 0
+        ? `${hrs}hr${hrs !== 1 ? 's' : ''} ${mins}min${mins !== 1 ? 's' : ''}`
+        : `${mins}min${mins !== 1 ? 's' : ''}`;
+      showToast(`Yaay! You fasted for ${timeStr} — well done!`);
+    }
     setIsFasting(false);
     setFastStartTime(null);
     setFastingHours(0);
