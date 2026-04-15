@@ -89,11 +89,7 @@ const GEMINI_API_KEY =
 
 // Fallback chain — tried in order if a model returns 503
 const GEMINI_MODELS = [
-  'gemini-3.1-pro-preview',
-  'gemini-3.1-flash-lite-preview',
-  'gemini-3-flash-preview',
   'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
   'gemini-2.0-flash-lite',
 ];
