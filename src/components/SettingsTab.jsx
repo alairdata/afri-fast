@@ -112,25 +112,25 @@ const SettingsTab = ({
     sachet: {
       title: '1 Sachet',
       slides: [
-        { text: 'The standard pure water sachet', subtext: '500 mL = 2 cups', bg: '#EFF6FF', localImage: require('../../assets/guide/sachet-drinking.png') },
-        { text: 'You see these everywhere', subtext: 'On the street, at the shop, in traffic', bg: '#DBEAFE', localImage: require('../../assets/guide/sachet-seller.png') },
-        { text: 'Drink 6 sachets daily', subtext: "That's your 3 litre target", bg: '#BFDBFE', localImage: require('../../assets/guide/sachet-drinking-2.png') },
+        { text: 'The standard pure water sachet', subtext: '500 mL = 2 cups', bg: '#EFF6FF', localImage: require('../../assets/guide/sachet-drinking.jpg') },
+        { text: 'You see these everywhere', subtext: 'On the street, at the shop, in traffic', bg: '#DBEAFE', localImage: require('../../assets/guide/sachet-seller.jpg') },
+        { text: 'Drink 6 sachets daily', subtext: "That's your 3 litre target", bg: '#BFDBFE', localImage: require('../../assets/guide/sachet-drinking-2.jpg') },
       ],
     },
     bottle: {
       title: '1 Bottle',
       slides: [
-        { text: 'A standard water bottle', subtext: '750 mL = 3 cups', bg: '#EFF6FF', localImage: require('../../assets/guide/bottle-1.png') },
-        { text: 'Like Eva, Voltic, or Ragolis', subtext: 'The ones you buy at the shop', bg: '#DBEAFE', localImage: require('../../assets/guide/bottle-2.png') },
-        { text: 'Drink 4 bottles daily', subtext: "That's your 3 litre target", bg: '#BFDBFE', localImage: require('../../assets/guide/bottle-3.png') },
+        { text: 'A standard water bottle', subtext: '750 mL = 3 cups', bg: '#EFF6FF', localImage: require('../../assets/guide/bottle-1.jpg') },
+        { text: 'Like Eva, Voltic, or Ragolis', subtext: 'The ones you buy at the shop', bg: '#DBEAFE', localImage: require('../../assets/guide/bottle-2.jpg') },
+        { text: 'Drink 4 bottles daily', subtext: "That's your 3 litre target", bg: '#BFDBFE', localImage: require('../../assets/guide/bottle-3.jpg') },
       ],
     },
     glass: {
       title: '1 Glass',
       slides: [
-        { text: 'A regular drinking glass', subtext: '250 mL = 1 cup', bg: '#EFF6FF', localImage: require('../../assets/guide/glass-1.png') },
-        { text: 'Filled right to the top', subtext: 'Not a small cup — a full glass', bg: '#DBEAFE', localImage: require('../../assets/guide/glass-2.png') },
-        { text: 'Drink 12 glasses daily', subtext: "That's your 3 litre goal", bg: '#BFDBFE', localImage: require('../../assets/guide/glass-3.png') },
+        { text: 'A regular drinking glass', subtext: '250 mL = 1 cup', bg: '#EFF6FF', localImage: require('../../assets/guide/glass-1.jpg') },
+        { text: 'Filled right to the top', subtext: 'Not a small cup — a full glass', bg: '#DBEAFE', localImage: require('../../assets/guide/glass-2.jpg') },
+        { text: 'Drink 12 glasses daily', subtext: "That's your 3 litre goal", bg: '#BFDBFE', localImage: require('../../assets/guide/glass-3.jpg') },
       ],
     },
     fist: {
@@ -176,29 +176,29 @@ const SettingsTab = ({
     foodTeaspoon: {
       title: 'Teaspoon',
       slides: [
-        { text: 'Your regular teaspoon', subtext: '= 5 mL. Perfect for sugar, salt, spices', bg: '#FFF7ED', localImage: require('../../assets/guide/teaspoon-1.png') },
-        { text: '1 teaspoon of sugar', subtext: '= about 16 calories', bg: '#FFEDD5', localImage: require('../../assets/guide/teaspoon-2.png') },
+        { text: 'Your regular teaspoon', subtext: '= 5 mL. Perfect for sugar, salt, spices', bg: '#FFF7ED', localImage: require('../../assets/guide/teaspoon-1.jpg') },
+        { text: '1 teaspoon of sugar', subtext: '= about 16 calories', bg: '#FFEDD5', localImage: require('../../assets/guide/teaspoon-2.jpg') },
       ],
     },
     foodTablespoon: {
       title: 'Tablespoon',
       slides: [
-        { text: 'Your regular tablespoon', subtext: '= 15 mL = 3 teaspoons', bg: '#FFF7ED', localImage: require('../../assets/guide/tablespoon-1.png') },
-        { text: 'Use for oils and pastes', subtext: 'Palm oil, groundnut oil, tomato paste', bg: '#FFEDD5', localImage: require('../../assets/guide/tablespoon-2.png') },
+        { text: 'Your regular tablespoon', subtext: '= 15 mL = 3 teaspoons', bg: '#FFF7ED', localImage: require('../../assets/guide/tablespoon-1.jpg') },
+        { text: 'Use for oils and pastes', subtext: 'Palm oil, groundnut oil, tomato paste', bg: '#FFEDD5', localImage: require('../../assets/guide/tablespoon-2.jpg') },
       ],
     },
     foodOneTin: {
       title: '1 Titus Tin',
       slides: [
-        { text: 'The Titus sardine tin', subtext: 'Your everyday measuring cup', bg: '#FFF7ED', localImage: require('../../assets/guide/third-cup-1.png') },
-        { text: '1 tin = 1/3 cup', subtext: 'Use for rice, garri, flour, beans', bg: '#FFEDD5', localImage: require('../../assets/guide/third-cup-2.png') },
+        { text: 'The Titus sardine tin', subtext: 'Your everyday measuring cup', bg: '#FFF7ED', localImage: require('../../assets/guide/third-cup-1.jpg') },
+        { text: '1 tin = 1/3 cup', subtext: 'Use for rice, garri, flour, beans', bg: '#FFEDD5', localImage: require('../../assets/guide/third-cup-2.jpg') },
       ],
     },
     foodThreeTins: {
       title: '3 Titus Tins',
       slides: [
-        { text: 'Stack 3 Titus tins', subtext: '= 1 full cup', bg: '#FFF7ED', localImage: require('../../assets/guide/three-tins-1.png') },
-        { text: 'That is your standard cup', subtext: 'For any recipe that says "1 cup"', bg: '#FFEDD5', localImage: require('../../assets/guide/three-tins-2.png') },
+        { text: 'Stack 3 Titus tins', subtext: '= 1 full cup', bg: '#FFF7ED', localImage: require('../../assets/guide/three-tins-1.jpg') },
+        { text: 'That is your standard cup', subtext: 'For any recipe that says "1 cup"', bg: '#FFEDD5', localImage: require('../../assets/guide/three-tins-2.jpg') },
       ],
     },
     foodMeat100: {
