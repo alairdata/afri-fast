@@ -1396,6 +1396,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         show={showLogMealModal}
         onClose={() => { setShowLogMealModal(false); setViewingMeal(null); }}
         logMealMethod={logMealMethod}
+        selectedMealDate={selectedMealDate}
         onSaveMeal={async (meal) => {
           if (meal._updatePhoto) {
             // Background photo upload completed — update the photo URL silently

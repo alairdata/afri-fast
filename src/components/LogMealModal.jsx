@@ -392,7 +392,7 @@ No explanation, no markdown, no extra text.`
   return null;
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null }) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [micPermSaved, setMicPermSaved] = useState(false);
 
@@ -712,8 +712,9 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
   const handleSaveMeal = async () => {
     if (detectedFoods.length > 0 && onSaveMeal) {
-      const now = new Date();
-      const timeStr = `Today, ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+      const mealDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
+      const isToday = mealDate.toDateString() === new Date().toDateString();
+      const timeStr = `${isToday ? 'Today' : mealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${mealDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
       const photoUrl = await uploadMealPhoto(capturedPhoto) || await convertToDataUrl(capturedPhoto);
       onSaveMeal({
         id: Date.now(),
@@ -724,7 +725,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         fats: detectedFoods.reduce((sum, f) => sum + (f.fats || 0), 0),
         time: timeStr,
         items: detectedFoods.map(f => `${f.name} (${f.qty})`),
-        date: now.toDateString(),
+        date: mealDate.toDateString(),
         photo: photoUrl,
         foods: detectedFoods,
       });
@@ -843,9 +844,10 @@ Return ONLY raw JSON, no markdown, no explanation.`
 
   const logMeal = () => {
     if (detectedFoods.length > 0 && onSaveMeal) {
-      const now = new Date();
+      const mealDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
+      const isToday = mealDate.toDateString() === new Date().toDateString();
       const mealId = Date.now();
-      const timeStr = `Today, ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+      const timeStr = `${isToday ? 'Today' : mealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${mealDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
       // Save immediately with local photo URI so it appears in the list right away
       onSaveMeal({
         id: mealId,
@@ -856,7 +858,7 @@ Return ONLY raw JSON, no markdown, no explanation.`
         fats: detectedFoods.reduce((sum, f) => sum + (f.fats || 0), 0),
         time: timeStr,
         items: detectedFoods.map(f => `${f.name} (${f.qty})`),
-        date: now.toDateString(),
+        date: mealDate.toDateString(),
         photo: capturedPhoto,        // local URI — loads instantly in same session
         localPhoto: capturedPhoto,   // kept even after remote URL replaces photo
         foods: detectedFoods,
