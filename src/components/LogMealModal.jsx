@@ -530,6 +530,8 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const voiceIntervalRef = useRef(null);
   const typeIntervalRef = useRef(null);
   const recordingRef = useRef(null);
+  const webSpeechRef = useRef(null);
+  const webTranscriptRef = useRef('');
   const [waveBars, setWaveBars] = useState(() => Array.from({ length: 30 }, () => 4));
   const waveIntervalRef = useRef(null);
   const detectIntervalRef = useRef(null);
@@ -760,45 +762,117 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   };
 
   const startRec = async () => {
-    try {
-      if (!micPermSaved) {
-        const { granted } = await Audio.requestPermissionsAsync();
-        if (!granted) return;
-        setMicPermSaved(true);
-        AsyncStorage.setItem('afri-fast-mic-perm', 'granted');
+    setVoiceTranscript('');
+    webTranscriptRef.current = '';
+    waveIntervalRef.current = setInterval(() => {
+      setWaveBars(Array.from({ length: 30 }, () => 4 + Math.random() * 26));
+    }, 120);
+    setIsRecording(true);
+    setSayPhase('recording');
+
+    if (Platform.OS === 'web') {
+      // Web: use SpeechRecognition API
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        clearInterval(waveIntervalRef.current);
+        setIsRecording(false);
+        setSayPhase('idle');
+        alert('Voice recognition is not supported in this browser. Try Chrome or Edge.');
+        return;
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      recordingRef.current = recording;
-      setIsRecording(true);
-      setSayPhase('recording');
-      setVoiceTranscript('');
-      waveIntervalRef.current = setInterval(() => {
-        setWaveBars(Array.from({ length: 30 }, () => 4 + Math.random() * 26));
-      }, 120);
-    } catch (e) {
-      console.log('[Audio] Start error:', e.message);
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        webTranscriptRef.current = transcript;
+        setVoiceTranscript(transcript);
+      };
+      recognition.onerror = () => {
+        clearInterval(waveIntervalRef.current);
+        setIsRecording(false);
+        setSayPhase('idle');
+      };
+      webSpeechRef.current = recognition;
+      recognition.start();
+    } else {
+      // Native: use expo-av
+      try {
+        if (!micPermSaved) {
+          const { granted } = await Audio.requestPermissionsAsync();
+          if (!granted) {
+            clearInterval(waveIntervalRef.current);
+            setIsRecording(false);
+            setSayPhase('idle');
+            return;
+          }
+          setMicPermSaved(true);
+          AsyncStorage.setItem('afri-fast-mic-perm', 'granted');
+        }
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+        const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+        recordingRef.current = recording;
+      } catch (e) {
+        console.log('[Audio] Start error:', e.message);
+        clearInterval(waveIntervalRef.current);
+        setIsRecording(false);
+        setSayPhase('idle');
+      }
     }
   };
 
   const cancelRec = async () => {
     clearInterval(waveIntervalRef.current);
-    try {
-      await recordingRef.current?.stopAndUnloadAsync();
-      recordingRef.current = null;
-    } catch (_) {}
+    if (Platform.OS === 'web') {
+      webSpeechRef.current?.stop();
+      webSpeechRef.current = null;
+    } else {
+      try {
+        await recordingRef.current?.stopAndUnloadAsync();
+        recordingRef.current = null;
+      } catch (_) {}
+    }
     resetSay();
   };
 
   const confirmRec = async () => {
     clearInterval(waveIntervalRef.current);
+    setIsRecording(false);
+
+    if (Platform.OS === 'web') {
+      // Stop recognition and use transcript
+      webSpeechRef.current?.stop();
+      webSpeechRef.current = null;
+      const transcript = webTranscriptRef.current.trim();
+      if (!transcript) { setSayPhase('idle'); return; }
+      setSayPhase('detecting');
+      setDetectProgress(0);
+      let results = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        results = await analyzeTextWithGemini(transcript);
+        if (results && !results.notFood) break;
+        if (results?.notFood) break;
+      }
+      setDetectProgress(100);
+      if (!results || results.notFood) { setSayPhase('idle'); return; }
+      setMealTitle(results.title || null);
+      setVoiceTranscript(results.correctedInput || transcript);
+      setDetectedFoods((results.foods || []).map((f, i) => ({ ...f, id: i })));
+      setSayPhase('results');
+      return;
+    }
+
+    // Native: send audio to Gemini
     try {
       await recordingRef.current?.stopAndUnloadAsync();
     } catch (_) {}
     const uri = recordingRef.current?.getURI();
     recordingRef.current = null;
-    setIsRecording(false);
-    if (!uri) return;
+    if (!uri) { setSayPhase('idle'); return; }
     setSayPhase('detecting');
     setDetectProgress(0);
     try {
