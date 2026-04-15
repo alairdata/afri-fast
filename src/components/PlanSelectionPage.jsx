@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Modal, Platform } from 'react-native';
 import FastingQuizPage from './FastingQuizPage';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -350,13 +350,13 @@ const PlanSelectionPage = ({ show, onClose, selectedPlan, isFasting, onSelectPla
 
 const styles = StyleSheet.create({
   planPageOverlay: {
-    position: 'absolute',
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: '#FAFBFF',
-    zIndex: 1000,
+    zIndex: 10000,
   },
   planPage: {
     width: '100%',

@@ -15,7 +15,7 @@ async function callApi(type, data) {
   });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'API error');
-  return result.cards;
+  return result;
 }
 
 async function getCached(cacheKey, userId) {
@@ -30,12 +30,12 @@ async function getCached(cacheKey, userId) {
   }
 }
 
-async function saveCache(cacheKey, userId, cards) {
+async function saveCache(cacheKey, userId, payload) {
   try {
     await AsyncStorage.setItem(cacheKey, JSON.stringify({
       userId,
       timestamp: Date.now(),
-      cards,
+      ...payload,
     }));
   } catch (_) {}
 }
@@ -46,13 +46,17 @@ export async function getDailyInsights(data, forceRefresh = false) {
 
   if (!forceRefresh) {
     const cached = await getCached(DAILY_CACHE_KEY, userId);
-    if (cached && Date.now() - cached.timestamp < DAILY_TTL) return cached.cards;
+    if (cached && Date.now() - cached.timestamp < DAILY_TTL) {
+      return { cards: cached.cards, alertCard: cached.alertCard || null };
+    }
   }
 
   try {
-    const cards = await callApi('daily_insights', data);
-    if (cards?.length) await saveCache(DAILY_CACHE_KEY, userId, cards);
-    return cards;
+    const result = await callApi('daily_insights', data);
+    if (result?.cards?.length) {
+      await saveCache(DAILY_CACHE_KEY, userId, { cards: result.cards, alertCard: result.alertCard || '' });
+    }
+    return { cards: result?.cards || null, alertCard: result?.alertCard || null };
   } catch (e) {
     console.error('[DailyInsights error]', e);
     return null;
@@ -69,8 +73,9 @@ export async function getJustForYou(data, forceRefresh = false) {
   }
 
   try {
-    const cards = await callApi('just_for_you', data);
-    if (cards?.length) await saveCache(JFY_CACHE_KEY, userId, cards);
+    const result = await callApi('just_for_you', data);
+    const cards = result?.cards;
+    if (cards?.length) await saveCache(JFY_CACHE_KEY, userId, { cards });
     return cards;
   } catch (e) {
     console.error('[JustForYou error]', e);

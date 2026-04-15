@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Dimensions,
+  Platform,
 } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -563,13 +564,13 @@ const MINI_CELL_SIZE = Math.floor((SCREEN_WIDTH - 72) / 21); // 3 columns, 7 cel
 const styles = StyleSheet.create({
   // ─── Overlay ───
   overlay: {
-    position: 'absolute',
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: '#FAFBFF',
-    zIndex: 1000,
+    zIndex: 10000,
   },
 
   // ─── Header ───

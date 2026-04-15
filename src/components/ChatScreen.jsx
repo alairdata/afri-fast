@@ -128,6 +128,7 @@ const ChatScreen = ({
         openingContext,
         personality,
         data: userData,
+        userId,
       }).then(res => {
         setMessages([{ role: 'assistant', content: res.reply || openingContext }]);
       }).catch(() => {
@@ -157,6 +158,7 @@ const ChatScreen = ({
         messages: updatedMessages,
         personality,
         data: userData,
+        userId,
       });
       setMessages(prev => [...prev, { role: 'assistant', content: res.reply }]);
     } catch (e) {
@@ -285,10 +287,10 @@ const ChatScreen = ({
 
 const styles = StyleSheet.create({
   chatOverlay: {
-    position: 'absolute',
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#F8FAFC',
-    zIndex: 1000,
+    zIndex: 10000,
   },
   chatContainer: {
     width: '100%',

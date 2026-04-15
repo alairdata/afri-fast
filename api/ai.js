@@ -40,7 +40,7 @@ RECENT HISTORY (last 10 sessions):
 - Check-ins: ${JSON.stringify(recentCheckIns)}
 - Weight logs: ${JSON.stringify(recentWeight)}
 
-Based ONLY on what you can actually see in this data, generate daily insight cards. Each card reflects something specific and meaningful you observe about this user's day or recent activity.
+Based ONLY on what you can actually see in this data, generate daily insight cards AND a single coach alert.
 
 Rules:
 - Be warm and coach-like, never clinical
@@ -48,12 +48,16 @@ Rules:
 - Each card should feel personal, like their coach noticed something specific
 - Short title (max 6 words), subtitle is 1-2 sentences max
 - Generate between 2 and 5 cards — only as many as there are genuine observations
+- The alertCard is 1-2 sentences: a specific personal observation that makes the user want to open the chat. It should feel like the coach noticed something and is flagging it. Make it specific to their actual data — never generic.
 
-Return ONLY a valid JSON array, no markdown, no explanation:
-[
-  { "title": "...", "subtitle": "..." },
-  ...
-]`;
+Return ONLY a valid JSON object, no markdown, no explanation:
+{
+  "cards": [
+    { "title": "...", "subtitle": "..." },
+    ...
+  ],
+  "alertCard": "..."
+}`;
 }
 
 function buildJustForYouPrompt(data) {
@@ -146,22 +150,28 @@ export default async function handler(req, res) {
 
     const text = result.content?.[0]?.text || '';
     const stripped = text.replace(/```json|```/g, '').trim();
-    const jsonMatch = stripped.match(/\[[\s\S]*\]/);
 
+    if (type === 'daily_insights') {
+      const objMatch = stripped.match(/\{[\s\S]*\}/);
+      if (!objMatch) {
+        console.error('[/api/ai] No JSON object in daily_insights response:', text.slice(0, 300));
+        return res.status(500).json({ error: 'Could not parse response' });
+      }
+      const parsed = JSON.parse(objMatch[0]);
+      const cards = (parsed.cards || []).map((card, i) => ({
+        ...card,
+        ...CARD_COLORS[i % CARD_COLORS.length],
+      }));
+      return res.status(200).json({ cards, alertCard: parsed.alertCard || '' });
+    }
+
+    const jsonMatch = stripped.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       console.error('[/api/ai] No JSON array in response:', text.slice(0, 300));
       return res.status(500).json({ error: 'Could not parse response' });
     }
-
     const cards = JSON.parse(jsonMatch[0]);
-
-    // Attach colors (cycling through palette) for daily_insights
-    const enriched = cards.map((card, i) => ({
-      ...card,
-      ...(type === 'daily_insights' ? CARD_COLORS[i % CARD_COLORS.length] : {}),
-    }));
-
-    return res.status(200).json({ cards: enriched });
+    return res.status(200).json({ cards });
   } catch (e) {
     console.error('[/api/ai exception]', e);
     return res.status(500).json({ error: e.message });

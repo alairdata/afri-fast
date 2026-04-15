@@ -162,6 +162,22 @@ Write as a concise paragraph (5-8 sentences) in third person using their name. B
 Return ONLY the profile text. No labels, no explanation.`;
 }
 
+async function logToSupabase(supabaseUrl, supabaseKey, rows) {
+  if (!supabaseUrl || !supabaseKey || !rows.length) return;
+  try {
+    await fetch(`${supabaseUrl}/rest/v1/chat_messages`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify(rows),
+    });
+  } catch (_) { /* non-critical — don't break the response */ }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -172,7 +188,10 @@ export default async function handler(req, res) {
   const CLAUDE_KEY = process.env.CLAUDE_KEY;
   if (!CLAUDE_KEY) return res.status(500).json({ error: 'API key not configured' });
 
-  const { action, messages, data, personality, openingContext } = req.body || {};
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+  const { action, messages, data, personality, openingContext, userId } = req.body || {};
 
   const callClaude = async (systemPrompt, userMessages, maxTokens = 1024) => {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -217,6 +236,18 @@ export default async function handler(req, res) {
       }
 
       const reply = await callClaude(systemPrompt, claudeMessages, 1024);
+
+      // Log this exchange to DB (fire-and-forget)
+      if (userId) {
+        const lastUserMsg = claudeMessages[claudeMessages.length - 1];
+        const rows = [];
+        if (lastUserMsg?.role === 'user') {
+          rows.push({ user_id: userId, role: 'user', content: lastUserMsg.content, action: 'message' });
+        }
+        rows.push({ user_id: userId, role: 'assistant', content: reply, action: 'message' });
+        logToSupabase(SUPABASE_URL, SUPABASE_SERVICE_KEY, rows);
+      }
+
       return res.status(200).json({ reply });
     }
 

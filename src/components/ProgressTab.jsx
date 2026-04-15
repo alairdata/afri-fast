@@ -358,10 +358,10 @@ const ProgressTab = ({
                           labelColor: () => '#888',
                           propsForDots: { r: '0' },
                           propsForBackgroundLines: { stroke: 'transparent' },
-                          fillShadowGradientFrom: '#059669',
-                          fillShadowGradientTo: '#fff',
-                          fillShadowGradientFromOpacity: 0.15,
+                          fillShadowGradientFromOpacity: 0,
                           fillShadowGradientToOpacity: 0,
+                          propsForLabels: { fontSize: 9 },
+                          paddingRight: 48,
                         }}
                         renderDotContent={({ x, y, index, indexData }) => (
                           <Rect key={index} x={x - 3} y={y - 3} width={6} height={6} fill="#059669" rx={1} />
@@ -376,7 +376,7 @@ const ProgressTab = ({
                         segments={5}
                       />
                       {weightTooltip && (
-                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(weightTooltip.x - 30, SCREEN_WIDTH - 120)), top: Math.max(4, weightTooltip.y - 36) }]} pointerEvents="none">
+                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(weightTooltip.x - 30, SCREEN_WIDTH - 120)), top: weightTooltip.y - 12 }]} pointerEvents="none">
                           <Text style={styles.chartTooltipText}>{weightTooltip.value} kg</Text>
                         </View>
                       )}
@@ -453,10 +453,10 @@ const ProgressTab = ({
                           labelColor: () => '#888',
                           propsForDots: { r: '0' },
                           propsForBackgroundLines: { stroke: 'transparent' },
-                          fillShadowGradientFrom: '#EF4444',
-                          fillShadowGradientTo: '#fff',
-                          fillShadowGradientFromOpacity: 0.1,
+                          fillShadowGradientFromOpacity: 0,
                           fillShadowGradientToOpacity: 0,
+                          propsForLabels: { fontSize: 9 },
+                          paddingRight: 48,
                         }}
                         renderDotContent={({ x, y, index }) => (
                           <Rect key={index} x={x - 3} y={y - 3} width={6} height={6} fill="#EF4444" rx={1} />
@@ -470,7 +470,7 @@ const ProgressTab = ({
                         withHorizontalLabels={false}
                       />
                       {calTooltip && (
-                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(calTooltip.x - 30, SCREEN_WIDTH - 120)), top: Math.max(4, calTooltip.y - 36) }]} pointerEvents="none">
+                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(calTooltip.x - 30, SCREEN_WIDTH - 120)), top: calTooltip.y - 12 }]} pointerEvents="none">
                           <Text style={styles.chartTooltipText}>{calTooltip.value} cal</Text>
                         </View>
                       )}
@@ -543,10 +543,10 @@ const ProgressTab = ({
                           labelColor: () => '#888',
                           propsForDots: { r: '0' },
                           propsForBackgroundLines: { stroke: 'transparent' },
-                          fillShadowGradientFrom: '#0EA5E9',
-                          fillShadowGradientTo: '#fff',
-                          fillShadowGradientFromOpacity: 0.15,
+                          fillShadowGradientFromOpacity: 0,
                           fillShadowGradientToOpacity: 0,
+                          propsForLabels: { fontSize: 9 },
+                          paddingRight: 48,
                         }}
                         renderDotContent={({ x, y, index }) => (
                           <Rect key={index} x={x - 3} y={y - 3} width={6} height={6} fill="#0EA5E9" rx={1} />
@@ -560,7 +560,7 @@ const ProgressTab = ({
                         withHorizontalLabels={false}
                       />
                       {waterTooltip && (
-                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(waterTooltip.x - 30, SCREEN_WIDTH - 120)), top: Math.max(4, waterTooltip.y - 36) }]} pointerEvents="none">
+                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(waterTooltip.x - 30, SCREEN_WIDTH - 120)), top: waterTooltip.y - 12 }]} pointerEvents="none">
                           <Text style={styles.chartTooltipText}>{waterTooltip.value} L</Text>
                         </View>
                       )}
@@ -697,7 +697,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   chartTooltip: {
     position: 'absolute',
-    backgroundColor: c.cardAlt,
+    backgroundColor: '#000',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,

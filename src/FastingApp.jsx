@@ -1270,39 +1270,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       )}
 
       {/* === Overlay Pages === */}
-      <ChatScreen
-        show={showChat}
-        onClose={() => { setShowChat(false); setChatOpeningContext(null); }}
-        messages={chatMessages}
-        setMessages={setChatMessages}
-        openingContext={chatOpeningContext}
-        userId={session?.user?.id}
-        userName={userName}
-        userCountry={userCountry}
-        selectedPlan={selectedPlan}
-        targetWeight={targetWeight}
-        startingWeight={startingWeight}
-        weightUnit={weightUnit}
-        dailyCalorieGoal={dailyCalorieGoal}
-        hydrationGoal={hydrationGoal}
-        volumeUnit={volumeUnit}
-        proteinGoal={proteinGoal}
-        carbsGoal={carbsGoal}
-        fatsGoal={fatsGoal}
-        fastingSessions={fastingSessions}
-        checkInHistory={checkInHistory}
-        recentMeals={recentMeals}
-        weightLogs={weightLogs}
-        waterLogs={waterLogs}
-        personality={userPersonality}
-        onUpdatePersonality={(updated) => {
-          setUserPersonality(updated);
-          supabase.from('profiles').update({
-            personality: updated,
-            personality_updated_at: new Date().toISOString(),
-          }).eq('id', session.user.id).then(() => {});
-        }}
-      />
 
       <FastingCalendarPage
         show={showCalendar}
@@ -1585,6 +1552,41 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         whispersUnlocked={userCount >= 25}
+      />
+
+      {/* === Chat (above everything incl. tab bar) === */}
+      <ChatScreen
+        show={showChat}
+        onClose={() => { setShowChat(false); setChatOpeningContext(null); }}
+        messages={chatMessages}
+        setMessages={setChatMessages}
+        openingContext={chatOpeningContext}
+        userId={session?.user?.id}
+        userName={userName}
+        userCountry={userCountry}
+        selectedPlan={selectedPlan}
+        targetWeight={targetWeight}
+        startingWeight={startingWeight}
+        weightUnit={weightUnit}
+        dailyCalorieGoal={dailyCalorieGoal}
+        hydrationGoal={hydrationGoal}
+        volumeUnit={volumeUnit}
+        proteinGoal={proteinGoal}
+        carbsGoal={carbsGoal}
+        fatsGoal={fatsGoal}
+        fastingSessions={fastingSessions}
+        checkInHistory={checkInHistory}
+        recentMeals={recentMeals}
+        weightLogs={weightLogs}
+        waterLogs={waterLogs}
+        personality={userPersonality}
+        onUpdatePersonality={(updated) => {
+          setUserPersonality(updated);
+          supabase.from('profiles').update({
+            personality: updated,
+            personality_updated_at: new Date().toISOString(),
+          }).eq('id', session.user.id).then(() => {});
+        }}
       />
 
       <FastingQuizPage

@@ -276,13 +276,13 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
 
 const styles = StyleSheet.create({
   weightPageOverlay: {
-    position: 'absolute',
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: '#F8FAFC',
-    zIndex: 1100,
+    zIndex: 10000,
   },
   weightPage: {
     width: '100%',

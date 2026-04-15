@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform } from 'react-native';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -292,13 +292,13 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
 
 const styles = StyleSheet.create({
   weightPageOverlay: {
-    position: 'absolute',
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: '#F8FAFC',
-    zIndex: 1100,
+    zIndex: 10000,
   },
   weightPage: {
     width: '100%',

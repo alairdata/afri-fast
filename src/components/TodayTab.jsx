@@ -62,6 +62,7 @@ const TodayTab = ({
   const styles = makeStyles(colors);
 
   const [dailyInsightCards, setDailyInsightCards] = useState(null);
+  const [claudeAlertCard, setClaudeAlertCard] = useState(null);
   const [justForYouCards, setJustForYouCards] = useState(null);
   const [insightLoading, setInsightLoading] = useState(true);
   const [jfyLoading, setJfyLoading] = useState(true);
@@ -92,7 +93,11 @@ const TodayTab = ({
     setInsightLoading(true);
     setJfyLoading(true);
     getDailyInsights(payload)
-      .then(cards => { setDailyInsightCards(cards); setInsightLoading(false); })
+      .then(result => {
+        setDailyInsightCards(result?.cards || null);
+        if (result?.alertCard) setClaudeAlertCard(result.alertCard);
+        setInsightLoading(false);
+      })
       .catch(() => setInsightLoading(false));
     getJustForYou(payload)
       .then(cards => { setJustForYouCards(cards); setJfyLoading(false); })
@@ -242,8 +247,8 @@ const TodayTab = ({
   const significantlyOver = calorieRatio !== null && calorieRatio > 1.15;
   const significantlyUnder = calorieRatio !== null && calorieRatio < 0.5 && todayCalories > 0;
 
-  // Fall back to computed logic for alert card
-  let alertInsight = null;
+  // Claude-generated alert card (from daily insights call), with computed fallback
+  let alertInsight = claudeAlertCard;
   if (!alertInsight) {
     if (recentSessions14.length > 0 && recentCheckIns.length === 0) {
       alertInsight = "You haven't checked in during any of your recent fasts. Check-ins help us understand how your body is responding and give you better coaching.";
