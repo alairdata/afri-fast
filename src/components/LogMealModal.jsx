@@ -208,22 +208,22 @@ const analyzeTextWithGemini = async (mealText, onProgress) => {
     const requestBody = JSON.stringify({
       contents: [{
         parts: [{
-          text: `You are a nutrition expert specializing in African meals. The user has typed the name of a meal they ate.
+          text: `You are a nutrition expert specializing in African meals. The user has described a meal they ate — this could be a short name like "jollof rice", a messy description like "i had fufu and light soup with chicken and some koobi", or even a long paragraph. Your job is to extract all the food items from whatever they wrote.
 
-IMPORTANT: Before deciding something is NOT_FOOD, first attempt to interpret it as a misspelled or abbreviated meal name. Only return NOT_FOOD if you genuinely cannot identify any food — even after trying to correct for typos, abbreviations, or phonetic spelling. A Ghanaian typing "bknu" likely means "Banku". Give it the benefit of the doubt.
+IMPORTANT: Be extremely generous — almost anything could reference food. Only return NOT_FOOD if the input contains absolutely zero food references whatsoever (e.g. "my car broke down"). If there is ANY mention of food, extract it. A Ghanaian typing "bknu" likely means "Banku". Give it the benefit of the doubt always.
 
-If after attempting correction it is still NOT a food or meal, respond with exactly:
+If after attempting to interpret it there is genuinely NO food content at all, respond with exactly:
 NOT_FOOD: [short description of what it is]
 
-If it IS a food or meal, return ONLY raw JSON with these fields:
-1. "correctedInput": the correctly spelled meal name as the user typed it. Fix typos only — do not expand or add accompaniments here.
-2. "title": Name the meal the way a local would naturally say it. Lead with the starchy base or carb if one is present. Follow with only the single most prominent accompaniment — the main soup, stew, or protein. The title must contain exactly two components joined by either "and" or "with", never both. Do not list more than two components in the title regardless of how many items are on the plate. No brackets, parentheses, or commas in the title.
-3. "foods": an array of objects, one per individual food item. Do NOT bundle multiple ingredients together into one entry — every distinct item on the plate gets its own entry. Each object must have these exact fields:
-   - name: the full food name in a typical way a local of that food's country of origin would call it
-   - qty: estimated portion size — be specific, combine COUNT + SIZE + ITEM NAME for countable foods (e.g. "2 medium eggs", "1 large chicken thigh", "3 thick plantain slices"). For non-countable items combine size + item (e.g. "1 heaped cup of white rice", "1 large bowl of egusi soup", "1 medium wrap of fufu"). Never use brackets, parentheses, or metric units like ml/g in the qty. Never say just "pieces" or "servings" without specifying what and how big.
+If it contains ANY food, return ONLY raw JSON with these fields:
+1. "correctedInput": a clean short summary of the meal (e.g. "Fufu with light soup and chicken"). Fix typos — do not add items not mentioned.
+2. "title": Name the meal the way a local would naturally say it. Lead with the starchy base or carb if one is present. Follow with only the single most prominent accompaniment. The title must contain exactly two components joined by either "and" or "with", never both. No brackets, parentheses, or commas.
+3. "foods": an array of objects, one per individual food item mentioned. Do NOT bundle multiple ingredients — every distinct item gets its own entry. Each object must have:
+   - name: full food name as a local would say it
+   - qty: estimated portion — combine COUNT + SIZE + ITEM for countable foods (e.g. "2 medium eggs", "1 large chicken thigh"). For non-countable combine size + item (e.g. "1 heaped cup of white rice", "1 large bowl of egusi soup"). Never use brackets, parentheses, or metric units.
    - cal, protein, carbs, fats, fiber
 
-The meal the user typed: "${mealText}"
+What the user wrote: "${mealText}"
 
 Return ONLY a valid JSON object with no explanation, no markdown, no code blocks. Just the raw JSON.`
         }]
@@ -680,7 +680,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     const results = await analyzeTextWithGemini(mealInput.trim());
     setWriteDetectProgress(100);
     if (!results || results.notFood) {
-      setWriteError(results?.identified || 'that input');
+      setWriteError("Couldn't identify any food in that. Try being more specific — e.g. \"fufu with light soup and chicken\"");
       setWritePhase('idle');
       return;
     }
