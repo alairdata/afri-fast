@@ -270,7 +270,9 @@ Return ONLY a valid JSON object with no explanation, no markdown, no code blocks
     }
   } catch (e) {
     console.log('[Gemini Text] Error:', e.message);
+    return null;
   }
+  // Got a response but couldn't parse valid JSON — return null to trigger retry
   return null;
 };
 
@@ -677,9 +679,22 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     });
     setWritePhase('detecting');
     setWriteDetectProgress(0);
-    const results = await analyzeTextWithGemini(mealInput.trim());
+
+    // Try up to 3 times — Gemini can be inconsistent
+    let results = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      results = await analyzeTextWithGemini(mealInput.trim());
+      if (results && !results.notFood) break;
+      if (results?.notFood) break; // genuine not-food, no point retrying
+    }
+
     setWriteDetectProgress(100);
-    if (!results || results.notFood) {
+    if (!results) {
+      setWriteError("Couldn't reach the server. Check your connection and try again.");
+      setWritePhase('idle');
+      return;
+    }
+    if (results.notFood) {
       setWriteError("Couldn't identify any food in that. Try being more specific — e.g. \"fufu with light soup and chicken\"");
       setWritePhase('idle');
       return;
