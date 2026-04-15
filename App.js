@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView, StatusBar, View, ActivityIndicator, Text, TextInput, Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './src/lib/supabase';
 import AuthScreen from './src/components/AuthScreen';
@@ -126,18 +127,20 @@ export default function App() {
   }
 
   return (
-    <ErrorBoundary>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAFBFF" />
-      <SafeAreaView style={{ flex: 1 }}>
-        <FastingApp
-          session={session}
-          pendingPreAuthData={preAuthData}
-          onPreAuthDataApplied={async () => {
-            setPreAuthData(null);
-            await AsyncStorage.removeItem(PRE_AUTH_STORAGE_KEY);
-          }}
-        />
-      </SafeAreaView>
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFBFF" />
+        <SafeAreaView style={{ flex: 1 }}>
+          <FastingApp
+            session={session}
+            pendingPreAuthData={preAuthData}
+            onPreAuthDataApplied={async () => {
+              setPreAuthData(null);
+              await AsyncStorage.removeItem(PRE_AUTH_STORAGE_KEY);
+            }}
+          />
+        </SafeAreaView>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
