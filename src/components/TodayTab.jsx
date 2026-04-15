@@ -63,6 +63,7 @@ const TodayTab = ({
 
   const [dailyInsightCards, setDailyInsightCards] = useState(null);
   const [claudeAlertCard, setClaudeAlertCard] = useState(null);
+  const [timeSinceFast, setTimeSinceFast] = useState(null);
   const [justForYouCards, setJustForYouCards] = useState(null);
   const [insightLoading, setInsightLoading] = useState(true);
   const [jfyLoading, setJfyLoading] = useState(true);
@@ -103,6 +104,26 @@ const TodayTab = ({
       .then(cards => { setJustForYouCards(cards); setJfyLoading(false); })
       .catch(() => setJfyLoading(false));
   }, [userId]);
+
+  // Time since last fast counter
+  useEffect(() => {
+    if (isFasting) { setTimeSinceFast(null); return; }
+    const lastCompleted = (fastingSessions || [])
+      .filter(s => s.endTime)
+      .sort((a, b) => new Date(b.endTime) - new Date(a.endTime))[0];
+    if (!lastCompleted) { setTimeSinceFast(null); return; }
+    const tick = () => {
+      const diff = Math.floor((Date.now() - new Date(lastCompleted.endTime).getTime()) / 1000);
+      if (diff < 0) { setTimeSinceFast(null); return; }
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      setTimeSinceFast({ h, m, s });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isFasting, fastingSessions]);
 
   const formatDate = () => {
     const options = { weekday: 'long', month: 'short', day: 'numeric' };
@@ -402,11 +423,21 @@ const TodayTab = ({
                   </>
                 ) : (
                   <>
-                    <Text style={styles.fastingLabelSmall}>{isFasting ? 'FASTING' : 'NOT FASTING'}</Text>
-                    <Text style={styles.timeDisplayCompact}>
-                      {isFasting ? `${fastingHours}h ${fastingMinutes}m\n${fastingSeconds}s` : '0h 0m\n0s'}
+                    <Text style={styles.fastingLabelSmall}>
+                      {isFasting ? 'FASTING' : timeSinceFast ? 'EATING WINDOW' : 'NOT FASTING'}
                     </Text>
-                    {isFasting && <Text style={styles.stageTextSmall}>{getStageInfo().stage}</Text>}
+                    <Text style={styles.timeDisplayCompact}>
+                      {isFasting
+                        ? `${fastingHours}h ${fastingMinutes}m\n${fastingSeconds}s`
+                        : timeSinceFast
+                          ? `${timeSinceFast.h}h ${timeSinceFast.m}m\n${timeSinceFast.s}s`
+                          : '0h 0m\n0s'}
+                    </Text>
+                    {isFasting
+                      ? <Text style={styles.stageTextSmall}>{getStageInfo().stage}</Text>
+                      : timeSinceFast
+                        ? <Text style={styles.stageTextSmall}>since last fast</Text>
+                        : null}
                   </>
                 )}
               </View>
