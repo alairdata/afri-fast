@@ -1424,8 +1424,9 @@ Return ONLY raw JSON, no markdown, no explanation.`
                   {/* Top row: on track label (left) + streak (right) */}
                   <View style={styles.shareCardTopRow}>
                     {(() => {
-                      const todayCal = recentMeals.filter(m => m.date === new Date().toDateString()).reduce((s, m) => s + (m.calories || 0), 0);
-                      const over = todayCal > dailyCalorieGoal;
+                      const dateStr = selectedMealDate ? new Date(selectedMealDate).toDateString() : new Date().toDateString();
+                      const dayCal = recentMeals.filter(m => m.date === dateStr).reduce((s, m) => s + (m.calories || 0), 0);
+                      const over = dayCal > dailyCalorieGoal;
                       return (
                         <View style={[styles.shareCardTrackBadge, over && { backgroundColor: 'rgba(249,115,22,0.2)', borderColor: 'rgba(249,115,22,0.35)' }]}>
                           <Text style={[styles.shareCardTrackText, over && { color: '#f97316' }]}>
@@ -1443,9 +1444,9 @@ Return ONLY raw JSON, no markdown, no explanation.`
 
                 {/* KCAL + PROGRESS */}
                 {(() => {
-                  const today = new Date().toDateString();
-                  const total = recentMeals.filter(m => m.date === today).reduce((s, m) => s + (m.calories || 0), 0);
-                  const rawPct = total / dailyCalorieGoal;
+                  const dateStr = selectedMealDate ? new Date(selectedMealDate).toDateString() : new Date().toDateString();
+                  const total = recentMeals.filter(m => m.date === dateStr).reduce((s, m) => s + (m.calories || 0), 0);
+                  const rawPct = dailyCalorieGoal > 0 ? total / dailyCalorieGoal : 0;
                   const isOver = rawPct > 1;
                   const barPct = Math.min(rawPct, 1);
                   return (
@@ -1457,7 +1458,7 @@ Return ONLY raw JSON, no markdown, no explanation.`
                         </View>
                         <View style={styles.shareCardProgressCol}>
                           <View style={styles.shareCardProgressMeta}>
-                            <Text style={styles.shareCardProgressText}>of {dailyCalorieGoal.toLocaleString()} daily goal</Text>
+                            <Text style={styles.shareCardProgressText}>of {(dailyCalorieGoal || 0).toLocaleString()} daily goal</Text>
                             <Text style={[styles.shareCardProgressPct, isOver && { color: '#f97316' }]}>{Math.round(rawPct * 100)}%</Text>
                           </View>
                           <View style={styles.shareCardProgressBar}>

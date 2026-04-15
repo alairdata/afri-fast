@@ -137,46 +137,53 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
         </TouchableOpacity>
       </View>
 
-      {/* Today's Nutrition */}
-      <View style={styles.nutritionCardClean}>
-        <Text style={styles.nutritionTitleClean}>Today's Nutrition</Text>
-        <View style={styles.nutritionStatsClean}>
-          <View style={styles.nutritionStatClean}>
-            <Text style={styles.nutritionValueClean}>{recentMeals.filter(m => m.date === new Date().toDateString()).reduce((sum, m) => sum + (m.calories || 0), 0).toLocaleString()}</Text>
-            <Text style={styles.nutritionLabelClean}>Calories</Text>
+      {/* Selected Day's Nutrition */}
+      {(() => {
+        const selectedDateStr = selectedMealDate.toDateString();
+        const isToday = selectedDateStr === new Date().toDateString();
+        const dayMeals = recentMeals.filter(m => m.date === selectedDateStr);
+        return (
+          <View style={styles.nutritionCardClean}>
+            <Text style={styles.nutritionTitleClean}>{isToday ? "Today's Nutrition" : `${selectedMealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}'s Nutrition`}</Text>
+            <View style={styles.nutritionStatsClean}>
+              <View style={styles.nutritionStatClean}>
+                <Text style={styles.nutritionValueClean}>{dayMeals.reduce((sum, m) => sum + (m.calories || 0), 0).toLocaleString()}</Text>
+                <Text style={styles.nutritionLabelClean}>Calories</Text>
+              </View>
+              <View style={styles.nutritionDividerClean} />
+              <View style={styles.nutritionStatClean}>
+                <Text style={styles.nutritionValueClean}>{dayMeals.reduce((sum, m) => sum + (m.protein || 0), 0)}g</Text>
+                <Text style={styles.nutritionLabelClean}>Protein</Text>
+              </View>
+              <View style={styles.nutritionDividerClean} />
+              <View style={styles.nutritionStatClean}>
+                <Text style={styles.nutritionValueClean}>{dayMeals.reduce((sum, m) => sum + (m.carbs || 0), 0)}g</Text>
+                <Text style={styles.nutritionLabelClean}>Carbs</Text>
+              </View>
+              <View style={styles.nutritionDividerClean} />
+              <View style={styles.nutritionStatClean}>
+                <Text style={styles.nutritionValueClean}>{dayMeals.reduce((sum, m) => sum + (m.fats || 0), 0)}g</Text>
+                <Text style={styles.nutritionLabelClean}>Fats</Text>
+              </View>
+            </View>
           </View>
-          <View style={styles.nutritionDividerClean} />
-          <View style={styles.nutritionStatClean}>
-            <Text style={styles.nutritionValueClean}>{recentMeals.filter(m => m.date === new Date().toDateString()).reduce((sum, m) => sum + (m.protein || 0), 0)}g</Text>
-            <Text style={styles.nutritionLabelClean}>Protein</Text>
-          </View>
-          <View style={styles.nutritionDividerClean} />
-          <View style={styles.nutritionStatClean}>
-            <Text style={styles.nutritionValueClean}>{recentMeals.filter(m => m.date === new Date().toDateString()).reduce((sum, m) => sum + (m.carbs || 0), 0)}g</Text>
-            <Text style={styles.nutritionLabelClean}>Carbs</Text>
-          </View>
-          <View style={styles.nutritionDividerClean} />
-          <View style={styles.nutritionStatClean}>
-            <Text style={styles.nutritionValueClean}>{recentMeals.filter(m => m.date === new Date().toDateString()).reduce((sum, m) => sum + (m.fats || 0), 0)}g</Text>
-            <Text style={styles.nutritionLabelClean}>Fats</Text>
-          </View>
-        </View>
-      </View>
+        );
+      })()}
 
-      {/* Recent Meals */}
+      {/* Meals for selected day */}
       <View style={styles.recentMealsSectionClean}>
-        <Text style={styles.recentMealsTitleClean}>Recent Meals</Text>
+        <Text style={styles.recentMealsTitleClean}>{selectedMealDate.toDateString() === new Date().toDateString() ? 'Recent Meals' : `Meals on ${selectedMealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}</Text>
         <View style={styles.recentMealsListClean}>
-          {recentMeals.length === 0 && (
+          {recentMeals.filter(m => m.date === selectedMealDate.toDateString()).length === 0 && (
             <View style={{ alignItems: 'center', paddingVertical: 32 }}>
               <Text style={{ fontSize: 36 }}>🍽️</Text>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 10 }}>No meals logged yet</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 10 }}>No meals logged</Text>
               <Text style={{ fontSize: 13, color: colors.subtext, marginTop: 4, textAlign: 'center' }}>
-                Tap "Log Meal" to add your first meal today
+                Tap "Log Meal" to add a meal for this day
               </Text>
             </View>
           )}
-          {recentMeals.map((meal) => {
+          {recentMeals.filter(m => m.date === selectedMealDate.toDateString()).map((meal) => {
             return (
               <TouchableOpacity
                 key={meal.id}
