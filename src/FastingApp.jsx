@@ -1554,6 +1554,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       <MakeRecipePage
         show={showMakeRecipePage}
         onClose={() => setShowMakeRecipePage(false)}
+        userCountry={userCountry}
         onLogMeal={(recipe) => {
           setShowMakeRecipePage(false);
           setLogMealMethod('write');

@@ -56,7 +56,7 @@ const scaleAmount = (amount, scale) => {
 
 // ── Recipe Detail Popup ──────────────────────────────────────────────────────
 
-const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal }) => {
+const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry }) => {
   const [servings, setServings] = useState(1);
 
   // Reset servings when recipe changes
@@ -66,6 +66,8 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal }) => {
 
   const scale = servings;
   const scaled = (val) => Math.round(val * scale);
+  const displayName = getLocalName(recipe, userCountry);
+  const isLocalised = displayName !== recipe.name;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -101,7 +103,10 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal }) => {
             <Text style={detail.categoryLabel}>{recipe.category.toUpperCase()}</Text>
 
             {/* Title + description */}
-            <Text style={detail.title}>{recipe.name}</Text>
+            <Text style={detail.title}>{displayName}</Text>
+            {isLocalised && (
+              <Text style={detail.altName}>{recipe.name}</Text>
+            )}
             <Text style={detail.description}>{recipe.description}</Text>
 
             {/* Serving adjuster */}
@@ -157,11 +162,13 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal }) => {
               ) : null}
             </View>
 
-            {/* Local names */}
-            {recipe.localNames?.length > 0 && (
+            {/* Also known as — other countries' names */}
+            {Object.keys(recipe.localNames || {}).length > 0 && (
               <View style={detail.localNamesRow}>
                 <Text style={detail.localNamesLabel}>Also known as: </Text>
-                <Text style={detail.localNamesText}>{recipe.localNames.join(' · ')}</Text>
+                <Text style={detail.localNamesText}>
+                  {[...new Set(Object.values(recipe.localNames))].filter(n => n !== displayName).join(' · ')}
+                </Text>
               </View>
             )}
 
@@ -226,7 +233,10 @@ const CATEGORY_META = {
   'High Protein': { emoji: '🏋️', subtitle: 'Fuel your muscles' },
 };
 
-const MakeRecipePage = ({ show, onClose, onLogMeal }) => {
+const getLocalName = (recipe, userCountry) =>
+  (userCountry && recipe.localNames?.[userCountry]) || recipe.name;
+
+const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   const [makeRecipeMethod, setMakeRecipeMethod] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState(null);
@@ -248,23 +258,30 @@ const MakeRecipePage = ({ show, onClose, onLogMeal }) => {
     setDetailVisible(true);
   };
 
-  const renderRecipeCard = (recipe) => (
-    <TouchableOpacity key={recipe.id} style={styles.recipeCard} onPress={() => openRecipe(recipe)}>
-      <View style={styles.recipeCardImg}>
-        <Text style={styles.recipeCardEmoji}>🍽️</Text>
-      </View>
-      {recipe.fastingFriendly && (
-        <View style={styles.recipeCardTag}>
-          <Text style={styles.recipeCardTagText}>Fasting ✓</Text>
+  const renderRecipeCard = (recipe) => {
+    const displayName = getLocalName(recipe, userCountry);
+    const isLocalised = displayName !== recipe.name;
+    return (
+      <TouchableOpacity key={recipe.id} style={styles.recipeCard} onPress={() => openRecipe(recipe)}>
+        <View style={styles.recipeCardImg}>
+          <Text style={styles.recipeCardEmoji}>🍽️</Text>
         </View>
-      )}
-      <Text style={styles.recipeCardName} numberOfLines={2}>{recipe.name}</Text>
-      <View style={styles.recipeCardMeta}>
-        <Text style={styles.recipeCardCal}>{recipe.calories} cal</Text>
-        {recipe.cookTime ? <Text style={styles.recipeCardTime}>{recipe.cookTime}</Text> : null}
-      </View>
-    </TouchableOpacity>
-  );
+        {recipe.fastingFriendly && (
+          <View style={styles.recipeCardTag}>
+            <Text style={styles.recipeCardTagText}>Fasting ✓</Text>
+          </View>
+        )}
+        <Text style={styles.recipeCardName} numberOfLines={2}>{displayName}</Text>
+        {isLocalised && (
+          <Text style={styles.recipeCardAltName} numberOfLines={1}>{recipe.name}</Text>
+        )}
+        <View style={styles.recipeCardMeta}>
+          <Text style={styles.recipeCardCal}>{recipe.calories} cal</Text>
+          {recipe.cookTime ? <Text style={styles.recipeCardTime}>{recipe.cookTime}</Text> : null}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (!show) return null;
 
@@ -361,6 +378,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal }) => {
         visible={detailVisible}
         onClose={() => setDetailVisible(false)}
         onLogMeal={onLogMeal}
+        userCountry={userCountry}
       />
     </View>
   );
@@ -435,6 +453,7 @@ const styles = StyleSheet.create({
   recipeCardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   recipeCardCal: { fontSize: 12, fontWeight: '600', color: '#059669' },
   recipeCardTime: { fontSize: 11, color: '#999' },
+  recipeCardAltName: { fontSize: 11, color: '#999', fontStyle: 'italic', marginTop: -2, marginBottom: 2 },
 });
 
 const detail = StyleSheet.create({
@@ -467,7 +486,8 @@ const detail = StyleSheet.create({
     fontSize: 11, fontWeight: '700', color: '#059669',
     letterSpacing: 1.2, marginBottom: 8,
   },
-  title: { fontSize: 24, fontWeight: '800', color: '#1F1F1F', lineHeight: 30, marginBottom: 8 },
+  title: { fontSize: 24, fontWeight: '800', color: '#1F1F1F', lineHeight: 30, marginBottom: 4 },
+  altName: { fontSize: 13, color: '#aaa', fontStyle: 'italic', marginBottom: 8 },
   description: { fontSize: 14, color: '#666', lineHeight: 21, marginBottom: 20 },
 
   servingRow: {

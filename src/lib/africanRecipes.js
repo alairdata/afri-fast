@@ -10,11 +10,13 @@ export const AFRICAN_RECIPES = [
       "Liberia",
       "Cameroon"
     ],
-    "localNames": [
-      "Pepper Soup (General)",
-      "Awoyo (Ghana)",
-      "Light Soup (Ghana Variant)"
-    ],
+    "localNames": {
+      "Nigeria": "Pepper Soup",
+      "Ghana": "Awoyo",
+      "Sierra Leone": "Pepper Soup",
+      "Liberia": "Pepper Soup",
+      "Cameroon": "Pepper Soup"
+    },
     "description": "A spicy, medicinal clear broth that aids digestion and provides light protein without heavy oils.",
     "calories": 180,
     "protein": 22,
@@ -83,10 +85,10 @@ export const AFRICAN_RECIPES = [
       "Ivory Coast",
       "Benin"
     ],
-    "localNames": [
-      "Boiled Yam and Egg Sauce (Nigeria)",
-      "Ampesi and Egg Stew (Ghana)"
-    ],
+    "localNames": {
+      "Nigeria": "Boiled Yam and Egg Sauce",
+      "Ghana": "Ampesi and Egg Stew"
+    },
     "description": "A classic staple pairing slow-release carbohydrates with high-quality protein for a filling meal.",
     "calories": 450,
     "protein": 16,
@@ -157,10 +159,12 @@ export const AFRICAN_RECIPES = [
       "Sierra Leone",
       "Gambia"
     ],
-    "localNames": [
-      "Oats (General)",
-      "Oatmeal Porridge"
-    ],
+    "localNames": {
+      "Ghana": "Oats",
+      "Nigeria": "Oats",
+      "Sierra Leone": "Oats",
+      "Gambia": "Oats"
+    },
     "description": "A thick, creamy breakfast porridge naturally sweetened with ripe bananas for a quick energy boost.",
     "calories": 310,
     "protein": 8,
@@ -219,11 +223,11 @@ export const AFRICAN_RECIPES = [
       "Benin",
       "Togo"
     ],
-    "localNames": [
-      "Moi Moi (Nigeria)",
-      "Alele (Ghana/Benin)",
-      "Moin Moin"
-    ],
+    "localNames": {
+      "Nigeria": "Moi Moi",
+      "Ghana": "Alele",
+      "Benin": "Alele"
+    },
     "description": "A nutrient-dense steamed bean pudding made from peeled brown beans and local spices.",
     "calories": 280,
     "protein": 18,
@@ -291,12 +295,12 @@ export const AFRICAN_RECIPES = [
       "Sierra Leone",
       "Gambia"
     ],
-    "localNames": [
-      "Koose (Ghana)",
-      "Akara (Nigeria)",
-      "Accra (Sierra Leone)",
-      "Bin-Aki (Gambia)"
-    ],
+    "localNames": {
+      "Ghana": "Koose",
+      "Nigeria": "Akara",
+      "Sierra Leone": "Accra",
+      "Gambia": "Bin-Aki"
+    },
     "description": "Fluffy, deep-fried bean cakes served alongside a smooth, fermented corn cream.",
     "calories": 410,
     "protein": 14,
@@ -361,11 +365,11 @@ export const AFRICAN_RECIPES = [
       "Liberia",
       "Sierra Leone"
     ],
-    "localNames": [
-      "Tea Bread and Fried Eggs (Ghana)",
-      "Bread and Egg (Nigeria)",
-      "Tapalapa and Egg (Gambia)"
-    ],
+    "localNames": {
+      "Ghana": "Tea Bread and Fried Eggs",
+      "Nigeria": "Bread and Egg",
+      "Gambia": "Tapalapa and Egg"
+    },
     "description": "Soft bread paired with a rich, vegetable-heavy fried egg sauce.",
     "calories": 520,
     "protein": 18,
@@ -424,10 +428,10 @@ export const AFRICAN_RECIPES = [
       "Ghana",
       "Nigeria"
     ],
-    "localNames": [
-      "Tom Brown (Ghana/Nigeria)",
-      "Roasted Corn Porridge"
-    ],
+    "localNames": {
+      "Ghana": "Tom Brown",
+      "Nigeria": "Tom Brown"
+    },
     "description": "A thick, nutty, multi-grain cereal made from roasted corn, groundnuts, and soybeans.",
     "calories": 380,
     "protein": 12,
@@ -479,11 +483,11 @@ export const AFRICAN_RECIPES = [
       "Togo",
       "Burkina Faso"
     ],
-    "localNames": [
-      "Hausa Koko (Ghana)",
-      "Kunu Zaki (Nigeria)",
-      "Koklo (Togo)"
-    ],
+    "localNames": {
+      "Ghana": "Hausa Koko",
+      "Nigeria": "Kunu Zaki",
+      "Togo": "Koklo"
+    },
     "description": "Spicy millet porridge flavored with ginger and cloves, served with savory bean cakes.",
     "calories": 440,
     "protein": 13,
@@ -532,11 +536,13 @@ export const AFRICAN_RECIPES = [
       "Gambia",
       "Sierra Leone"
     ],
-    "localNames": [
-      "Jollof Rice (Nigeria/Ghana)",
-      "Benachin (Gambia/Senegal)",
-      "Zaame (Burkina Faso)"
-    ],
+    "localNames": {
+      "Nigeria": "Jollof Rice",
+      "Ghana": "Jollof Rice",
+      "Gambia": "Benachin",
+      "Senegal": "Benachin",
+      "Burkina Faso": "Zaame"
+    },
     "description": "Long-grain rice simmered in a rich, smoky tomato and pepper base, served with seasoned fried chicken.",
     "calories": 650,
     "protein": 35,
@@ -615,10 +621,10 @@ export const AFRICAN_RECIPES = [
       "Benin",
       "Togo"
     ],
-    "localNames": [
-      "Egusi and Eba (Nigeria)",
-      "Agushi and Gari (Ghana)"
-    ],
+    "localNames": {
+      "Nigeria": "Egusi and Eba",
+      "Ghana": "Agushi and Gari"
+    },
     "description": "A nutty, protein-rich soup made from melon seeds and leafy greens, paired with a firm garri dough.",
     "calories": 720,
     "protein": 28,
@@ -688,10 +694,9 @@ export const AFRICAN_RECIPES = [
       "Togo",
       "Benin"
     ],
-    "localNames": [
-      "Banku and Grilled Tilapia (Ghana)",
-      "Etew (Ghana variant)"
-    ],
+    "localNames": {
+      "Ghana": "Banku and Grilled Tilapia"
+    },
     "description": "Fermented corn and cassava dough served with spicy grilled tilapia and fresh pepper sauce.",
     "calories": 580,
     "protein": 42,
@@ -752,10 +757,10 @@ export const AFRICAN_RECIPES = [
       "Togo",
       "Benin"
     ],
-    "localNames": [
-      "Waakye (Ghana)",
-      "Atchu (Togo)"
-    ],
+    "localNames": {
+      "Ghana": "Waakye",
+      "Togo": "Atchu"
+    },
     "description": "A nutritious dish of rice and beans cooked with dried sorghum leaves for a unique reddish-brown color.",
     "calories": 610,
     "protein": 20,
@@ -822,11 +827,10 @@ export const AFRICAN_RECIPES = [
       "Liberia",
       "Cameroon"
     ],
-    "localNames": [
-      "Fish Pepper Soup (Nigeria)",
-      "Awoyo (Ghana)",
-      "Point and Kill (Nigeria)"
-    ],
+    "localNames": {
+      "Nigeria": "Point and Kill",
+      "Ghana": "Awoyo"
+    },
     "description": "A light, spicy fish broth infused with aromatic local herbs.",
     "calories": 210,
     "protein": 28,
@@ -887,11 +891,10 @@ export const AFRICAN_RECIPES = [
       "Benin",
       "Togo"
     ],
-    "localNames": [
-      "Beans and Dodo (Nigeria)",
-      "Red Red (Ghana)",
-      "Gobɛ (Ghana)"
-    ],
+    "localNames": {
+      "Nigeria": "Beans and Dodo",
+      "Ghana": "Gobɛ"
+    },
     "description": "Protein-packed honey beans served with sweet, golden fried ripe plantains.",
     "calories": 540,
     "protein": 18,
@@ -952,11 +955,10 @@ export const AFRICAN_RECIPES = [
       "Togo",
       "Benin"
     ],
-    "localNames": [
-      "Okra Soup (Nigeria)",
-      "Okro & Fufu (Ghana)",
-      "Ila Alasepo (Nigeria)"
-    ],
+    "localNames": {
+      "Nigeria": "Ila Alasepo",
+      "Ghana": "Okro & Fufu"
+    },
     "description": "A 'drawy' vegetable soup with chopped okra and light proteins, served with soft fufu.",
     "calories": 480,
     "protein": 22,
@@ -1016,11 +1018,11 @@ export const AFRICAN_RECIPES = [
       "Cameroon",
       "Niger"
     ],
-    "localNames": [
-      "Suya (Nigeria)",
-      "Soya (Ghana)",
-      "Agashe (Sudan)"
-    ],
+    "localNames": {
+      "Nigeria": "Suya",
+      "Ghana": "Soya",
+      "Sudan": "Agashe"
+    },
     "description": "Spicy, skewered grilled beef coated in peanut spice (Yaji) served with fresh vegetables.",
     "calories": 380,
     "protein": 32,
@@ -1075,10 +1077,19 @@ export const AFRICAN_RECIPES = [
       "Ghana",
       "Cameroon"
     ],
-    "localNames": [
-      "Chin Chin (General)",
-      "Croquettes (French West Africa)"
-    ],
+    "localNames": {
+      "Nigeria": "Chin Chin",
+      "Ghana": "Chin Chin",
+      "Cameroon": "Chin Chin",
+      "Senegal": "Croquettes",
+      "Mali": "Croquettes",
+      "Burkina Faso": "Croquettes",
+      "Guinea": "Croquettes",
+      "Ivory Coast": "Croquettes",
+      "Benin": "Croquettes",
+      "Niger": "Croquettes",
+      "Togo": "Croquettes"
+    },
     "description": "Crunchy, sweet bite-sized dough cubes, baked instead of fried for a lighter snack.",
     "calories": 320,
     "protein": 6,
@@ -1144,12 +1155,12 @@ export const AFRICAN_RECIPES = [
       "Liberia",
       "Sierra Leone"
     ],
-    "localNames": [
-      "Puff Puff (Nigeria)",
-      "Bofrot (Ghana)",
-      "Kala (Liberia)",
-      "Mikate (Congo)"
-    ],
+    "localNames": {
+      "Nigeria": "Puff Puff",
+      "Ghana": "Bofrot",
+      "Liberia": "Kala",
+      "Congo": "Mikate"
+    },
     "description": "Deep-fried dough balls that are soft, chewy, and addictive.",
     "calories": 290,
     "protein": 4,
@@ -1210,10 +1221,10 @@ export const AFRICAN_RECIPES = [
       "Ghana",
       "Cameroon"
     ],
-    "localNames": [
-      "Boli (Nigeria)",
-      "Koli (Ghana)"
-    ],
+    "localNames": {
+      "Nigeria": "Boli",
+      "Ghana": "Koli"
+    },
     "description": "A smoky, sweet snack made from whole roasted ripe plantain.",
     "calories": 220,
     "protein": 2,
@@ -1254,10 +1265,7 @@ export const AFRICAN_RECIPES = [
     "countries": [
       "All West African countries"
     ],
-    "localNames": [
-      "Groundnut and Banana",
-      "Sida and Banana"
-    ],
+    "localNames": {},
     "description": "The ultimate quick West African combo: sweet creamy banana with salty roasted peanuts.",
     "calories": 350,
     "protein": 9,
@@ -1294,10 +1302,9 @@ export const AFRICAN_RECIPES = [
       "Ghana",
       "Benin"
     ],
-    "localNames": [
-      "Coconut Candy (Nigeria)",
-      "Kwose (Ghana variant)"
-    ],
+    "localNames": {
+      "Nigeria": "Coconut Candy"
+    },
     "description": "Hard, caramelized coconut shreds that are sweet, nutty, and crunchy.",
     "calories": 210,
     "protein": 2,
@@ -1341,11 +1348,10 @@ export const AFRICAN_RECIPES = [
       "Nigeria",
       "Sierra Leone"
     ],
-    "localNames": [
-      "Tatale (Ghana)",
-      "Banana Puff (Nigeria)",
-      "Kaklo (Ghana)"
-    ],
+    "localNames": {
+      "Ghana": "Kaklo",
+      "Nigeria": "Banana Puff"
+    },
     "description": "Spicy-sweet pancakes made from overripe bananas, perfect for using up fruit that's gone soft.",
     "calories": 280,
     "protein": 4,
@@ -1406,10 +1412,11 @@ export const AFRICAN_RECIPES = [
       "Benin",
       "Ghana"
     ],
-    "localNames": [
-      "Kuli Kuli (General)",
-      "Groundnut Cake"
-    ],
+    "localNames": {
+      "Nigeria": "Kuli Kuli",
+      "Benin": "Kuli Kuli",
+      "Ghana": "Kuli Kuli"
+    },
     "description": "Hard, spicy, crunchy rings or balls made from processed peanut paste.",
     "calories": 250,
     "protein": 12,
@@ -1461,9 +1468,7 @@ export const AFRICAN_RECIPES = [
       "Ghana",
       "Sierra Leone"
     ],
-    "localNames": [
-      "Sweet Potato Pudding"
-    ],
+    "localNames": {},
     "description": "A soft, baked or steamed spiced dessert made from local sweet potatoes and coconut milk.",
     "calories": 310,
     "protein": 3,
@@ -1520,11 +1525,11 @@ export const AFRICAN_RECIPES = [
       "Senegal",
       "Gambia"
     ],
-    "localNames": [
-      "Zobo (Nigeria)",
-      "Sobolo (Ghana)",
-      "Bissap (Senegal)"
-    ],
+    "localNames": {
+      "Nigeria": "Zobo",
+      "Ghana": "Sobolo",
+      "Senegal": "Bissap"
+    },
     "description": "A tart, refreshing hibiscus drink brewed with spices.",
     "calories": 80,
     "protein": 0,
@@ -1576,9 +1581,7 @@ export const AFRICAN_RECIPES = [
     "countries": [
       "Nigeria"
     ],
-    "localNames": [
-      "Chapman"
-    ],
+    "localNames": {},
     "description": "Nigeria's famous mocktail; a fizzy, fruity punch with a hint of bitters.",
     "calories": 150,
     "protein": 0,
@@ -1631,9 +1634,7 @@ export const AFRICAN_RECIPES = [
       "Nigeria",
       "Niger"
     ],
-    "localNames": [
-      "Kunu"
-    ],
+    "localNames": {},
     "description": "A creamy, spicy fermented drink made from millet and ginger.",
     "calories": 190,
     "protein": 0,
@@ -1682,9 +1683,7 @@ export const AFRICAN_RECIPES = [
     "countries": [
       "Universal"
     ],
-    "localNames": [
-      "Black Coffee"
-    ],
+    "localNames": {},
     "description": "Zero-calorie hot black coffee to maintain a fasting state.",
     "calories": 5,
     "protein": 0,
@@ -1718,9 +1717,7 @@ export const AFRICAN_RECIPES = [
     "countries": [
       "Universal"
     ],
-    "localNames": [
-      "Green Tea"
-    ],
+    "localNames": {},
     "description": "A light, antioxidant-rich tea that supports fasting.",
     "calories": 2,
     "protein": 0,
@@ -1754,9 +1751,7 @@ export const AFRICAN_RECIPES = [
     "countries": [
       "Universal"
     ],
-    "localNames": [
-      "Lemon Water"
-    ],
+    "localNames": {},
     "description": "A hydrating, low-calorie drink that supports digestion while fasting.",
     "calories": 10,
     "protein": 0,
@@ -1790,9 +1785,7 @@ export const AFRICAN_RECIPES = [
     "countries": [
       "Universal"
     ],
-    "localNames": [
-      "Ginger Lemon Tea"
-    ],
+    "localNames": {},
     "description": "A warming, anti-inflammatory brew perfect for breaking the overnight fast gently.",
     "calories": 15,
     "protein": 0,
@@ -1833,9 +1826,7 @@ export const AFRICAN_RECIPES = [
       "Ghana",
       "West Africa"
     ],
-    "localNames": [
-      "Noodles"
-    ],
+    "localNames": {},
     "description": "A beloved quick meal: instant noodles stir-fried with egg, onions, and pepper.",
     "calories": 380,
     "protein": 14,
@@ -1883,10 +1874,9 @@ export const AFRICAN_RECIPES = [
       "Nigeria",
       "Ghana"
     ],
-    "localNames": [
-      "Dodo and Egg (Nigeria)",
-      "Kelewele and Egg (Ghana Variant)"
-    ],
+    "localNames": {
+      "Nigeria": "Dodo and Egg"
+    },
     "description": "Golden fried plantain paired with a simple tomato egg scramble.",
     "calories": 420,
     "protein": 14,
@@ -1935,10 +1925,10 @@ export const AFRICAN_RECIPES = [
       "Nigeria",
       "Ghana"
     ],
-    "localNames": [
-      "Ewa Aganyin & Bread (Nigeria)",
-      "Gobɛ (Ghana)"
-    ],
+    "localNames": {
+      "Nigeria": "Ewa Aganyin & Bread",
+      "Ghana": "Gobɛ"
+    },
     "description": "Soft bread served with spicy palm oil beans — the ultimate street-food combo.",
     "calories": 480,
     "protein": 18,
@@ -1977,10 +1967,10 @@ export const AFRICAN_RECIPES = [
       "Nigeria",
       "Ghana"
     ],
-    "localNames": [
-      "Gari Soakings (Ghana)",
-      "Drinking Gari (Nigeria)"
-    ],
+    "localNames": {
+      "Ghana": "Gari Soakings",
+      "Nigeria": "Drinking Gari"
+    },
     "description": "The simplest West African snack-meal: cold soaked garri with peanuts and sugar.",
     "calories": 340,
     "protein": 10,
@@ -2026,10 +2016,12 @@ export const AFRICAN_RECIPES = [
       "Senegal",
       "Gambia"
     ],
-    "localNames": [
-      "Grilled Fish (General)",
-      "Roasted Fish"
-    ],
+    "localNames": {
+      "Ghana": "Grilled Fish",
+      "Nigeria": "Grilled Fish",
+      "Senegal": "Grilled Fish",
+      "Gambia": "Grilled Fish"
+    },
     "description": "Fresh Tilapia or Croaker seasoned with local herbs and grilled with zero deep-frying.",
     "calories": 320,
     "protein": 38,
@@ -2092,10 +2084,10 @@ export const AFRICAN_RECIPES = [
       "Nigeria",
       "Ivory Coast"
     ],
-    "localNames": [
-      "Ampesi and Agushi (Ghana)",
-      "Yam and Garden Egg Stew (Nigeria)"
-    ],
+    "localNames": {
+      "Ghana": "Ampesi and Agushi",
+      "Nigeria": "Yam and Garden Egg Stew"
+    },
     "description": "Soft boiled yam paired with a healthy stew made from African eggplants (garden eggs).",
     "calories": 380,
     "protein": 8,
@@ -2154,10 +2146,7 @@ export const AFRICAN_RECIPES = [
       "Nigeria",
       "Ghana"
     ],
-    "localNames": [
-      "Efo Riro (No oil/low carb variant)",
-      "Spinach and Egg"
-    ],
+    "localNames": {},
     "description": "A high-volume, low-calorie dish where spinach takes center stage instead of a heavy carb base.",
     "calories": 290,
     "protein": 22,
@@ -2213,10 +2202,9 @@ export const AFRICAN_RECIPES = [
       "Ghana",
       "Benin"
     ],
-    "localNames": [
-      "Okra Soup (No swallow)",
-      "Okro Soup (Ghana)"
-    ],
+    "localNames": {
+      "Ghana": "Okro Soup"
+    },
     "description": "A thick, savory soup eaten with a spoon like a stew rather than with a dough/swallow.",
     "calories": 260,
     "protein": 32,
@@ -2270,11 +2258,9 @@ export const AFRICAN_RECIPES = [
       "Ghana",
       "Benin"
     ],
-    "localNames": [
-      "Beans and Plantain",
-      "Gobɛ (Ghana)",
-      "Red Red (Ghana)"
-    ],
+    "localNames": {
+      "Ghana": "Red Red"
+    },
     "description": "A powerhouse of plant-based protein from honey beans, served with sweet fried plantain.",
     "calories": 580,
     "protein": 24,
@@ -2329,10 +2315,9 @@ export const AFRICAN_RECIPES = [
       "Nigeria",
       "Sierra Leone"
     ],
-    "localNames": [
-      "Corned Beef Stew (Ghana)",
-      "Egg and Corned Beef"
-    ],
+    "localNames": {
+      "Ghana": "Corned Beef Stew"
+    },
     "description": "A dense protein sauce made from eggs and savory corned beef, eaten with yam or bread.",
     "calories": 480,
     "protein": 32,
