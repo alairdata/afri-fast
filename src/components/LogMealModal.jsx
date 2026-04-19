@@ -403,7 +403,7 @@ const CI_FAST_BREAK = ['🥗 Light meal', '🍔 Heavy meal', '🥩 Protein-focus
 const CI_ACTIVITIES = ["🚫 Didn't exercise", '🚶🏿 Walking', '🧘🏿 Yoga / stretching', '🏋🏿 Gym', '🏃🏿 Cardio', '💪🏿 Strength training', '⚽ Sports'];
 const CI_OTHER = ['😓 Stress', '😴 Poor sleep', '😊 Good sleep', '✈️ Travel', '🧘🏿 Meditation', '🌬️ Breathwork', '🍷 Alcohol', '🎉 Social event', '🤒 Illness / injury'];
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, volumeUnit = 'glasses' }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, volumeUnit = 'glasses', recipeToLog = null }) => {
   const [showMiniCheckIn, setShowMiniCheckIn] = useState(false);
   const [miniFeelings, setMiniFeelings] = useState([]);
   const [miniFastingStatus, setMiniFastingStatus] = useState(null);
@@ -559,6 +559,33 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const [scanMsgIndex, setScanMsgIndex] = useState(0);
   const [sayMsgIndex, setSayMsgIndex] = useState(0);
   const [writeMsgIndex, setWriteMsgIndex] = useState(0);
+
+  // When opened with a pre-built recipe, skip straight to the share card
+  useEffect(() => {
+    if (!show || !recipeToLog) return;
+    const mealDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
+    const isToday = mealDate.toDateString() === new Date().toDateString();
+    const timeStr = `${isToday ? 'Today' : mealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${mealDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    const mealId = Date.now();
+    if (onSaveMeal) {
+      onSaveMeal({
+        id: mealId,
+        name: recipeToLog.name,
+        calories: recipeToLog.calories || 0,
+        protein: recipeToLog.protein || 0,
+        carbs: recipeToLog.carbs || 0,
+        fats: recipeToLog.fats || 0,
+        time: timeStr,
+        date: mealDate.toDateString(),
+        photo: recipeToLog.imageUrl || null,
+        method: 'recipe',
+        items: (recipeToLog.ingredients || []).map(i => i.name),
+      });
+    }
+    if (recipeToLog.imageUrl) setCapturedPhoto(recipeToLog.imageUrl);
+    setCapturedPhotoSize(null);
+    setScanPhase('shareCard');
+  }, [show, recipeToLog]);
 
   useEffect(() => {
     if (scanPhase !== 'results' || detectedFoods.length > 0 || scanError) return;

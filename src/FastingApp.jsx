@@ -172,6 +172,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [logMealMethod, setLogMealMethod] = useState(null);
   const [viewingMeal, setViewingMeal] = useState(null);
   const [makeRecipeMethod, setMakeRecipeMethod] = useState(null);
+  const [recipeToLog, setRecipeToLog] = useState(null);
 
   // === Check-in state ===
   const [feelings, setFeelings] = useState([]);
@@ -1447,8 +1448,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       {/* === Modals === */}
       <LogMealModal
         show={showLogMealModal}
-        onClose={() => { setShowLogMealModal(false); setViewingMeal(null); }}
+        onClose={() => { setShowLogMealModal(false); setViewingMeal(null); setRecipeToLog(null); }}
         logMealMethod={logMealMethod}
+        recipeToLog={recipeToLog}
         selectedMealDate={selectedMealDate}
         onSaveMeal={async (meal) => {
           if (meal._updatePhoto) {
@@ -1557,7 +1559,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         userCountry={userCountry}
         onLogMeal={(recipe) => {
           setShowMakeRecipePage(false);
-          setLogMealMethod('write');
+          setRecipeToLog(recipe);
+          setLogMealMethod('recipe');
           setShowLogMealModal(true);
         }}
       />
