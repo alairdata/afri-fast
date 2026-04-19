@@ -669,6 +669,11 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     resetScan();
     setDetectedFoods([]);
     setMealInput('');
+    // Clear mini check-in so next meal always opens blank
+    setMiniFeelings([]); setMiniFastingStatus(null); setMiniHungerLevel(null);
+    setMiniMoods([]); setMiniSymptoms([]); setMiniFastBreak([]);
+    setMiniActivities([]); setMiniOtherFactors([]);
+    setShowMiniCheckIn(false);
     onClose();
   };
 
@@ -1760,7 +1765,7 @@ Return ONLY raw JSON, no markdown, no explanation.`
           </ScrollView>
         )}
 
-        <ScrollView style={[styles.weightPageContent, (scanPhase === 'shareCard' || (logMealMethod === 'write' && writePhase !== 'idle' && writePhase !== 'detecting') || (logMealMethod === 'scan' && scanPhase === 'results')) && { display: 'none', flex: 0 }]}>
+        <ScrollView style={[styles.weightPageContent, (scanPhase === 'shareCard' || logMealMethod === 'write' || (logMealMethod === 'scan' && scanPhase === 'results')) && { display: 'none', flex: 0 }]}>
 
           {/* Say Method */}
           {logMealMethod === 'say' && (
