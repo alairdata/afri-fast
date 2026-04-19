@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, ActivityIndicator, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import FormattedText from '../lib/FormattedText';
 
 function TypingDots() {
   const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
@@ -224,9 +225,15 @@ const ChatScreen = ({
                   msg.role === 'user' ? styles.chatBubbleUser : styles.chatBubbleAssistant,
                 ]}
               >
-                <Text style={[styles.chatBubbleText, msg.role === 'user' ? { color: '#fff' } : { color: '#1F1F1F' }]}>
-                  {msg.content}
-                </Text>
+                {msg.role === 'user' ? (
+                  <Text style={[styles.chatBubbleText, { color: '#fff' }]}>{msg.content}</Text>
+                ) : (
+                  <FormattedText
+                    text={msg.content}
+                    bodyStyle={[styles.chatBubbleText, { color: '#1F1F1F' }]}
+                    paragraphSpacing={10}
+                  />
+                )}
               </View>
             </View>
           ))}

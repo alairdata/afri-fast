@@ -3,33 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, ActivityIndicator } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
-import { getDailyInsights, getJustForYou } from '../lib/claudeInsights';
+import { getCachedDailyInsights, refreshDailyInsights, getJustForYou } from '../lib/claudeInsights';
+import FormattedText from '../lib/FormattedText';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Renders text with **bold** markers and \n\n paragraph breaks
-const FormattedText = ({ text, bodyStyle, paragraphSpacing = 14 }) => {
-  if (!text) return null;
-  const paragraphs = text.split('\n\n').filter(p => p.trim());
-  return (
-    <>
-      {paragraphs.map((para, pi) => {
-        // Parse **bold** within each paragraph
-        const parts = para.split(/(\*\*[^*]+\*\*)/g);
-        return (
-          <Text key={pi} style={[bodyStyle, pi > 0 && { marginTop: paragraphSpacing }]}>
-            {parts.map((part, i) => {
-              if (part.startsWith('**') && part.endsWith('**')) {
-                return <Text key={i} style={{ fontWeight: '700' }}>{part.slice(2, -2)}</Text>;
-              }
-              return part;
-            })}
-          </Text>
-        );
-      })}
-    </>
-  );
-};
 
 const TypewriterText = ({ text, style, numberOfLines, delay = 0 }) => {
   const [displayed, setDisplayed] = useState('');
@@ -137,15 +115,26 @@ const TodayTab = ({
       weightLogs: weightLogs || [],
       waterLogs: waterLogs || [],
     };
-    setInsightLoading(true);
-    setJfyLoading(true);
-    getDailyInsights(payload)
-      .then(result => {
-        setDailyInsightCards(result?.cards || null);
-        if (result?.alertCard) setClaudeAlertCard(result.alertCard);
+
+    // 1. Show cached insights immediately if available
+    getCachedDailyInsights(userId).then(cached => {
+      if (cached?.cards?.length) {
+        setDailyInsightCards(cached.cards);
+        if (cached.alertCard) setClaudeAlertCard(cached.alertCard);
         setInsightLoading(false);
-      })
-      .catch(() => setInsightLoading(false));
+      }
+    });
+
+    // 2. Refresh in background — update cards when ready
+    refreshDailyInsights(payload).then(result => {
+      if (result?.cards?.length) {
+        setDailyInsightCards(result.cards);
+        if (result.alertCard) setClaudeAlertCard(result.alertCard);
+      }
+      setInsightLoading(false);
+    }).catch(() => setInsightLoading(false));
+
+    setJfyLoading(true);
     getJustForYou(payload)
       .then(cards => { setJustForYouCards(cards); setJfyLoading(false); })
       .catch(() => setJfyLoading(false));
@@ -543,11 +532,11 @@ const TodayTab = ({
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <Text style={styles.sectionTitleTight}>Today's Insights</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.insightsScrollCompact}>
-            {insightLoading ? (
+            {insightLoading && !dailyInsightCards ? (
               <View style={[styles.insightCardCompact, { justifyContent: 'center', alignItems: 'center' }]}>
                 <ActivityIndicator size="small" color="#059669" />
               </View>
-            ) : (dailyInsightCards || insights).map((insight, i) => (
+            ) : (dailyInsightCards || []).map((insight, i) => (
               <TouchableOpacity
                 key={i}
                 style={[styles.insightCardCompact, { backgroundColor: isDark ? colors.card : (insight.color || '#E8F5E9') }]}
