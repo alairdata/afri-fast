@@ -7,6 +7,30 @@ import { getDailyInsights, getJustForYou } from '../lib/claudeInsights';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Renders text with **bold** markers and \n\n paragraph breaks
+const FormattedText = ({ text, bodyStyle, paragraphSpacing = 14 }) => {
+  if (!text) return null;
+  const paragraphs = text.split('\n\n').filter(p => p.trim());
+  return (
+    <>
+      {paragraphs.map((para, pi) => {
+        // Parse **bold** within each paragraph
+        const parts = para.split(/(\*\*[^*]+\*\*)/g);
+        return (
+          <Text key={pi} style={[bodyStyle, pi > 0 && { marginTop: paragraphSpacing }]}>
+            {parts.map((part, i) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return <Text key={i} style={{ fontWeight: '700' }}>{part.slice(2, -2)}</Text>;
+              }
+              return part;
+            })}
+          </Text>
+        );
+      })}
+    </>
+  );
+};
+
 const TypewriterText = ({ text, style, numberOfLines, delay = 0 }) => {
   const [displayed, setDisplayed] = useState('');
 
@@ -752,13 +776,22 @@ const TodayTab = ({
               </View>
               <View style={styles.insightDetailSection}>
                 <Text style={styles.insightDetailLabel}>WHY THIS IS HAPPENING</Text>
-                <Text style={styles.insightDetailBody}>{selectedInsight.why}</Text>
+                <FormattedText text={selectedInsight.why} bodyStyle={styles.insightDetailBody} />
               </View>
               <View style={styles.insightDetailSection}>
                 <Text style={styles.insightDetailLabel}>WHAT TO DO</Text>
-                <Text style={styles.insightDetailBody}>{selectedInsight.action}</Text>
+                <FormattedText text={selectedInsight.action} bodyStyle={styles.insightDetailBody} />
               </View>
-              <View style={{ height: 60 }} />
+              <TouchableOpacity
+                style={styles.insightCoachBtn}
+                onPress={() => {
+                  setSelectedInsight(null);
+                  onShowChat(`${selectedInsight.feeling}\n\n${selectedInsight.why}`);
+                }}
+              >
+                <Text style={styles.insightCoachBtnText}>Talk to coach about this</Text>
+              </TouchableOpacity>
+              <View style={{ height: 40 }} />
             </ScrollView>
           )}
         </View>
@@ -1150,6 +1183,20 @@ const makeStyles = (c) => StyleSheet.create({
     lineHeight: 26,
     color: c.text,
     letterSpacing: 0.1,
+  },
+  insightCoachBtn: {
+    marginTop: 32,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    backgroundColor: '#059669',
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  insightCoachBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   eduScrollCompact: {
     marginHorizontal: -20,

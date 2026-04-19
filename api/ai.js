@@ -70,6 +70,7 @@ Rules:
 - The why section MUST include specific evidence: exact dates, exact numbers, exact meal names where relevant — this is what makes the insight feel real, not generic
 - If they recovered from a similar pattern before, mention it — give them that anchor
 - Vary the emotional tone across cards — one card can be matter-of-fact, another soft, another a little playful
+- Format the "why" and "action" fields for readability: use \n\n to separate distinct thoughts into paragraphs. Use **bold** to highlight key numbers, dates, or the single most important phrase in a sentence. Keep it natural — do not over-bold. Think of it like how a thoughtful person would write a personal note, not a report.
 - Generate 3-4 insight cards based on real observations, then always add one final GOAL TRAJECTORY card as the last card
 - Never give more than one thing to do per card
 
