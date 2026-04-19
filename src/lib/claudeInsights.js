@@ -40,10 +40,12 @@ async function saveCache(cacheKey, userId, payload) {
 }
 
 // Returns last cached daily insights immediately (no TTL — keep forever until replaced)
+// Only returns if cards are the new format (have a 'feeling' field)
 export async function getCachedDailyInsights(userId) {
   if (!userId) return null;
   const cached = await getCached(DAILY_CACHE_KEY, userId);
   if (!cached?.cards?.length) return null;
+  if (!cached.cards[0]?.feeling) return null; // old format — ignore
   return { cards: cached.cards, alertCard: cached.alertCard || null };
 }
 
