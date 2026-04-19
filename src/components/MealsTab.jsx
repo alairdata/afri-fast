@@ -17,7 +17,7 @@ const REVIEWS = [
   { name: 'Yemi D.', text: 'Tracked amala and ewedu for a week. The numbers matched what my nutritionist said. Impressive.', stars: 5 },
 ];
 
-const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onMakeRecipe, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked, checkInHistory = [], onShowCheckInPage, volumeUnit = 'glasses' }) => {
+const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onMakeRecipe, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
@@ -166,61 +166,6 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
                 <Text style={styles.nutritionLabelClean}>Fats</Text>
               </View>
             </View>
-          </View>
-        );
-      })()}
-
-      {/* Check-in widget */}
-      {(() => {
-        const selectedDateStr = selectedMealDate.toDateString();
-        const todayStr = new Date().toDateString();
-        if (selectedDateStr > todayStr) return null;
-        const checkIns = checkInHistory.filter(c => c.date === selectedDateStr);
-        const hasCheckIns = checkIns.length > 0;
-        const ci = hasCheckIns ? checkIns[0] : null;
-        const allItems = ci ? [
-          ...(ci.feelings || []),
-          ...(ci.hungerLevel ? [ci.hungerLevel] : []),
-          ...(ci.moods || []),
-          ...(ci.symptoms || []),
-          ...(ci.fastBreak || []),
-          ...(ci.fastingStatus ? [ci.fastingStatus] : []),
-        ] : [];
-        const emojis = allItems.map(item => {
-          const spaceIdx = item.indexOf(' ');
-          return spaceIdx > 0 ? item.slice(0, spaceIdx) : null;
-        }).filter(Boolean);
-
-        return (
-          <View style={styles.checkInWidget}>
-            <Text style={styles.checkInWidgetTitle}>How are you feeling?</Text>
-            {hasCheckIns ? (
-              <View style={styles.checkInRow}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ alignItems: 'center', gap: 8, paddingRight: 8 }}>
-                  {emojis.map((emoji, i) => (
-                    <View key={i} style={[styles.checkInEmojiCircle, { backgroundColor: i % 2 === 0 ? '#ECFDF5' : '#FFF7ED' }]}>
-                      <Text style={{ fontSize: 18 }}>{emoji}</Text>
-                    </View>
-                  ))}
-                  {ci.waterCount > 0 && (
-                    <View style={styles.checkInWaterBadge}>
-                      <Ionicons name="water" size={14} color="#3B82F6" />
-                      <Text style={{ fontSize: 12, color: '#3B82F6', fontWeight: '600', marginLeft: 2 }}>{ci.waterCount} {volumeUnit}</Text>
-                    </View>
-                  )}
-                </ScrollView>
-                <TouchableOpacity style={styles.checkInAddBtn} onPress={onShowCheckInPage}>
-                  <Ionicons name="add" size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity style={styles.checkInEmpty} onPress={onShowCheckInPage} activeOpacity={0.7}>
-                <Text style={styles.checkInEmptyText}>No check-in recorded</Text>
-                <View style={styles.checkInAddBtn}>
-                  <Ionicons name="add" size={20} color="#fff" />
-                </View>
-              </TouchableOpacity>
-            )}
           </View>
         );
       })()}
@@ -644,59 +589,6 @@ const makeStyles = (c) => StyleSheet.create({
     color: c.textMuted,
     fontWeight: '600',
     marginTop: 8,
-  },
-  checkInWidget: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: c.card,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  checkInWidgetTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: c.textSecondary,
-    marginBottom: 10,
-  },
-  checkInRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkInEmojiCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkInWaterBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  checkInAddBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-    flexShrink: 0,
-  },
-  checkInEmpty: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  checkInEmptyText: {
-    fontSize: 13,
-    color: c.textMuted,
   },
   nutritionCardClean: {
     backgroundColor: '#059669',
