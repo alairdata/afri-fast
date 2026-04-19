@@ -2378,5 +2378,377 @@ export const RECIPE_CATEGORIES = [
   "Quick & Easy",
   "Low Fat",
   "Low Carb",
-  "High Protein",
+  "High Protein",,
+{
+  "id": 43,
+  "name": "Suya Platter",
+  "category": "High Protein",
+  "countries": [
+    "Nigeria",
+    "Ghana",
+    "Cameroon",
+    "Niger"
+  ],
+  "localNames": {
+    "Nigeria": "Suya",
+    "Ghana": "Soya",
+    "Cameroon": "Soya",
+    "Sudan": "Agashe",
+    "Chad": "Agashe"
+  },
+  "description": "A protein-heavy feast of spicy skewered beef, served with extra Yaji spice and fresh garnishes.",
+  "calories": 450,
+  "protein": 42,
+  "carbs": 8,
+  "fats": 28,
+  "prepTime": "40 min",
+  "cookTime": "15 min",
+  "servings": 1,
+  "yield": "5-6 skewers",
+  "ingredients": [
+    {
+      "name": "Lean Beef (Sirloin or Flank)",
+      "amount": "300g (thinly sliced)"
+    },
+    {
+      "name": "Suya Spice (Yaji)",
+      "amount": "4 tbsp"
+    },
+    {
+      "name": "Vegetable Oil",
+      "amount": "2 tbsp (for brushing)"
+    },
+    {
+      "name": "Red Onion",
+      "amount": "1/2 bulb (sliced)"
+    },
+    {
+      "name": "Tomato",
+      "amount": "1 medium (sliced)"
+    },
+    {
+      "name": "Cucumber",
+      "amount": "1/4 finger (sliced)"
+    }
+  ],
+  "instructions": [
+    "Slice the beef into very thin, wide strips. Thread them tightly onto wooden skewers.",
+    "Dredge the skewers in the Suya spice, pressing the powder into the meat so it sticks heavily. Let it marinate for 30 minutes.",
+    "Preheat your grill or oven to 220°C. Brush the meat lightly with oil.",
+    "Grill for 12-15 minutes, flipping once, until the meat is cooked and the spice forms a dry, fragrant crust.",
+    "Serve the skewers on a platter with the sliced onions, tomatoes, and cucumbers to help balance the heat."
+  ],
+  "imageFilename": "suya-platter.jpg",
+  "fastingFriendly": false
+},
+{
+  "id": 44,
+  "name": "Grilled Tilapia & Yam",
+  "category": "High Protein",
+  "countries": [
+    "Ghana",
+    "Nigeria",
+    "Ivory Coast"
+  ],
+  "localNames": {
+    "Ghana": "Grilled Fish and Yam",
+    "Nigeria": "Grilled Fish and Yam",
+    "Ivory Coast": "Grilled Fish and Yam"
+  },
+  "description": "A massive whole tilapia packed with lean protein, served with energy-dense boiled yam.",
+  "calories": 580,
+  "protein": 45,
+  "carbs": 65,
+  "fats": 12,
+  "prepTime": "30 min",
+  "cookTime": "30 min",
+  "servings": 1,
+  "yield": "1 whole fish + 2 yam slices",
+  "ingredients": [
+    {
+      "name": "Whole Tilapia",
+      "amount": "1 medium (approx. 400g)"
+    },
+    {
+      "name": "Puna Yam",
+      "amount": "2 medium slices"
+    },
+    {
+      "name": "Ginger/Garlic paste",
+      "amount": "1 tbsp"
+    },
+    {
+      "name": "Fresh Pepper",
+      "amount": "2 pieces (crushed)"
+    },
+    {
+      "name": "Onion",
+      "amount": "1/2 bulb (grated)"
+    },
+    {
+      "name": "Lemon",
+      "amount": "1/2 piece"
+    },
+    {
+      "name": "Salt/Seasoning",
+      "amount": "To taste"
+    }
+  ],
+  "instructions": [
+    "Clean the tilapia and make 3-4 deep diagonal cuts on each side. Rub with lemon, salt, ginger, garlic, and crushed pepper. Marinate for 20 minutes.",
+    "Peel the yam slices and boil in salted water for 20-25 minutes until a fork goes through easily.",
+    "While yam boils, grill the fish over medium-high heat. Brush with the onion/pepper mix.",
+    "Grill for 15 minutes per side until the skin is crispy and the flesh is white and flaky.",
+    "Plate the whole fish alongside the hot boiled yam."
+  ],
+  "imageFilename": "grilled-tilapia-yam.jpg",
+  "fastingFriendly": false
+},
+{
+  "id": 45,
+  "name": "Suya & Cabbage Salad",
+  "category": "Low Carb",
+  "countries": [
+    "Nigeria",
+    "Ghana"
+  ],
+  "localNames": {
+    "Nigeria": "Suya Salad",
+    "Ghana": "Suya Salad"
+  },
+  "description": "A crunchy, high-fiber salad topped with spicy grilled beef strips, replacing heavy starches with greens.",
+  "calories": 340,
+  "protein": 32,
+  "carbs": 10,
+  "fats": 18,
+  "prepTime": "15 min",
+  "cookTime": "0 min",
+  "servings": 1,
+  "yield": "1 large bowl",
+  "ingredients": [
+    {
+      "name": "Grilled Suya Beef",
+      "amount": "150g (sliced)"
+    },
+    {
+      "name": "Cabbage",
+      "amount": "2 cups (finely shredded)"
+    },
+    {
+      "name": "Carrot",
+      "amount": "1 small (grated)"
+    },
+    {
+      "name": "Red Onion",
+      "amount": "1/4 bulb (thinly sliced)"
+    },
+    {
+      "name": "Apple Cider Vinegar or Lemon",
+      "amount": "1 tbsp (optional dressing)"
+    },
+    {
+      "name": "Extra Suya Spice",
+      "amount": "1 tsp"
+    }
+  ],
+  "instructions": [
+    "Prepare or reheat your suya beef strips.",
+    "In a large bowl, toss the shredded cabbage, grated carrots, and sliced onions.",
+    "Drizzle with lemon juice or vinegar for a bit of tang without adding sugar.",
+    "Place the warm suya strips on top of the cold salad.",
+    "Sprinkle a little extra Yaji spice over the entire bowl and toss gently before eating."
+  ],
+  "imageFilename": "suya-cabbage-salad.jpg",
+  "fastingFriendly": false
+},
+{
+  "id": 46,
+  "name": "Grilled Chicken & Avocado",
+  "category": "Low Carb",
+  "countries": [
+    "Nigeria",
+    "Ghana"
+  ],
+  "localNames": {
+    "Nigeria": "Chicken and Pear",
+    "Ghana": "Chicken and Pear"
+  },
+  "description": "Juicy grilled chicken breast paired with creamy avocado for healthy fats and high protein with zero starch.",
+  "calories": 410,
+  "protein": 35,
+  "carbs": 7,
+  "fats": 26,
+  "prepTime": "10 min",
+  "cookTime": "15 min",
+  "servings": 1,
+  "yield": "1 plate",
+  "ingredients": [
+    {
+      "name": "Chicken Breast",
+      "amount": "1 large piece"
+    },
+    {
+      "name": "Ripe Avocado (Pear)",
+      "amount": "1/2 medium"
+    },
+    {
+      "name": "Lemon/Lime",
+      "amount": "1/2 piece"
+    },
+    {
+      "name": "Garlic powder",
+      "amount": "1/2 tsp"
+    },
+    {
+      "name": "Black Pepper",
+      "amount": "1/2 tsp"
+    },
+    {
+      "name": "Salt",
+      "amount": "To taste"
+    },
+    {
+      "name": "Vegetable Oil",
+      "amount": "1 tsp (for the pan)"
+    }
+  ],
+  "instructions": [
+    "Season the chicken breast with salt, garlic, pepper, and a squeeze of lemon.",
+    "Heat a grill pan with 1 tsp of oil and sear the chicken for 6-8 minutes per side until fully cooked and juicy.",
+    "While the chicken rests, slice the avocado into thin wedges.",
+    "Plate the sliced chicken next to the avocado.",
+    "Squeeze a little lime over the avocado to keep it from browning and add a pinch of salt."
+  ],
+  "imageFilename": "chicken-avocado.jpg",
+  "fastingFriendly": false
+},
+{
+  "id": 47,
+  "name": "Steamed Moi Moi",
+  "category": "Low Fat",
+  "countries": [
+    "Nigeria",
+    "Ghana",
+    "Benin"
+  ],
+  "localNames": {
+    "Nigeria": "Moi Moi",
+    "Ghana": "Alele",
+    "Benin": "Alele"
+  },
+  "description": "A savory, steamed bean pudding made with zero oil for a heart-healthy, high-protein meal.",
+  "calories": 240,
+  "protein": 16,
+  "carbs": 40,
+  "fats": 2,
+  "prepTime": "45 min",
+  "cookTime": "50 min",
+  "servings": 1,
+  "yield": "1 container",
+  "ingredients": [
+    {
+      "name": "Brown Beans",
+      "amount": "1 milk tin (peeled)"
+    },
+    {
+      "name": "Tatashe (Bell pepper)",
+      "amount": "1 piece"
+    },
+    {
+      "name": "Onion",
+      "amount": "1/2 bulb"
+    },
+    {
+      "name": "Crayfish",
+      "amount": "1 tbsp"
+    },
+    {
+      "name": "Salt/Seasoning",
+      "amount": "To taste"
+    },
+    {
+      "name": "Hard-boiled Egg",
+      "amount": "1 (optional)"
+    },
+    {
+      "name": "Water",
+      "amount": "1/2 cup (for blending)"
+    }
+  ],
+  "instructions": [
+    "Peel the beans by soaking and rubbing them until the skins float away. Rinse clean.",
+    "Blend the beans, tatashe, and onion with 1/2 cup of water until perfectly smooth and creamy.",
+    "Pour into a bowl and whisk with a wooden spoon for 5 minutes to incorporate air - this makes it fluffy without needing oil.",
+    "Add salt, seasoning, and crayfish. Stir well.",
+    "Pour into a small foil container or heat-proof bowl. Drop in the boiled egg.",
+    "Place in a pot with 1 inch of water and steam for 45-50 minutes. Make sure the pot does not run dry.",
+    "The Moi Moi is ready when it is firm to the touch."
+  ],
+  "imageFilename": "steamed-moi-moi.jpg",
+  "fastingFriendly": false
+},
+{
+  "id": 48,
+  "name": "Pepper Soup (No Oil)",
+  "category": "Low Fat",
+  "countries": [
+    "Nigeria",
+    "Ghana",
+    "Sierra Leone"
+  ],
+  "localNames": {
+    "Nigeria": "Pepper Soup",
+    "Ghana": "Light Soup",
+    "Sierra Leone": "Pepper Soup"
+  },
+  "description": "A spicy, clear broth made with lean protein and medicinal spices, containing no added fats or oils.",
+  "calories": 190,
+  "protein": 26,
+  "carbs": 4,
+  "fats": 7,
+  "prepTime": "15 min",
+  "cookTime": "25 min",
+  "servings": 1,
+  "yield": "1 bowl",
+  "ingredients": [
+    {
+      "name": "Lean Beef or Tilapia",
+      "amount": "2 medium chunks"
+    },
+    {
+      "name": "Pepper Soup Spice",
+      "amount": "1 tsp"
+    },
+    {
+      "name": "Scent Leaves",
+      "amount": "5 leaves (shredded)"
+    },
+    {
+      "name": "Fresh Pepper",
+      "amount": "1 piece (crushed)"
+    },
+    {
+      "name": "Onion",
+      "amount": "1/4 bulb (diced)"
+    },
+    {
+      "name": "Water",
+      "amount": "3 cups"
+    },
+    {
+      "name": "Salt/Seasoning",
+      "amount": "To taste"
+    }
+  ],
+  "instructions": [
+    "Wash your meat or fish thoroughly.",
+    "Place in a pot with the onions, crushed pepper, and a bit of seasoning. Steam for 5 minutes so the flavors soak in.",
+    "Add the 3 cups of water and the pepper soup spice. Bring to a boil.",
+    "Simmer for 20 minutes (if beef) or 10 minutes (if fish) until the protein is tender.",
+    "Add the shredded scent leaves at the last minute for aroma.",
+    "Serve hot in a bowl."
+  ],
+  "imageFilename": "pepper-soup-no-oil.jpg",
+  "fastingFriendly": false
+}
 ];
