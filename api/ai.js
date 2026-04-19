@@ -177,11 +177,20 @@ function preprocessData(data) {
       const meals = mealsByWeek[w] || [];
       const label = w === 0 ? 'This week' : w === 1 ? 'Last week' : `${w} weeks ago`;
       if (meals.length > 0) {
-        const avgCal = Math.round(meals.reduce((s, m) => s + (m.calories || 0), 0) / meals.length);
-        const avgProt = Math.round(meals.reduce((s, m) => s + (m.protein || 0), 0) / meals.length);
-        const avgCarb = Math.round(meals.reduce((s, m) => s + (m.carbs || 0), 0) / meals.length);
+        // Group by day to get daily totals, then average across days
+        const byDay = {};
+        meals.forEach(m => {
+          if (!byDay[m.date]) byDay[m.date] = { cal: 0, prot: 0, carb: 0 };
+          byDay[m.date].cal += (m.calories || 0);
+          byDay[m.date].prot += (m.protein || 0);
+          byDay[m.date].carb += (m.carbs || 0);
+        });
+        const days = Object.values(byDay);
+        const avgDailyCal = Math.round(days.reduce((s, d) => s + d.cal, 0) / days.length);
+        const avgDailyProt = Math.round(days.reduce((s, d) => s + d.prot, 0) / days.length);
+        const avgDailyCarb = Math.round(days.reduce((s, d) => s + d.carb, 0) / days.length);
         const mealList = meals.map(m => `${m.name}(${m.calories}cal,${m.protein || 0}g prot)`).join('; ');
-        lines.push(`  ${label}: ${meals.length} meals | avg ${avgCal} kcal | avg ${avgProt}g protein | avg ${avgCarb}g carbs`);
+        lines.push(`  ${label}: ${meals.length} meals across ${days.length} days | avg daily intake: ${avgDailyCal} kcal | avg ${avgDailyProt}g protein | avg ${avgDailyCarb}g carbs`);
         lines.push(`    Meals: ${mealList}`);
       } else {
         lines.push(`  ${label}: no meals logged`);
