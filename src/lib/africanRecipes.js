@@ -23,7 +23,7 @@ export const AFRICAN_RECIPES = [
     "prepTime": "15 min",
     "cookTime": "30 min",
     "servings": 1,
-    "yield": "",
+    "yield": "1 bowl",
     "ingredients": [
       {
         "name": "Fresh Tilapia or Lean Beef",
@@ -95,7 +95,7 @@ export const AFRICAN_RECIPES = [
     "prepTime": "15 min",
     "cookTime": "25 min",
     "servings": 1,
-    "yield": "",
+    "yield": "1 plate",
     "ingredients": [
       {
         "name": "Puna Yam",
@@ -169,7 +169,7 @@ export const AFRICAN_RECIPES = [
     "prepTime": "5 min",
     "cookTime": "12 min",
     "servings": 1,
-    "yield": "",
+    "yield": "1 bowl",
     "ingredients": [
       {
         "name": "Rolled or Quick Oats",
@@ -232,7 +232,7 @@ export const AFRICAN_RECIPES = [
     "prepTime": "45 min",
     "cookTime": "45 min",
     "servings": 1,
-    "yield": "",
+    "yield": "1 portion",
     "ingredients": [
       {
         "name": "Brown or White Beans",
@@ -305,7 +305,7 @@ export const AFRICAN_RECIPES = [
     "prepTime": "45 min",
     "cookTime": "20 min",
     "servings": 1,
-    "yield": "",
+    "yield": "1 plate",
     "ingredients": [
       {
         "name": "Brown Beans",
@@ -374,7 +374,7 @@ export const AFRICAN_RECIPES = [
     "prepTime": "15 min",
     "cookTime": "15 min",
     "servings": 1,
-    "yield": "",
+    "yield": "1 plate",
     "ingredients": [
       {
         "name": "Fresh Bread",
@@ -436,7 +436,7 @@ export const AFRICAN_RECIPES = [
     "prepTime": "5 min",
     "cookTime": "12 min",
     "servings": 1,
-    "yield": "",
+    "yield": "1 bowl",
     "ingredients": [
       {
         "name": "Tom Brown Powder",
@@ -492,7 +492,7 @@ export const AFRICAN_RECIPES = [
     "prepTime": "10 min",
     "cookTime": "10 min",
     "servings": 1,
-    "yield": "",
+    "yield": "1 bowl",
     "ingredients": [
       {
         "name": "Fermented Millet Paste",

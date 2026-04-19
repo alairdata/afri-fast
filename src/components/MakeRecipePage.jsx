@@ -7,7 +7,15 @@ import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
 // ── Recipe Detail Popup ──────────────────────────────────────────────────────
 
 const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal }) => {
+  const [servings, setServings] = useState(1);
+
+  // Reset servings when recipe changes
+  React.useEffect(() => { setServings(1); }, [recipe?.id]);
+
   if (!recipe) return null;
+
+  const scale = servings;
+  const scaled = (val) => Math.round(val * scale);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -18,7 +26,7 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal }) => {
             <Text style={detail.closeX}>✕</Text>
           </TouchableOpacity>
           {onLogMeal && (
-            <TouchableOpacity style={detail.logBtn} onPress={() => { onLogMeal(recipe); onClose(); }}>
+            <TouchableOpacity style={detail.logBtn} onPress={() => { onLogMeal({ ...recipe, calories: scaled(recipe.calories), protein: scaled(recipe.protein), carbs: scaled(recipe.carbs), fats: scaled(recipe.fats), servings }); onClose(); }}>
               <Text style={detail.logBtnText}>Log Meal</Text>
             </TouchableOpacity>
           )}
@@ -46,13 +54,35 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal }) => {
             <Text style={detail.title}>{recipe.name}</Text>
             <Text style={detail.description}>{recipe.description}</Text>
 
+            {/* Serving adjuster */}
+            <View style={detail.servingRow}>
+              <Text style={detail.servingLabel}>Servings</Text>
+              <View style={detail.servingControls}>
+                <TouchableOpacity
+                  style={[detail.servingBtn, servings <= 0.5 && { opacity: 0.3 }]}
+                  onPress={() => setServings(s => Math.max(0.5, parseFloat((s - 0.5).toFixed(1))))}
+                  disabled={servings <= 0.5}
+                >
+                  <Text style={detail.servingBtnText}>−</Text>
+                </TouchableOpacity>
+                <Text style={detail.servingCount}>{servings}</Text>
+                <TouchableOpacity
+                  style={detail.servingBtn}
+                  onPress={() => setServings(s => parseFloat((s + 0.5).toFixed(1)))}
+                >
+                  <Text style={detail.servingBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={detail.servingYield}>{recipe.yield}</Text>
+            </View>
+
             {/* Nutrition row */}
             <View style={detail.nutritionRow}>
               {[
-                { val: recipe.calories, unit: 'kcal' },
-                { val: `${recipe.protein}g`, unit: 'protein' },
-                { val: `${recipe.carbs}g`, unit: 'carbs' },
-                { val: `${recipe.fats}g`, unit: 'fats' },
+                { val: scaled(recipe.calories), unit: 'kcal' },
+                { val: `${scaled(recipe.protein)}g`, unit: 'protein' },
+                { val: `${scaled(recipe.carbs)}g`, unit: 'carbs' },
+                { val: `${scaled(recipe.fats)}g`, unit: 'fats' },
               ].map((n, i) => (
                 <View key={i} style={detail.nutritionBox}>
                   <Text style={detail.nutritionVal}>{n.val}</Text>
@@ -73,12 +103,6 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal }) => {
                 <View style={[detail.chip, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
                   <Text style={detail.chipIcon}>🔥</Text>
                   <Text style={[detail.chipText, { color: '#EF4444' }]}>{recipe.cookTime} cook</Text>
-                </View>
-              ) : null}
-              {recipe.yield ? (
-                <View style={[detail.chip, { backgroundColor: 'rgba(139,92,246,0.12)' }]}>
-                  <Text style={detail.chipIcon}>🍴</Text>
-                  <Text style={[detail.chipText, { color: '#8B5CF6' }]}>{recipe.yield}</Text>
                 </View>
               ) : null}
             </View>
@@ -395,6 +419,23 @@ const detail = StyleSheet.create({
   },
   title: { fontSize: 24, fontWeight: '800', color: '#1F1F1F', lineHeight: 30, marginBottom: 8 },
   description: { fontSize: 14, color: '#666', lineHeight: 21, marginBottom: 20 },
+
+  servingRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#F9FAFB', borderRadius: 14,
+    paddingVertical: 10, paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+  servingLabel: { fontSize: 13, fontWeight: '600', color: '#1F1F1F', flex: 1 },
+  servingControls: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  servingBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#059669',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  servingBtnText: { fontSize: 18, fontWeight: '700', color: '#fff', lineHeight: 22 },
+  servingCount: { fontSize: 16, fontWeight: '800', color: '#1F1F1F', minWidth: 28, textAlign: 'center' },
+  servingYield: { fontSize: 11, color: '#999', marginLeft: 10 },
 
   nutritionRow: {
     flexDirection: 'row', gap: 8, marginBottom: 16,
