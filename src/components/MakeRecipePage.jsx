@@ -86,12 +86,8 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry })
 
         <ScrollView style={detail.scroll} showsVerticalScrollIndicator={false}>
           {/* Image */}
-          {recipe.imageFilename ? (
-            <Image
-              source={{ uri: `https://placeholder.com/400x220` }}
-              style={detail.heroImage}
-              resizeMode="cover"
-            />
+          {recipe.imageUrl ? (
+            <Image source={{ uri: recipe.imageUrl }} style={detail.heroImage} resizeMode="cover" />
           ) : (
             <View style={[detail.heroImage, detail.heroPlaceholder]}>
               <Text style={detail.heroEmoji}>🍽️</Text>
@@ -263,9 +259,13 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
     const isLocalised = displayName !== recipe.name;
     return (
       <TouchableOpacity key={recipe.id} style={styles.recipeCard} onPress={() => openRecipe(recipe)}>
-        <View style={styles.recipeCardImg}>
-          <Text style={styles.recipeCardEmoji}>🍽️</Text>
-        </View>
+        {recipe.imageUrl ? (
+          <Image source={{ uri: recipe.imageUrl }} style={styles.recipeCardImg} resizeMode="cover" />
+        ) : (
+          <View style={styles.recipeCardImg}>
+            <Text style={styles.recipeCardEmoji}>🍽️</Text>
+          </View>
+        )}
         {recipe.fastingFriendly && (
           <View style={styles.recipeCardTag}>
             <Text style={styles.recipeCardTagText}>Fasting ✓</Text>
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     width: 160, height: 120, borderRadius: 16,
     backgroundColor: '#E5E7EB',
     alignItems: 'center', justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 8, overflow: 'hidden',
   },
   recipeCardEmoji: { fontSize: 36 },
   recipeCardTag: {
