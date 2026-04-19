@@ -100,9 +100,6 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry })
 
             {/* Title + description */}
             <Text style={detail.title}>{displayName}</Text>
-            {isLocalised && (
-              <Text style={detail.altName}>{recipe.name}</Text>
-            )}
             <Text style={detail.description}>{recipe.description}</Text>
 
             {/* Serving adjuster */}
@@ -272,9 +269,6 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
           </View>
         )}
         <Text style={styles.recipeCardName} numberOfLines={2}>{displayName}</Text>
-        {isLocalised && (
-          <Text style={styles.recipeCardAltName} numberOfLines={1}>{recipe.name}</Text>
-        )}
         <View style={styles.recipeCardMeta}>
           <Text style={styles.recipeCardCal}>{recipe.calories} cal</Text>
           {recipe.cookTime ? <Text style={styles.recipeCardTime}>{recipe.cookTime}</Text> : null}
