@@ -273,7 +273,15 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
           <Text style={styles.recipeCardCal}>{recipe.calories} cal</Text>
           {(recipe.prepTime || recipe.cookTime) ? (
             <Text style={styles.recipeCardTime}>
-              {[recipe.prepTime && `${recipe.prepTime} prep`, recipe.cookTime && `${recipe.cookTime} cook`].filter(Boolean).join(' · ')}
+              {(() => {
+                const toMins = t => {
+                  if (!t) return 0;
+                  const n = parseInt(t);
+                  return isNaN(n) ? 0 : /hr/i.test(t) ? n * 60 : n;
+                };
+                const total = toMins(recipe.prepTime) + toMins(recipe.cookTime);
+                return total >= 60 ? `${Math.floor(total / 60)}h ${total % 60 > 0 ? `${total % 60}m` : ''}`.trim() : `${total} mins`;
+              })()}
             </Text>
           ) : null}
         </View>
