@@ -113,7 +113,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
 
       <ScrollView
         style={styles.mealsScrollContent}
-        contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 24 }}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 24, paddingTop: Platform.OS === 'web' ? TAB_BAR_HEIGHT : 0 }}
         showsVerticalScrollIndicator={false}
       >
       {/* Large Cutlery Display */}
