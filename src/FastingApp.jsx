@@ -1144,6 +1144,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           recentMeals={recentMeals}
           dailyCalorieGoal={dailyCalorieGoal}
           isFasting={isFasting}
+          checkInHistory={checkInHistory}
+          onShowCheckInPage={() => setShowCheckInPage(true)}
+          volumeUnit={volumeUnit}
           onLogMeal={(method) => {
             setLogMealMethod(method);
             setShowLogMealModal(true);
