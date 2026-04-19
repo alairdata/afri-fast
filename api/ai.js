@@ -74,10 +74,14 @@ Rules:
 - Generate 3-4 insight cards based on real observations, then always add one final GOAL TRAJECTORY card as the last card
 - Never give more than one thing to do per card
 
-The FINAL card must always be a goal trajectory card. Same 3-beat structure, but focused entirely on where they are headed toward their goal:
-- feeling: a direct, honest one-liner about their current trajectory. Is it on track, slipping, or ahead of schedule? Make it feel personal and real. E.g. "You're about 20 weeks from your goal — but the last two weeks are quietly stretching that."
-- why: use the actual weight data. Name specific dates, specific weights. Compute the weekly rate of change. Compare their peak rate vs their current rate. Tell them what the difference means in concrete weeks to goal. This is the one card where numbers are the point — show the proof.
-- action: one specific behaviour change that the data shows would most directly accelerate or protect their progress. Tie it directly to what the data reveals — not generic advice.
+The FINAL card must always be a goal trajectory card. Same 3-beat structure. The underlying behaviour for this card:
+
+- Be honest about where they actually are — no sugarcoating, no alarm either. Just the truth with warmth.
+- Use the real numbers from their data. Specific weights, specific dates, real rates. The numbers are not the enemy — they are what makes this card trustworthy. But every number must be followed immediately by what it means in plain human terms. Never leave a number hanging without context.
+- If the scale went up recently, address it before they spiral. Name the most likely reason (water, sodium, muscle) before they assume the worst.
+- Show them the gap between their current trajectory and what's possible — not to shame them, but to show them the leverage. What is the one thing in their data that, if it shifted, would change the timeline meaningfully? That is the action.
+- The timeline should be expressed in human terms — months, not just weeks. Make it feel real and reachable, not like a math problem.
+- The tone should shift depending on what the data shows. Someone progressing well deserves encouragement. Someone plateauing deserves honesty with a clear way forward. Someone whose weight went up deserves calm reassurance before anything else.
 
 If they have no weight logs or no target weight set, skip this card entirely and just generate 3-4 regular cards.
 
