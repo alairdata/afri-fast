@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, ActivityIndicator, Animated } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
 import { getCachedDailyInsights, refreshDailyInsights, getJustForYou } from '../lib/claudeInsights';
@@ -8,6 +8,74 @@ import FormattedText from '../lib/FormattedText';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const InsightSkeletonCard = () => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 1, duration: 850, useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 0, duration: 850, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.7] });
+
+  return (
+    <Animated.View style={[skeletonStyles.card, { opacity }]}>
+      <View style={skeletonStyles.accent} />
+      <View style={skeletonStyles.line1} />
+      <View style={skeletonStyles.line2} />
+      <View style={skeletonStyles.line3} />
+    </Animated.View>
+  );
+};
+
+const skeletonStyles = StyleSheet.create({
+  card: {
+    width: 140,
+    minHeight: 90,
+    padding: 16,
+    borderRadius: 14,
+    marginRight: 10,
+    backgroundColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  accent: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    width: 3,
+    height: 20,
+    borderRadius: 2,
+    backgroundColor: '#C4C4C4',
+  },
+  line1: {
+    marginLeft: 10,
+    marginTop: 2,
+    height: 10,
+    width: '80%',
+    borderRadius: 5,
+    backgroundColor: '#C4C4C4',
+    marginBottom: 6,
+  },
+  line2: {
+    marginLeft: 10,
+    height: 10,
+    width: '65%',
+    borderRadius: 5,
+    backgroundColor: '#C4C4C4',
+    marginBottom: 6,
+  },
+  line3: {
+    marginLeft: 10,
+    height: 10,
+    width: '50%',
+    borderRadius: 5,
+    backgroundColor: '#C4C4C4',
+  },
+});
 
 const TypewriterText = ({ text, style, numberOfLines, delay = 0 }) => {
   const [displayed, setDisplayed] = useState('');
@@ -533,9 +601,7 @@ const TodayTab = ({
           <Text style={styles.sectionTitleTight}>Today's Insights</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.insightsScrollCompact}>
             {insightLoading && !dailyInsightCards ? (
-              <View style={[styles.insightCardCompact, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="small" color="#059669" />
-              </View>
+              [0, 1, 2, 3, 4].map(i => <InsightSkeletonCard key={i} />)
             ) : (dailyInsightCards || []).map((insight, i) => (
               <TouchableOpacity
                 key={i}
