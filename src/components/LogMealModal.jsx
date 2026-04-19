@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Animated, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Share } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Animated, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Share, Modal } from 'react-native';
 import Svg, { Path, Line, Polyline, Rect } from 'react-native-svg';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Sharing from 'expo-sharing';
@@ -394,7 +394,26 @@ No explanation, no markdown, no extra text.`
   return null;
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null, checkInHistory = [], onShowCheckInPage, volumeUnit = 'glasses' }) => {
+const FEELING_CHIPS = ['😌 Calm', '🎯 Focused', '⚡ Energized', '😴 Low energy', '🍽️ Hungry', '🤤 Very hungry', '😤 Irritable', '💪🏿 Motivated'];
+const MOOD_CHIPS = ['😌 Calm', '😊 Happy', '🎯 Focused', '💪🏿 Motivated', '😤 Irritable', '😰 Anxious', '😔 Low mood', '🌫️ Mentally foggy', '😓 Stressed'];
+
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, volumeUnit = 'glasses' }) => {
+  const [showMiniCheckIn, setShowMiniCheckIn] = useState(false);
+  const [miniFeedings, setMiniFeedings] = useState([]);
+  const [miniMoods, setMiniMoods] = useState([]);
+
+  const toggleMini = (val, state, setState) => {
+    setState(state.includes(val) ? state.filter(v => v !== val) : [...state, val]);
+  };
+
+  const saveMiniCheckIn = () => {
+    if (onSaveCheckIn) {
+      onSaveCheckIn({ feelings: miniFeedings, moods: miniMoods });
+    }
+    setShowMiniCheckIn(false);
+    setMiniFeedings([]);
+    setMiniMoods([]);
+  };
 
   const renderCheckInWidget = () => {
     const dateStr = selectedMealDate ? selectedMealDate.toDateString() : new Date().toDateString();
@@ -415,10 +434,10 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     }).filter(Boolean);
 
     return (
-      <View style={{ flexShrink: 1, alignSelf: 'stretch', marginBottom: 4 }}>
+      <View style={{ marginHorizontal: 20, marginBottom: 12 }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 10, paddingHorizontal: 4 }}>Check-in time</Text>
         {hasCheckIns ? (
-          <View style={{ backgroundColor: '#F9FAFB', borderRadius: 16, padding: 14, marginBottom: 12 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 8 }}>
                 {emojis.map((emoji, i) => (
@@ -433,20 +452,19 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     <Text style={{ fontSize: 9, color: '#9CA3AF', fontWeight: '500' }}>{volumeUnit}</Text>
                   </View>
                 )}
-
               </ScrollView>
-              <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }} onPress={onShowCheckInPage}>
+              <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }} onPress={() => setShowMiniCheckIn(true)}>
                 <Ionicons name="add" size={22} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>
         ) : (
-          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F9FAFB', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', marginBottom: 12, alignSelf: 'stretch', flexShrink: 1 }} onPress={onShowCheckInPage} activeOpacity={0.7}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 }}>
+          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' }} onPress={() => setShowMiniCheckIn(true)} activeOpacity={0.7}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="clipboard-outline" size={24} color="#D1D5DB" />
               <Text style={{ fontSize: 14, color: '#9CA3AF', fontWeight: '500' }}>No check-in recorded</Text>
             </View>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="add" size={22} color="#fff" />
             </View>
           </TouchableOpacity>
@@ -2029,9 +2047,130 @@ Return ONLY raw JSON, no markdown, no explanation.`
         </View>
       )}
 
+      {/* Mini Check-In Modal */}
+      <Modal visible={showMiniCheckIn} transparent animationType="slide" onRequestClose={() => setShowMiniCheckIn(false)}>
+        <TouchableOpacity style={miniStyles.backdrop} activeOpacity={1} onPress={() => setShowMiniCheckIn(false)}>
+          <TouchableOpacity style={miniStyles.sheet} activeOpacity={1} onPress={() => {}}>
+            <View style={miniStyles.handle} />
+            <Text style={miniStyles.sheetTitle}>How are you feeling?</Text>
+
+            <Text style={miniStyles.sectionLabel}>Physical</Text>
+            <View style={miniStyles.chipRow}>
+              {FEELING_CHIPS.map(chip => (
+                <TouchableOpacity
+                  key={chip}
+                  style={[miniStyles.chip, miniFeedings.includes(chip) && miniStyles.chipSelected]}
+                  onPress={() => toggleMini(chip, miniFeedings, setMiniFeedings)}
+                >
+                  <Text style={[miniStyles.chipText, miniFeedings.includes(chip) && miniStyles.chipTextSelected]}>{chip}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[miniStyles.sectionLabel, { marginTop: 16 }]}>Mental</Text>
+            <View style={miniStyles.chipRow}>
+              {MOOD_CHIPS.map(chip => (
+                <TouchableOpacity
+                  key={chip}
+                  style={[miniStyles.chip, miniMoods.includes(chip) && miniStyles.chipSelected]}
+                  onPress={() => toggleMini(chip, miniMoods, setMiniMoods)}
+                >
+                  <Text style={[miniStyles.chipText, miniMoods.includes(chip) && miniStyles.chipTextSelected]}>{chip}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[miniStyles.saveBtn, (miniFeedings.length === 0 && miniMoods.length === 0) && { opacity: 0.4 }]}
+              onPress={saveMiniCheckIn}
+              disabled={miniFeedings.length === 0 && miniMoods.length === 0}
+            >
+              <Text style={miniStyles.saveBtnText}>Save Check-In</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
     </KeyboardAvoidingView>
   );
 };
+
+const miniStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 40,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E5E7EB',
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F1F1F',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6B7280',
+    letterSpacing: 1,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  chipSelected: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#059669',
+  },
+  chipText: {
+    fontSize: 13,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  chipTextSelected: {
+    color: '#059669',
+    fontWeight: '600',
+  },
+  saveBtn: {
+    marginTop: 24,
+    backgroundColor: '#059669',
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  saveBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+});
 
 const styles = StyleSheet.create({
   weightPageOverlay: {

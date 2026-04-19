@@ -1405,7 +1405,28 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         dailyCalorieGoal={dailyCalorieGoal}
         recentMeals={recentMeals}
         checkInHistory={checkInHistory}
-        onShowCheckInPage={() => setShowCheckInPage(true)}
+        onSaveCheckIn={(data) => {
+          const now = new Date();
+          const checkIn = {
+            id: Date.now(),
+            date: now.toDateString(),
+            timestamp: Date.now(),
+            feelings: data.feelings || [],
+            moods: data.moods || [],
+            fastingStatus: null, hungerLevel: null, symptoms: [], fastBreak: [],
+            activities: [], otherFactors: [], waterCount: 0, volumeUnit, notes: '',
+            fastingHours: 0, fastingMinutes: 0,
+          };
+          setCheckInHistory(prev => [checkIn, ...prev]);
+          dbSave(supabase.from('check_ins').insert({
+            id: checkIn.id, user_id: session?.user?.id, date: checkIn.date,
+            feelings: checkIn.feelings, moods: checkIn.moods,
+            fasting_status: null, hunger_level: null, symptoms: [], fast_break: [],
+            activities: [], other_factors: [], water_count: 0, volume_unit: volumeUnit,
+            notes: '', fasting_hours: 0, fasting_minutes: 0,
+          }), 'save check_in', (msg) => showToast(msg, 'error'));
+          showToast('Check-in saved!');
+        }}
         volumeUnit={volumeUnit}
         streak={(() => {
           let s = 0;
