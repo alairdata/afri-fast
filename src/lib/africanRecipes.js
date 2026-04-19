@@ -814,6 +814,7 @@ export const AFRICAN_RECIPES = [
       "Serve with generous scoop of Shito."
     ],
     "imageFilename": "waakye-shito.jpg",
+  "imageUrl": "https://eatwellabi.com/wp-content/uploads/2021/09/Waakye-13.jpg",
     "fastingFriendly": false
   },
   {
@@ -879,6 +880,7 @@ export const AFRICAN_RECIPES = [
       "Serve hot."
     ],
     "imageFilename": "fish-pepper-soup.jpg",
+  "imageUrl": "https://www.thepretendchef.com/wp-content/uploads/2017/09/catfish-pepper-soup-Point-and-kill-1-8.jpg.webp",
     "fastingFriendly": false
   },
   {
@@ -943,6 +945,7 @@ export const AFRICAN_RECIPES = [
       "Serve together."
     ],
     "imageFilename": "beans-plantain.jpg",
+  "imageUrl": "https://images.getrecipekit.com/20250302041641-beans-26-plantain-1.jpg?aspect_ratio=1:1&quality=90&",
     "fastingFriendly": false
   },
   {
@@ -1006,6 +1009,7 @@ export const AFRICAN_RECIPES = [
       "Serve soup with fufu ball on the side."
     ],
     "imageFilename": "okra-soup-fufu.jpg",
+  "imageUrl": "https://i.ytimg.com/vi/v-YXS-6-Mu0/hq720.jpg",
     "fastingFriendly": false
   },
   {
@@ -1066,6 +1070,7 @@ export const AFRICAN_RECIPES = [
       "Serve hot suya with cold fresh salad and extra spice for dipping."
     ],
     "imageFilename": "grilled-suya-salad.jpg",
+  "imageUrl": "https://cheflolaskitchen.com/wp-content/uploads/2023/01/nigerian-suya-34-1024x717.jpg.webp",
     "fastingFriendly": false
   },
   {
@@ -1143,6 +1148,7 @@ export const AFRICAN_RECIPES = [
       "Cool completely — they only get crunchy once cold."
     ],
     "imageFilename": "chin-chin-baked.jpg",
+  "imageUrl": "https://afrokitchennl.ca/wp-content/uploads/2020/11/chinchin.jpg",
     "fastingFriendly": false
   },
   {
@@ -1210,6 +1216,7 @@ export const AFRICAN_RECIPES = [
       "Drain on paper towels; eat warm."
     ],
     "imageFilename": "puff-puff-mini.jpg",
+  "imageUrl": "https://simshomekitchen.com/wp-content/uploads/2023/01/puffpuff-nigerian-500x500.jpg",
     "fastingFriendly": false
   },
   {
@@ -1256,6 +1263,7 @@ export const AFRICAN_RECIPES = [
       "Serve hot with crunchy roasted groundnuts."
     ],
     "imageFilename": "roasted-plantain.jpg",
+  "imageUrl": "https://i.pinimg.com/736x/18/67/3d/18673dfa0e89c1a93079e11599f007f6.jpg",
     "fastingFriendly": false
   },
   {
@@ -1291,6 +1299,7 @@ export const AFRICAN_RECIPES = [
       "Take a bite of banana followed by a few groundnuts for the perfect sweet-and-salty balance."
     ],
     "imageFilename": "groundnuts-banana.jpg",
+  "imageUrl": "https://www.amazonswatchmagazine.com/wp-content/uploads/2020/10/Peanuts-and-banana.jpg",
     "fastingFriendly": false
   },
   {
@@ -1337,6 +1346,7 @@ export const AFRICAN_RECIPES = [
       "Cool at least 20 mins; it hardens into crunchy candy as it cools."
     ],
     "imageFilename": "coconut-candy.jpg",
+  "imageUrl": "https://www.nairaland.com/attachments/15479505_fbimg1653472159311_jpegc894a9894b1ff19167cb87f7180377f1",
     "fastingFriendly": false
   },
   {
@@ -1401,6 +1411,7 @@ export const AFRICAN_RECIPES = [
       "Serve warm."
     ],
     "imageFilename": "banana-fritters.jpg",
+  "imageUrl": "https://foreignfork.com/wp-content/uploads/2020/09/banana-fritters-8-scaled.jpg",
     "fastingFriendly": false
   },
   {
@@ -1457,6 +1468,7 @@ export const AFRICAN_RECIPES = [
       "Drain and cool completely — they harden further as they sit."
     ],
     "imageFilename": "kuli-kuli.jpg",
+  "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT-x9R4tq7fOy6xjj40F3QTTNIuYoAfKGScOA&s",
     "fastingFriendly": false
   },
   {
@@ -1513,6 +1525,7 @@ export const AFRICAN_RECIPES = [
       "Rest 10 mins before eating so it firms up."
     ],
     "imageFilename": "potato-pudding.jpg",
+  "imageUrl": "https://www.pcrm.org/sites/default/files/sweet-potato-pudding-5.jpg",
     "fastingFriendly": false
   },
   {
@@ -1572,6 +1585,7 @@ export const AFRICAN_RECIPES = [
       "Sweeten while warm, then chill."
     ],
     "imageFilename": "zobo-sobolo.jpg",
+  "imageUrl": "https://i.ebayimg.com/images/g/UXYAAOSwCmxnQ2ra/s-l1200.jpg",
     "fastingFriendly": false
   },
   {
@@ -1624,6 +1638,7 @@ export const AFRICAN_RECIPES = [
       "Garnish with cucumber and fruit slices."
     ],
     "imageFilename": "chapman.jpg",
+  "imageUrl": "https://kikifoodies.com/wp-content/uploads/2021/05/5C33B2BD-61A6-4475-BCDD-4B8B5DD160E3.jpeg",
     "fastingFriendly": false
   },
   {
@@ -1674,6 +1689,7 @@ export const AFRICAN_RECIPES = [
       "Let sit overnight to ferment, then strain and sweeten."
     ],
     "imageFilename": "kunu-zaki.jpg",
+  "imageUrl": "https://allnigerianfoods.com/wp-content/uploads/tiger-nut-milk.jpg",
     "fastingFriendly": false
   },
   {
@@ -1864,6 +1880,7 @@ export const AFRICAN_RECIPES = [
       "Push noodles aside; scramble egg in pan; mix together."
     ],
     "imageFilename": "indomie-egg.jpg",
+  "imageUrl": "https://feedgrump.com/wp-content/uploads/2023/12/indomie-noodles-recipe-plating-feature.jpg",
     "fastingFriendly": false
   },
   {
@@ -1915,6 +1932,7 @@ export const AFRICAN_RECIPES = [
       "Serve together."
     ],
     "imageFilename": "dodo-egg.jpg",
+  "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ63rOxdmJ2FQe-8mA-xAE6UV0WclOixSf9-A&s",
     "fastingFriendly": false
   },
   {
@@ -1957,6 +1975,7 @@ export const AFRICAN_RECIPES = [
       "Serve with fresh soft bread and a spicy palm oil pepper sauce on top."
     ],
     "imageFilename": "bread-beans.jpg",
+  "imageUrl": "https://www.wcrf.org/wp-content/uploads/2024/08/600x600_Baked-beans-and-cheese-toastie-SQ-1200x1200.jpg",
     "fastingFriendly": false
   },
   {
@@ -2004,6 +2023,7 @@ export const AFRICAN_RECIPES = [
       "Eat immediately."
     ],
     "imageFilename": "garri-groundnut.jpg",
+  "imageUrl": "https://www.mydiasporakitchen.com/wp-content/uploads/2018/09/img_8707.jpg",
     "fastingFriendly": false
   },
   {
@@ -2073,6 +2093,7 @@ export const AFRICAN_RECIPES = [
       "Serve hot with steamed veg and raw sliced onions."
     ],
     "imageFilename": "grilled-fish-veggies.jpg",
+  "imageUrl": "https://mealpractice.b-cdn.net/50141742544064512/spicy-moroccan-grilled-fish-with-roasted-vegetables-bqb8tcK2am.webp",
     "fastingFriendly": false
   },
   {
@@ -2136,6 +2157,7 @@ export const AFRICAN_RECIPES = [
       "Serve with hot yam."
     ],
     "imageFilename": "yam-garden-egg.jpg",
+  "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRhU5ntdolKnOOuSLPpquY69uTDcZ_FPzD2uA&s",
     "fastingFriendly": false
   },
   {
@@ -2191,6 +2213,7 @@ export const AFRICAN_RECIPES = [
       "Eat alone or with a tiny slice of boiled yam."
     ],
     "imageFilename": "egg-spinach.jpg",
+  "imageUrl": "https://healthyrecipesblogs.com/wp-content/uploads/2019/03/spinach-and-eggs-featured-2022.jpg",
     "fastingFriendly": false
   },
   {
@@ -2247,6 +2270,7 @@ export const AFRICAN_RECIPES = [
       "Simmer 3 mins and serve in a bowl. Tip: Eat alone as a thick soup — no fufu or banku to keep it low carb."
     ],
     "imageFilename": "fish-okra.jpg",
+  "imageUrl": "https://cheflolaskitchen.com/wp-content/uploads/2025/07/Okro-pepper-soup.jpg.webp",
     "fastingFriendly": false
   },
   {
@@ -2304,6 +2328,7 @@ export const AFRICAN_RECIPES = [
       "Serve large portion of beans with plantain on top."
     ],
     "imageFilename": "beans-dodo.jpg",
+  "imageUrl": "https://cdn.modernghana.com/images/content/211202534140-8cs1vihuup-social-pulses-day.jpg",
     "fastingFriendly": false
   },
   {
@@ -2362,6 +2387,7 @@ export const AFRICAN_RECIPES = [
       "Serve with 1 slice boiled yam or eat alone for a high protein boost."
     ],
     "imageFilename": "egg-corned-beef.jpg",
+  "imageUrl": "https://realfood.tesco.com/media/images/Corned-beef-hash-1400x919-ed47e2e4-64d4-4fc7-9d38-2bb0d19cb271-0-1400x919.jpg",
     "fastingFriendly": false
   },
   {
