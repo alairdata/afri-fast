@@ -271,7 +271,11 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
         <Text style={styles.recipeCardName} numberOfLines={2}>{displayName}</Text>
         <View style={styles.recipeCardMeta}>
           <Text style={styles.recipeCardCal}>{recipe.calories} cal</Text>
-          {recipe.cookTime ? <Text style={styles.recipeCardTime}>{recipe.cookTime}</Text> : null}
+          {(recipe.prepTime || recipe.cookTime) ? (
+            <Text style={styles.recipeCardTime}>
+              {[recipe.prepTime && `${recipe.prepTime} prep`, recipe.cookTime && `${recipe.cookTime} cook`].filter(Boolean).join(' · ')}
+            </Text>
+          ) : null}
         </View>
       </TouchableOpacity>
     );
