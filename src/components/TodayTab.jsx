@@ -184,17 +184,17 @@ const TodayTab = ({
       waterLogs: waterLogs || [],
     };
 
-    // 1. Show valid cached insights immediately if available (new format only)
+    // 1. Show cached cards briefly, then trigger shimmer while refresh runs
     getCachedDailyInsights(userId).then(cached => {
       if (cached?.cards?.length) {
         setDailyInsightCards(cached.cards);
         if (cached.alertCard) setClaudeAlertCard(cached.alertCard);
-        setInsightLoading(false);
       }
-      // If no valid cache, skeleton keeps showing until fresh call finishes
+      // Always show shimmer while fresh cards load
+      setInsightLoading(true);
     });
 
-    // 2. Always refresh — skeleton stays visible until this resolves
+    // 2. Always refresh — shimmer shows until this resolves
     refreshDailyInsights(payload).then(result => {
       if (result?.cards?.length) {
         setDailyInsightCards(result.cards);
