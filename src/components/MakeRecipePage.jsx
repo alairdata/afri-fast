@@ -24,26 +24,31 @@ const scaleAmount = (amount, scale) => {
   const lower = amount.toLowerCase();
   if (SKIP_WORDS.some(w => lower.startsWith(w))) return amount;
 
+  // Strip leading ~ prefix (e.g. "~50 cubes"), scale, then restore
+  const approx = amount.startsWith('~');
+  const str = approx ? amount.slice(1) : amount;
+  const prefix = approx ? '~' : '';
+
   // Range: "5-7 leaves" → scale both numbers
-  const rangeMatch = amount.match(/^(\d+)-(\d+)(.*)$/);
+  const rangeMatch = str.match(/^(\d+)-(\d+)(.*)$/);
   if (rangeMatch) {
     const lo = toNiceFraction(parseFloat(rangeMatch[1]) * scale);
     const hi = toNiceFraction(parseFloat(rangeMatch[2]) * scale);
-    return `${lo}-${hi}${rangeMatch[3]}`;
+    return `${prefix}${lo}-${hi}${rangeMatch[3]}`;
   }
 
   // Fraction: "1/4 bulb" → parse and scale
-  const fracMatch = amount.match(/^(\d+)\/(\d+)(.*)$/);
+  const fracMatch = str.match(/^(\d+)\/(\d+)(.*)$/);
   if (fracMatch) {
     const val = (parseInt(fracMatch[1]) / parseInt(fracMatch[2])) * scale;
-    return `${toNiceFraction(val)}${fracMatch[3]}`;
+    return `${prefix}${toNiceFraction(val)}${fracMatch[3]}`;
   }
 
   // Integer or decimal: "2 tbsp", "1.5 cups"
-  const numMatch = amount.match(/^(\d+(?:\.\d+)?)(.*)$/);
+  const numMatch = str.match(/^(\d+(?:\.\d+)?)(.*)$/);
   if (numMatch) {
     const val = parseFloat(numMatch[1]) * scale;
-    return `${toNiceFraction(val)}${numMatch[2]}`;
+    return `${prefix}${toNiceFraction(val)}${numMatch[2]}`;
   }
 
   return amount;
