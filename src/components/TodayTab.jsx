@@ -162,6 +162,24 @@ const TodayTab = ({
   const [jfyLoading, setJfyLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const buildEnrichedMealLogs = () =>
+    (recentMeals || []).map(meal => {
+      const ci = (checkInHistory || []).find(c => c.date === meal.date) || null;
+      return {
+        date: meal.date,
+        mealName: meal.name,
+        totalCalories: meal.calories || 0,
+        ingredients: meal.foods || [],
+        feelings: ci?.feelings || [],
+        moods: ci?.moods || [],
+        fastingStatus: ci?.fastingStatus || null,
+        hungerLevel: ci?.hungerLevel || null,
+        symptoms: ci?.symptoms || [],
+        activities: ci?.activities || [],
+        otherFactors: ci?.otherFactors || [],
+      };
+    });
+
   const buildPayload = () => ({
     profile: {
       userId,
@@ -183,6 +201,7 @@ const TodayTab = ({
     recentMeals: recentMeals || [],
     weightLogs: weightLogs || [],
     waterLogs: waterLogs || [],
+    enrichedMealLogs: buildEnrichedMealLogs(),
   });
 
   const fetchInsights = async (payload) => {

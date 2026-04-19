@@ -5,6 +5,7 @@ function buildUserContext(data) {
     dailyCalorieGoal, hydrationGoal, volumeUnit,
     proteinGoal, carbsGoal, fatsGoal,
     fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs,
+    enrichedMealLogs,
   } = data;
 
   const sessions = fastingSessions || [];
@@ -92,7 +93,19 @@ NUTRITION:
 - Meals logged: ${meals.length} | Most eaten: ${topFoods.join(', ') || 'none recorded'}
 - Avg daily calories: ${avgCals} kcal (goal: ${dailyCalorieGoal || 2000} kcal)
 - Avg daily macros: ${avgProtein}g protein (goal: ${proteinGoal || '?'}g) | ${avgCarbs}g carbs (goal: ${carbsGoal || '?'}g) | ${avgFats}g fats (goal: ${fatsGoal || '?'}g)
-- How meals are logged: ${loggingMethods || 'not recorded'}`;
+- How meals are logged: ${loggingMethods || 'not recorded'}
+
+MEALS WITH EMOTIONAL CONTEXT (how they felt when eating):
+${(enrichedMealLogs || []).slice(0, 15).map(m => {
+  const parts = [`${m.date} — ${m.mealName} (${m.totalCalories} kcal)`];
+  if (m.fastingStatus) parts.push(`fast: ${m.fastingStatus}`);
+  if (m.hungerLevel) parts.push(`hunger: ${m.hungerLevel}`);
+  if (m.feelings?.length) parts.push(`feelings: ${m.feelings.join(', ')}`);
+  if (m.moods?.length) parts.push(`mood: ${m.moods.join(', ')}`);
+  if (m.symptoms?.length) parts.push(`symptoms: ${m.symptoms.join(', ')}`);
+  if (m.activities?.length) parts.push(`activity: ${m.activities.join(', ')}`);
+  return `- ${parts.join(' | ')}`;
+}).join('\n') || '- No enriched meal data yet'}`;
 }
 
 function buildChatSystemPrompt(personality, userContext) {

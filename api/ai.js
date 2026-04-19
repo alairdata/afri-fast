@@ -91,7 +91,7 @@ Return ONLY a valid JSON array, no markdown, no explanation:
 ]`;
 
 function preprocessData(data) {
-  const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs } = data;
+  const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs } = data;
   const now = new Date();
 
   const daysBetween = (d1, d2) => Math.floor(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24));
@@ -280,6 +280,27 @@ function preprocessData(data) {
       if (c.notes) parts.push(`note:"${c.notes}"`);
       lines.push(`  ${parts.join(' | ')}`);
     });
+    lines.push('');
+  }
+
+  // Enriched meal logs — each meal paired with how the user felt that day
+  const recentEnriched = (enrichedMealLogs || [])
+    .filter(m => !isToday(m.date))
+    .slice(0, 30);
+  if (recentEnriched.length > 0) {
+    lines.push('MEALS WITH EMOTIONAL & PHYSICAL CONTEXT (most recent first):');
+    recentEnriched.forEach(m => {
+      const parts = [`[${m.date}] ${m.mealName} (${m.totalCalories} kcal)`];
+      if (m.fastingStatus) parts.push(`fast:${m.fastingStatus}`);
+      if (m.hungerLevel) parts.push(`hunger:${m.hungerLevel}`);
+      if (m.feelings?.length) parts.push(`feelings:${m.feelings.join(',')}`);
+      if (m.moods?.length) parts.push(`mood:${m.moods.join(',')}`);
+      if (m.symptoms?.length) parts.push(`symptoms:${m.symptoms.join(',')}`);
+      if (m.activities?.length) parts.push(`activity:${m.activities.join(',')}`);
+      if (m.ingredients?.length) parts.push(`foods:${m.ingredients.map(f => f.name).join(',')}`);
+      lines.push(`  ${parts.join(' | ')}`);
+    });
+    lines.push('');
   }
 
   return lines.join('\n');
@@ -305,13 +326,14 @@ async function callClaude(prompt, apiKey) {
 }
 
 function buildJustForYouPrompt(data) {
-  const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs } = data;
+  const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs } = data;
 
   const recentSessions = (fastingSessions || []).slice(0, 14);
   const recentWeight = (weightLogs || []).slice(0, 10);
   const recentCheckIns = (checkInHistory || []).slice(0, 10);
   const recentMealsSlice = (recentMeals || []).slice(0, 20);
   const recentWater = (waterLogs || []).slice(0, 14);
+  const recentEnriched = (enrichedMealLogs || []).slice(0, 20);
 
   return `You are a warm, supportive personal health coach inside Afri Fast, an African fasting and nutrition app.
 
@@ -333,6 +355,7 @@ USER DATA:
 - Check-ins: ${JSON.stringify(recentCheckIns)}
 - Recent meals: ${JSON.stringify(recentMealsSlice)}
 - Water logs: ${JSON.stringify(recentWater)}
+- Meals with emotional/physical context: ${JSON.stringify(recentEnriched)}
 
 Look at this person's goals vs their actual progress across all areas — fasting consistency, weight progress, nutrition, hydration, energy, mood. Generate actionable insight cards — things they can specifically learn from or act on.
 
