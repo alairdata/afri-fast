@@ -2363,23 +2363,8 @@ export const AFRICAN_RECIPES = [
     ],
     "imageFilename": "egg-corned-beef.jpg",
     "fastingFriendly": false
-  }
-];
-
-export const RECIPE_CATEGORIES = [
-  "Fasting-Friendly",
-  "Breakfast",
-  "Lunch",
-  "Dinner",
-  "Snacks",
-  "Desserts",
-  "Drinks",
-  "Fasting Drinks",
-  "Quick & Easy",
-  "Low Fat",
-  "Low Carb",
-  "High Protein",,
-{
+  },
+  {
   "id": 43,
   "name": "Suya Platter",
   "category": "High Protein",
@@ -2756,5 +2741,20 @@ export const RECIPE_CATEGORIES = [
   "imageFilename": "pepper-soup-no-oil.jpg",
   "imageUrl": "https://www.savorythoughts.com/wp-content/uploads/2022/03/Ghanaian-Light-Soup-Savory-Thoughts-8.jpg",
   "fastingFriendly": false
-}
+  }
+];
+
+export const RECIPE_CATEGORIES = [
+  "Fasting-Friendly",
+  "Breakfast",
+  "Lunch",
+  "Dinner",
+  "Snacks",
+  "Desserts",
+  "Drinks",
+  "Fasting Drinks",
+  "Quick & Easy",
+  "Low Fat",
+  "Low Carb",
+  "High Protein",
 ];
