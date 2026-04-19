@@ -85,11 +85,23 @@ function preprocessData(data) {
 
   const daysBetween = (d1, d2) => Math.floor(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24));
 
+  // Today's date string — used to exclude incomplete today data
+  const todayStr = now.toDateString();
+
+  const isToday = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return false;
+    return d.toDateString() === todayStr;
+  };
+
   const getWeekIndex = (dateStr) => {
     if (!dateStr) return -1;
     const d = new Date(dateStr);
     if (isNaN(d)) return -1;
-    return Math.floor(daysBetween(now, d) / 7);
+    const idx = Math.floor(daysBetween(now, d) / 7);
+    // Week 0 would include today — shift so week 0 = yesterday's week
+    return idx;
   };
 
   // Infer goal label
@@ -113,9 +125,17 @@ function preprocessData(data) {
   }
   lines.push('');
 
+  // Exclude today's incomplete data from all sources
+  const completedFastingSessions = (fastingSessions || []).filter(s => !isToday(s.date || s.startTime));
+  const completedMeals = (recentMeals || []).filter(m => !isToday(m.date));
+  const completedWaterLogs = (waterLogs || []).filter(w => !isToday(w.date));
+  const completedCheckIns = (checkInHistory || []).filter(c => !isToday(c.date));
+  // Weight logs are point-in-time snapshots — include today's if logged
+  const allWeightLogs = weightLogs || [];
+
   // Fasting by week
   const fastingByWeek = {};
-  (fastingSessions || []).forEach(s => {
+  completedFastingSessions.forEach(s => {
     const w = getWeekIndex(s.date || s.startTime);
     if (w < 0 || w > 11) return;
     if (!fastingByWeek[w]) fastingByWeek[w] = [];
@@ -143,7 +163,7 @@ function preprocessData(data) {
 
   // Meals by week
   const mealsByWeek = {};
-  (recentMeals || []).forEach(m => {
+  completedMeals.forEach(m => {
     const w = getWeekIndex(m.date);
     if (w < 0 || w > 11) return;
     if (!mealsByWeek[w]) mealsByWeek[w] = [];
@@ -172,7 +192,7 @@ function preprocessData(data) {
 
   // Water by week
   const waterByWeek = {};
-  (waterLogs || []).forEach(wl => {
+  completedWaterLogs.forEach(wl => {
     const w = getWeekIndex(wl.date);
     if (w < 0 || w > 11) return;
     if (!waterByWeek[w]) waterByWeek[w] = {};
@@ -201,7 +221,7 @@ function preprocessData(data) {
   }
 
   // Weight progress
-  const sortedWeights = [...(weightLogs || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const sortedWeights = [...allWeightLogs].sort((a, b) => new Date(a.date) - new Date(b.date));
   if (sortedWeights.length > 0) {
     lines.push('WEIGHT PROGRESS:');
     sortedWeights.forEach(wl => lines.push(`  ${wl.date}: ${wl.weight} ${wl.unit}`));
@@ -223,8 +243,8 @@ function preprocessData(data) {
     lines.push('');
   }
 
-  // Check-ins (most recent 30)
-  const sortedCheckIns = [...(checkInHistory || [])]
+  // Check-ins (most recent 30, today excluded)
+  const sortedCheckIns = [...completedCheckIns]
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 30);
   if (sortedCheckIns.length > 0) {
