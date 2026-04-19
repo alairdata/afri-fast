@@ -185,6 +185,23 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [waterCount, setWaterCount] = useState(0);
   const [notes, setNotes] = useState('');
 
+  const openCheckInPage = () => {
+    const todayCI = checkInHistory.find(c => c.date === new Date().toDateString());
+    if (todayCI) {
+      setFeelings(todayCI.feelings || []);
+      setFastingStatus(todayCI.fastingStatus || '');
+      setHungerLevel(todayCI.hungerLevel || '');
+      setMoods(todayCI.moods || []);
+      setSymptoms(todayCI.symptoms || []);
+      setFastBreak(todayCI.fastBreak || []);
+      setActivities(todayCI.activities || []);
+      setOtherFactors(todayCI.otherFactors || []);
+      setWaterCount(todayCI.waterCount || 0);
+      setNotes(todayCI.notes || '');
+    }
+    setShowCheckInPage(true);
+  };
+
   // === Chat state ===
   const [chatMessages, setChatMessages] = useState([]);
 
@@ -1114,7 +1131,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           circumference={circumference}
           strokeDashoffset={strokeDashoffset}
           onShowPlanPage={handleOpenPlanPage}
-          onShowCheckInPage={() => setShowCheckInPage(true)}
+          onShowCheckInPage={openCheckInPage}
           onShowChat={(context) => { setChatOpeningContext(context || null); setShowChat(true); }}
           onStartFast={handleStartFast}
           onEndFast={handleEndFast}
@@ -1312,7 +1329,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         isFasting={isFasting}
         selectedPlan={selectedPlan}
         checkInHistory={checkInHistory}
-        onShowCheckInPage={() => { setShowCheckInPage(true); }}
+        onShowCheckInPage={openCheckInPage}
         volumeUnit={volumeUnit}
       />
 

@@ -419,17 +419,14 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   };
 
   const openMiniCheckIn = () => {
-    // Pre-populate from existing check-in for this date
-    const dateStr = viewingMeal?.date || (selectedMealDate ? selectedMealDate.toDateString() : new Date().toDateString());
-    const ci = checkInHistory.find(c => c.date === dateStr) || null;
-    setMiniFeelings(ci?.feelings || []);
-    setMiniFastingStatus(ci?.fastingStatus || null);
-    setMiniHungerLevel(ci?.hungerLevel || null);
-    setMiniMoods(ci?.moods || []);
-    setMiniSymptoms(ci?.symptoms || []);
-    setMiniFastBreak(ci?.fastBreak || []);
-    setMiniActivities(ci?.activities || []);
-    setMiniOtherFactors(ci?.otherFactors || []);
+    setMiniFeelings([]);
+    setMiniFastingStatus(null);
+    setMiniHungerLevel(null);
+    setMiniMoods([]);
+    setMiniSymptoms([]);
+    setMiniFastBreak([]);
+    setMiniActivities([]);
+    setMiniOtherFactors([]);
     setShowMiniCheckIn(true);
   };
 
