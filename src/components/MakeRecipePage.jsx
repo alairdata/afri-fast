@@ -4,6 +4,51 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image,
 import Svg, { Path, Circle } from 'react-native-svg';
 import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
 
+// ── Ingredient amount scaler ─────────────────────────────────────────────────
+
+const SKIP_WORDS = ['to taste', 'a pinch', 'plenty', 'as needed', 'optional'];
+
+const toNiceFraction = (n) => {
+  if (n === 0) return '0';
+  const whole = Math.floor(n);
+  const frac = n - whole;
+  const fracs = { 0.25: '¼', 0.5: '½', 0.75: '¾', 0.33: '⅓', 0.67: '⅔' };
+  const key = Object.keys(fracs).find(k => Math.abs(frac - parseFloat(k)) < 0.05);
+  const fracStr = key ? fracs[key] : (frac > 0.05 ? `${Math.round(frac * 4)}/4` : '');
+  if (whole === 0) return fracStr || String(Math.round(n * 10) / 10);
+  return fracStr ? `${whole}${fracStr}` : String(Math.round(n * 10) / 10);
+};
+
+const scaleAmount = (amount, scale) => {
+  if (!amount || scale === 1) return amount;
+  const lower = amount.toLowerCase();
+  if (SKIP_WORDS.some(w => lower.startsWith(w))) return amount;
+
+  // Range: "5-7 leaves" → scale both numbers
+  const rangeMatch = amount.match(/^(\d+)-(\d+)(.*)$/);
+  if (rangeMatch) {
+    const lo = toNiceFraction(parseFloat(rangeMatch[1]) * scale);
+    const hi = toNiceFraction(parseFloat(rangeMatch[2]) * scale);
+    return `${lo}-${hi}${rangeMatch[3]}`;
+  }
+
+  // Fraction: "1/4 bulb" → parse and scale
+  const fracMatch = amount.match(/^(\d+)\/(\d+)(.*)$/);
+  if (fracMatch) {
+    const val = (parseInt(fracMatch[1]) / parseInt(fracMatch[2])) * scale;
+    return `${toNiceFraction(val)}${fracMatch[3]}`;
+  }
+
+  // Integer or decimal: "2 tbsp", "1.5 cups"
+  const numMatch = amount.match(/^(\d+(?:\.\d+)?)(.*)$/);
+  if (numMatch) {
+    const val = parseFloat(numMatch[1]) * scale;
+    return `${toNiceFraction(val)}${numMatch[2]}`;
+  }
+
+  return amount;
+};
+
 // ── Recipe Detail Popup ──────────────────────────────────────────────────────
 
 const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal }) => {
@@ -73,7 +118,7 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal }) => {
                   <Text style={detail.servingBtnText}>+</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={detail.servingYield}>{recipe.yield}</Text>
+              <Text style={detail.servingYield}>{scaleAmount(recipe.yield, scale)}</Text>
             </View>
 
             {/* Nutrition row */}
@@ -124,7 +169,7 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal }) => {
                     <View key={i} style={detail.ingredientRow}>
                       <View style={detail.ingredientDot} />
                       <Text style={detail.ingredientName}>{ing.name}</Text>
-                      <Text style={detail.ingredientAmount}>{ing.amount}</Text>
+                      <Text style={detail.ingredientAmount}>{scaleAmount(ing.amount, scale)}</Text>
                     </View>
                   ))}
                 </View>
