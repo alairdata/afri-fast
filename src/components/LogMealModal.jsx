@@ -426,6 +426,8 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       ...(ci.moods || []),
       ...(ci.symptoms || []),
       ...(ci.fastBreak || []),
+      ...(ci.activities || []),
+      ...(ci.otherFactors || []),
       ...(ci.fastingStatus ? [ci.fastingStatus] : []),
     ] : [];
     const emojis = allItems.map(item => {
@@ -1559,11 +1561,9 @@ Return ONLY raw JSON, no markdown, no explanation.`
           </ScrollView>
         )}
 
-        <ScrollView style={[styles.weightPageContent, ((logMealMethod === 'write' && scanPhase !== 'shareCard') || (logMealMethod === 'scan' && scanPhase === 'results')) && { display: 'none', flex: 0 }]}>
-
-          {/* Share Card Screen */}
-          {scanPhase === 'shareCard' && (
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.shareCardScreen} showsVerticalScrollIndicator={false}>
+        {/* Share Card Screen — full-height, no double padding */}
+        {scanPhase === 'shareCard' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.shareCardScreen} showsVerticalScrollIndicator={false}>
               {/* Success label */}
               <View style={styles.shareCardSuccessRow}>
                 <View style={styles.shareCardSuccessBadge}>
@@ -1727,8 +1727,10 @@ Return ONLY raw JSON, no markdown, no explanation.`
                   <Text style={styles.shareCardDoneBtnText}>Done</Text>
                 </TouchableOpacity>
               </View>
-            </ScrollView>
-          )}
+          </ScrollView>
+        )}
+
+        <ScrollView style={[styles.weightPageContent, (scanPhase === 'shareCard' || (logMealMethod === 'write' && writePhase !== 'idle' && writePhase !== 'detecting') || (logMealMethod === 'scan' && scanPhase === 'results')) && { display: 'none', flex: 0 }]}>
 
           {/* Say Method */}
           {logMealMethod === 'say' && (
@@ -2565,9 +2567,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   shareCardScreen: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 32,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 40,
     alignItems: 'center',
   },
   shareCardSuccessRow: {
