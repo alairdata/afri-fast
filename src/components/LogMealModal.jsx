@@ -1134,7 +1134,7 @@ Return ONLY raw JSON, no markdown, no explanation.`
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.headerSubtitle}>LOG FOOD</Text>
             <Text style={styles.headerTitle}>
-              {logMealMethod === 'scan' ? 'Scan your meal' : logMealMethod === 'write' ? 'Write your meal' : 'Say your meal'}
+              {logMealMethod === 'scan' ? 'Scan your meal' : logMealMethod === 'write' ? 'Write your meal' : logMealMethod === 'recipe' ? 'Make your meal' : 'Say your meal'}
             </Text>
           </View>
         </View>
