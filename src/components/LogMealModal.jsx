@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Animated, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Share, Modal } from 'react-native';
@@ -403,6 +403,24 @@ const CI_FAST_BREAK = ['🥗 Light meal', '🍔 Heavy meal', '🥩 Protein-focus
 const CI_ACTIVITIES = ["🚫 Didn't exercise", '🚶🏿 Walking', '🧘🏿 Yoga / stretching', '🏋🏿 Gym', '🏃🏿 Cardio', '💪🏿 Strength training', '⚽ Sports'];
 const CI_OTHER = ['😓 Stress', '😴 Poor sleep', '😊 Good sleep', '✈️ Travel', '🧘🏿 Meditation', '🌬️ Breathwork', '🍷 Alcohol', '🎉 Social event', '🤒 Illness / injury'];
 
+const ShareCardImage = ({ uri, height, style }) => {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <View style={{ width: '100%', height }}>
+      {!loaded && (
+        <View style={[style, { height, backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }]}>
+          <ActivityIndicator size="large" color="#059669" />
+        </View>
+      )}
+      <Image
+        source={{ uri }}
+        style={[style, { height, opacity: loaded ? 1 : 0 }]}
+        onLoad={() => setLoaded(true)}
+      />
+    </View>
+  );
+};
+
 const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, volumeUnit = 'glasses', recipeToLog = null }) => {
   const [showMiniCheckIn, setShowMiniCheckIn] = useState(false);
   const [miniFeelings, setMiniFeelings] = useState([]);
@@ -561,7 +579,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const [writeMsgIndex, setWriteMsgIndex] = useState(0);
 
   // When opened with a pre-built recipe, skip straight to the share card
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!show || !recipeToLog) return;
     const mealDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
     const isToday = mealDate.toDateString() === new Date().toDateString();
@@ -1638,13 +1656,15 @@ Return ONLY raw JSON, no markdown, no explanation.`
               <View ref={shareCardRef} collapsable={false} style={styles.shareCardVisible}>
                 {/* IMAGE PANEL — natural aspect ratio */}
                 {(() => {
-                  const screenWidth = Dimensions.get('window').width - 48; // card has ~24px margin each side
+                  const screenWidth = Dimensions.get('window').width - 48;
                   const imgHeight = capturedPhotoSize
                     ? Math.min((screenWidth * capturedPhotoSize.height) / capturedPhotoSize.width, 620)
                     : 380;
                   return (
                     <View style={[styles.shareCardImgPanel, { height: imgHeight }]}>
-                      {capturedPhoto && <Image source={{ uri: capturedPhoto }} style={[styles.shareCardImage, { height: imgHeight }]} />}
+                      {capturedPhoto && (
+                        <ShareCardImage uri={capturedPhoto} height={imgHeight} style={styles.shareCardImage} />
+                      )}
                     </View>
                   );
                 })()}
