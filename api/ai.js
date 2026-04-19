@@ -70,8 +70,15 @@ Rules:
 - The why section MUST include specific evidence: exact dates, exact numbers, exact meal names where relevant — this is what makes the insight feel real, not generic
 - If they recovered from a similar pattern before, mention it — give them that anchor
 - Vary the emotional tone across cards — one card can be matter-of-fact, another soft, another a little playful
-- Generate between 3 and 5 cards — only write a card if there is a real, specific observation to make
+- Generate 3-4 insight cards based on real observations, then always add one final GOAL TRAJECTORY card as the last card
 - Never give more than one thing to do per card
+
+The FINAL card must always be a goal trajectory card. Same 3-beat structure, but focused entirely on where they are headed toward their goal:
+- feeling: a direct, honest one-liner about their current trajectory. Is it on track, slipping, or ahead of schedule? Make it feel personal and real. E.g. "You're about 20 weeks from your goal — but the last two weeks are quietly stretching that."
+- why: use the actual weight data. Name specific dates, specific weights. Compute the weekly rate of change. Compare their peak rate vs their current rate. Tell them what the difference means in concrete weeks to goal. This is the one card where numbers are the point — show the proof.
+- action: one specific behaviour change that the data shows would most directly accelerate or protect their progress. Tie it directly to what the data reveals — not generic advice.
+
+If they have no weight logs or no target weight set, skip this card entirely and just generate 3-4 regular cards.
 
 Return ONLY a valid JSON array, no markdown, no explanation:
 [
