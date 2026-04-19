@@ -440,6 +440,9 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       });
     }
     setShowMiniCheckIn(false);
+    setMiniFeelings([]); setMiniFastingStatus(null); setMiniHungerLevel(null);
+    setMiniMoods([]); setMiniSymptoms([]); setMiniFastBreak([]);
+    setMiniActivities([]); setMiniOtherFactors([]);
   };
 
   const renderCheckInWidget = () => {
@@ -2080,7 +2083,7 @@ Return ONLY raw JSON, no markdown, no explanation.`
           <TouchableOpacity style={miniStyles.sheet} activeOpacity={1} onPress={() => {}}>
             <View style={miniStyles.handle} />
             <Text style={miniStyles.sheetTitle}>How are you feeling?</Text>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
 
               <Text style={miniStyles.sectionLabel}>How are you feeling</Text>
               <View style={miniStyles.chipRow}>
@@ -2179,6 +2182,7 @@ const miniStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 40,
+    maxHeight: '88%',
   },
   handle: {
     width: 40,
