@@ -7,6 +7,27 @@ import { getDailyInsights, getJustForYou } from '../lib/claudeInsights';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const TypewriterText = ({ text, style, numberOfLines, delay = 0 }) => {
+  const [displayed, setDisplayed] = useState('');
+
+  useEffect(() => {
+    if (!text) { setDisplayed(''); return; }
+    setDisplayed('');
+    let i = 0;
+    const start = setTimeout(() => {
+      const interval = setInterval(() => {
+        i++;
+        setDisplayed(text.slice(0, i));
+        if (i >= text.length) clearInterval(interval);
+      }, 28);
+      return () => clearInterval(interval);
+    }, delay);
+    return () => clearTimeout(start);
+  }, [text, delay]);
+
+  return <Text style={style} numberOfLines={numberOfLines}>{displayed}</Text>;
+};
+
 const TodayTab = ({
   currentTime,
   fastingHours,
@@ -510,7 +531,12 @@ const TodayTab = ({
               >
                 <View style={[styles.insightAccentSmall, { backgroundColor: insight.accent || '#4CAF50' }]} />
                 {insight.feeling ? (
-                  <Text style={[styles.insightFeelingText, isDark && { color: colors.text }]} numberOfLines={4}>{insight.feeling}</Text>
+                  <TypewriterText
+                    text={insight.feeling}
+                    style={[styles.insightFeelingText, isDark && { color: colors.text }]}
+                    numberOfLines={4}
+                    delay={i * 150}
+                  />
                 ) : (
                   <>
                     <Text style={[styles.insightTitleSmall, isDark && { color: colors.text }]} numberOfLines={2}>{insight.title}</Text>
