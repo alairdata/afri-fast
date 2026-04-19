@@ -399,6 +399,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const renderCheckInWidget = () => {
     const dateStr = selectedMealDate ? selectedMealDate.toDateString() : new Date().toDateString();
     const checkIns = checkInHistory.filter(c => c.date === dateStr);
+    const hasCheckIns = checkIns.length > 0;
     const ci = checkIns[0] || null;
     const allItems = ci ? [
       ...(ci.feelings || []),
@@ -409,47 +410,47 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       ...(ci.fastingStatus ? [ci.fastingStatus] : []),
     ] : [];
     const emojis = allItems.map(item => {
-      const idx = item.indexOf(' ');
-      return idx > 0 ? item.slice(0, idx) : null;
+      const spaceIdx = item.indexOf(' ');
+      return spaceIdx > 0 ? item.slice(0, spaceIdx) : null;
     }).filter(Boolean);
 
     return (
-      <View style={styles.checkInWidget}>
-        <Text style={styles.checkInWidgetLabel}>How are you feeling?</Text>
-        {ci ? (
-          <View style={styles.ciSymptomsCard}>
-            <View style={styles.ciEmojiRowFixed}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ciEmojiScrollArea} contentContainerStyle={styles.ciEmojiScrollContent}>
+      <>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 10, paddingHorizontal: 4 }}>Check-in time</Text>
+        {hasCheckIns ? (
+          <View style={{ backgroundColor: '#F9FAFB', borderRadius: 16, padding: 14, marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 8 }}>
                 {emojis.map((emoji, i) => (
-                  <View key={i} style={[styles.ciEmojiCircle, { backgroundColor: i % 2 === 0 ? '#ECFDF5' : '#FFF7ED' }]}>
-                    <Text style={styles.ciEmojiCircleText}>{emoji}</Text>
+                  <View key={i} style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: i % 2 === 0 ? '#ECFDF5' : '#FFF7ED' }}>
+                    <Text style={{ fontSize: 22 }}>{emoji}</Text>
                   </View>
                 ))}
                 {ci.waterCount > 0 && (
-                  <View style={styles.ciWaterBadge}>
+                  <View style={{ alignItems: 'center', justifyContent: 'center', marginLeft: 4 }}>
                     <Ionicons name="water" size={16} color="#3B82F6" />
-                    <Text style={styles.ciWaterBadgeText}>{ci.waterCount}</Text>
-                    <Text style={styles.ciWaterBadgeLabel}>{volumeUnit}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#374151', marginTop: 1 }}>{ci.waterCount}</Text>
+                    <Text style={{ fontSize: 9, color: '#9CA3AF', fontWeight: '500' }}>{volumeUnit}</Text>
                   </View>
                 )}
               </ScrollView>
-              <TouchableOpacity style={styles.ciEmojiAddBtn} onPress={onShowCheckInPage}>
+              <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }} onPress={onShowCheckInPage}>
                 <Ionicons name="add" size={22} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>
         ) : (
-          <TouchableOpacity style={styles.ciSymptomsEmptyCard} onPress={onShowCheckInPage} activeOpacity={0.7}>
-            <View style={styles.ciSymptomsEmptyLeft}>
+          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F9FAFB', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', marginBottom: 12 }} onPress={onShowCheckInPage} activeOpacity={0.7}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="clipboard-outline" size={24} color="#D1D5DB" />
-              <Text style={styles.ciSymptomsEmptyText}>No check-in recorded</Text>
+              <Text style={{ fontSize: 14, color: '#9CA3AF', fontWeight: '500' }}>No check-in recorded</Text>
             </View>
-            <View style={styles.ciSymptomsAddBtn}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="add" size={22} color="#fff" />
             </View>
           </TouchableOpacity>
         )}
-      </View>
+      </>
     );
   };
   const [permission, requestPermission] = useCameraPermissions();
