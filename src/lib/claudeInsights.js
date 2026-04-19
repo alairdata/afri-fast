@@ -40,22 +40,12 @@ async function saveCache(cacheKey, userId, payload) {
   } catch (_) {}
 }
 
-export async function getDailyInsights(data, forceRefresh = false) {
+export async function getDailyInsights(data) {
   const userId = data?.profile?.userId;
   if (!userId) return null;
 
-  if (!forceRefresh) {
-    const cached = await getCached(DAILY_CACHE_KEY, userId);
-    if (cached && Date.now() - cached.timestamp < DAILY_TTL) {
-      return { cards: cached.cards, alertCard: cached.alertCard || null };
-    }
-  }
-
   try {
     const result = await callApi('daily_insights', data);
-    if (result?.cards?.length) {
-      await saveCache(DAILY_CACHE_KEY, userId, { cards: result.cards, alertCard: result.alertCard || '' });
-    }
     return { cards: result?.cards || null, alertCard: result?.alertCard || null };
   } catch (e) {
     console.error('[DailyInsights error]', e);
