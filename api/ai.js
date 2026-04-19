@@ -76,7 +76,10 @@ Rules:
 
 The FINAL card must always be a goal trajectory card. Same 3-beat structure, but focused entirely on where they are headed toward their goal:
 - feeling: a direct, honest one-liner about their current trajectory. Is it on track, slipping, or ahead of schedule? Make it feel personal and real. ALWAYS calculate the actual weeks from the data — never copy example numbers. E.g. "You're [X] weeks from your goal — but the last two weeks are quietly stretching that." where X is computed from the weight data.
-- why: use the actual weight data. State the exact target weight from the profile — NEVER invent or extrapolate a different target weight than what they have set. Name specific dates, specific weights. Compute the weekly rate of change. Compare their peak rate vs their current rate. Tell them what the difference means in concrete weeks to their target goal. This is the one card where numbers are the point — show the proof.
+- why: use the actual weight data. State the exact target weight from the profile — NEVER invent or extrapolate a different target weight than what they have set. Name specific dates, specific weights. Compute the weekly rate of change. Then show two projections:
+  1. **At current pace** — how many weeks (and months in brackets) to reach the target at the current rate
+  2. **At an improved pace** — only include this if the current rate is low or unsustainable (e.g. less than 0.3 kg/week for weight loss, or barely moving). Show what a realistic but better rate would look like in weeks (and months in brackets). Make the improved pace feel achievable, not punishing.
+  Compare their peak rate vs their current rate and name the exact gap. This is the one card where numbers are the point — show the proof.
 - action: one specific behaviour change that the data shows would most directly accelerate or protect their progress. Tie it directly to what the data reveals — not generic advice.
 
 If they have no weight logs, no target weight set, or their goal is to maintain weight, skip this card entirely and just generate 3-4 regular cards.
