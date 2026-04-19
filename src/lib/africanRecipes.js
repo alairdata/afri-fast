@@ -73,6 +73,7 @@ export const AFRICAN_RECIPES = [
       "Taste for salt and serve hot."
     ],
     "imageFilename": "pepper-soup-light.jpg",
+  "imageUrl": "https://foodsturvs.ca/wp-content/uploads/2024/01/73_file.png",
     "fastingFriendly": true
   },
   {
@@ -147,6 +148,7 @@ export const AFRICAN_RECIPES = [
       "Plate yam and pour egg sauce over."
     ],
     "imageFilename": "boiled-yam-egg-sauce.jpg",
+  "imageUrl": "https://img.postershop.me/cdn-cgi/image/width=1024,format=webp/https://img.postershop.me/12393/Products/3328589_1671632021.367_original.jpg",
     "fastingFriendly": true
   },
   {
@@ -211,6 +213,7 @@ export const AFRICAN_RECIPES = [
       "Drizzle with honey."
     ],
     "imageFilename": "oat-banana-porridge.jpg",
+  "imageUrl": "https://www.eatingwell.com/thmb/g-qEJZu0sjFQMEwbIqkJAb6ksCA=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/banana-oatmeal-b38b2229d8a7447094f7eca0cbafb908.jpg",
     "fastingFriendly": true
   },
   {
@@ -282,6 +285,7 @@ export const AFRICAN_RECIPES = [
       "Done when toothpick comes out clean."
     ],
     "imageFilename": "moi-moi.jpg",
+  "imageUrl": "https://shop.africanfoodsupermarket.com/cdn/shop/articles/moi_moi_1024x.jpg?v=1611605450",
     "fastingFriendly": true
   },
   {
@@ -352,6 +356,7 @@ export const AFRICAN_RECIPES = [
       "Serve hot together."
     ],
     "imageFilename": "akara-pap.jpg",
+  "imageUrl": "https://i.pinimg.com/736x/8a/21/44/8a2144bdc593699e093cbf932419a0ae.jpg",
     "fastingFriendly": false
   },
   {
@@ -471,6 +476,7 @@ export const AFRICAN_RECIPES = [
       "Add milk and sweetener at the end."
     ],
     "imageFilename": "tom-brown.jpg",
+  "imageUrl": "https://cdn.ghanaweb.com/imagelib/pics/416/41675271.295.jpg",
     "fastingFriendly": false
   },
   {
@@ -523,6 +529,7 @@ export const AFRICAN_RECIPES = [
       "Serve with bean cakes."
     ],
     "imageFilename": "hausa-koko-koose.jpg",
+  "imageUrl": "https://www.thespruceeats.com/thmb/D5lsBYYAz2NiIup3evaCXteK8hM=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/hausa-koko-spicy-millet-porridge-39547-hero-01-edb486a34d6a4ee3b8b347430838d1f7.jpg",
     "fastingFriendly": false
   },
   {
@@ -609,6 +616,7 @@ export const AFRICAN_RECIPES = [
       "Stir and serve with chicken."
     ],
     "imageFilename": "jollof-rice-chicken.jpg",
+  "imageUrl": "https://anywhererecipes.com/wp-content/uploads/2025/10/Jollof-rice-and-chicken-500x500.jpg",
     "fastingFriendly": false
   },
   {
@@ -683,6 +691,7 @@ export const AFRICAN_RECIPES = [
       "Serve hot."
     ],
     "imageFilename": "eba-egusi.jpg",
+  "imageUrl": "https://www.dashofjazz.com/wp-content/uploads/2024/03/Dash-of-Jazz-Efo-Elegusi-26.jpg",
     "fastingFriendly": false
   },
   {
@@ -746,6 +755,7 @@ export const AFRICAN_RECIPES = [
       "Serve together."
     ],
     "imageFilename": "banku-tilapia.jpg",
+  "imageUrl": "https://kumasiafricancousin.com/wp-content/uploads/2023/10/IMG-20231019-WA0034.jpg",
     "fastingFriendly": false
   },
   {
@@ -1724,6 +1734,7 @@ export const AFRICAN_RECIPES = [
       "No milk or sugar."
     ],
     "imageFilename": "",
+    "imageUrl": "https://www.kauveryhospitalsbangalore.com/assets/uploads/blog/mobcup_68526509d42eb.jpg",
     "fastingFriendly": true
   },
   {
@@ -1758,6 +1769,7 @@ export const AFRICAN_RECIPES = [
       "Remove bag and drink plain."
     ],
     "imageFilename": "",
+    "imageUrl": "https://img.lb.wbmdstatic.com/vim/live/webmd/consumer_assets/site_images/articles/health_tools/Life_with_j_pouch_slideshow/1800ss_getty_rf_green_tea.jpg?resize=750px:*&output-quality=75",
     "fastingFriendly": true
   },
   {
@@ -1792,6 +1804,7 @@ export const AFRICAN_RECIPES = [
       "Stir and drink."
     ],
     "imageFilename": "",
+    "imageUrl": "https://static.toiimg.com/photo/84339280.cms",
     "fastingFriendly": true
   },
   {
@@ -1831,6 +1844,7 @@ export const AFRICAN_RECIPES = [
       "Add lemon juice and stir."
     ],
     "imageFilename": "",
+    "imageUrl": "https://saberhealth.com/wp-content/uploads/2024/11/lemon-ginger-tea.jpg",
     "fastingFriendly": true
   },
   {
