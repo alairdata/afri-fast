@@ -206,6 +206,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [weightLogs, setWeightLogs] = useState([]);
   const [targetWeight, setTargetWeight] = useState(null);
   const [startingWeight, setStartingWeight] = useState(null);
+  const [userGoal, setUserGoal] = useState('');
 
   // === Hydration state ===
   const [volumeUnit, setVolumeUnit] = useState('sachet');
@@ -383,6 +384,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (s.hydrationGoal != null) setHydrationGoal(s.hydrationGoal);
         if (s.startingWeight != null) setStartingWeight(s.startingWeight);
         if (s.targetWeight != null) setTargetWeight(s.targetWeight);
+        if (s.userGoal) setUserGoal(s.userGoal);
       } catch (_) {}
     })();
   }, [session]);
@@ -395,11 +397,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       userName, userCountry,
       height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
       dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
-      hydrationGoal, startingWeight, targetWeight,
+      hydrationGoal, startingWeight, targetWeight, userGoal,
     })).catch(() => {});
   }, [userName, userCountry, height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
       dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
-      hydrationGoal, startingWeight, targetWeight, session]);
+      hydrationGoal, startingWeight, targetWeight, userGoal, session]);
 
   // Auto-detect country from IP if not set
   useEffect(() => {
@@ -418,7 +420,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch profile from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, created_at, personality, personality_updated_at').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -475,6 +477,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.carbs_goal != null) setCarbsGoal(data.carbs_goal);
         if (data.fats_goal != null) setFatsGoal(data.fats_goal);
         if (data.hydration_goal != null) setHydrationGoal(data.hydration_goal);
+        if (data.goal) setUserGoal(data.goal);
         if (data.personality) setUserPersonality(data.personality);
         if (data.personality_updated_at) setPersonalityUpdatedAt(new Date(data.personality_updated_at));
 
@@ -688,6 +691,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           const tw = parseFloat(pendingPreAuthData.targetWeight);
           setTargetWeight(tw);
           patch.target_weight = tw;
+        }
+        if (pendingPreAuthData.goal) {
+          setUserGoal(pendingPreAuthData.goal);
+          patch.goal = pendingPreAuthData.goal;
         }
         if (pendingPreAuthData.currentWeight) {
           const sw = parseFloat(pendingPreAuthData.currentWeight);
@@ -1117,6 +1124,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           weightLogs={weightLogs}
           targetWeight={targetWeight}
           startingWeight={startingWeight}
+          goal={userGoal}
           dailyCalorieGoal={dailyCalorieGoal}
           hydrationGoal={hydrationGoal}
           userName={userName}

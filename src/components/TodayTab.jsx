@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, ActivityIndicator, Animated, RefreshControl } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
 import { getCachedDailyInsights, refreshDailyInsights, getJustForYou } from '../lib/claudeInsights';
@@ -147,6 +147,7 @@ const TodayTab = ({
   proteinGoal,
   carbsGoal,
   fatsGoal,
+  goal,
   isRestoringFast,
   dataReady,
 }) => {
@@ -159,42 +160,34 @@ const TodayTab = ({
   const [justForYouCards, setJustForYouCards] = useState(null);
   const [insightLoading, setInsightLoading] = useState(true);
   const [jfyLoading, setJfyLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (!userId || !dataReady) return;
-    const payload = {
-      profile: {
-        userId,
-        userName,
-        userCountry,
-        selectedPlan,
-        targetWeight,
-        startingWeight,
-        dailyCalorieGoal,
-        hydrationGoal,
-        volumeUnit,
-        proteinGoal,
-        carbsGoal,
-        fatsGoal,
-      },
-      fastingSessions: fastingSessions || [],
-      checkInHistory: checkInHistory || [],
-      recentMeals: recentMeals || [],
-      weightLogs: weightLogs || [],
-      waterLogs: waterLogs || [],
-    };
+  const buildPayload = () => ({
+    profile: {
+      userId,
+      userName,
+      userCountry,
+      selectedPlan,
+      goal,
+      targetWeight,
+      startingWeight,
+      dailyCalorieGoal,
+      hydrationGoal,
+      volumeUnit,
+      proteinGoal,
+      carbsGoal,
+      fatsGoal,
+    },
+    fastingSessions: fastingSessions || [],
+    checkInHistory: checkInHistory || [],
+    recentMeals: recentMeals || [],
+    weightLogs: weightLogs || [],
+    waterLogs: waterLogs || [],
+  });
 
-    // 1. Show cached cards briefly, then trigger shimmer while refresh runs
-    getCachedDailyInsights(userId).then(cached => {
-      if (cached?.cards?.length) {
-        setDailyInsightCards(cached.cards);
-        if (cached.alertCard) setClaudeAlertCard(cached.alertCard);
-      }
-      // Always show shimmer while fresh cards load
-      setInsightLoading(true);
-    });
-
-    // 2. Always refresh — shimmer shows until this resolves
+  const fetchInsights = (payload) => {
+    setDailyInsightCards(null);
+    setInsightLoading(true);
     refreshDailyInsights(payload).then(result => {
       if (result?.cards?.length) {
         setDailyInsightCards(result.cards);
@@ -207,6 +200,19 @@ const TodayTab = ({
     getJustForYou(payload)
       .then(cards => { setJustForYouCards(cards); setJfyLoading(false); })
       .catch(() => setJfyLoading(false));
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    const payload = buildPayload();
+    fetchInsights(payload);
+    // Stop pull-to-refresh spinner once insight loading kicks in
+    setTimeout(() => setRefreshing(false), 800);
+  };
+
+  useEffect(() => {
+    if (!userId || !dataReady) return;
+    fetchInsights(buildPayload());
   }, [userId, dataReady]);
 
   // Time since last fast counter
@@ -479,7 +485,7 @@ const TodayTab = ({
 
       {Platform.OS === 'web' && <View style={{ height: 44 }} />}
 
-      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}>
         {/* Primary Status Card */}
         <View style={styles.heroCardCompact}>
           <View style={styles.heroContent}>

@@ -75,7 +75,7 @@ Rules:
 - Never give more than one thing to do per card
 
 The FINAL card must always be a goal trajectory card. Same 3-beat structure, but focused entirely on where they are headed toward their goal:
-- feeling: a direct, honest one-liner about their current trajectory. Is it on track, slipping, or ahead of schedule? Make it feel personal and real. E.g. "You're about 20 weeks from your goal — but the last two weeks are quietly stretching that."
+- feeling: a direct, honest one-liner about their current trajectory. Is it on track, slipping, or ahead of schedule? Make it feel personal and real. ALWAYS calculate the actual weeks from the data — never copy example numbers. E.g. "You're [X] weeks from your goal — but the last two weeks are quietly stretching that." where X is computed from the weight data.
 - why: use the actual weight data. State the exact target weight from the profile — NEVER invent or extrapolate a different target weight than what they have set. Name specific dates, specific weights. Compute the weekly rate of change. Compare their peak rate vs their current rate. Tell them what the difference means in concrete weeks to their target goal. This is the one card where numbers are the point — show the proof.
 - action: one specific behaviour change that the data shows would most directly accelerate or protect their progress. Tie it directly to what the data reveals — not generic advice.
 
