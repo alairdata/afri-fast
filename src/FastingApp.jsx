@@ -1404,6 +1404,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         }}
         dailyCalorieGoal={dailyCalorieGoal}
         recentMeals={recentMeals}
+        checkInHistory={checkInHistory}
+        onShowCheckInPage={() => setShowCheckInPage(true)}
+        volumeUnit={volumeUnit}
         streak={(() => {
           let s = 0;
           const now = new Date();

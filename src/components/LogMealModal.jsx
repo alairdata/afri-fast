@@ -394,7 +394,57 @@ No explanation, no markdown, no extra text.`
   return null;
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null, checkInHistory = [], onShowCheckInPage, volumeUnit = 'glasses' }) => {
+
+  const renderCheckInWidget = () => {
+    const dateStr = selectedMealDate ? selectedMealDate.toDateString() : new Date().toDateString();
+    const checkIns = checkInHistory.filter(c => c.date === dateStr);
+    const ci = checkIns[0] || null;
+    const allItems = ci ? [
+      ...(ci.feelings || []),
+      ...(ci.hungerLevel ? [ci.hungerLevel] : []),
+      ...(ci.moods || []),
+      ...(ci.symptoms || []),
+      ...(ci.fastBreak || []),
+      ...(ci.fastingStatus ? [ci.fastingStatus] : []),
+    ] : [];
+    const emojis = allItems.map(item => {
+      const idx = item.indexOf(' ');
+      return idx > 0 ? item.slice(0, idx) : null;
+    }).filter(Boolean);
+
+    return (
+      <View style={styles.checkInWidget}>
+        <Text style={styles.checkInWidgetLabel}>How are you feeling?</Text>
+        {ci ? (
+          <View style={styles.checkInRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ alignItems: 'center', gap: 8, paddingRight: 8 }}>
+              {emojis.map((emoji, i) => (
+                <View key={i} style={[styles.checkInEmojiCircle, { backgroundColor: i % 2 === 0 ? '#ECFDF5' : '#FFF7ED' }]}>
+                  <Text style={{ fontSize: 18 }}>{emoji}</Text>
+                </View>
+              ))}
+              {ci.waterCount > 0 && (
+                <View style={styles.checkInWaterBadge}>
+                  <Text style={{ fontSize: 12, color: '#3B82F6', fontWeight: '600' }}>💧 {ci.waterCount} {volumeUnit}</Text>
+                </View>
+              )}
+            </ScrollView>
+            <TouchableOpacity style={styles.checkInAddBtn} onPress={onShowCheckInPage}>
+              <Ionicons name="add" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.checkInEmpty} onPress={onShowCheckInPage} activeOpacity={0.7}>
+            <Text style={styles.checkInEmptyText}>No check-in recorded — tap to add</Text>
+            <View style={styles.checkInAddBtn}>
+              <Ionicons name="add" size={20} color="#fff" />
+            </View>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
   const [permission, requestPermission] = useCameraPermissions();
   const [micPermSaved, setMicPermSaved] = useState(false);
 
@@ -1210,6 +1260,8 @@ Return ONLY raw JSON, no markdown, no explanation.`
                     </View>
                   </View>
 
+                  {renderCheckInWidget()}
+
                   {/* Log Meal */}
                   <TouchableOpacity style={styles.logBtn} onPress={logMeal}>
                     <Text style={styles.logBtnText}>Log Meal</Text>
@@ -1471,6 +1523,8 @@ Return ONLY raw JSON, no markdown, no explanation.`
                     </View>
                   </View>
                 </ScrollView>
+
+                {renderCheckInWidget()}
 
                 <TouchableOpacity style={styles.logBtn} onPress={logMeal}>
                   <Text style={styles.logBtnText}>Log Meal</Text>
@@ -1875,6 +1929,8 @@ Return ONLY raw JSON, no markdown, no explanation.`
                       <Text style={styles.foodTotalValue}>{getTotalCal()} cal</Text>
                     </View>
                   </View>
+
+                  {renderCheckInWidget()}
 
                   {/* Log Button */}
                   <TouchableOpacity style={styles.logBtn} onPress={logMeal}>
@@ -3313,6 +3369,56 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#111',
+  },
+  checkInWidget: {
+    marginBottom: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.07)',
+  },
+  checkInWidgetLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  checkInRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkInEmojiCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkInWaterBadge: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  checkInAddBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+    flexShrink: 0,
+  },
+  checkInEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  checkInEmptyText: {
+    fontSize: 13,
+    color: '#9CA3AF',
   },
   logBtn: {
     backgroundColor: '#059669',
