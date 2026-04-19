@@ -417,28 +417,35 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       <View style={styles.checkInWidget}>
         <Text style={styles.checkInWidgetLabel}>How are you feeling?</Text>
         {ci ? (
-          <View style={styles.checkInRow}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ alignItems: 'center', gap: 8, paddingRight: 8 }}>
-              {emojis.map((emoji, i) => (
-                <View key={i} style={[styles.checkInEmojiCircle, { backgroundColor: i % 2 === 0 ? '#ECFDF5' : '#FFF7ED' }]}>
-                  <Text style={{ fontSize: 18 }}>{emoji}</Text>
-                </View>
-              ))}
-              {ci.waterCount > 0 && (
-                <View style={styles.checkInWaterBadge}>
-                  <Text style={{ fontSize: 12, color: '#3B82F6', fontWeight: '600' }}>💧 {ci.waterCount} {volumeUnit}</Text>
-                </View>
-              )}
-            </ScrollView>
-            <TouchableOpacity style={styles.checkInAddBtn} onPress={onShowCheckInPage}>
-              <Ionicons name="add" size={20} color="#fff" />
-            </TouchableOpacity>
+          <View style={styles.ciSymptomsCard}>
+            <View style={styles.ciEmojiRowFixed}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ciEmojiScrollArea} contentContainerStyle={styles.ciEmojiScrollContent}>
+                {emojis.map((emoji, i) => (
+                  <View key={i} style={[styles.ciEmojiCircle, { backgroundColor: i % 2 === 0 ? '#ECFDF5' : '#FFF7ED' }]}>
+                    <Text style={styles.ciEmojiCircleText}>{emoji}</Text>
+                  </View>
+                ))}
+                {ci.waterCount > 0 && (
+                  <View style={styles.ciWaterBadge}>
+                    <Ionicons name="water" size={16} color="#3B82F6" />
+                    <Text style={styles.ciWaterBadgeText}>{ci.waterCount}</Text>
+                    <Text style={styles.ciWaterBadgeLabel}>{volumeUnit}</Text>
+                  </View>
+                )}
+              </ScrollView>
+              <TouchableOpacity style={styles.ciEmojiAddBtn} onPress={onShowCheckInPage}>
+                <Ionicons name="add" size={22} color="#fff" />
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
-          <TouchableOpacity style={styles.checkInEmpty} onPress={onShowCheckInPage} activeOpacity={0.7}>
-            <Text style={styles.checkInEmptyText}>No check-in recorded — tap to add</Text>
-            <View style={styles.checkInAddBtn}>
-              <Ionicons name="add" size={20} color="#fff" />
+          <TouchableOpacity style={styles.ciSymptomsEmptyCard} onPress={onShowCheckInPage} activeOpacity={0.7}>
+            <View style={styles.ciSymptomsEmptyLeft}>
+              <Ionicons name="clipboard-outline" size={24} color="#D1D5DB" />
+              <Text style={styles.ciSymptomsEmptyText}>No check-in recorded</Text>
+            </View>
+            <View style={styles.ciSymptomsAddBtn}>
+              <Ionicons name="add" size={22} color="#fff" />
             </View>
           </TouchableOpacity>
         )}
@@ -3372,53 +3379,94 @@ const styles = StyleSheet.create({
   },
   checkInWidget: {
     marginBottom: 12,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.07)',
   },
   checkInWidgetLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: '#6B7280',
-    marginBottom: 8,
+    marginBottom: 10,
+    paddingHorizontal: 4,
   },
-  checkInRow: {
+  ciSymptomsCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 14,
+  },
+  ciEmojiRowFixed: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  checkInEmojiCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  ciEmojiScrollArea: {
+    flex: 1,
+  },
+  ciEmojiScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingRight: 8,
+  },
+  ciEmojiCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkInWaterBadge: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  ciEmojiCircleText: {
+    fontSize: 22,
   },
-  checkInAddBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#059669',
+  ciWaterBadge: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
-    flexShrink: 0,
+    marginLeft: 4,
   },
-  checkInEmpty: {
+  ciWaterBadgeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#374151',
+    marginTop: 1,
+  },
+  ciWaterBadgeLabel: {
+    fontSize: 9,
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  ciSymptomsEmptyCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
-  checkInEmptyText: {
-    fontSize: 13,
+  ciSymptomsEmptyLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  ciSymptomsEmptyText: {
+    fontSize: 14,
     color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  ciSymptomsAddBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ciEmojiAddBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
   },
   logBtn: {
     backgroundColor: '#059669',
