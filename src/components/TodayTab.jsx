@@ -150,6 +150,7 @@ const TodayTab = ({
   goal,
   isRestoringFast,
   dataReady,
+  goalHistory,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
@@ -202,6 +203,7 @@ const TodayTab = ({
     weightLogs: weightLogs || [],
     waterLogs: waterLogs || [],
     enrichedMealLogs: buildEnrichedMealLogs(),
+    goalHistory: goalHistory || [],
   });
 
   const fetchInsights = async (payload) => {

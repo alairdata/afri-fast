@@ -90,8 +90,22 @@ Return ONLY a valid JSON array, no markdown, no explanation:
   ...
 ]`;
 
+function getGoalAtDate(goalHistory, dateStr, profile) {
+  if (!goalHistory?.length || !dateStr) return profile;
+  const date = new Date(dateStr);
+  if (isNaN(date)) return profile;
+  // Find the most recent snapshot that was set on or before this date
+  const sorted = [...goalHistory].sort((a, b) => new Date(a.from) - new Date(b.from));
+  let applicable = null;
+  for (const snap of sorted) {
+    if (new Date(snap.from) <= date) applicable = snap;
+    else break;
+  }
+  return applicable ? { ...profile, ...applicable } : profile;
+}
+
 function preprocessData(data) {
-  const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs } = data;
+  const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs, goalHistory } = data;
   const now = new Date();
 
   const daysBetween = (d1, d2) => Math.floor(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24));
@@ -129,10 +143,25 @@ function preprocessData(data) {
   lines.push(`NAME: ${profile.userName || 'User'} | COUNTRY: ${profile.userCountry || 'Not specified'}`);
   lines.push(`GOAL: ${goalLabel}`);
   lines.push(`PLAN: ${profile.selectedPlan || '16:8'} fasting`);
-  lines.push(`DAILY CALORIE GOAL: ${profile.dailyCalorieGoal || 2000} kcal | PROTEIN: ${profile.proteinGoal || '?'}g | CARBS: ${profile.carbsGoal || '?'}g | FATS: ${profile.fatsGoal || '?'}g`);
+  lines.push(`DAILY CALORIE GOAL (current): ${profile.dailyCalorieGoal || 2000} kcal | PROTEIN: ${profile.proteinGoal || '?'}g | CARBS: ${profile.carbsGoal || '?'}g | FATS: ${profile.fatsGoal || '?'}g`);
   lines.push(`WATER GOAL: ${profile.hydrationGoal || 8} ${profile.volumeUnit || 'glasses'}/day`);
   if (profile.startingWeight) {
     lines.push(`STARTING WEIGHT: ${profile.startingWeight} ${profile.weightUnit || 'kg'} → TARGET: ${profile.targetWeight || '?'} ${profile.weightUnit || 'kg'}`);
+  }
+
+  // Goal history — shows what the targets were at different points in time
+  const sortedGoalHistory = [...(goalHistory || [])].sort((a, b) => new Date(a.from) - new Date(b.from));
+  if (sortedGoalHistory.length > 0) {
+    lines.push('');
+    lines.push('GOAL HISTORY (important: evaluate each meal against the goal that was active on that date, NOT the current goal):');
+    sortedGoalHistory.forEach(snap => {
+      const parts = [`  From ${snap.from}:`];
+      if (snap.dailyCalorieGoal) parts.push(`${snap.dailyCalorieGoal} kcal/day`);
+      if (snap.proteinGoal || snap.carbsGoal || snap.fatsGoal) parts.push(`macros ${snap.proteinGoal || '?'}g P / ${snap.carbsGoal || '?'}g C / ${snap.fatsGoal || '?'}g F`);
+      if (snap.hydrationGoal) parts.push(`hydration ${snap.hydrationGoal} ${profile.volumeUnit || 'glasses'}/day`);
+      if (snap.selectedPlan) parts.push(`plan ${snap.selectedPlan}`);
+      lines.push(parts.join(' | '));
+    });
   }
   lines.push('');
 
@@ -191,7 +220,7 @@ function preprocessData(data) {
         // Group by day to get daily totals, then average across days
         const byDay = {};
         meals.forEach(m => {
-          if (!byDay[m.date]) byDay[m.date] = { cal: 0, prot: 0, carb: 0 };
+          if (!byDay[m.date]) byDay[m.date] = { cal: 0, prot: 0, carb: 0, date: m.date };
           byDay[m.date].cal += (m.calories || 0);
           byDay[m.date].prot += (m.protein || 0);
           byDay[m.date].carb += (m.carbs || 0);
@@ -200,8 +229,12 @@ function preprocessData(data) {
         const avgDailyCal = Math.round(days.reduce((s, d) => s + d.cal, 0) / days.length);
         const avgDailyProt = Math.round(days.reduce((s, d) => s + d.prot, 0) / days.length);
         const avgDailyCarb = Math.round(days.reduce((s, d) => s + d.carb, 0) / days.length);
+        // Show calorie goal that was active during this period (use first day's date as representative)
+        const repDate = days[0]?.date;
+        const goalAtTime = getGoalAtDate(goalHistory, repDate, profile);
+        const calGoalAtTime = goalAtTime?.dailyCalorieGoal || profile.dailyCalorieGoal || 2000;
         const mealList = meals.map(m => `${m.name}(${m.calories}cal,${m.protein || 0}g prot)`).join('; ');
-        lines.push(`  ${label}: ${meals.length} meals across ${days.length} days | avg daily intake: ${avgDailyCal} kcal | avg ${avgDailyProt}g protein | avg ${avgDailyCarb}g carbs`);
+        lines.push(`  ${label}: ${meals.length} meals across ${days.length} days | avg daily intake: ${avgDailyCal} kcal (goal was ${calGoalAtTime} kcal) | avg ${avgDailyProt}g protein | avg ${avgDailyCarb}g carbs`);
         lines.push(`    Meals: ${mealList}`);
       } else {
         lines.push(`  ${label}: no meals logged`);

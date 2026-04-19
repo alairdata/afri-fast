@@ -243,6 +243,28 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [macroStyle, setMacroStyle] = useState('balanced');
   const [hydrationGoal, setHydrationGoal] = useState(6);
   const [foodMeasurement, setFoodMeasurement] = useState('cups');
+  const [goalHistory, setGoalHistory] = useState([]);
+
+  const recordGoalChange = (changes) => {
+    setGoalHistory(prev => {
+      const snapshot = {
+        from: new Date().toDateString(),
+        dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal,
+        hydrationGoal, selectedPlan,
+        ...changes,
+      };
+      const updated = [...prev, snapshot];
+      // Persist to Supabase + AsyncStorage
+      if (session?.user?.id) {
+        dbSave(supabase.from('profiles').update({ goal_history: updated }).eq('id', session.user.id), 'save goal_history');
+      }
+      AsyncStorage.getItem('afri-fast-settings').then(raw => {
+        const s = raw ? JSON.parse(raw) : {};
+        AsyncStorage.setItem('afri-fast-settings', JSON.stringify({ ...s, goalHistory: updated }));
+      }).catch(() => {});
+      return updated;
+    });
+  };
 
   const updateMacroGoalsFromCalories = (nextCalories) => {
     const safeCalories = Math.max(0, Number(nextCalories) || 0);
@@ -402,6 +424,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (s.startingWeight != null) setStartingWeight(s.startingWeight);
         if (s.targetWeight != null) setTargetWeight(s.targetWeight);
         if (s.userGoal) setUserGoal(s.userGoal);
+        if (s.goalHistory?.length) setGoalHistory(s.goalHistory);
       } catch (_) {}
     })();
   }, [session]);
@@ -495,6 +518,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.fats_goal != null) setFatsGoal(data.fats_goal);
         if (data.hydration_goal != null) setHydrationGoal(data.hydration_goal);
         if (data.goal) setUserGoal(data.goal);
+        if (data.goal_history?.length) setGoalHistory(data.goal_history);
         if (data.personality) setUserPersonality(data.personality);
         if (data.personality_updated_at) setPersonalityUpdatedAt(new Date(data.personality_updated_at));
 
@@ -1170,6 +1194,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           carbsGoal={carbsGoal}
           fatsGoal={fatsGoal}
           dataReady={dataLoadCount >= 5}
+          goalHistory={goalHistory}
         />
       )}
 
@@ -1279,7 +1304,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           foodMeasurement={foodMeasurement}
           setFoodMeasurement={(val) => { setFoodMeasurement(val); upsertProfile({ food_measurement: val }, 'update food_measurement'); }}
           dailyCalorieGoal={dailyCalorieGoal}
-          setDailyCalorieGoal={(val) => { updateMacroGoalsFromCalories(val); upsertProfile({ daily_calorie_goal: val }, 'update daily_calorie_goal'); }}
+          setDailyCalorieGoal={(val) => { updateMacroGoalsFromCalories(val); recordGoalChange({ dailyCalorieGoal: val }); upsertProfile({ daily_calorie_goal: val }, 'update daily_calorie_goal'); }}
           macroStyle={macroStyle}
           setMacroStyle={(style) => {
             setMacroStyle(style);
@@ -1294,13 +1319,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
             }
           }}
           proteinGoal={proteinGoal}
-          setProteinGoal={(value) => { setMacroStyle('custom'); setProteinGoal(value); upsertProfile({ protein_goal: value, macro_style: 'custom' }, 'update protein_goal'); }}
+          setProteinGoal={(value) => { setMacroStyle('custom'); setProteinGoal(value); recordGoalChange({ proteinGoal: value }); upsertProfile({ protein_goal: value, macro_style: 'custom' }, 'update protein_goal'); }}
           carbsGoal={carbsGoal}
-          setCarbsGoal={(value) => { setMacroStyle('custom'); setCarbsGoal(value); upsertProfile({ carbs_goal: value, macro_style: 'custom' }, 'update carbs_goal'); }}
+          setCarbsGoal={(value) => { setMacroStyle('custom'); setCarbsGoal(value); recordGoalChange({ carbsGoal: value }); upsertProfile({ carbs_goal: value, macro_style: 'custom' }, 'update carbs_goal'); }}
           fatsGoal={fatsGoal}
-          setFatsGoal={(value) => { setMacroStyle('custom'); setFatsGoal(value); upsertProfile({ fats_goal: value, macro_style: 'custom' }, 'update fats_goal'); }}
+          setFatsGoal={(value) => { setMacroStyle('custom'); setFatsGoal(value); recordGoalChange({ fatsGoal: value }); upsertProfile({ fats_goal: value, macro_style: 'custom' }, 'update fats_goal'); }}
           hydrationGoal={hydrationGoal}
-          setHydrationGoal={(val) => { setHydrationGoal(val); upsertProfile({ hydration_goal: val }, 'update hydration_goal'); }}
+          setHydrationGoal={(val) => { setHydrationGoal(val); recordGoalChange({ hydrationGoal: val }); upsertProfile({ hydration_goal: val }, 'update hydration_goal'); }}
           volumeUnit={volumeUnit}
           setVolumeUnit={(val) => { updateHydrationUnit(val); upsertProfile({ volume_unit: val }, 'update volume_unit'); }}
           targetWeight={targetWeight}
@@ -1369,6 +1394,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         isFasting={isFasting}
         onSelectPlan={(plan) => {
           setSelectedPlan(plan.id);
+          recordGoalChange({ selectedPlan: plan.id });
           upsertProfile({ selected_plan: plan.id }, 'save selected_plan');
         }}
       />
@@ -1528,6 +1554,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       <MakeRecipePage
         show={showMakeRecipePage}
         onClose={() => setShowMakeRecipePage(false)}
+        onLogMeal={(recipe) => {
+          setShowMakeRecipePage(false);
+          setLogMealMethod('write');
+          setShowLogMealModal(true);
+        }}
       />
 
       <FindRecipePage
@@ -1700,6 +1731,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         recentMeals={recentMeals}
         weightLogs={weightLogs}
         waterLogs={waterLogs}
+        goalHistory={goalHistory}
         personality={userPersonality}
         onUpdatePersonality={(updated) => {
           setUserPersonality(updated);

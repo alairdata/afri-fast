@@ -84,6 +84,7 @@ const ChatScreen = ({
   waterLogs,
   personality,
   onUpdatePersonality,
+  goalHistory,
 }) => {
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -114,6 +115,7 @@ const ChatScreen = ({
     proteinGoal, carbsGoal, fatsGoal,
     fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs,
     enrichedMealLogs,
+    goalHistory: goalHistory || [],
   };
 
   // When chat closes with enough messages, update personality in background

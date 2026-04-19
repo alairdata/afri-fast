@@ -1,418 +1,451 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image } from 'react-native';
-import Svg, { Path, Rect, Line, Circle } from 'react-native-svg';
+import React, { useState, useMemo } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image, Modal, SafeAreaView, Platform } from 'react-native';
+import Svg, { Path, Circle } from 'react-native-svg';
+import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
 
-const MakeRecipePage = ({ show, onClose }) => {
+// ── Recipe Detail Popup ──────────────────────────────────────────────────────
+
+const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal }) => {
+  if (!recipe) return null;
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={detail.container}>
+        {/* Header */}
+        <View style={detail.header}>
+          <TouchableOpacity style={detail.closeBtn} onPress={onClose}>
+            <Text style={detail.closeX}>✕</Text>
+          </TouchableOpacity>
+          {onLogMeal && (
+            <TouchableOpacity style={detail.logBtn} onPress={() => { onLogMeal(recipe); onClose(); }}>
+              <Text style={detail.logBtnText}>Log Meal</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <ScrollView style={detail.scroll} showsVerticalScrollIndicator={false}>
+          {/* Image */}
+          {recipe.imageFilename ? (
+            <Image
+              source={{ uri: `https://placeholder.com/400x220` }}
+              style={detail.heroImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[detail.heroImage, detail.heroPlaceholder]}>
+              <Text style={detail.heroEmoji}>🍽️</Text>
+            </View>
+          )}
+
+          <View style={detail.body}>
+            {/* Category label */}
+            <Text style={detail.categoryLabel}>{recipe.category.toUpperCase()}</Text>
+
+            {/* Title + description */}
+            <Text style={detail.title}>{recipe.name}</Text>
+            <Text style={detail.description}>{recipe.description}</Text>
+
+            {/* Nutrition row */}
+            <View style={detail.nutritionRow}>
+              {[
+                { val: recipe.calories, unit: 'kcal' },
+                { val: `${recipe.protein}g`, unit: 'protein' },
+                { val: `${recipe.carbs}g`, unit: 'carbs' },
+                { val: `${recipe.fats}g`, unit: 'fats' },
+              ].map((n, i) => (
+                <View key={i} style={detail.nutritionBox}>
+                  <Text style={detail.nutritionVal}>{n.val}</Text>
+                  <Text style={detail.nutritionUnit}>{n.unit}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Time chips */}
+            <View style={detail.chipsRow}>
+              {recipe.prepTime ? (
+                <View style={detail.chip}>
+                  <Text style={detail.chipIcon}>⏱</Text>
+                  <Text style={detail.chipText}>{recipe.prepTime} prep</Text>
+                </View>
+              ) : null}
+              {recipe.cookTime ? (
+                <View style={[detail.chip, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                  <Text style={detail.chipIcon}>🔥</Text>
+                  <Text style={[detail.chipText, { color: '#EF4444' }]}>{recipe.cookTime} cook</Text>
+                </View>
+              ) : null}
+              {recipe.yield ? (
+                <View style={[detail.chip, { backgroundColor: 'rgba(139,92,246,0.12)' }]}>
+                  <Text style={detail.chipIcon}>🍴</Text>
+                  <Text style={[detail.chipText, { color: '#8B5CF6' }]}>{recipe.yield}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            {/* Local names */}
+            {recipe.localNames?.length > 0 && (
+              <View style={detail.localNamesRow}>
+                <Text style={detail.localNamesLabel}>Also known as: </Text>
+                <Text style={detail.localNamesText}>{recipe.localNames.join(' · ')}</Text>
+              </View>
+            )}
+
+            {/* Ingredients */}
+            {recipe.ingredients?.length > 0 && (
+              <View style={detail.section}>
+                <Text style={detail.sectionTitle}>Ingredients</Text>
+                <View style={detail.ingredientsGrid}>
+                  {recipe.ingredients.map((ing, i) => (
+                    <View key={i} style={detail.ingredientRow}>
+                      <View style={detail.ingredientDot} />
+                      <Text style={detail.ingredientName}>{ing.name}</Text>
+                      <Text style={detail.ingredientAmount}>{ing.amount}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Instructions */}
+            {recipe.instructions?.length > 0 && (
+              <View style={detail.section}>
+                <Text style={detail.sectionTitle}>Instructions</Text>
+                {recipe.instructions.map((step, i) => (
+                  <View key={i} style={detail.stepRow}>
+                    <View style={detail.stepNum}>
+                      <Text style={detail.stepNumText}>{i + 1}</Text>
+                    </View>
+                    <Text style={detail.stepText}>{step}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Countries */}
+            {recipe.countries?.length > 0 && (
+              <Text style={detail.countries}>🌍 {recipe.countries.join(' · ')}</Text>
+            )}
+
+            <View style={{ height: 40 }} />
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+};
+
+// ── Make Recipe Page ─────────────────────────────────────────────────────────
+
+const CATEGORY_META = {
+  'Fasting-Friendly': { emoji: '⚡', subtitle: 'Perfect for breaking your fast' },
+  'Breakfast': { emoji: '🌅', subtitle: 'Start your morning right' },
+  'Lunch': { emoji: '☀️', subtitle: 'Midday meals to keep you going' },
+  'Dinner': { emoji: '🌙', subtitle: 'Light and satisfying evening meals' },
+  'Snacks': { emoji: '🤏', subtitle: 'Healthy bites between meals' },
+  'Desserts': { emoji: '🍬', subtitle: 'Sweet treats, African style' },
+  'Drinks': { emoji: '🥤', subtitle: 'Refreshing beverages' },
+  'Fasting Drinks': { emoji: '💧', subtitle: 'Zero-calorie drinks for your fast' },
+  'Quick & Easy': { emoji: '⚡', subtitle: 'Ready in under 15 minutes' },
+  'Low Fat': { emoji: '🥗', subtitle: 'Light on fat, big on taste' },
+  'Low Carb': { emoji: '💪', subtitle: 'Keep the carbs down' },
+  'High Protein': { emoji: '🏋️', subtitle: 'Fuel your muscles' },
+};
+
+const MakeRecipePage = ({ show, onClose, onLogMeal }) => {
   const [makeRecipeMethod, setMakeRecipeMethod] = useState(null);
-  const [showMakeRecipeModal, setShowMakeRecipeModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [detailVisible, setDetailVisible] = useState(false);
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return AFRICAN_RECIPES.filter(r =>
+      r.name.toLowerCase().includes(q) ||
+      r.category.toLowerCase().includes(q) ||
+      r.description.toLowerCase().includes(q) ||
+      r.localNames?.some(n => n.toLowerCase().includes(q))
+    );
+  }, [searchQuery]);
+
+  const openRecipe = (recipe) => {
+    setSelectedRecipe(recipe);
+    setDetailVisible(true);
+  };
+
+  const renderRecipeCard = (recipe) => (
+    <TouchableOpacity key={recipe.id} style={styles.recipeCard} onPress={() => openRecipe(recipe)}>
+      <View style={styles.recipeCardImg}>
+        <Text style={styles.recipeCardEmoji}>🍽️</Text>
+      </View>
+      {recipe.fastingFriendly && (
+        <View style={styles.recipeCardTag}>
+          <Text style={styles.recipeCardTagText}>Fasting ✓</Text>
+        </View>
+      )}
+      <Text style={styles.recipeCardName} numberOfLines={2}>{recipe.name}</Text>
+      <View style={styles.recipeCardMeta}>
+        <Text style={styles.recipeCardCal}>{recipe.calories} cal</Text>
+        {recipe.cookTime ? <Text style={styles.recipeCardTime}>{recipe.cookTime}</Text> : null}
+      </View>
+    </TouchableOpacity>
+  );
 
   if (!show) return null;
 
-  const renderSection = (title, subtitle, items) => (
-    <View style={styles.recipeSection}>
-      <Text style={styles.recipeSectionTitle}>{title}</Text>
-      {subtitle && <Text style={styles.recipeSectionSubtitle}>{subtitle}</Text>}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recipeCardsScroll}>
-        {items.map((item, index) => (
-          <View key={index} style={styles.recipeImageCard}>
-            {item.image ? (
-              <Image source={typeof item.image === 'string' ? { uri: item.image } : item.image} style={styles.recipeImageCardImg} resizeMode="cover" />
-            ) : (
-              <View style={[styles.recipeImageCardImg, styles.recipeImagePlaceholder]}>
-                <Text style={styles.recipeImagePlaceholderText}>{item.name.charAt(0)}</Text>
-              </View>
-            )}
-            {item.tag && (
-              <View style={styles.recipeCardTag}>
-                <Text style={styles.recipeCardTagText}>{item.tag}</Text>
-              </View>
-            )}
-            <Text style={styles.recipeImageCardName}>{item.name}</Text>
-            <View style={styles.recipeImageCardMeta}>
-              <Text style={styles.recipeImageCardCal}>{item.cal}</Text>
-              <Text style={styles.recipeImageCardTime}>{item.time}</Text>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-    </View>
-  );
-
   return (
-    <View style={styles.recipePageOverlay}>
-      <View style={styles.recipePage}>
+    <View style={styles.overlay}>
+      <View style={styles.page}>
         {/* Header */}
-        <View style={styles.recipePageHeader}>
-          <TouchableOpacity style={styles.recipeBackBtn} onPress={onClose}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={onClose}>
             <Ionicons name="chevron-back" size={24} color="#059669" />
           </TouchableOpacity>
-          <Text style={styles.recipePageTitle}>Make a Recipe</Text>
+          <Text style={styles.pageTitle}>Make a Recipe</Text>
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView style={styles.recipePageContent}>
-          {/* Input Options */}
-          <View style={styles.makeRecipeOptionsRow}>
-            <TouchableOpacity style={styles.makeRecipeCard} onPress={() => { setMakeRecipeMethod('photo'); setShowMakeRecipeModal(true); }}>
-              <View style={[styles.makeRecipeCardBg, { backgroundColor: '#ECFDF5' }]}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Action cards */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => setMakeRecipeMethod('photo')}>
+              <View style={[styles.actionIconBg, { backgroundColor: '#ECFDF5' }]}>
                 <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
                   <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                   <Circle cx="12" cy="13" r="4" />
                 </Svg>
               </View>
-              <Text style={styles.makeRecipeCardTitle}>Take a{'\n'}Picture</Text>
-              <Text style={styles.makeRecipeCardDesc}>Snap your fridge or pantry</Text>
+              <Text style={styles.actionTitle}>Take a{'\n'}Picture</Text>
+              <Text style={styles.actionDesc}>Snap your fridge or pantry</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.makeRecipeCard} onPress={() => { setMakeRecipeMethod('list'); setShowMakeRecipeModal(true); }}>
-              <View style={[styles.makeRecipeCardBg, { backgroundColor: '#EFF6FF' }]}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => setMakeRecipeMethod('list')}>
+              <View style={[styles.actionIconBg, { backgroundColor: '#EFF6FF' }]}>
                 <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
                   <Path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                   <Path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </Svg>
               </View>
-              <Text style={styles.makeRecipeCardTitle}>List{'\n'}Ingredients</Text>
-              <Text style={styles.makeRecipeCardDesc}>Type or say what you have</Text>
+              <Text style={styles.actionTitle}>List{'\n'}Ingredients</Text>
+              <Text style={styles.actionDesc}>Type or say what you have</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Search Bar */}
-          <View style={styles.recipeSearchBar}>
+          {/* Search */}
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={16} color="#999" style={{ marginRight: 8 }} />
             <TextInput
-              style={styles.recipeSearchInput}
+              style={styles.searchInput}
               placeholder="Search recipes..."
               placeholderTextColor="#999"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={16} color="#ccc" />
+              </TouchableOpacity>
+            )}
           </View>
 
-          {renderSection('Fasting-Friendly', 'Perfect for breaking your fast', [
-            { name: 'Pepper Soup (Light)', cal: '120 cal', time: '25 min', tag: 'Gentle', image: null },
-            { name: 'Boiled Yam & Egg Sauce', cal: '350 cal', time: '20 min', tag: 'Protein-rich', image: null },
-            { name: 'Oat & Banana Porridge', cal: '280 cal', time: '10 min', tag: 'Easy to digest', image: null },
-            { name: 'Moi Moi', cal: '250 cal', time: '45 min', tag: 'High fiber', image: null },
-          ])}
+          {/* Search results */}
+          {searchQuery.trim().length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                {searchResults.length > 0 ? `${searchResults.length} results` : 'No results found'}
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
+                {searchResults.map(renderRecipeCard)}
+              </ScrollView>
+            </View>
+          ) : (
+            <>
+              {RECIPE_CATEGORIES.map(cat => {
+                const recipes = AFRICAN_RECIPES.filter(r => r.category === cat);
+                if (recipes.length === 0) return null;
+                const meta = CATEGORY_META[cat] || {};
+                return (
+                  <View key={cat} style={styles.section}>
+                    <Text style={styles.sectionTitle}>{meta.emoji} {cat}</Text>
+                    {meta.subtitle && <Text style={styles.sectionSubtitle}>{meta.subtitle}</Text>}
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
+                      {recipes.map(renderRecipeCard)}
+                    </ScrollView>
+                  </View>
+                );
+              })}
+            </>
+          )}
 
-          {renderSection('Breakfast', 'Start your morning right', [
-            { name: 'Akara & Pap', cal: '320 cal', time: '20 min', image: null },
-            { name: 'Bread & Egg Stew', cal: '380 cal', time: '15 min', image: null },
-            { name: 'Tom Brown Porridge', cal: '250 cal', time: '10 min', image: null },
-            { name: 'Hausa Koko & Koose', cal: '290 cal', time: '25 min', image: null },
-          ])}
-
-          {renderSection('Lunch', 'Midday meals to keep you going', [
-            { name: 'Jollof Rice & Chicken', cal: '520 cal', time: '45 min', image: null },
-            { name: 'Eba & Egusi Soup', cal: '580 cal', time: '40 min', image: null },
-            { name: 'Banku & Tilapia', cal: '450 cal', time: '35 min', image: null },
-            { name: 'Waakye & Shito', cal: '490 cal', time: '50 min', image: null },
-          ])}
-
-          {renderSection('Dinner', 'Light and satisfying evening meals', [
-            { name: 'Pepper Soup & Fish', cal: '280 cal', time: '30 min', image: null },
-            { name: 'Beans & Plantain', cal: '420 cal', time: '35 min', image: null },
-            { name: 'Light Okra Soup & Fufu', cal: '380 cal', time: '30 min', image: null },
-            { name: 'Grilled Suya & Salad', cal: '310 cal', time: '20 min', image: null },
-          ])}
-
-          {renderSection('Snacks', 'Healthy bites between meals', [
-            { name: 'Chin Chin (Baked)', cal: '150 cal', time: '30 min', image: null },
-            { name: 'Roasted Plantain', cal: '180 cal', time: '15 min', image: null },
-            { name: 'Groundnuts & Banana', cal: '200 cal', time: '2 min', image: null },
-            { name: 'Puff Puff (Mini)', cal: '220 cal', time: '20 min', image: null },
-          ])}
-
-          {renderSection('Desserts', 'Sweet treats, African style', [
-            { name: 'Coconut Candy', cal: '120 cal', time: '15 min', image: null },
-            { name: 'Banana Fritters', cal: '180 cal', time: '10 min', image: null },
-            { name: 'Kuli Kuli Bites', cal: '160 cal', time: '25 min', image: null },
-            { name: 'Sweet Potato Pudding', cal: '200 cal', time: '35 min', image: null },
-          ])}
-
-          {renderSection('Drinks', 'Refreshing beverages', [
-            { name: 'Zobo (Hibiscus)', cal: '60 cal', time: '30 min', image: null },
-            { name: 'Sobolo', cal: '50 cal', time: '25 min', image: null },
-            { name: 'Chapman', cal: '120 cal', time: '5 min', image: null },
-            { name: 'Kunu Zaki', cal: '90 cal', time: '40 min', image: null },
-          ])}
-
-          {renderSection('Fasting Drinks', 'Zero calorie drinks for your fast', [
-            { name: 'Black Coffee', cal: '2 cal', time: '3 min', tag: '0 sugar', image: null },
-            { name: 'Green Tea', cal: '0 cal', time: '5 min', tag: 'Metabolism boost', image: null },
-            { name: 'Lemon Water', cal: '5 cal', time: '2 min', tag: 'Detox', image: null },
-            { name: 'Ginger & Lemon Tea', cal: '8 cal', time: '5 min', tag: 'Anti-inflammatory', image: null },
-          ])}
-
-          {renderSection('Quick & Easy', 'Ready in under 15 minutes', [
-            { name: 'Indomie & Egg', cal: '450 cal', time: '8 min', image: null },
-            { name: 'Fried Plantain & Eggs', cal: '380 cal', time: '10 min', image: null },
-            { name: 'Bread & Beans', cal: '350 cal', time: '5 min', image: null },
-            { name: 'Garri & Groundnut', cal: '300 cal', time: '3 min', image: null },
-          ])}
-
-          {renderSection('Low Fat', 'Light on fat, big on taste', [
-            { name: 'Grilled Fish & Veggies', cal: '220 cal', time: '25 min', tag: '5g fat', image: null },
-            { name: 'Boiled Yam & Garden Egg Stew', cal: '280 cal', time: '20 min', tag: '4g fat', image: null },
-            { name: 'Steamed Moi Moi', cal: '200 cal', time: '45 min', tag: '3g fat', image: null },
-            { name: 'Pepper Soup (No Oil)', cal: '150 cal', time: '30 min', tag: '2g fat', image: null },
-          ])}
-
-          {renderSection('Low Carb', 'Keep the carbs down', [
-            { name: 'Suya & Cabbage Salad', cal: '280 cal', time: '15 min', tag: '8g carbs', image: null },
-            { name: 'Egg & Spinach Stew', cal: '220 cal', time: '15 min', tag: '6g carbs', image: null },
-            { name: 'Grilled Chicken & Avocado', cal: '320 cal', time: '20 min', tag: '5g carbs', image: null },
-            { name: 'Fish & Okra Soup', cal: '180 cal', time: '25 min', tag: '10g carbs', image: null },
-          ])}
-
-          {renderSection('High Protein', 'Fuel your muscles', [
-            { name: 'Suya Platter', cal: '350 cal', time: '20 min', tag: '40g protein', image: null },
-            { name: 'Beans & Dodo', cal: '420 cal', time: '25 min', tag: '28g protein', image: null },
-            { name: 'Grilled Tilapia & Yam', cal: '380 cal', time: '30 min', tag: '35g protein', image: null },
-            { name: 'Egg & Corned Beef Sauce', cal: '340 cal', time: '15 min', tag: '30g protein', image: null },
-          ])}
+          <View style={{ height: 40 }} />
         </ScrollView>
       </View>
+
+      {/* Recipe Detail Modal */}
+      <RecipeDetailModal
+        recipe={selectedRecipe}
+        visible={detailVisible}
+        onClose={() => setDetailVisible(false)}
+        onLogMeal={onLogMeal}
+      />
     </View>
   );
 };
 
+// ── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  recipePageOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: -120,
+  overlay: {
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#FAFAFA',
     zIndex: 9999,
-    overflow: 'hidden',
   },
-  recipePage: {
-    flex: 1,
-    flexDirection: 'column',
-  },
-  recipePageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    paddingTop: 16,
+  page: { flex: 1, flexDirection: 'column' },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingBottom: 14, paddingTop: 16,
     backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)',
   },
-  recipeBackBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(5, 150, 105, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  backBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(5,150,105,0.08)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  backArrow: {
-    fontSize: 20,
-    color: '#059669',
+  pageTitle: { fontSize: 18, fontWeight: '600', color: '#1F1F1F' },
+  content: { flex: 1, paddingHorizontal: 20 },
+
+  actionRow: { flexDirection: 'row', gap: 12, marginTop: 20, marginBottom: 20 },
+  actionCard: {
+    flex: 1, backgroundColor: '#fff', borderRadius: 20, padding: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 10, elevation: 3,
   },
-  recipePageTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F1F1F',
+  actionIconBg: {
+    width: 56, height: 56, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
   },
-  recipePageContent: {
-    flex: 1,
-    padding: 20,
-  },
-  makeRecipeOptionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  makeRecipeCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  makeRecipeCardBg: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  makeRecipeCardIcon: {
-    fontSize: 28,
-  },
-  makeRecipeCardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F1F1F',
-    lineHeight: 22,
-    marginBottom: 6,
-  },
-  makeRecipeCardDesc: {
-    fontSize: 12,
-    color: '#888',
-    lineHeight: 16,
-  },
-  recipeSearchBar: {
+  actionTitle: { fontSize: 18, fontWeight: '700', color: '#1F1F1F', lineHeight: 22, marginBottom: 6 },
+  actionDesc: { fontSize: 12, color: '#888', lineHeight: 16 },
+
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', borderRadius: 14,
+    paddingVertical: 12, paddingHorizontal: 14,
+    borderWidth: 1.5, borderColor: 'rgba(5,150,105,0.12)',
     marginBottom: 20,
   },
-  recipeSearchInput: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    fontSize: 14,
-    color: '#1F1F1F',
-    borderWidth: 1.5,
-    borderColor: 'rgba(5, 150, 105, 0.12)',
-  },
-  recipeCardsScroll: {
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
-    marginTop: 4,
-  },
-  recipeImageCard: {
-    width: 170,
-    marginRight: 12,
-  },
-  recipeImageCardImg: {
-    width: 170,
-    height: 130,
-    borderRadius: 16,
-    marginBottom: 10,
-  },
-  recipeImagePlaceholder: {
+  searchInput: { flex: 1, fontSize: 14, color: '#1F1F1F' },
+
+  section: { marginBottom: 28 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1F1F1F', marginBottom: 4 },
+  sectionSubtitle: { fontSize: 12, color: '#888', marginBottom: 12 },
+  cardScroll: { marginHorizontal: -20, paddingHorizontal: 20, marginTop: 8 },
+
+  recipeCard: { width: 160, marginRight: 12 },
+  recipeCardImg: {
+    width: 160, height: 120, borderRadius: 16,
     backgroundColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  recipeImagePlaceholderText: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  recipeImageCardName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1F1F1F',
-    lineHeight: 19,
-    marginBottom: 4,
-  },
-  recipeImageCardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  recipeImageCardCal: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  recipeImageCardTime: {
-    fontSize: 11,
-    color: '#999',
-  },
-  recipeCardTag: {
-    alignSelf: 'flex-start',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    backgroundColor: 'rgba(5, 150, 105, 0.1)',
-    borderRadius: 6,
+    alignItems: 'center', justifyContent: 'center',
     marginBottom: 8,
   },
-  recipeCardTagText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#059669',
+  recipeCardEmoji: { fontSize: 36 },
+  recipeCardTag: {
+    position: 'absolute', top: 8, left: 8,
+    backgroundColor: 'rgba(5,150,105,0.85)',
+    paddingVertical: 2, paddingHorizontal: 7, borderRadius: 6,
   },
-  recipeSection: {
-    marginBottom: 24,
+  recipeCardTagText: { fontSize: 9, fontWeight: '700', color: '#fff' },
+  recipeCardName: { fontSize: 13, fontWeight: '700', color: '#1F1F1F', lineHeight: 18, marginBottom: 4 },
+  recipeCardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  recipeCardCal: { fontSize: 12, fontWeight: '600', color: '#059669' },
+  recipeCardTime: { fontSize: 11, color: '#999' },
+});
+
+const detail = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)',
   },
-  recipeSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F1F1F',
-    marginBottom: 12,
+  closeBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center', justifyContent: 'center',
   },
-  recipeSectionSubtitle: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: -8,
-    marginBottom: 12,
+  closeX: { fontSize: 16, color: '#666', fontWeight: '600' },
+  logBtn: {
+    backgroundColor: '#059669',
+    paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20,
   },
-  quickIdeasList: {
-    flexDirection: 'column',
-    gap: 10,
+  logBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  scroll: { flex: 1 },
+
+  heroImage: { width: '100%', height: 220 },
+  heroPlaceholder: { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
+  heroEmoji: { fontSize: 64 },
+
+  body: { padding: 20 },
+
+  categoryLabel: {
+    fontSize: 11, fontWeight: '700', color: '#059669',
+    letterSpacing: 1.2, marginBottom: 8,
   },
-  quickIdeaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+  title: { fontSize: 24, fontWeight: '800', color: '#1F1F1F', lineHeight: 30, marginBottom: 8 },
+  description: { fontSize: 14, color: '#666', lineHeight: 21, marginBottom: 20 },
+
+  nutritionRow: {
+    flexDirection: 'row', gap: 8, marginBottom: 16,
   },
-  quickIdeaEmoji: {
-    fontSize: 28,
+  nutritionBox: {
+    flex: 1, backgroundColor: '#1F1F1F', borderRadius: 12,
+    paddingVertical: 12, alignItems: 'center',
   },
-  quickIdeaInfo: {
-    flex: 1,
-    flexDirection: 'column',
-    gap: 2,
+  nutritionVal: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  nutritionUnit: { fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+
+  chipsRow: { flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(5,150,105,0.1)',
+    paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20,
   },
-  quickIdeaName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F1F1F',
+  chipIcon: { fontSize: 13 },
+  chipText: { fontSize: 12, fontWeight: '600', color: '#059669' },
+
+  localNamesRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 24 },
+  localNamesLabel: { fontSize: 12, color: '#999', fontStyle: 'italic' },
+  localNamesText: { fontSize: 12, color: '#666', fontStyle: 'italic', flex: 1 },
+
+  section: { marginBottom: 24 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1F1F1F', marginBottom: 14 },
+
+  ingredientsGrid: { gap: 10 },
+  ingredientRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 8, paddingHorizontal: 12,
+    backgroundColor: '#F9FAFB', borderRadius: 10,
   },
-  quickIdeaIngredients: {
-    fontSize: 11,
-    color: '#888',
+  ingredientDot: {
+    width: 7, height: 7, borderRadius: 4,
+    backgroundColor: '#059669', marginRight: 10, flexShrink: 0,
   },
-  quickIdeaBenefit: {
-    fontSize: 11,
-    color: '#10B981',
-    fontWeight: '500',
+  ingredientName: { flex: 1, fontSize: 13, color: '#1F1F1F', fontWeight: '500' },
+  ingredientAmount: { fontSize: 12, color: '#059669', fontWeight: '600' },
+
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
+  stepNum: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: '#059669',
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 12, flexShrink: 0, marginTop: 1,
   },
-  quickIdeaTime: {
-    fontSize: 12,
-    color: '#059669',
-    fontWeight: '600',
-  },
-  tipsList: {
-    flexDirection: 'column',
-    gap: 10,
-    marginTop: 12,
-  },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    backgroundColor: 'rgba(245, 158, 11, 0.08)',
-    borderRadius: 12,
-  },
-  tipIcon: {
-    fontSize: 24,
-  },
-  tipText: {
-    fontSize: 13,
-    color: '#444',
-    lineHeight: 18,
-    flex: 1,
-  },
+  stepNumText: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  stepText: { flex: 1, fontSize: 14, color: '#444', lineHeight: 21 },
+
+  countries: { fontSize: 12, color: '#999', marginTop: 8, marginBottom: 8 },
 });
 
 export default MakeRecipePage;

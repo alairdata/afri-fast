@@ -5,7 +5,7 @@ function buildUserContext(data) {
     dailyCalorieGoal, hydrationGoal, volumeUnit,
     proteinGoal, carbsGoal, fatsGoal,
     fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs,
-    enrichedMealLogs,
+    enrichedMealLogs, goalHistory,
   } = data;
 
   const sessions = fastingSessions || [];
@@ -77,8 +77,9 @@ function buildUserContext(data) {
 - Current weight: ${currentWeight ? `${currentWeight} ${wu}` : 'not logged'}
 - Target weight: ${targetWeight ? `${targetWeight} ${wu}` : 'not set'}
 - Weight lost so far: ${weightLost != null ? `${weightLost} ${wu}` : 'unknown'}
-- Daily calorie goal: ${dailyCalorieGoal || 2000} kcal | Avg actual: ${avgCals} kcal
+- Daily calorie goal (current): ${dailyCalorieGoal || 2000} kcal | Avg actual: ${avgCals} kcal
 - Macro goals: ${proteinGoal || '?'}g protein, ${carbsGoal || '?'}g carbs, ${fatsGoal || '?'}g fats
+${(goalHistory || []).length > 0 ? `- Goal history: ${[...goalHistory].sort((a, b) => new Date(a.from) - new Date(b.from)).map(s => `[${s.from}] ${s.dailyCalorieGoal ? s.dailyCalorieGoal + ' kcal' : ''}${s.selectedPlan ? ' plan:' + s.selectedPlan : ''}`).join(' → ')}` : ''}
 - Hydration goal: ${hydrationGoal || 6} ${volumeUnit || 'sachets'}/day | Avg actual: ${avgWater}
 
 FASTING HISTORY:
