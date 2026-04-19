@@ -88,6 +88,7 @@ const ChatScreen = ({
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef(null);
+  const lastOpeningContextRef = useRef(null);
 
   const userData = {
     userName, userCountry, selectedPlan, goal, conditions,
@@ -121,20 +122,27 @@ const ChatScreen = ({
     if (!show) return;
 
     if (openingContext) {
-      setMessages([]);
-      setIsTyping(true);
-      callChat({
-        action: 'message',
-        messages: [],
-        openingContext,
-        personality,
-        data: userData,
-        userId,
-      }).then(res => {
-        setMessages([{ role: 'assistant', content: res.reply || openingContext }]);
-      }).catch(() => {
-        setMessages([{ role: 'assistant', content: openingContext }]);
-      }).finally(() => setIsTyping(false));
+      const contextChanged = openingContext !== lastOpeningContextRef.current;
+      lastOpeningContextRef.current = openingContext;
+
+      if (contextChanged) {
+        // New insight card — start a fresh conversation
+        setMessages([]);
+        setIsTyping(true);
+        callChat({
+          action: 'message',
+          messages: [],
+          openingContext,
+          personality,
+          data: userData,
+          userId,
+        }).then(res => {
+          setMessages([{ role: 'assistant', content: res.reply || openingContext }]);
+        }).catch(() => {
+          setMessages([{ role: 'assistant', content: openingContext }]);
+        }).finally(() => setIsTyping(false));
+      }
+      // Same insight card — keep existing messages, do nothing
 
     } else if (messages.length === 0) {
       const greeting = userName
