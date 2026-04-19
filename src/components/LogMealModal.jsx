@@ -1298,8 +1298,8 @@ Return ONLY raw JSON, no markdown, no explanation.`
             </ScrollView>
         )}
 
-        {/* Write Method — non-scrollable, full view */}
-        {logMealMethod === 'write' && scanPhase !== 'shareCard' && (
+        {/* Write Method — idle / detecting states */}
+        {logMealMethod === 'write' && scanPhase !== 'shareCard' && writePhase !== 'results' && (
           <View style={{ flex: 1, padding: 20 }}>
             {/* Input Box */}
             <View style={styles.writeInputWrapper}>
@@ -1369,29 +1369,30 @@ Return ONLY raw JSON, no markdown, no explanation.`
                 </View>
               </View>
             )}
+          </View>
+        )}
 
-            {/* Results */}
-            {writePhase === 'results' && (
-              <View style={{ flex: 1 }}>
-                {/* Re-write row */}
-                <View style={styles.reRecordRow}>
-                  <View style={styles.reRecordLine} />
-                  <TouchableOpacity style={styles.reRecordBtn} onPress={resetWrite}>
-                    <Ionicons name="create-outline" size={18} color="#fff" />
-                  </TouchableOpacity>
-                  <View style={styles.reRecordLine} />
-                </View>
+        {/* Write Results — full-height scrollable layout, mirrors scan results */}
+        {logMealMethod === 'write' && writePhase === 'results' && (
+          <ScrollView style={styles.scanResultsContainer} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* Re-write row */}
+            <View style={[styles.reRecordRow, { marginHorizontal: 20 }]}>
+              <View style={styles.reRecordLine} />
+              <TouchableOpacity style={styles.reRecordBtn} onPress={resetWrite}>
+                <Ionicons name="create-outline" size={18} color="#fff" />
+              </TouchableOpacity>
+              <View style={styles.reRecordLine} />
+            </View>
 
-                {correctedInput && (
-                  <Text style={{ fontSize: 12, color: '#059669', marginBottom: 8 }}>
-                    Showing results for "{correctedInput}"
-                  </Text>
-                )}
+            {correctedInput && (
+              <Text style={{ fontSize: 12, color: '#059669', marginBottom: 8, marginHorizontal: 20 }}>
+                Showing results for "{correctedInput}"
+              </Text>
+            )}
 
-                <Text style={styles.portionNote}>Portions not right? Tap the green label to adjust.</Text>
+            <Text style={[styles.portionNote, { marginHorizontal: 20 }]}>Portions not right? Tap the green label to adjust.</Text>
 
-                <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-                  <View style={styles.foodCard}>
+            <View style={styles.foodCard}>
                     <View style={styles.foodCardHead}>
                       <Text style={styles.foodCardTitle}>DETECTED FOODS</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -1549,16 +1550,13 @@ Return ONLY raw JSON, no markdown, no explanation.`
                       <Text style={styles.foodTotalValue}>{detectedFoods.reduce((s, f) => s + f.cal, 0)} cal</Text>
                     </View>
                   </View>
-                </ScrollView>
 
-                {renderCheckInWidget()}
+            {renderCheckInWidget()}
 
-                <TouchableOpacity style={styles.logBtn} onPress={logMeal}>
-                  <Text style={styles.logBtnText}>Log Meal</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+            <TouchableOpacity style={[styles.logBtn, { marginHorizontal: 20 }]} onPress={logMeal}>
+              <Text style={styles.logBtnText}>Log Meal</Text>
+            </TouchableOpacity>
+          </ScrollView>
         )}
 
         <ScrollView style={[styles.weightPageContent, ((logMealMethod === 'write' && scanPhase !== 'shareCard') || (logMealMethod === 'scan' && scanPhase === 'results')) && { display: 'none', flex: 0 }]}>
