@@ -415,7 +415,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     }).filter(Boolean);
 
     return (
-      <>
+      <View style={{ flexShrink: 1, alignSelf: 'stretch', marginBottom: 4 }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 10, paddingHorizontal: 4 }}>Check-in time</Text>
         {hasCheckIns ? (
           <View style={{ backgroundColor: '#F9FAFB', borderRadius: 16, padding: 14, marginBottom: 12 }}>
@@ -433,6 +433,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     <Text style={{ fontSize: 9, color: '#9CA3AF', fontWeight: '500' }}>{volumeUnit}</Text>
                   </View>
                 )}
+
               </ScrollView>
               <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }} onPress={onShowCheckInPage}>
                 <Ionicons name="add" size={22} color="#fff" />
@@ -440,17 +441,17 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
             </View>
           </View>
         ) : (
-          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F9FAFB', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', marginBottom: 12 }} onPress={onShowCheckInPage} activeOpacity={0.7}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F9FAFB', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', marginBottom: 12, alignSelf: 'stretch', flexShrink: 1 }} onPress={onShowCheckInPage} activeOpacity={0.7}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 }}>
               <Ionicons name="clipboard-outline" size={24} color="#D1D5DB" />
               <Text style={{ fontSize: 14, color: '#9CA3AF', fontWeight: '500' }}>No check-in recorded</Text>
             </View>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Ionicons name="add" size={22} color="#fff" />
             </View>
           </TouchableOpacity>
         )}
-      </>
+      </View>
     );
   };
   const [permission, requestPermission] = useCameraPermissions();
