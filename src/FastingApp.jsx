@@ -134,6 +134,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [isFasting, setIsFasting] = useState(false);
   const [fastStartTime, setFastStartTime] = useState(null);
   const [isRestoringFast, setIsRestoringFast] = useState(true);
+  const [dataLoadCount, setDataLoadCount] = useState(0);
   const [fastingSessions, setFastingSessions] = useState([]);
   const [checkedIn, setCheckedIn] = useState(false);
   const [hunger, setHunger] = useState('medium');
@@ -516,8 +517,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .order('logged_at', { ascending: false })
       .limit(200)
       .then(({ data, error }) => {
-        if (error) { console.error('[DB Error - fetch meals]', error); return; }
+        if (error) { console.error('[DB Error - fetch meals]', error); }
         if (data) setRecentMeals(data);
+        setDataLoadCount(prev => prev + 1);
       });
   }, [session]);
 
@@ -530,12 +532,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .order('logged_at', { ascending: false })
       .limit(100)
       .then(({ data, error }) => {
-        if (error) { console.error('[DB Error - fetch fasting_sessions]', error); return; }
+        if (error) { console.error('[DB Error - fetch fasting_sessions]', error); }
         if (data) setFastingSessions(data.map(r => ({
           id: r.id, startTime: r.start_time, endTime: r.end_time,
           durationHours: r.duration_hours, durationMinutes: r.duration_minutes,
           plan: r.plan, date: r.date,
         })));
+        setDataLoadCount(prev => prev + 1);
       });
   }, [session]);
 
@@ -548,7 +551,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .order('logged_at', { ascending: false })
       .limit(100)
       .then(({ data, error }) => {
-        if (error) { console.error('[DB Error - fetch check_ins]', error); return; }
+        if (error) { console.error('[DB Error - fetch check_ins]', error); }
         if (data) setCheckInHistory(data.map(r => ({
           id: r.id, date: r.date, timestamp: r.id,
           feelings: r.feelings || [], fastingStatus: r.fasting_status,
@@ -558,6 +561,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           waterCount: r.water_count, volumeUnit: r.volume_unit,
           notes: r.notes, fastingHours: r.fasting_hours, fastingMinutes: r.fasting_minutes,
         })));
+        setDataLoadCount(prev => prev + 1);
       });
   }, [session]);
 
@@ -570,8 +574,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .order('logged_at', { ascending: false })
       .limit(50)
       .then(({ data, error }) => {
-        if (error) { console.error('[DB Error - fetch weight_logs]', error); return; }
+        if (error) { console.error('[DB Error - fetch weight_logs]', error); }
         if (data) setWeightLogs(data.map(r => ({ id: r.id, date: r.date, timestamp: r.id, weight: r.weight, unit: r.unit })));
+        setDataLoadCount(prev => prev + 1);
       });
   }, [session]);
 
@@ -584,8 +589,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .order('logged_at', { ascending: false })
       .limit(100)
       .then(({ data, error }) => {
-        if (error) { console.error('[DB Error - fetch water_logs]', error); return; }
+        if (error) { console.error('[DB Error - fetch water_logs]', error); }
         if (data) setWaterLogs(data.map(r => ({ id: r.id, date: r.date, displayDate: r.display_date, amount: r.amount, unit: r.unit })));
+        setDataLoadCount(prev => prev + 1);
       });
   }, [session]);
 
@@ -1119,6 +1125,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           proteinGoal={proteinGoal}
           carbsGoal={carbsGoal}
           fatsGoal={fatsGoal}
+          dataReady={dataLoadCount >= 5}
         />
       )}
 

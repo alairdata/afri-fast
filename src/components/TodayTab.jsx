@@ -78,6 +78,7 @@ const TodayTab = ({
   carbsGoal,
   fatsGoal,
   isRestoringFast,
+  dataReady,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
@@ -90,7 +91,7 @@ const TodayTab = ({
   const [jfyLoading, setJfyLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !dataReady) return;
     const payload = {
       profile: {
         userId,
@@ -124,7 +125,7 @@ const TodayTab = ({
     getJustForYou(payload)
       .then(cards => { setJustForYouCards(cards); setJfyLoading(false); })
       .catch(() => setJfyLoading(false));
-  }, [userId]);
+  }, [userId, dataReady]);
 
   // Time since last fast counter
   useEffect(() => {
