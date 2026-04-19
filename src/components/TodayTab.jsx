@@ -326,6 +326,7 @@ const TodayTab = ({
   ];
 
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const [selectedInsight, setSelectedInsight] = useState(null);
 
   const weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   // Calculate this week's fasting history from real sessions
@@ -501,10 +502,21 @@ const TodayTab = ({
                 <ActivityIndicator size="small" color="#059669" />
               </View>
             ) : (dailyInsightCards || insights).map((insight, i) => (
-              <TouchableOpacity key={i} style={[styles.insightCardCompact, { backgroundColor: isDark ? colors.card : (insight.color || '#E8F5E9') }]}>
+              <TouchableOpacity
+                key={i}
+                style={[styles.insightCardCompact, { backgroundColor: isDark ? colors.card : (insight.color || '#E8F5E9') }]}
+                onPress={insight.feeling ? () => setSelectedInsight(insight) : undefined}
+                activeOpacity={insight.feeling ? 0.75 : 1}
+              >
                 <View style={[styles.insightAccentSmall, { backgroundColor: insight.accent || '#4CAF50' }]} />
-                <Text style={[styles.insightTitleSmall, isDark && { color: colors.text }]} numberOfLines={2}>{insight.title}</Text>
-                <Text style={[styles.insightSubSmall, isDark && { color: colors.textSecondary }]} numberOfLines={2}>{insight.subtitle}</Text>
+                {insight.feeling ? (
+                  <Text style={[styles.insightFeelingText, isDark && { color: colors.text }]} numberOfLines={4}>{insight.feeling}</Text>
+                ) : (
+                  <>
+                    <Text style={[styles.insightTitleSmall, isDark && { color: colors.text }]} numberOfLines={2}>{insight.title}</Text>
+                    <Text style={[styles.insightSubSmall, isDark && { color: colors.textSecondary }]} numberOfLines={2}>{insight.subtitle}</Text>
+                  </>
+                )}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -690,6 +702,40 @@ const TodayTab = ({
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Insight Detail Modal */}
+      <Modal
+        visible={selectedInsight !== null}
+        animationType="slide"
+        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
+        onRequestClose={() => setSelectedInsight(null)}
+      >
+        <View style={[styles.articleModal, Platform.OS === 'android' && { paddingTop: 44 }]}>
+          <View style={styles.articleHeader}>
+            <TouchableOpacity onPress={() => setSelectedInsight(null)} style={styles.articleCloseBtn}>
+              <Text style={styles.articleCloseText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.articleHeaderTitle}>Today's Insight</Text>
+            <View style={{ width: 40 }} />
+          </View>
+          {selectedInsight && (
+            <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false}>
+              <View style={[styles.insightDetailHeader, { backgroundColor: selectedInsight.color || '#E8F5E9', borderLeftColor: selectedInsight.accent || '#4CAF50' }]}>
+                <Text style={[styles.insightDetailFeeling, { color: selectedInsight.accent || '#059669' }]}>{selectedInsight.feeling}</Text>
+              </View>
+              <View style={styles.insightDetailSection}>
+                <Text style={styles.insightDetailLabel}>WHY THIS IS HAPPENING</Text>
+                <Text style={styles.insightDetailBody}>{selectedInsight.why}</Text>
+              </View>
+              <View style={styles.insightDetailSection}>
+                <Text style={styles.insightDetailLabel}>WHAT TO DO</Text>
+                <Text style={styles.insightDetailBody}>{selectedInsight.action}</Text>
+              </View>
+              <View style={{ height: 60 }} />
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
 
       {/* Article Modal */}
       <Modal
@@ -1013,8 +1059,8 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 20,
   },
   insightCardCompact: {
-    width: 130,
-    height: 80,
+    width: 140,
+    minHeight: 90,
     padding: 16,
     borderRadius: 14,
     marginRight: 10,
@@ -1041,6 +1087,42 @@ const makeStyles = (c) => StyleSheet.create({
     color: c.textSecondary,
     marginLeft: 10,
     lineHeight: 12,
+  },
+  insightFeelingText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: c.text,
+    marginLeft: 10,
+    lineHeight: 17,
+  },
+  insightDetailHeader: {
+    borderLeftWidth: 4,
+    borderRadius: 14,
+    padding: 18,
+    marginTop: 20,
+    marginBottom: 4,
+  },
+  insightDetailFeeling: {
+    fontSize: 22,
+    fontWeight: '800',
+    lineHeight: 30,
+    letterSpacing: -0.4,
+  },
+  insightDetailSection: {
+    marginTop: 24,
+  },
+  insightDetailLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    color: c.textMuted,
+    marginBottom: 10,
+  },
+  insightDetailBody: {
+    fontSize: 16,
+    lineHeight: 26,
+    color: c.text,
+    letterSpacing: 0.1,
   },
   eduScrollCompact: {
     marginHorizontal: -20,

@@ -7,57 +7,263 @@ const CARD_COLORS = [
   { color: '#E0F7FA', accent: '#0097A7' },
 ];
 
-function buildDailyInsightsPrompt(data) {
-  const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs } = data;
+const GOAL_LABELS = {
+  lose: 'Lose weight',
+  gain: 'Gain weight',
+  maintain: 'Maintain weight',
+  gutHealth: 'Improve gut health',
+  moreEnergy: 'More energy',
+  mentalClarity: 'Mental clarity',
+  liveLonger: 'Live longer',
+};
 
-  const today = new Date().toDateString();
-  const todayMeals = (recentMeals || []).filter(m => m.date === today);
-  const todayWater = (waterLogs || []).filter(w => w.date === today).reduce((s, w) => s + (w.amount || 0), 0);
-  const recentSessions = (fastingSessions || []).slice(0, 10);
-  const recentWeight = (weightLogs || []).slice(0, 5);
-  const recentCheckIns = (checkInHistory || []).slice(0, 7);
+const ANALYST_PROMPT = `You are a rigorous health data analyst. When given user health data (fasting logs, meal logs, weight logs, water intake, mood/check-ins), do NOT produce surface-level observations. Instead:
 
-  return `You are a warm, supportive personal health coach inside Afri Fast, an African fasting and nutrition app.
+1. FIND THE REAL STORY
+   - What is the data actually saying beneath the obvious trend?
+   - What is improving on paper but quietly degrading underneath?
+   - What correlations exist across multiple data types that wouldn't be visible looking at any one metric alone?
 
-USER PROFILE:
-- Name: ${profile.userName || 'User'}
-- Country: ${profile.userCountry || 'Not specified'}
-- Fasting plan: ${profile.selectedPlan || '16:8'}
-- Goal: ${profile.goal || 'Not specified'}
-- Health conditions: ${(profile.conditions || []).join(', ') || 'None'}
-- Starting weight: ${profile.startingWeight || 'Not set'} ${profile.weightUnit || 'kg'}
-- Target weight: ${profile.targetWeight || 'Not set'} ${profile.weightUnit || 'kg'}
-- Daily calorie goal: ${profile.dailyCalorieGoal || 2000} kcal
-- Protein goal: ${profile.proteinGoal || 'Not set'}g | Carbs: ${profile.carbsGoal || 'Not set'}g | Fats: ${profile.fatsGoal || 'Not set'}g
-- Hydration goal: ${profile.hydrationGoal || 6} ${profile.volumeUnit || 'sachets'}/day
+2. DIAGNOSE ROOT CAUSES, NOT SYMPTOMS
+   - Don't say "calories are increasing." Say WHY — what pattern in the surrounding data (mood, hydration, day of week, stress markers) explains it?
+   - Is the trigger physiological, environmental, or emotional?
 
-TODAY'S DATA:
-- Meals logged today: ${JSON.stringify(todayMeals)}
-- Water logged today: ${todayWater} ${profile.volumeUnit || 'sachets'}
+3. CHALLENGE THE OBVIOUS INTERPRETATION
+   - If results look good, ask: is this momentum from past behavior or current behavior?
+   - If the person seems to be struggling, ask: is it the plan failing or the environment failing the plan?
 
-RECENT HISTORY (last 10 sessions):
-- Fasting sessions: ${JSON.stringify(recentSessions)}
-- Check-ins: ${JSON.stringify(recentCheckIns)}
-- Weight logs: ${JSON.stringify(recentWeight)}
+4. QUANTIFY THE STAKES
+   - Translate patterns into concrete projections. What happens if this trend continues vs. reverses?
+   - Name the exact gap between current trajectory and goal.
 
-Based ONLY on what you can actually see in this data, generate daily insight cards AND a single coach alert.
+5. SPECIFICITY OVER GENERALITY
+   - Name exact dates, exact meals, exact numbers.
+   - Never say "some days." Say specific dates with specific context.
+   - Never say "eat healthier." Say which specific food swaps, why they matter, and what the data shows about when the drift started.
+
+6. MOOD AND BEHAVIOR AS DATA
+   - Treat check-in moods and notes as leading indicators, not commentary. They predict the day's outcomes — analyze them that way.
+
+Format: Lead with the most non-obvious insight first. Save the predictable observations for last or skip them entirely.`;
+
+const CARD_GENERATOR_PROMPT = `You are a personal health insight engine embedded in a fasting and nutrition tracking app. You have access to a deep analysis of a user's full history of fasting sessions, meal logs, weight logs, water intake, and daily check-ins including mood, hunger level, symptoms, and activities.
+
+Your job is to generate daily insight cards for the user. Each card follows exactly three beats:
+
+1. What they might be feeling — start with an emotion, physical sensation, or situation they are likely experiencing today, based on what the analysis shows from recent patterns. Lead with empathy, not data.
+2. Why it's happening — explain the reason behind that feeling using their actual patterns from the analysis. Connect the dots for them simply and clearly. Never list data points. Weave it into a sentence or two that makes them go "oh, that makes sense."
+3. What to do about it — one specific, small, actionable thing. Not a lecture. Not a list. One thing they can actually do in the next hour.
+
+Before writing any card, silently work through these layers:
+- Yesterday: what happened in the last 24 hours that is directly causing how they feel right now?
+- Last 7 days: what pattern is quietly building? Is something slipping or improving?
+- Last 4 weeks: where is the momentum going? Are they trending toward their goal or drifting from it?
+- Beyond 4 weeks: if there is more history, use it. Patterns that repeat across months matter more than anything from last week.
+
+Never show your reasoning. Never reference how much data you have. Just write the card as if you simply know this person well.
 
 Rules:
-- Be warm and coach-like, never clinical
-- Only reference what is visible in the data — do not make things up
-- Each card should feel personal, like their coach noticed something specific
-- Short title (max 6 words), subtitle is 1-2 sentences max
-- Generate between 2 and 5 cards — only as many as there are genuine observations
-- The alertCard is 1-2 sentences: a specific personal observation that makes the user want to open the chat. It should feel like the coach noticed something and is flagging it. Make it specific to their actual data — never generic.
+- Sound like a smart, warm friend who has been quietly paying attention — not a health coach, not a robot, not a report
+- Never say "based on your data" or "according to your logs" — just say it like you know them
+- Never make them feel watched, judged, or like they failed
+- Each card should feel like it was written specifically for today, for this person, not a template
+- Vary the tone card to card — some days matter-of-fact, some days soft, some days a little playful
+- Always connect physical symptoms to a likely cause before they have to wonder themselves
+- Never give more than one thing to fix per card
+- If a pattern has appeared before in their history and they recovered from it, mention that
+- Generate 2-4 cards only
+- The "feeling" field is the bold hook shown on the card — make it one short sentence they immediately recognise as true
+- The "why" and "action" are shown when they tap the card for details
 
-Return ONLY a valid JSON object, no markdown, no explanation:
-{
-  "cards": [
-    { "title": "...", "subtitle": "..." },
-    ...
-  ],
-  "alertCard": "..."
-}`;
+Return ONLY a valid JSON array, no markdown, no explanation:
+[
+  { "feeling": "...", "why": "...", "action": "..." },
+  ...
+]`;
+
+function preprocessData(data) {
+  const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs } = data;
+  const now = new Date();
+
+  const daysBetween = (d1, d2) => Math.floor(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24));
+
+  const getWeekIndex = (dateStr) => {
+    if (!dateStr) return -1;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return -1;
+    return Math.floor(daysBetween(now, d) / 7);
+  };
+
+  // Infer goal label
+  const goalLabel = GOAL_LABELS[profile.goal] ||
+    (profile.startingWeight && profile.targetWeight
+      ? profile.startingWeight > profile.targetWeight ? 'Lose weight'
+        : profile.startingWeight < profile.targetWeight ? 'Gain weight'
+        : 'Maintain weight'
+      : 'Not specified');
+
+  const lines = [];
+
+  // Profile
+  lines.push(`NAME: ${profile.userName || 'User'} | COUNTRY: ${profile.userCountry || 'Not specified'}`);
+  lines.push(`GOAL: ${goalLabel}`);
+  lines.push(`PLAN: ${profile.selectedPlan || '16:8'} fasting`);
+  lines.push(`DAILY CALORIE GOAL: ${profile.dailyCalorieGoal || 2000} kcal | PROTEIN: ${profile.proteinGoal || '?'}g | CARBS: ${profile.carbsGoal || '?'}g | FATS: ${profile.fatsGoal || '?'}g`);
+  lines.push(`WATER GOAL: ${profile.hydrationGoal || 8} ${profile.volumeUnit || 'glasses'}/day`);
+  if (profile.startingWeight) {
+    lines.push(`STARTING WEIGHT: ${profile.startingWeight} ${profile.weightUnit || 'kg'} → TARGET: ${profile.targetWeight || '?'} ${profile.weightUnit || 'kg'}`);
+  }
+  lines.push('');
+
+  // Fasting by week
+  const fastingByWeek = {};
+  (fastingSessions || []).forEach(s => {
+    const w = getWeekIndex(s.date || s.startTime);
+    if (w < 0 || w > 11) return;
+    if (!fastingByWeek[w]) fastingByWeek[w] = [];
+    fastingByWeek[w].push(s);
+  });
+
+  const maxFastWeek = Object.keys(fastingByWeek).length ? Math.max(...Object.keys(fastingByWeek).map(Number)) : -1;
+  if (maxFastWeek >= 0) {
+    lines.push('FASTING SESSIONS BY WEEK (week 0 = this week, 1 = last week, etc.):');
+    for (let w = 0; w <= Math.min(maxFastWeek, 11); w++) {
+      const sessions = fastingByWeek[w] || [];
+      const completed = sessions.filter(s => s.durationHours >= 0 || s.endTime);
+      const label = w === 0 ? 'This week' : w === 1 ? 'Last week' : `${w} weeks ago`;
+      if (completed.length > 0) {
+        const targetH = parseInt((profile.selectedPlan || '16:8').split(':')[0]) || 16;
+        const cutShort = completed.filter(s => s.durationHours < targetH).length;
+        const avgDur = (completed.reduce((sum, s) => sum + (s.durationHours || 0) + (s.durationMinutes || 0) / 60, 0) / completed.length).toFixed(1);
+        lines.push(`  ${label}: ${completed.length} fasts | avg ${avgDur}h${cutShort > 0 ? ` | ${cutShort} ended early` : ''}`);
+      } else {
+        lines.push(`  ${label}: 0 fasts`);
+      }
+    }
+    lines.push('');
+  }
+
+  // Meals by week
+  const mealsByWeek = {};
+  (recentMeals || []).forEach(m => {
+    const w = getWeekIndex(m.date);
+    if (w < 0 || w > 11) return;
+    if (!mealsByWeek[w]) mealsByWeek[w] = [];
+    mealsByWeek[w].push(m);
+  });
+
+  const maxMealWeek = Object.keys(mealsByWeek).length ? Math.max(...Object.keys(mealsByWeek).map(Number)) : -1;
+  if (maxMealWeek >= 0) {
+    lines.push('MEAL LOGS BY WEEK:');
+    for (let w = 0; w <= Math.min(maxMealWeek, 11); w++) {
+      const meals = mealsByWeek[w] || [];
+      const label = w === 0 ? 'This week' : w === 1 ? 'Last week' : `${w} weeks ago`;
+      if (meals.length > 0) {
+        const avgCal = Math.round(meals.reduce((s, m) => s + (m.calories || 0), 0) / meals.length);
+        const avgProt = Math.round(meals.reduce((s, m) => s + (m.protein || 0), 0) / meals.length);
+        const avgCarb = Math.round(meals.reduce((s, m) => s + (m.carbs || 0), 0) / meals.length);
+        const mealList = meals.map(m => `${m.name}(${m.calories}cal,${m.protein || 0}g prot)`).join('; ');
+        lines.push(`  ${label}: ${meals.length} meals | avg ${avgCal} kcal | avg ${avgProt}g protein | avg ${avgCarb}g carbs`);
+        lines.push(`    Meals: ${mealList}`);
+      } else {
+        lines.push(`  ${label}: no meals logged`);
+      }
+    }
+    lines.push('');
+  }
+
+  // Water by week
+  const waterByWeek = {};
+  (waterLogs || []).forEach(wl => {
+    const w = getWeekIndex(wl.date);
+    if (w < 0 || w > 11) return;
+    if (!waterByWeek[w]) waterByWeek[w] = {};
+    if (!waterByWeek[w][wl.date]) waterByWeek[w][wl.date] = 0;
+    waterByWeek[w][wl.date] += (wl.amount || 1);
+  });
+
+  const maxWaterWeek = Object.keys(waterByWeek).length ? Math.max(...Object.keys(waterByWeek).map(Number)) : -1;
+  if (maxWaterWeek >= 0) {
+    const waterGoal = profile.hydrationGoal || 8;
+    const unit = profile.volumeUnit || 'glasses';
+    lines.push(`WATER INTAKE BY WEEK (goal: ${waterGoal} ${unit}/day):`);
+    for (let w = 0; w <= Math.min(maxWaterWeek, 11); w++) {
+      const byDay = waterByWeek[w];
+      const label = w === 0 ? 'This week' : w === 1 ? 'Last week' : `${w} weeks ago`;
+      if (byDay) {
+        const days = Object.keys(byDay);
+        const avgDaily = (days.reduce((s, d) => s + byDay[d], 0) / days.length).toFixed(1);
+        const status = avgDaily >= waterGoal ? '✓ on track' : avgDaily >= waterGoal * 0.75 ? '~ close' : '↓ below goal';
+        lines.push(`  ${label}: avg ${avgDaily} ${unit}/day (${status})`);
+      } else {
+        lines.push(`  ${label}: no water logged`);
+      }
+    }
+    lines.push('');
+  }
+
+  // Weight progress
+  const sortedWeights = [...(weightLogs || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (sortedWeights.length > 0) {
+    lines.push('WEIGHT PROGRESS:');
+    sortedWeights.forEach(wl => lines.push(`  ${wl.date}: ${wl.weight} ${wl.unit}`));
+    if (sortedWeights.length >= 2) {
+      const first = sortedWeights[0];
+      const last = sortedWeights[sortedWeights.length - 1];
+      const change = (last.weight - first.weight).toFixed(1);
+      const diffDays = daysBetween(new Date(first.date), new Date(last.date)) || 1;
+      const ratePerWeek = (Math.abs(parseFloat(change)) / (diffDays / 7)).toFixed(2);
+      lines.push(`  Net change: ${parseFloat(change) > 0 ? '+' : ''}${change} ${last.unit} over ${diffDays} days (~${ratePerWeek} ${last.unit}/week)`);
+      if (profile.targetWeight && ratePerWeek > 0) {
+        const remaining = Math.abs(last.weight - profile.targetWeight).toFixed(1);
+        if (remaining > 0.5) {
+          const weeksToGoal = Math.ceil(remaining / ratePerWeek);
+          lines.push(`  Remaining to target: ${remaining} ${last.unit} (~${weeksToGoal} weeks at current rate)`);
+        }
+      }
+    }
+    lines.push('');
+  }
+
+  // Check-ins (most recent 30)
+  const sortedCheckIns = [...(checkInHistory || [])]
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 30);
+  if (sortedCheckIns.length > 0) {
+    lines.push('CHECK-IN HISTORY (most recent first):');
+    sortedCheckIns.forEach(c => {
+      const parts = [`[${c.date}]`];
+      if (c.fastingStatus) parts.push(`fast:${c.fastingStatus}`);
+      if (c.hungerLevel != null) parts.push(`hunger:${c.hungerLevel}/10`);
+      if (c.feelings?.length) parts.push(`feelings:${c.feelings.join(',')}`);
+      if (c.moods?.length) parts.push(`mood:${c.moods.join(',')}`);
+      if (c.symptoms?.length) parts.push(`symptoms:${c.symptoms.join(',')}`);
+      if (c.activities?.length) parts.push(`activities:${c.activities.join(',')}`);
+      if (c.notes) parts.push(`note:"${c.notes}"`);
+      lines.push(`  ${parts.join(' | ')}`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
+async function callClaude(prompt, apiKey) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error?.message || 'Claude API error');
+  return result.content?.[0]?.text || '';
 }
 
 function buildJustForYouPrompt(data) {
@@ -107,7 +313,6 @@ Return ONLY a valid JSON array, no markdown, no explanation:
 }
 
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -121,57 +326,47 @@ export default async function handler(req, res) {
   const { type, data } = req.body || {};
   if (!type || !data) return res.status(400).json({ error: 'Missing type or data' });
 
-  let prompt;
-  if (type === 'daily_insights') prompt = buildDailyInsightsPrompt(data);
-  else if (type === 'just_for_you') prompt = buildJustForYouPrompt(data);
-  else return res.status(400).json({ error: 'Invalid type' });
-
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': CLAUDE_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      console.error('[/api/ai error]', result);
-      return res.status(response.status).json({ error: result.error?.message || 'Claude API error' });
-    }
-
-    const text = result.content?.[0]?.text || '';
-    const stripped = text.replace(/```json|```/g, '').trim();
-
     if (type === 'daily_insights') {
-      const objMatch = stripped.match(/\{[\s\S]*\}/);
-      if (!objMatch) {
-        console.error('[/api/ai] No JSON object in daily_insights response:', text.slice(0, 300));
-        return res.status(500).json({ error: 'Could not parse response' });
+      // Stage 1: Analyst — find the real patterns
+      const processedData = preprocessData(data);
+      const analystPrompt = `${ANALYST_PROMPT}\n\nHEALTH DATA FOR ANALYSIS:\n\n${processedData}`;
+      const analysis = await callClaude(analystPrompt, CLAUDE_KEY);
+
+      // Stage 2: Card generator — turn analysis into human insight cards
+      const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}`;
+      const cardText = await callClaude(cardPrompt, CLAUDE_KEY);
+
+      const stripped = cardText.replace(/```json|```/g, '').trim();
+      const jsonMatch = stripped.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        console.error('[/api/ai daily_insights] No JSON array in card response:', cardText.slice(0, 300));
+        return res.status(500).json({ error: 'Could not parse insight cards' });
       }
-      const parsed = JSON.parse(objMatch[0]);
-      const cards = (parsed.cards || []).map((card, i) => ({
+
+      const rawCards = JSON.parse(jsonMatch[0]);
+      const cards = rawCards.map((card, i) => ({
         ...card,
         ...CARD_COLORS[i % CARD_COLORS.length],
       }));
-      return res.status(200).json({ cards, alertCard: parsed.alertCard || '' });
+
+      return res.status(200).json({ cards, alertCard: '' });
     }
 
-    const jsonMatch = stripped.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      console.error('[/api/ai] No JSON array in response:', text.slice(0, 300));
-      return res.status(500).json({ error: 'Could not parse response' });
+    if (type === 'just_for_you') {
+      const prompt = buildJustForYouPrompt(data);
+      const text = await callClaude(prompt, CLAUDE_KEY);
+      const stripped = text.replace(/```json|```/g, '').trim();
+      const jsonMatch = stripped.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        console.error('[/api/ai just_for_you] No JSON array in response:', text.slice(0, 300));
+        return res.status(500).json({ error: 'Could not parse response' });
+      }
+      const cards = JSON.parse(jsonMatch[0]);
+      return res.status(200).json({ cards });
     }
-    const cards = JSON.parse(jsonMatch[0]);
-    return res.status(200).json({ cards });
+
+    return res.status(400).json({ error: 'Invalid type' });
   } catch (e) {
     console.error('[/api/ai exception]', e);
     return res.status(500).json({ error: e.message });
