@@ -416,7 +416,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   };
 
   const renderCheckInWidget = () => {
-    const dateStr = selectedMealDate ? selectedMealDate.toDateString() : new Date().toDateString();
+    const dateStr = viewingMeal?.date || (selectedMealDate ? selectedMealDate.toDateString() : new Date().toDateString());
     const checkIns = checkInHistory.filter(c => c.date === dateStr);
     const hasCheckIns = checkIns.length > 0;
     const ci = checkIns[0] || null;

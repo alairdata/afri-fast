@@ -912,6 +912,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       water_count: checkIn.waterCount, volume_unit: checkIn.volumeUnit,
       notes: checkIn.notes, fasting_hours: checkIn.fastingHours, fasting_minutes: checkIn.fastingMinutes,
     }), 'save check_in', (msg) => showToast(msg, 'error'));
+    // Backfill check-in context into any meal_logs already saved today
+    dbSave(supabase.from('meal_logs').update({
+      feelings: checkIn.feelings, moods: checkIn.moods,
+      fasting_status: checkIn.fastingStatus, hunger_level: checkIn.hungerLevel,
+      symptoms: checkIn.symptoms, activities: checkIn.activities,
+      other_factors: checkIn.otherFactors, water_count: checkIn.waterCount,
+      notes: checkIn.notes,
+    }).eq('user_id', session?.user?.id).eq('date', checkIn.date), 'backfill meal_logs checkin');
     // Also log water to waterLogs if any was tracked
     if (waterCount > 0) {
       const wId = Date.now() + 1;
@@ -1390,17 +1398,35 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         selectedMealDate={selectedMealDate}
         onSaveMeal={async (meal) => {
           if (meal._updatePhoto) {
-            // Background photo upload completed — update the photo URL silently
             setRecentMeals(prev => prev.map(m => m.id === meal.id ? { ...m, photo: meal.photo } : m));
             supabase.from('meals').update({ photo: meal.photo }).eq('id', meal.id);
             return;
           }
           setRecentMeals(prev => [meal, ...prev]);
-          // Strip client-only fields before inserting to DB
           const { localPhoto, ...dbMeal } = meal;
           const { error } = await supabase.from('meals').insert({ ...dbMeal, user_id: session.user.id });
-          if (error) showToast('Failed to save meal. Try again.', 'error');
-          else showToast(`${meal.name || 'Meal'} logged!`);
+          if (error) { showToast('Failed to save meal. Try again.', 'error'); return; }
+          showToast(`${meal.name || 'Meal'} logged!`);
+          // Write combined meal+checkin log for ML/analytics
+          const ci = checkInHistory.find(c => c.date === meal.date) || null;
+          dbSave(supabase.from('meal_logs').insert({
+            id: meal.id,
+            user_id: session.user.id,
+            meal_id: meal.id,
+            date: meal.date,
+            meal_name: meal.name || 'Meal',
+            total_calories: meal.calories || 0,
+            ingredients: meal.foods || [],
+            feelings: ci?.feelings || [],
+            moods: ci?.moods || [],
+            fasting_status: ci?.fastingStatus || null,
+            hunger_level: ci?.hungerLevel || null,
+            symptoms: ci?.symptoms || [],
+            activities: ci?.activities || [],
+            other_factors: ci?.otherFactors || [],
+            water_count: ci?.waterCount || 0,
+            notes: ci?.notes || null,
+          }), 'save meal_log');
         }}
         dailyCalorieGoal={dailyCalorieGoal}
         recentMeals={recentMeals}
@@ -1425,6 +1451,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
             activities: [], other_factors: [], water_count: 0, volume_unit: volumeUnit,
             notes: '', fasting_hours: 0, fasting_minutes: 0,
           }), 'save check_in', (msg) => showToast(msg, 'error'));
+          // Backfill check-in context into any meal_logs already saved today
+          dbSave(supabase.from('meal_logs').update({
+            feelings: checkIn.feelings, moods: checkIn.moods,
+          }).eq('user_id', session?.user?.id).eq('date', checkIn.date), 'backfill meal_logs checkin');
           showToast('Check-in saved!');
         }}
         volumeUnit={volumeUnit}
