@@ -394,25 +394,55 @@ No explanation, no markdown, no extra text.`
   return null;
 };
 
-const FEELING_CHIPS = ['😌 Calm', '🎯 Focused', '⚡ Energized', '😴 Low energy', '🍽️ Hungry', '🤤 Very hungry', '😤 Irritable', '💪🏿 Motivated'];
-const MOOD_CHIPS = ['😌 Calm', '😊 Happy', '🎯 Focused', '💪🏿 Motivated', '😤 Irritable', '😰 Anxious', '😔 Low mood', '🌫️ Mentally foggy', '😓 Stressed'];
+const CI_FEELINGS = ['😌 Calm', '🎯 Focused', '⚡ Energized', '😴 Low energy', '🍽️ Hungry', '🤤 Very hungry', '😤 Irritable', '💪🏿 Motivated'];
+const CI_FASTING_STATUS = ['✅ Fasting as planned', '⏰ Broke fast early', '⏳ Extended fast', '🍽️ Eating window day', '😴 Rest day (no fast)'];
+const CI_HUNGER = ['😊 Not hungry', '🤔 Slightly hungry', '😋 Hungry', '🤤 Very hungry', '😫 Extreme hunger'];
+const CI_MOODS = ['😌 Calm', '😊 Happy', '🎯 Focused', '💪🏿 Motivated', '😤 Irritable', '😰 Anxious', '😔 Low mood', '🌫️ Mentally foggy', '😓 Stressed'];
+const CI_SYMPTOMS = ['✨ Everything feels fine', '😴 Low energy', '😵 Dizziness', '🤕 Headache', '💫 Weakness', '🥶 Cold sensitivity', '🍽️ Hunger pains', '🍫 Cravings', '🤢 Nausea', '🌫️ Brain fog', '🤔 Trouble concentrating', '😰 Shakiness'];
+const CI_FAST_BREAK = ['🥗 Light meal', '🍔 Heavy meal', '🥩 Protein-focused', '🍞 Carb-heavy', '🍬 Sugary foods', '⚡ Ate too fast', '😊 Felt good after', '😣 Felt uncomfortable'];
+const CI_ACTIVITIES = ["🚫 Didn't exercise", '🚶🏿 Walking', '🧘🏿 Yoga / stretching', '🏋🏿 Gym', '🏃🏿 Cardio', '💪🏿 Strength training', '⚽ Sports'];
+const CI_OTHER = ['😓 Stress', '😴 Poor sleep', '😊 Good sleep', '✈️ Travel', '🧘🏿 Meditation', '🌬️ Breathwork', '🍷 Alcohol', '🎉 Social event', '🤒 Illness / injury'];
 
 const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, volumeUnit = 'glasses' }) => {
   const [showMiniCheckIn, setShowMiniCheckIn] = useState(false);
-  const [miniFeedings, setMiniFeedings] = useState([]);
+  const [miniFeelings, setMiniFeelings] = useState([]);
+  const [miniFastingStatus, setMiniFastingStatus] = useState(null);
+  const [miniHungerLevel, setMiniHungerLevel] = useState(null);
   const [miniMoods, setMiniMoods] = useState([]);
+  const [miniSymptoms, setMiniSymptoms] = useState([]);
+  const [miniFastBreak, setMiniFastBreak] = useState([]);
+  const [miniActivities, setMiniActivities] = useState([]);
+  const [miniOtherFactors, setMiniOtherFactors] = useState([]);
 
   const toggleMini = (val, state, setState) => {
     setState(state.includes(val) ? state.filter(v => v !== val) : [...state, val]);
   };
 
+  const openMiniCheckIn = () => {
+    // Pre-populate from existing check-in for this date
+    const dateStr = viewingMeal?.date || (selectedMealDate ? selectedMealDate.toDateString() : new Date().toDateString());
+    const ci = checkInHistory.find(c => c.date === dateStr) || null;
+    setMiniFeelings(ci?.feelings || []);
+    setMiniFastingStatus(ci?.fastingStatus || null);
+    setMiniHungerLevel(ci?.hungerLevel || null);
+    setMiniMoods(ci?.moods || []);
+    setMiniSymptoms(ci?.symptoms || []);
+    setMiniFastBreak(ci?.fastBreak || []);
+    setMiniActivities(ci?.activities || []);
+    setMiniOtherFactors(ci?.otherFactors || []);
+    setShowMiniCheckIn(true);
+  };
+
   const saveMiniCheckIn = () => {
     if (onSaveCheckIn) {
-      onSaveCheckIn({ feelings: miniFeedings, moods: miniMoods });
+      onSaveCheckIn({
+        feelings: miniFeelings, fastingStatus: miniFastingStatus,
+        hungerLevel: miniHungerLevel, moods: miniMoods,
+        symptoms: miniSymptoms, fastBreak: miniFastBreak,
+        activities: miniActivities, otherFactors: miniOtherFactors,
+      });
     }
     setShowMiniCheckIn(false);
-    setMiniFeedings([]);
-    setMiniMoods([]);
   };
 
   const renderCheckInWidget = () => {
@@ -455,13 +485,13 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   </View>
                 )}
               </ScrollView>
-              <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }} onPress={() => setShowMiniCheckIn(true)}>
+              <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }} onPress={openMiniCheckIn}>
                 <Ionicons name="add" size={22} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>
         ) : (
-          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' }} onPress={() => setShowMiniCheckIn(true)} activeOpacity={0.7}>
+          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' }} onPress={openMiniCheckIn} activeOpacity={0.7}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="clipboard-outline" size={24} color="#D1D5DB" />
               <Text style={{ fontSize: 14, color: '#9CA3AF', fontWeight: '500' }}>No check-in recorded</Text>
@@ -2047,46 +2077,90 @@ Return ONLY raw JSON, no markdown, no explanation.`
         </View>
       )}
 
-      {/* Mini Check-In Modal */}
+      {/* Check-In Sheet */}
       <Modal visible={showMiniCheckIn} transparent animationType="slide" onRequestClose={() => setShowMiniCheckIn(false)}>
         <TouchableOpacity style={miniStyles.backdrop} activeOpacity={1} onPress={() => setShowMiniCheckIn(false)}>
           <TouchableOpacity style={miniStyles.sheet} activeOpacity={1} onPress={() => {}}>
             <View style={miniStyles.handle} />
             <Text style={miniStyles.sheetTitle}>How are you feeling?</Text>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
 
-            <Text style={miniStyles.sectionLabel}>Physical</Text>
-            <View style={miniStyles.chipRow}>
-              {FEELING_CHIPS.map(chip => (
-                <TouchableOpacity
-                  key={chip}
-                  style={[miniStyles.chip, miniFeedings.includes(chip) && miniStyles.chipSelected]}
-                  onPress={() => toggleMini(chip, miniFeedings, setMiniFeedings)}
-                >
-                  <Text style={[miniStyles.chipText, miniFeedings.includes(chip) && miniStyles.chipTextSelected]}>{chip}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+              <Text style={miniStyles.sectionLabel}>How are you feeling</Text>
+              <View style={miniStyles.chipRow}>
+                {CI_FEELINGS.map(chip => (
+                  <TouchableOpacity key={chip} style={[miniStyles.chip, miniFeelings.includes(chip) && miniStyles.chipSelected]} onPress={() => toggleMini(chip, miniFeelings, setMiniFeelings)}>
+                    <Text style={[miniStyles.chipText, miniFeelings.includes(chip) && miniStyles.chipTextSelected]}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            <Text style={[miniStyles.sectionLabel, { marginTop: 16 }]}>Mental</Text>
-            <View style={miniStyles.chipRow}>
-              {MOOD_CHIPS.map(chip => (
-                <TouchableOpacity
-                  key={chip}
-                  style={[miniStyles.chip, miniMoods.includes(chip) && miniStyles.chipSelected]}
-                  onPress={() => toggleMini(chip, miniMoods, setMiniMoods)}
-                >
-                  <Text style={[miniStyles.chipText, miniMoods.includes(chip) && miniStyles.chipTextSelected]}>{chip}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+              <Text style={[miniStyles.sectionLabel, { marginTop: 16 }]}>Fasting status</Text>
+              <View style={miniStyles.chipRow}>
+                {CI_FASTING_STATUS.map(chip => (
+                  <TouchableOpacity key={chip} style={[miniStyles.chip, miniFastingStatus === chip && miniStyles.chipSelected]} onPress={() => setMiniFastingStatus(miniFastingStatus === chip ? null : chip)}>
+                    <Text style={[miniStyles.chipText, miniFastingStatus === chip && miniStyles.chipTextSelected]}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            <TouchableOpacity
-              style={[miniStyles.saveBtn, (miniFeedings.length === 0 && miniMoods.length === 0) && { opacity: 0.4 }]}
-              onPress={saveMiniCheckIn}
-              disabled={miniFeedings.length === 0 && miniMoods.length === 0}
-            >
-              <Text style={miniStyles.saveBtnText}>Save Check-In</Text>
-            </TouchableOpacity>
+              <Text style={[miniStyles.sectionLabel, { marginTop: 16 }]}>Hunger level</Text>
+              <View style={miniStyles.chipRow}>
+                {CI_HUNGER.map(chip => (
+                  <TouchableOpacity key={chip} style={[miniStyles.chip, miniHungerLevel === chip && miniStyles.chipSelected]} onPress={() => setMiniHungerLevel(miniHungerLevel === chip ? null : chip)}>
+                    <Text style={[miniStyles.chipText, miniHungerLevel === chip && miniStyles.chipTextSelected]}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[miniStyles.sectionLabel, { marginTop: 16 }]}>Mood</Text>
+              <View style={miniStyles.chipRow}>
+                {CI_MOODS.map(chip => (
+                  <TouchableOpacity key={chip} style={[miniStyles.chip, miniMoods.includes(chip) && miniStyles.chipSelected]} onPress={() => toggleMini(chip, miniMoods, setMiniMoods)}>
+                    <Text style={[miniStyles.chipText, miniMoods.includes(chip) && miniStyles.chipTextSelected]}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[miniStyles.sectionLabel, { marginTop: 16 }]}>Fasting-related symptoms</Text>
+              <View style={miniStyles.chipRow}>
+                {CI_SYMPTOMS.map(chip => (
+                  <TouchableOpacity key={chip} style={[miniStyles.chip, miniSymptoms.includes(chip) && miniStyles.chipSelected]} onPress={() => toggleMini(chip, miniSymptoms, setMiniSymptoms)}>
+                    <Text style={[miniStyles.chipText, miniSymptoms.includes(chip) && miniStyles.chipTextSelected]}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[miniStyles.sectionLabel, { marginTop: 16 }]}>How did you break your fast?</Text>
+              <View style={miniStyles.chipRow}>
+                {CI_FAST_BREAK.map(chip => (
+                  <TouchableOpacity key={chip} style={[miniStyles.chip, miniFastBreak.includes(chip) && miniStyles.chipSelected]} onPress={() => toggleMini(chip, miniFastBreak, setMiniFastBreak)}>
+                    <Text style={[miniStyles.chipText, miniFastBreak.includes(chip) && miniStyles.chipTextSelected]}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[miniStyles.sectionLabel, { marginTop: 16 }]}>Physical activity</Text>
+              <View style={miniStyles.chipRow}>
+                {CI_ACTIVITIES.map(chip => (
+                  <TouchableOpacity key={chip} style={[miniStyles.chip, miniActivities.includes(chip) && miniStyles.chipSelected]} onPress={() => toggleMini(chip, miniActivities, setMiniActivities)}>
+                    <Text style={[miniStyles.chipText, miniActivities.includes(chip) && miniStyles.chipTextSelected]}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[miniStyles.sectionLabel, { marginTop: 16 }]}>Other</Text>
+              <View style={miniStyles.chipRow}>
+                {CI_OTHER.map(chip => (
+                  <TouchableOpacity key={chip} style={[miniStyles.chip, miniOtherFactors.includes(chip) && miniStyles.chipSelected]} onPress={() => toggleMini(chip, miniOtherFactors, setMiniOtherFactors)}>
+                    <Text style={[miniStyles.chipText, miniOtherFactors.includes(chip) && miniStyles.chipTextSelected]}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity style={miniStyles.saveBtn} onPress={saveMiniCheckIn}>
+                <Text style={miniStyles.saveBtnText}>Save Check-In</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>

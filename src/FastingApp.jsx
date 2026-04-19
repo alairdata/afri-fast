@@ -902,17 +902,28 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       fastingHours,
       fastingMinutes,
     };
-    setCheckInHistory(prev => [checkIn, ...prev]);
-    dbSave(supabase.from('check_ins').insert({
-      id: checkIn.id, user_id: session?.user?.id, date: checkIn.date,
+    const existingCI = checkInHistory.find(c => c.date === checkIn.date);
+    setCheckInHistory(prev => existingCI
+      ? prev.map(c => c.id === existingCI.id ? { ...checkIn, id: existingCI.id } : c)
+      : [checkIn, ...prev]
+    );
+    const ciId = existingCI?.id || checkIn.id;
+    const dbRow = {
+      id: ciId, user_id: session?.user?.id, date: checkIn.date,
       feelings: checkIn.feelings, fasting_status: checkIn.fastingStatus,
       hunger_level: checkIn.hungerLevel, moods: checkIn.moods,
       symptoms: checkIn.symptoms, fast_break: checkIn.fastBreak,
       activities: checkIn.activities, other_factors: checkIn.otherFactors,
       water_count: checkIn.waterCount, volume_unit: checkIn.volumeUnit,
       notes: checkIn.notes, fasting_hours: checkIn.fastingHours, fasting_minutes: checkIn.fastingMinutes,
-    }), 'save check_in', (msg) => showToast(msg, 'error'));
-    // Backfill check-in context into any meal_logs already saved today
+    };
+    dbSave(
+      existingCI
+        ? supabase.from('check_ins').update(dbRow).eq('id', existingCI.id)
+        : supabase.from('check_ins').insert(dbRow),
+      'save check_in', (msg) => showToast(msg, 'error')
+    );
+    // Backfill meal_logs for this date
     dbSave(supabase.from('meal_logs').update({
       feelings: checkIn.feelings, moods: checkIn.moods,
       fasting_status: checkIn.fastingStatus, hunger_level: checkIn.hungerLevel,
@@ -1432,29 +1443,53 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         recentMeals={recentMeals}
         checkInHistory={checkInHistory}
         onSaveCheckIn={(data) => {
-          const now = new Date();
+          const dateStr = new Date().toDateString();
+          const existing = checkInHistory.find(c => c.date === dateStr);
           const checkIn = {
-            id: Date.now(),
-            date: now.toDateString(),
-            timestamp: Date.now(),
+            id: existing?.id || Date.now(),
+            date: dateStr,
+            timestamp: existing?.id || Date.now(),
             feelings: data.feelings || [],
+            fastingStatus: data.fastingStatus || null,
+            hungerLevel: data.hungerLevel || null,
             moods: data.moods || [],
-            fastingStatus: null, hungerLevel: null, symptoms: [], fastBreak: [],
-            activities: [], otherFactors: [], waterCount: 0, volumeUnit, notes: '',
-            fastingHours: 0, fastingMinutes: 0,
+            symptoms: data.symptoms || [],
+            fastBreak: data.fastBreak || [],
+            activities: data.activities || [],
+            otherFactors: data.otherFactors || [],
+            waterCount: existing?.waterCount || 0,
+            volumeUnit,
+            notes: existing?.notes || '',
+            fastingHours: existing?.fastingHours || 0,
+            fastingMinutes: existing?.fastingMinutes || 0,
           };
-          setCheckInHistory(prev => [checkIn, ...prev]);
-          dbSave(supabase.from('check_ins').insert({
+          // Upsert in local state
+          setCheckInHistory(prev => existing
+            ? prev.map(c => c.id === existing.id ? checkIn : c)
+            : [checkIn, ...prev]
+          );
+          const dbRow = {
             id: checkIn.id, user_id: session?.user?.id, date: checkIn.date,
-            feelings: checkIn.feelings, moods: checkIn.moods,
-            fasting_status: null, hunger_level: null, symptoms: [], fast_break: [],
-            activities: [], other_factors: [], water_count: 0, volume_unit: volumeUnit,
-            notes: '', fasting_hours: 0, fasting_minutes: 0,
-          }), 'save check_in', (msg) => showToast(msg, 'error'));
-          // Backfill check-in context into any meal_logs already saved today
+            feelings: checkIn.feelings, fasting_status: checkIn.fastingStatus,
+            hunger_level: checkIn.hungerLevel, moods: checkIn.moods,
+            symptoms: checkIn.symptoms, fast_break: checkIn.fastBreak,
+            activities: checkIn.activities, other_factors: checkIn.otherFactors,
+            water_count: checkIn.waterCount, volume_unit: volumeUnit,
+            notes: checkIn.notes, fasting_hours: checkIn.fastingHours, fasting_minutes: checkIn.fastingMinutes,
+          };
+          dbSave(
+            existing
+              ? supabase.from('check_ins').update(dbRow).eq('id', existing.id)
+              : supabase.from('check_ins').insert(dbRow),
+            'save check_in', (msg) => showToast(msg, 'error')
+          );
+          // Backfill meal_logs for today
           dbSave(supabase.from('meal_logs').update({
             feelings: checkIn.feelings, moods: checkIn.moods,
-          }).eq('user_id', session?.user?.id).eq('date', checkIn.date), 'backfill meal_logs checkin');
+            fasting_status: checkIn.fastingStatus, hunger_level: checkIn.hungerLevel,
+            symptoms: checkIn.symptoms, activities: checkIn.activities,
+            other_factors: checkIn.otherFactors,
+          }).eq('user_id', session?.user?.id).eq('date', dateStr), 'backfill meal_logs checkin');
           showToast('Check-in saved!');
         }}
         volumeUnit={volumeUnit}
