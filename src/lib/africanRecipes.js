@@ -423,6 +423,7 @@ export const AFRICAN_RECIPES = [
       "Serve with bread slices."
     ],
     "imageFilename": "bread-egg-stew.jpg",
+    "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTf0E-iv9n4AiXLOYEFoMf4BcoLPy7HdIwuxA&s",
     "fastingFriendly": false
   },
   {
