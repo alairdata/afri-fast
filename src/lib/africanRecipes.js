@@ -2439,6 +2439,7 @@ export const RECIPE_CATEGORIES = [
     "Serve the skewers on a platter with the sliced onions, tomatoes, and cucumbers to help balance the heat."
   ],
   "imageFilename": "suya-platter.jpg",
+  "imageUrl": "https://www.seriouseats.com/thmb/3UFS8-r5ayxHlEC7_DF2HzQ7D-Y=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/__opt__aboutcom__coeus__resources__content_migration__serious_eats__seriouseats.com__2020__10__20201015-Suya-sho-spaeth-1-78c58be723c944068b3f85c8ff4f9d23.jpg",
   "fastingFriendly": false
 },
 {
@@ -2502,6 +2503,7 @@ export const RECIPE_CATEGORIES = [
     "Plate the whole fish alongside the hot boiled yam."
   ],
   "imageFilename": "grilled-tilapia-yam.jpg",
+  "imageUrl": "https://chopshopgh.com/storage/2025/10/CHOP-SHOP12635-scaled.jpg",
   "fastingFriendly": false
 },
 {
@@ -2559,6 +2561,7 @@ export const RECIPE_CATEGORIES = [
     "Sprinkle a little extra Yaji spice over the entire bowl and toss gently before eating."
   ],
   "imageFilename": "suya-cabbage-salad.jpg",
+  "imageUrl": "https://iheartumami.com/wp-content/uploads/2025/08/Korean-cabbage-salad.jpg",
   "fastingFriendly": false
 },
 {
@@ -2620,6 +2623,7 @@ export const RECIPE_CATEGORIES = [
     "Squeeze a little lime over the avocado to keep it from browning and add a pinch of salt."
   ],
   "imageFilename": "chicken-avocado.jpg",
+  "imageUrl": "https://saltandbaker.com/wp-content/uploads/2022/02/avocado-chicken-salad-recipe-square.jpg",
   "fastingFriendly": false
 },
 {
@@ -2685,6 +2689,7 @@ export const RECIPE_CATEGORIES = [
     "The Moi Moi is ready when it is firm to the touch."
   ],
   "imageFilename": "steamed-moi-moi.jpg",
+  "imageUrl": "https://anuriskitchenblog.com/wp-content/uploads/2026/03/Moi-Moi-Introdutory-image-1024x769.jpg",
   "fastingFriendly": false
 },
 {
@@ -2749,6 +2754,7 @@ export const RECIPE_CATEGORIES = [
     "Serve hot in a bowl."
   ],
   "imageFilename": "pepper-soup-no-oil.jpg",
+  "imageUrl": "https://www.savorythoughts.com/wp-content/uploads/2022/03/Ghanaian-Light-Soup-Savory-Thoughts-8.jpg",
   "fastingFriendly": false
 }
 ];
