@@ -70,7 +70,7 @@ Rules:
 - The why section MUST include specific evidence: exact dates, exact numbers, exact meal names where relevant — this is what makes the insight feel real, not generic
 - If they recovered from a similar pattern before, mention it — give them that anchor
 - Vary the emotional tone across cards — one card can be matter-of-fact, another soft, another a little playful
-- Generate 2-4 cards only — only write a card if there is a real, specific observation to make
+- Generate between 3 and 5 cards — only write a card if there is a real, specific observation to make
 - Never give more than one thing to do per card
 
 Return ONLY a valid JSON array, no markdown, no explanation:
