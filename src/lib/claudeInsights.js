@@ -4,6 +4,19 @@ const DAILY_CACHE_KEY = 'claude_daily_insights_v1';
 const JFY_CACHE_KEY = 'claude_just_for_you_v1';
 const JFY_TTL = 3 * 24 * 60 * 60 * 1000; // 72 hours
 
+// Returns the timestamp of the most recent scheduled refresh slot (8am or 8pm today/yesterday)
+function lastScheduledSlot() {
+  const now = new Date();
+  const h = now.getHours();
+  const slot8pm = new Date(now); slot8pm.setHours(20, 0, 0, 0);
+  const slot8am = new Date(now); slot8am.setHours(8, 0, 0, 0);
+  if (h >= 20) return slot8pm.getTime();
+  if (h >= 8) return slot8am.getTime();
+  // Before 8am — last slot was yesterday's 8pm
+  const yest8pm = new Date(now); yest8pm.setDate(yest8pm.getDate() - 1); yest8pm.setHours(20, 0, 0, 0);
+  return yest8pm.getTime();
+}
+
 const API_URL = '/api/ai';
 
 async function callApi(type, data) {
@@ -47,6 +60,26 @@ export async function getCachedDailyInsights(userId) {
   if (!cached?.cards?.length) return null;
   if (!cached.cards[0]?.feeling) return null; // old format — ignore
   return { cards: cached.cards, alertCard: cached.alertCard || null };
+}
+
+// Returns true if cache is stale (i.e. a real API call is needed)
+export async function insightsNeedRefresh(userId) {
+  if (!userId) return true;
+  const cached = await getCached(DAILY_CACHE_KEY, userId);
+  if (!cached?.cards?.length || !cached.cards[0]?.feeling) return true;
+  return cached.timestamp < lastScheduledSlot();
+}
+
+// Returns cached insights if still within the current 8am/8pm slot, otherwise fetches fresh
+export async function getScheduledDailyInsights(data) {
+  const userId = data?.profile?.userId;
+  if (!userId) return null;
+  const cached = await getCached(DAILY_CACHE_KEY, userId);
+  const slotStart = lastScheduledSlot();
+  if (cached?.cards?.length && cached.cards[0]?.feeling && cached.timestamp >= slotStart) {
+    return { cards: cached.cards, alertCard: cached.alertCard || null, fromCache: true };
+  }
+  return refreshDailyInsights(data);
 }
 
 // Fetches fresh daily insights from API and updates cache

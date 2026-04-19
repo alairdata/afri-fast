@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, ActivityIndicator, Animated, RefreshControl } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
-import { getCachedDailyInsights, refreshDailyInsights, getJustForYou } from '../lib/claudeInsights';
+import { getCachedDailyInsights, getScheduledDailyInsights, insightsNeedRefresh, getJustForYou } from '../lib/claudeInsights';
 import FormattedText from '../lib/FormattedText';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -185,16 +185,21 @@ const TodayTab = ({
     waterLogs: waterLogs || [],
   });
 
-  const fetchInsights = (payload) => {
-    setDailyInsightCards(null);
-    setInsightLoading(true);
-    refreshDailyInsights(payload).then(result => {
+  const fetchInsights = async (payload) => {
+    const userId = payload?.profile?.userId;
+    const needsRefresh = await insightsNeedRefresh(userId);
+    if (needsRefresh) {
+      setDailyInsightCards(null); // clear so shimmer shows
+      setInsightLoading(true);
+    }
+    try {
+      const result = await getScheduledDailyInsights(payload);
       if (result?.cards?.length) {
         setDailyInsightCards(result.cards);
         if (result.alertCard) setClaudeAlertCard(result.alertCard);
       }
-      setInsightLoading(false);
-    }).catch(() => setInsightLoading(false));
+    } catch (_) {}
+    setInsightLoading(false);
 
     setJfyLoading(true);
     getJustForYou(payload)
