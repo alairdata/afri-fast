@@ -111,9 +111,11 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
         </TouchableOpacity>
       </View>
 
-      {Platform.OS === 'web' && <View style={{ height: TAB_BAR_HEIGHT }} />}
-
-      <ScrollView style={styles.mealsScrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.mealsScrollContent}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 24 }}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Large Cutlery Display */}
       <View style={styles.cutlerySection}>
         <View style={styles.cutleryContainer}>
@@ -354,9 +356,11 @@ const makeStyles = (c) => StyleSheet.create({
   mealsContainerClean: {
     flex: 1,
     backgroundColor: c.bg,
+    ...(Platform.OS === 'web' ? { overflow: 'hidden' } : {}),
   },
   mealsScrollContent: {
     flex: 1,
+    minHeight: 0,
     paddingHorizontal: 20,
   },
   mealsDateHeader: {
