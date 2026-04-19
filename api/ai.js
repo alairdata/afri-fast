@@ -79,7 +79,7 @@ The FINAL card must always be a goal trajectory card. Same 3-beat structure, but
 - why: use the actual weight data. State the exact target weight from the profile — NEVER invent or extrapolate a different target weight than what they have set. Name specific dates, specific weights. Compute the weekly rate of change. Then show two projections:
   1. **At current pace** — how many weeks (and months in brackets) to reach the target at the current rate
   2. **At an improved pace** — only include this if the current rate is low or unsustainable (e.g. less than 0.3 kg/week for weight loss, or barely moving). Show what a realistic but better rate would look like in weeks (and months in brackets). Make the improved pace feel achievable, not punishing.
-  Compare their peak rate vs their current rate and name the exact gap. This is the one card where numbers are the point — show the proof.
+  Compare their peak rate vs their current rate and name the exact gap. Beyond weight, you have full discretion to reference any other data that is directly relevant to the trajectory — nutrition patterns, hydration, fasting consistency, mood — if it helps explain why the pace is what it is or what's quietly affecting progress toward the goal. Only include it if it genuinely connects to the trajectory, not just for the sake of it.
 - action: one specific behaviour change that the data shows would most directly accelerate or protect their progress. Tie it directly to what the data reveals — not generic advice.
 
 If they have no weight logs, no target weight set, or their goal is to maintain weight, skip this card entirely and just generate 3-4 regular cards.
