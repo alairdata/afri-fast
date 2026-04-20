@@ -384,7 +384,7 @@ Rules:
 - If the new portion is the same unit but different quantity (e.g. "1 cup" → "2 cups"), scale the old nutrition proportionally.
 - If the measurement type changed (e.g. "1 cup" → "200g", or "1 bowl" → "3 tablespoons"), use your nutrition knowledge to calculate correct values for the new portion from scratch — do NOT just scale the old values.
 - Always return realistic, non-zero calorie values. A real food portion always has calories.
-- For "name", return a clean natural food name that matches the new portion.
+- For "name", update the food name only if the new portion implies a meaningfully different description (e.g. "1 egg" → "2 eggs"). Otherwise keep the original name exactly.
 - For "qty", return a clear human-readable portion string matching the new measurement.
 - Return ONLY a raw JSON object with these exact fields (all numbers, no units in values):
 
