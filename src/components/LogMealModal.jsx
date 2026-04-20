@@ -1818,31 +1818,40 @@ Return ONLY raw JSON, no markdown, no explanation.`
                     ].join('\n');
 
                     if (Platform.OS === 'web') {
-                      // Capture the card as a PNG on web
-                      const dataUrl = await captureRef(shareCardRef, { format: 'png', quality: 0.95 });
+                      const node = shareCardRef.current;
+                      if (!node) return;
+                      const h2c = (await import('html2canvas')).default;
+                      const canvas = await h2c(node, {
+                        useCORS: true,
+                        allowTaint: false,
+                        backgroundColor: '#111111',
+                        scale: 2,
+                      });
+                      const dataUrl = canvas.toDataURL('image/png');
                       const res = await fetch(dataUrl);
                       const blob = await res.blob();
                       const file = new File([blob], 'afri-fast-meal.png', { type: 'image/png' });
                       if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({ files: [file], title: 'My Meal — AfriFast', text: detailsText });
                       } else {
-                        // Fallback: download the image
                         const a = document.createElement('a');
                         a.href = dataUrl;
                         a.download = 'afri-fast-meal.png';
+                        document.body.appendChild(a);
                         a.click();
+                        document.body.removeChild(a);
                       }
                     } else {
-                      // Native: share text + image together via native share sheet
                       const uri = await captureRef(shareCardRef, { format: 'png', quality: 0.95 });
                       await Share.share({
                         title: 'My Meal — AfriFast',
                         message: detailsText,
-                        url: uri, // iOS includes image alongside message; Android uses message only
+                        url: uri,
                       });
                     }
                   } catch (e) {
-                    console.warn('Share capture failed:', e);
+                    console.warn('Share failed:', e);
+                    alert('Could not share. Try a screenshot instead.');
                   }
                 }}>
                   <Ionicons name="share-social-outline" size={20} color="#fff" />
