@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, Animated, Image, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, Animated, Image, Modal, ImageBackground } from 'react-native';
 import { useTheme } from '../lib/theme';
 import { TAB_BAR_HEIGHT } from '../lib/tokens';
 
@@ -38,6 +38,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
   const [showLogMealOptions, setShowLogMealOptions] = useState(false);
   const [expandedMealId, setExpandedMealId] = useState(null);
   const [deletingMealId, setDeletingMealId] = useState(null);
+  const [viewingMeal, setViewingMeal] = useState(null);
   const [reviewIndex, setReviewIndex] = useState(0);
   const reviewFade = useRef(new Animated.Value(1)).current;
 
@@ -190,7 +191,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
               <TouchableOpacity
                 key={meal.id}
                 style={styles.recentMealItemClean}
-                onPress={() => onViewMeal && onViewMeal(meal)}
+                onPress={() => setViewingMeal(meal)}
               >
                 <View style={styles.recentMealLeftClean}>
                   <View style={styles.recentMealIconClean}>
@@ -323,6 +324,79 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
           </View>
         </View>
       )}
+
+      {/* Meal Detail Modal */}
+      <Modal visible={!!viewingMeal} transparent animationType="slide" onRequestClose={() => setViewingMeal(null)}>
+        <View style={styles.mealDetailOverlay}>
+          {viewingMeal && (() => {
+            const foods = viewingMeal.name ? viewingMeal.name.split(',').map(f => f.trim()).filter(Boolean) : [];
+            const photo = viewingMeal.localPhoto || viewingMeal.photo;
+            const total = (viewingMeal.protein || 0) + (viewingMeal.carbs || 0) + (viewingMeal.fats || 0);
+            const pPct = total ? Math.round((viewingMeal.protein || 0) / total * 100) : 33;
+            const cPct = total ? Math.round((viewingMeal.carbs || 0) / total * 100) : 33;
+            const fPct = total ? 100 - pPct - cPct : 34;
+            return (
+              <View style={styles.mealDetailCard}>
+                {/* Photo or colour block */}
+                <View style={styles.mealDetailPhotoWrap}>
+                  {photo
+                    ? <Image source={{ uri: photo }} style={styles.mealDetailPhoto} resizeMode="cover" />
+                    : <View style={styles.mealDetailPhotoPlaceholder}><Text style={{ fontSize: 64 }}>🍽️</Text></View>
+                  }
+                  <View style={styles.mealDetailPhotoOverlay} />
+                  {/* Close */}
+                  <TouchableOpacity style={styles.mealDetailClose} onPress={() => setViewingMeal(null)}>
+                    <Ionicons name="close" size={22} color="#fff" />
+                  </TouchableOpacity>
+                  {/* Branding */}
+                  <View style={styles.mealDetailBrand}>
+                    <Text style={styles.mealDetailBrandText}>🌿 AfriCalorie</Text>
+                  </View>
+                </View>
+
+                {/* Info panel */}
+                <View style={styles.mealDetailInfo}>
+                  <Text style={styles.mealDetailTime}>{viewingMeal.time} · {viewingMeal.date}</Text>
+                  <Text style={styles.mealDetailName} numberOfLines={2}>
+                    {foods[0] || 'Meal'}
+                  </Text>
+                  {foods.length > 1 && (
+                    <Text style={styles.mealDetailExtras}>+ {foods.slice(1).join(', ')}</Text>
+                  )}
+
+                  {/* Calorie big number */}
+                  <View style={styles.mealDetailCalRow}>
+                    <Text style={styles.mealDetailCalNum}>{viewingMeal.calories || 0}</Text>
+                    <Text style={styles.mealDetailCalLabel}>kcal</Text>
+                  </View>
+
+                  {/* Macro bar */}
+                  <View style={styles.mealDetailMacroBar}>
+                    <View style={[styles.mealDetailMacroSeg, { flex: pPct, backgroundColor: '#3B82F6' }]} />
+                    <View style={[styles.mealDetailMacroSeg, { flex: cPct, backgroundColor: '#F59E0B' }]} />
+                    <View style={[styles.mealDetailMacroSeg, { flex: fPct, backgroundColor: '#EF4444' }]} />
+                  </View>
+
+                  {/* Macro row */}
+                  <View style={styles.mealDetailMacroRow}>
+                    {[
+                      { label: 'Protein', value: viewingMeal.protein || 0, color: '#3B82F6' },
+                      { label: 'Carbs', value: viewingMeal.carbs || 0, color: '#F59E0B' },
+                      { label: 'Fats', value: viewingMeal.fats || 0, color: '#EF4444' },
+                    ].map(m => (
+                      <View key={m.label} style={styles.mealDetailMacroItem}>
+                        <View style={[styles.mealDetailMacroDot, { backgroundColor: m.color }]} />
+                        <Text style={styles.mealDetailMacroVal}>{m.value}g</Text>
+                        <Text style={styles.mealDetailMacroLbl}>{m.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            );
+          })()}
+        </View>
+      </Modal>
 
       {/* Delete confirmation modal */}
       <Modal visible={deletingMealId !== null} transparent animationType="fade">
@@ -819,6 +893,135 @@ const makeStyles = (c) => StyleSheet.create({
     fontSize: 12,
     color: c.textSecondary,
     paddingVertical: 2,
+  },
+  mealDetailOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  mealDetailCard: {
+    backgroundColor: c.card,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+  },
+  mealDetailPhotoWrap: {
+    height: 240,
+    backgroundColor: '#064E3B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  mealDetailPhoto: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  mealDetailPhotoPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mealDetailPhotoOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+    background: Platform.OS === 'web' ? 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)' : undefined,
+    backgroundColor: Platform.OS !== 'web' ? 'transparent' : undefined,
+  },
+  mealDetailClose: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mealDetailBrand: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+  },
+  mealDetailBrandText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  mealDetailInfo: {
+    padding: 24,
+    paddingBottom: 40,
+  },
+  mealDetailTime: {
+    fontSize: 12,
+    color: c.textMuted,
+    marginBottom: 4,
+  },
+  mealDetailName: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: c.text,
+    marginBottom: 4,
+  },
+  mealDetailExtras: {
+    fontSize: 13,
+    color: c.textMuted,
+    marginBottom: 12,
+  },
+  mealDetailCalRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  mealDetailCalNum: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: '#059669',
+  },
+  mealDetailCalLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: c.textMuted,
+  },
+  mealDetailMacroBar: {
+    flexDirection: 'row',
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  mealDetailMacroSeg: {
+    height: '100%',
+  },
+  mealDetailMacroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  mealDetailMacroItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  mealDetailMacroDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  mealDetailMacroVal: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: c.text,
+  },
+  mealDetailMacroLbl: {
+    fontSize: 11,
+    color: c.textMuted,
   },
 });
 
