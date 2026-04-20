@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image, Modal, SafeAreaView, Platform } from 'react-native';
+import { supabase } from '../lib/supabase';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
 
@@ -58,9 +59,21 @@ const scaleAmount = (amount, scale) => {
 
 const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry }) => {
   const [servings, setServings] = useState(1);
+  const [communityPhotos, setCommunityPhotos] = useState([]);
 
-  // Reset servings when recipe changes
-  React.useEffect(() => { setServings(1); }, [recipe?.id]);
+  // Reset servings + fetch community photos when recipe changes
+  useEffect(() => { setServings(1); }, [recipe?.id]);
+  useEffect(() => {
+    if (!recipe?.id || !visible) return;
+    setCommunityPhotos([]);
+    supabase
+      .from('recipe_community_photos')
+      .select('id, photo_url, created_at')
+      .eq('recipe_id', recipe.id)
+      .order('created_at', { ascending: false })
+      .limit(30)
+      .then(({ data }) => { if (data) setCommunityPhotos(data); });
+  }, [recipe?.id, visible]);
 
   if (!recipe) return null;
 
@@ -200,6 +213,28 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry })
             {recipe.countries?.length > 0 && (
               <Text style={detail.countries}>🌍 {recipe.countries.join(' · ')}</Text>
             )}
+
+            {/* Community Photos */}
+            <View style={detail.section}>
+              <Text style={detail.sectionTitle}>How others eat this meal</Text>
+              {communityPhotos.length === 0 ? (
+                <View style={detail.communityEmpty}>
+                  <Text style={detail.communityEmptyIcon}>📸</Text>
+                  <Text style={detail.communityEmptyText}>Be the first to log this meal</Text>
+                </View>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={detail.communityScroll}>
+                  {communityPhotos.map((p) => (
+                    <View key={p.id} style={detail.communityCard}>
+                      <View style={detail.communityAvatar}>
+                        <Text style={detail.communityAvatarIcon}>🍽️</Text>
+                      </View>
+                      <Image source={{ uri: p.photo_url }} style={detail.communityPhoto} resizeMode="cover" />
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
 
             <View style={{ height: 40 }} />
           </View>
@@ -563,6 +598,14 @@ const detail = StyleSheet.create({
   stepText: { flex: 1, fontSize: 14, color: '#444', lineHeight: 21 },
 
   countries: { fontSize: 12, color: '#999', marginTop: 8, marginBottom: 8 },
+  communityScroll: { marginTop: 12 },
+  communityCard: { marginRight: 12, alignItems: 'center', width: 100 },
+  communityAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginBottom: -18, zIndex: 1, borderWidth: 2, borderColor: '#fff' },
+  communityAvatarIcon: { fontSize: 18 },
+  communityPhoto: { width: 100, height: 120, borderRadius: 14, backgroundColor: '#E5E7EB' },
+  communityEmpty: { alignItems: 'center', paddingVertical: 24 },
+  communityEmptyIcon: { fontSize: 32 },
+  communityEmptyText: { fontSize: 13, color: '#9CA3AF', marginTop: 8, fontWeight: '500' },
 });
 
 export default MakeRecipePage;

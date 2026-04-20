@@ -80,6 +80,41 @@ const uploadMealPhoto = async (uri) => {
   }
 };
 
+// Match detected food names against recipe library — returns array of matching recipe IDs
+const matchRecipes = (detectedFoods, recipes) => {
+  const matched = new Set();
+  detectedFoods.forEach(food => {
+    const foodWords = food.name.toLowerCase().split(/\s+/);
+    recipes.forEach(recipe => {
+      const allNames = [
+        recipe.name,
+        ...Object.values(recipe.localNames || {}),
+      ].map(n => n.toLowerCase());
+      const recipeWords = allNames.flatMap(n => n.split(/\s+/));
+      const hasMatch = foodWords.some(w => w.length > 2 && recipeWords.some(rw => rw.includes(w) || w.includes(rw)));
+      if (hasMatch) matched.add(recipe.id);
+    });
+  });
+  return [...matched];
+};
+
+const saveCommunityPhotos = async (mealId, photoUrl, detectedFoods, recipes, userEmail) => {
+  if (!photoUrl || !detectedFoods?.length) return;
+  try {
+    const recipeIds = matchRecipes(detectedFoods, recipes);
+    if (!recipeIds.length) return;
+    const rows = recipeIds.map(recipe_id => ({
+      recipe_id,
+      meal_id: mealId,
+      photo_url: photoUrl,
+      user_email: userEmail || null,
+    }));
+    await supabase.from('recipe_community_photos').insert(rows);
+  } catch (e) {
+    console.log('[Community photo save error]', e.message);
+  }
+};
+
 import Constants from 'expo-constants';
 
 const GEMINI_API_KEY =
@@ -421,7 +456,7 @@ const ShareCardImage = ({ uri, height, style }) => {
   );
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, volumeUnit = 'glasses', recipeToLog = null }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, volumeUnit = 'glasses', recipeToLog = null, recipes = [], userEmail = null }) => {
   const [showMiniCheckIn, setShowMiniCheckIn] = useState(false);
   const [miniFeelings, setMiniFeelings] = useState([]);
   const [miniFastingStatus, setMiniFastingStatus] = useState(null);
@@ -890,10 +925,11 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     if (detectedFoods.length > 0 && onSaveMeal) {
       const mealDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
       const isToday = mealDate.toDateString() === new Date().toDateString();
+      const mealId = Date.now();
       const timeStr = `${isToday ? 'Today' : mealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${mealDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
       const photoUrl = await uploadMealPhoto(capturedPhoto) || await convertToDataUrl(capturedPhoto);
       onSaveMeal({
-        id: Date.now(),
+        id: mealId,
         name: mealTitle || detectedFoods.map(f => f.name).join(', '),
         calories: detectedFoods.reduce((sum, f) => sum + f.cal, 0),
         protein: detectedFoods.reduce((sum, f) => sum + (f.protein || 0), 0),
@@ -905,6 +941,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         photo: photoUrl,
         foods: detectedFoods,
       });
+      saveCommunityPhotos(mealId, photoUrl, detectedFoods, recipes, userEmail);
     }
     handleClose();
   };
@@ -1115,8 +1152,9 @@ Return ONLY raw JSON, no markdown, no explanation.`
       if (capturedPhoto) {
         uploadMealPhoto(capturedPhoto).then(photoUrl => {
           if (photoUrl) {
-            Image.prefetch(photoUrl).catch(() => {}); // warm the cache for next session
+            Image.prefetch(photoUrl).catch(() => {});
             onSaveMeal({ id: mealId, _updatePhoto: true, photo: photoUrl });
+            saveCommunityPhotos(mealId, photoUrl, detectedFoods, recipes, userEmail);
           }
         }).catch(() => {});
       }

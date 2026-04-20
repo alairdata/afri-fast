@@ -39,6 +39,7 @@ import NutritionQuizPage from './components/NutritionQuizPage';
 
 // Modal components
 import LogMealModal from './components/LogMealModal';
+import { AFRICAN_RECIPES } from './lib/africanRecipes';
 import MakeRecipePage from './components/MakeRecipePage';
 import FindRecipePage from './components/FindRecipePage';
 import MakeRecipeModal from './components/MakeRecipeModal';
@@ -1221,6 +1222,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
             if (error) {
               setRecentMeals(prevMeals);
               showToast('Failed to delete meal. Try again.', 'error');
+            } else {
+              supabase.from('recipe_community_photos').delete().eq('meal_id', id);
             }
           }}
         />
@@ -1551,6 +1554,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           return s;
         })()}
         viewingMeal={viewingMeal}
+        recipes={AFRICAN_RECIPES}
+        userEmail={session?.user?.email || null}
       />
 
       <MakeRecipePage
