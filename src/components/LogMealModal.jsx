@@ -1166,7 +1166,10 @@ Return ONLY raw JSON, no markdown, no explanation.`
     <KeyboardAvoidingView style={styles.weightPageOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.weightPage}>
         <View style={styles.weightPageHeader}>
-          <TouchableOpacity onPress={handleClose}>
+          <TouchableOpacity
+            onPress={logMealMethod === 'write' && writePhase === 'results' ? resetWrite : handleClose}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
             <Ionicons name="chevron-back" size={24} color="#1F1F1F" />
           </TouchableOpacity>
           <View style={{ flex: 1, marginLeft: 12 }}>
@@ -1431,7 +1434,6 @@ Return ONLY raw JSON, no markdown, no explanation.`
                   placeholderTextColor="#9dbfab"
                   value={mealInput}
                   onChangeText={(t) => { setMealInput(t); setWriteError(null); }}
-                  autoFocus
                   cursorColor="#059669"
                   selectionColor="rgba(5,150,105,0.18)"
                 />
