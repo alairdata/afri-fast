@@ -102,6 +102,7 @@ const saveCommunityPhotos = async (mealId, photoUrl, detectedFoods, recipes, use
   if (!photoUrl || !detectedFoods?.length) return;
   try {
     const recipeIds = matchRecipes(detectedFoods, recipes);
+    console.log('[Community] matched recipe IDs:', recipeIds, 'foods:', detectedFoods.map(f => f.name));
     if (!recipeIds.length) return;
     const rows = recipeIds.map(recipe_id => ({
       recipe_id,
@@ -109,7 +110,9 @@ const saveCommunityPhotos = async (mealId, photoUrl, detectedFoods, recipes, use
       photo_url: photoUrl,
       user_email: userEmail || null,
     }));
-    await supabase.from('recipe_community_photos').insert(rows);
+    const { error } = await supabase.from('recipe_community_photos').insert(rows);
+    if (error) console.log('[Community photo insert error]', error.message, error.code);
+    else console.log('[Community] saved', rows.length, 'photo(s)');
   } catch (e) {
     console.log('[Community photo save error]', e.message);
   }
