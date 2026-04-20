@@ -60,6 +60,7 @@ const scaleAmount = (amount, scale) => {
 const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry }) => {
   const [servings, setServings] = useState(1);
   const [communityPhotos, setCommunityPhotos] = useState([]);
+  const [fullPhoto, setFullPhoto] = useState(null);
 
   // Reset servings + fetch community photos when recipe changes
   useEffect(() => { setServings(1); }, [recipe?.id]);
@@ -225,12 +226,12 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry })
               ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={detail.communityScroll}>
                   {communityPhotos.map((p) => (
-                    <View key={p.id} style={detail.communityCard}>
+                    <TouchableOpacity key={p.id} style={detail.communityCard} onPress={() => setFullPhoto(p.photo_url)} activeOpacity={0.85}>
                       <View style={detail.communityAvatar}>
                         <Text style={detail.communityAvatarIcon}>🍽️</Text>
                       </View>
                       <Image source={{ uri: p.photo_url }} style={detail.communityPhoto} resizeMode="cover" />
-                    </View>
+                    </TouchableOpacity>
                   ))}
                 </ScrollView>
               )}
@@ -240,6 +241,19 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry })
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      {/* Full-screen community photo viewer */}
+      <Modal visible={!!fullPhoto} transparent={false} animationType="fade" onRequestClose={() => setFullPhoto(null)}>
+        <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+          {fullPhoto && <Image source={{ uri: fullPhoto }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />}
+          <TouchableOpacity
+            onPress={() => setFullPhoto(null)}
+            style={{ position: 'absolute', top: Platform.OS === 'web' ? 20 : 52, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}
+          >
+            <Ionicons name="close" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </Modal>
   );
 };

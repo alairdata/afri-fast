@@ -195,8 +195,8 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
               >
                 <View style={styles.recentMealLeftClean}>
                   <View style={styles.recentMealIconClean}>
-                    {(meal.localPhoto || meal.photo)
-                      ? <Image source={{ uri: meal.localPhoto || meal.photo }} style={styles.recentMealPhoto} />
+                    {(meal.photo || meal.localPhoto)
+                      ? <Image source={{ uri: meal.photo || meal.localPhoto }} style={styles.recentMealPhoto} />
                       : <Text style={{ fontSize: 16 }}>{'\u{1F37D}\uFE0F'}</Text>
                     }
                   </View>
@@ -329,7 +329,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
       <Modal visible={!!viewingMeal} transparent={false} animationType="slide" onRequestClose={() => setViewingMeal(null)}>
         {viewingMeal && (() => {
           const foods = viewingMeal.name ? viewingMeal.name.split(',').map(f => f.trim()).filter(Boolean) : [];
-          const photo = viewingMeal.localPhoto || viewingMeal.photo;
+          const photo = viewingMeal.photo || viewingMeal.localPhoto;
           const total = (viewingMeal.protein || 0) + (viewingMeal.carbs || 0) + (viewingMeal.fats || 0);
           const pPct = total ? Math.round((viewingMeal.protein || 0) / total * 100) : 33;
           const cPct = total ? Math.round((viewingMeal.carbs || 0) / total * 100) : 33;
