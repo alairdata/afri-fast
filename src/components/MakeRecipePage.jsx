@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image, Modal, SafeAreaView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image, Modal, SafeAreaView, Platform, Dimensions } from 'react-native';
 import { supabase } from '../lib/supabase';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
@@ -60,7 +60,7 @@ const scaleAmount = (amount, scale) => {
 const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry }) => {
   const [servings, setServings] = useState(1);
   const [communityPhotos, setCommunityPhotos] = useState([]);
-  const [fullPhoto, setFullPhoto] = useState(null);
+  const [communityCard, setCommunityCard] = useState(null);
 
   // Reset servings + fetch community photos when recipe changes
   useEffect(() => { setServings(1); }, [recipe?.id]);
@@ -69,7 +69,7 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry })
     setCommunityPhotos([]);
     supabase
       .from('recipe_community_photos')
-      .select('id, photo_url, created_at')
+      .select('id, photo_url, items, created_at')
       .eq('recipe_id', recipe.id)
       .order('created_at', { ascending: false })
       .limit(30)
@@ -210,14 +210,9 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry })
               </View>
             )}
 
-            {/* Countries */}
-            {recipe.countries?.length > 0 && (
-              <Text style={detail.countries}>🌍 {recipe.countries.join(' · ')}</Text>
-            )}
-
             {/* Community Photos */}
             <View style={detail.section}>
-              <Text style={detail.sectionTitle}>How others eat this meal</Text>
+              <Text style={detail.sectionTitle}>How others ate this meal</Text>
               {communityPhotos.length === 0 ? (
                 <View style={detail.communityEmpty}>
                   <Text style={detail.communityEmptyIcon}>📸</Text>
@@ -226,9 +221,9 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry })
               ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={detail.communityScroll}>
                   {communityPhotos.map((p) => (
-                    <TouchableOpacity key={p.id} style={detail.communityCard} onPress={() => setFullPhoto(p.photo_url)} activeOpacity={0.85}>
+                    <TouchableOpacity key={p.id} style={detail.communityCard} onPress={() => setCommunityCard(p)} activeOpacity={0.85}>
                       <View style={detail.communityAvatar}>
-                        <Text style={detail.communityAvatarIcon}>🍽️</Text>
+                        <Ionicons name="person-circle" size={36} color="#059669" />
                       </View>
                       <Image source={{ uri: p.photo_url }} style={detail.communityPhoto} resizeMode="cover" />
                     </TouchableOpacity>
@@ -242,16 +237,80 @@ const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry })
         </ScrollView>
       </SafeAreaView>
 
-      {/* Full-screen community photo viewer */}
-      <Modal visible={!!fullPhoto} transparent={false} animationType="fade" onRequestClose={() => setFullPhoto(null)}>
-        <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-          {fullPhoto && <Image source={{ uri: fullPhoto }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />}
-          <TouchableOpacity
-            onPress={() => setFullPhoto(null)}
-            style={{ position: 'absolute', top: Platform.OS === 'web' ? 20 : 52, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}
-          >
-            <Ionicons name="close" size={22} color="#fff" />
+      {/* Community photo share card */}
+      <Modal visible={!!communityCard} transparent={false} animationType="slide" onRequestClose={() => setCommunityCard(null)}>
+        <View style={detail.cardScreen}>
+          <TouchableOpacity style={detail.cardBackBtn} onPress={() => setCommunityCard(null)}>
+            <Ionicons name="chevron-back" size={22} color="#fff" />
           </TouchableOpacity>
+          {communityCard && (() => {
+            const items = communityCard.items || [];
+            const total = items.reduce((s, f) => s + (f.cal || f.calories || 0), 0);
+            const screenWidth = Dimensions.get('window').width - 48;
+            return (
+              <ScrollView contentContainerStyle={detail.cardScroll} showsVerticalScrollIndicator={false}>
+                <View style={detail.cardTopLabel}>
+                  <Ionicons name="person-circle" size={16} color="#059669" />
+                  <Text style={detail.cardTopLabelText}>Community Meal</Text>
+                </View>
+                <View style={detail.card}>
+                  {/* Photo */}
+                  <View style={[detail.cardImgPanel, { height: 340 }]}>
+                    <Image source={{ uri: communityCard.photo_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                  </View>
+                  {/* Detected foods */}
+                  <View style={detail.cardInfoPanel}>
+                    <Text style={detail.cardFoodsTitle}>Detected Foods</Text>
+                  </View>
+                  <View style={detail.cardItems}>
+                    {items.length === 0
+                      ? <View style={detail.cardItem}><Text style={detail.cardItemName}>No ingredients recorded</Text></View>
+                      : items.map((f, i) => (
+                          <View key={i} style={detail.cardItem}>
+                            <View style={[detail.cardDot, { backgroundColor: i === 0 ? '#4ade80' : i === 1 ? '#60a5fa' : i === 2 ? '#f59e0b' : '#a78bfa' }]} />
+                            <Text style={detail.cardItemName}>{f.name}</Text>
+                            <Text style={detail.cardItemCal}>{f.cal || f.calories || 0} cal</Text>
+                          </View>
+                        ))
+                    }
+                  </View>
+                  {/* Total */}
+                  <View style={detail.cardKcalSection}>
+                    <Text style={[detail.cardKcalNum, total >= 1000 && { fontSize: 40, letterSpacing: -2 }]}>{total}</Text>
+                    <Text style={detail.cardKcalUnit}>KCAL</Text>
+                  </View>
+                  {/* Footer */}
+                  <View style={detail.cardFooter}>
+                    <Text style={detail.cardFooterText}>Community · AfriFast</Text>
+                    <View style={detail.cardFooterBadge}><Text style={detail.cardFooterBadgeText}>Made with AfriFast →</Text></View>
+                  </View>
+                </View>
+                {/* Buttons */}
+                <View style={detail.cardActions}>
+                  <TouchableOpacity
+                    style={detail.cardLogBtn}
+                    onPress={() => {
+                      if (onLogMeal) {
+                        onLogMeal({
+                          ...recipe,
+                          calories: total || recipe.calories,
+                          photo: communityCard.photo_url,
+                          name: items.length ? items.map(f => f.name).join(', ') : recipe.name,
+                        });
+                      }
+                      setCommunityCard(null);
+                      onClose();
+                    }}
+                  >
+                    <Text style={detail.cardLogBtnText}>Log this meal</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={detail.cardDoneBtn} onPress={() => setCommunityCard(null)}>
+                    <Text style={detail.cardDoneBtnText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            );
+          })()}
         </View>
       </Modal>
     </Modal>
@@ -613,13 +672,41 @@ const detail = StyleSheet.create({
 
   countries: { fontSize: 12, color: '#999', marginTop: 8, marginBottom: 8 },
   communityScroll: { marginTop: 12 },
-  communityCard: { marginRight: 12, alignItems: 'center', width: 100 },
-  communityAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginBottom: -18, zIndex: 1, borderWidth: 2, borderColor: '#fff' },
+  communityCard: { marginRight: 10, alignItems: 'center', width: 90 },
+  communityAvatar: { marginBottom: -20, zIndex: 1 },
   communityAvatarIcon: { fontSize: 18 },
-  communityPhoto: { width: 100, height: 120, borderRadius: 14, backgroundColor: '#E5E7EB' },
+  communityPhoto: { width: 90, height: 160, borderRadius: 16, backgroundColor: '#E5E7EB' },
   communityEmpty: { alignItems: 'center', paddingVertical: 24 },
   communityEmptyIcon: { fontSize: 32 },
   communityEmptyText: { fontSize: 13, color: '#9CA3AF', marginTop: 8, fontWeight: '500' },
+
+  // Community card modal
+  cardScreen: { flex: 1, backgroundColor: '#0a0a0a' },
+  cardBackBtn: { position: 'absolute', top: Platform.OS === 'web' ? 16 : 48, left: 16, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', justifyContent: 'center', alignItems: 'center' },
+  cardScroll: { paddingHorizontal: 16, paddingTop: Platform.OS === 'web' ? 72 : 104, paddingBottom: 48, alignItems: 'center' },
+  cardTopLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1a1a1a', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginBottom: 18 },
+  cardTopLabelText: { fontSize: 13, fontWeight: '700', color: '#059669' },
+  card: { alignSelf: 'stretch', backgroundColor: '#111', borderRadius: 24, overflow: 'hidden' },
+  cardImgPanel: { width: '100%', backgroundColor: '#064E3B' },
+  cardInfoPanel: { backgroundColor: '#111', paddingHorizontal: 18, paddingTop: 16, paddingBottom: 4 },
+  cardFoodsTitle: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1 },
+  cardItems: { backgroundColor: '#0e0e0e', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  cardItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)', gap: 12 },
+  cardDot: { width: 7, height: 7, borderRadius: 3.5, flexShrink: 0 },
+  cardItemName: { flex: 1, fontSize: 13, fontWeight: '500', color: '#e5e5e5' },
+  cardItemCal: { fontSize: 13, fontWeight: '700', color: '#fff', minWidth: 56, textAlign: 'right' },
+  cardKcalSection: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingHorizontal: 24, paddingTop: 12, paddingBottom: 14, backgroundColor: '#111' },
+  cardKcalNum: { fontSize: 50, fontWeight: '900', color: '#fff', lineHeight: 50, letterSpacing: -2 },
+  cardKcalUnit: { fontSize: 12, color: '#4ade80', fontWeight: '600', marginBottom: 7, letterSpacing: 1, textTransform: 'uppercase' },
+  cardFooter: { paddingHorizontal: 24, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0d0d0d' },
+  cardFooterText: { fontSize: 11, color: 'rgba(255,255,255,0.22)' },
+  cardFooterBadge: { backgroundColor: '#16a34a', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
+  cardFooterBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase' },
+  cardActions: { flexDirection: 'row', gap: 12, marginTop: 20, width: '100%' },
+  cardLogBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#059669', borderRadius: 14, paddingVertical: 14 },
+  cardLogBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  cardDoneBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingVertical: 14 },
+  cardDoneBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
 
 export default MakeRecipePage;

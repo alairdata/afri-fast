@@ -109,6 +109,7 @@ const saveCommunityPhotos = async (mealId, photoUrl, detectedFoods, recipes, use
       meal_id: mealId,
       photo_url: photoUrl,
       user_email: userEmail || null,
+      items: detectedFoods,
     }));
     const { error } = await supabase.from('recipe_community_photos').insert(rows);
     if (error) console.log('[Community photo insert error]', error.message, error.code);
