@@ -208,7 +208,7 @@ Return ONLY a valid JSON object with no explanation, no markdown, no code blocks
     }
 
     onProgress?.(90);
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
     onProgress?.(95);
     if (text) {
       if (text.startsWith('NOT_FOOD:')) {
@@ -281,7 +281,7 @@ Return ONLY a valid JSON object with no explanation, no markdown, no code blocks
     }
 
     onProgress?.(90);
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
     onProgress?.(95);
     if (text) {
       if (text.startsWith('NOT_FOOD:')) {
@@ -338,7 +338,7 @@ No explanation, no markdown, just raw JSON.`
       }
     );
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
     if (text) {
       const match = text.match(/\{[\s\S]*\}/);
       if (match) {
@@ -407,7 +407,7 @@ No explanation, no markdown, no extra text.`
       }
     );
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
     if (text) {
       const match = text.match(/\{[\s\S]*\}/);
       if (match) {
@@ -1104,7 +1104,7 @@ Return ONLY raw JSON, no markdown, no explanation.`
         }
       );
       const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
       setDetectProgress(100);
       if (!text || text.startsWith('NOT_FOOD:')) { setSayPhase('idle'); return; }
       const match = text.match(/\{[\s\S]*\}/);
