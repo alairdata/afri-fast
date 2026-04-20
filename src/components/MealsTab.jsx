@@ -342,6 +342,11 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
             const fats = viewingMeal.fats || 0;
             const h = viewingMeal.time ? parseInt(viewingMeal.time) : new Date().getHours();
             const mealType = h < 12 ? 'Breakfast' : h < 16 ? 'Lunch' : 'Dinner';
+            const shareText = [
+              `${mealType} — ${foods.join(', ')}`,
+              `${cal} kcal  |  Protein: ${protein}g  |  Carbs: ${carbs}g  |  Fats: ${fats}g`,
+              `Logged on ${viewingMeal.date} · Tracked with AfriFast`,
+            ].join('\n');
             return (
               <ScrollView contentContainerStyle={styles.mealDetailScroll} showsVerticalScrollIndicator={false}>
                 {/* The card */}
@@ -349,9 +354,16 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
                   {/* Photo */}
                   <View style={styles.mealDetailImgPanel}>
                     {photo
-                      ? <Image source={{ uri: photo }} style={styles.mealDetailImg} resizeMode="cover" />
-                      : <View style={styles.mealDetailImgPlaceholder}><Text style={{ fontSize: 64 }}>🍽️</Text></View>
+                      ? <Image
+                          source={{ uri: photo }}
+                          style={[StyleSheet.absoluteFill, { resizeMode: 'cover' }]}
+                          onError={() => {}}
+                        />
+                      : null
                     }
+                    {!photo && (
+                      <View style={styles.mealDetailImgPlaceholder}><Text style={{ fontSize: 64 }}>🍽️</Text></View>
+                    )}
                   </View>
 
                   {/* Info panel */}
@@ -386,7 +398,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
                       { label: 'PROTEIN', value: `${protein}g` },
                       { label: 'CARBS', value: `${carbs}g` },
                       { label: 'FATS', value: `${fats}g` },
-                    ].map((m, i) => (
+                    ].map((m) => (
                       <View key={m.label} style={styles.mealDetailMacroItem}>
                         <Text style={styles.mealDetailMacroVal}>{m.value}</Text>
                         <Text style={styles.mealDetailMacroLbl}>{m.label}</Text>
@@ -401,6 +413,29 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
                       <Text style={styles.mealDetailCtaText}>Made with AfriFast →</Text>
                     </View>
                   </View>
+                </View>
+
+                {/* Share + Done buttons */}
+                <View style={styles.mealDetailActions}>
+                  <TouchableOpacity
+                    style={styles.mealDetailShareBtn}
+                    onPress={async () => {
+                      try {
+                        if (navigator.share) {
+                          await navigator.share({ title: 'My Meal — AfriFast', text: shareText });
+                        } else {
+                          await navigator.clipboard.writeText(shareText);
+                          alert('Copied to clipboard!');
+                        }
+                      } catch (e) {}
+                    }}
+                  >
+                    <Ionicons name="share-social-outline" size={20} color="#fff" />
+                    <Text style={styles.mealDetailShareBtnText}>Share</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.mealDetailDoneBtn} onPress={() => setViewingMeal(null)}>
+                    <Text style={styles.mealDetailDoneBtnText}>Done</Text>
+                  </TouchableOpacity>
                 </View>
               </ScrollView>
             );
@@ -1070,6 +1105,40 @@ const makeStyles = (c) => StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
+  },
+  mealDetailActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+    width: '100%',
+  },
+  mealDetailShareBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#059669',
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  mealDetailShareBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  mealDetailDoneBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  mealDetailDoneBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
 
