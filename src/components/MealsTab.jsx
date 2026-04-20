@@ -325,77 +325,82 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
         </View>
       )}
 
-      {/* Meal Detail Modal */}
-      <Modal visible={!!viewingMeal} transparent animationType="slide" onRequestClose={() => setViewingMeal(null)}>
-        <View style={styles.mealDetailOverlay}>
-          {viewingMeal && (() => {
-            const foods = viewingMeal.name ? viewingMeal.name.split(',').map(f => f.trim()).filter(Boolean) : [];
-            const photo = viewingMeal.localPhoto || viewingMeal.photo;
-            const total = (viewingMeal.protein || 0) + (viewingMeal.carbs || 0) + (viewingMeal.fats || 0);
-            const pPct = total ? Math.round((viewingMeal.protein || 0) / total * 100) : 33;
-            const cPct = total ? Math.round((viewingMeal.carbs || 0) / total * 100) : 33;
-            const fPct = total ? 100 - pPct - cPct : 34;
-            return (
-              <View style={styles.mealDetailCard}>
-                {/* Photo or colour block */}
-                <View style={styles.mealDetailPhotoWrap}>
-                  {photo
-                    ? <Image source={{ uri: photo }} style={styles.mealDetailPhoto} resizeMode="cover" />
-                    : <View style={styles.mealDetailPhotoPlaceholder}><Text style={{ fontSize: 64 }}>🍽️</Text></View>
-                  }
-                  <View style={styles.mealDetailPhotoOverlay} />
-                  {/* Close */}
-                  <TouchableOpacity style={styles.mealDetailClose} onPress={() => setViewingMeal(null)}>
-                    <Ionicons name="close" size={22} color="#fff" />
-                  </TouchableOpacity>
-                  {/* Branding */}
-                  <View style={styles.mealDetailBrand}>
-                    <Text style={styles.mealDetailBrandText}>🌿 AfriCalorie</Text>
+      {/* Meal Detail Modal — full-screen share card */}
+      <Modal visible={!!viewingMeal} transparent={false} animationType="slide" onRequestClose={() => setViewingMeal(null)}>
+        {viewingMeal && (() => {
+          const foods = viewingMeal.name ? viewingMeal.name.split(',').map(f => f.trim()).filter(Boolean) : [];
+          const photo = viewingMeal.localPhoto || viewingMeal.photo;
+          const total = (viewingMeal.protein || 0) + (viewingMeal.carbs || 0) + (viewingMeal.fats || 0);
+          const pPct = total ? Math.round((viewingMeal.protein || 0) / total * 100) : 33;
+          const cPct = total ? Math.round((viewingMeal.carbs || 0) / total * 100) : 33;
+          const fPct = total ? 100 - pPct - cPct : 34;
+          return (
+            <View style={styles.mealDetailFull}>
+              {/* Photo fills screen */}
+              {photo
+                ? <Image source={{ uri: photo }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                : <View style={[StyleSheet.absoluteFill, { backgroundColor: '#064E3B', justifyContent: 'center', alignItems: 'center' }]}>
+                    <Text style={{ fontSize: 100 }}>🍽️</Text>
                   </View>
+              }
+
+              {/* Dark gradient overlay — bottom two-thirds */}
+              <View style={styles.mealDetailGradient} />
+
+              {/* Top bar */}
+              <View style={styles.mealDetailTopBar}>
+                <TouchableOpacity style={styles.mealDetailCloseBtn} onPress={() => setViewingMeal(null)}>
+                  <Ionicons name="chevron-back" size={22} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.mealDetailBrandText}>🌿 AfriCalorie</Text>
+                <View style={{ width: 40 }} />
+              </View>
+
+              {/* Bottom content */}
+              <View style={styles.mealDetailBottom}>
+                <Text style={styles.mealDetailTimeLbl}>{viewingMeal.time}  ·  {viewingMeal.date}</Text>
+
+                {/* Ingredients */}
+                <View style={styles.mealDetailIngredients}>
+                  {foods.map((food, i) => (
+                    <View key={i} style={styles.mealDetailIngredientRow}>
+                      <View style={styles.mealDetailIngredientDot} />
+                      <Text style={styles.mealDetailIngredientText}>{food}</Text>
+                    </View>
+                  ))}
                 </View>
 
-                {/* Info panel */}
-                <View style={styles.mealDetailInfo}>
-                  <Text style={styles.mealDetailTime}>{viewingMeal.time} · {viewingMeal.date}</Text>
-                  <Text style={styles.mealDetailName} numberOfLines={2}>
-                    {foods[0] || 'Meal'}
-                  </Text>
-                  {foods.length > 1 && (
-                    <Text style={styles.mealDetailExtras}>+ {foods.slice(1).join(', ')}</Text>
-                  )}
+                {/* Calories */}
+                <View style={styles.mealDetailCalRow}>
+                  <Text style={styles.mealDetailCalNum}>{(viewingMeal.calories || 0).toLocaleString()}</Text>
+                  <Text style={styles.mealDetailCalLabel}>kcal total</Text>
+                </View>
 
-                  {/* Calorie big number */}
-                  <View style={styles.mealDetailCalRow}>
-                    <Text style={styles.mealDetailCalNum}>{viewingMeal.calories || 0}</Text>
-                    <Text style={styles.mealDetailCalLabel}>kcal</Text>
-                  </View>
+                {/* Macro bar */}
+                <View style={styles.mealDetailMacroBar}>
+                  <View style={[styles.mealDetailMacroSeg, { flex: pPct, backgroundColor: '#3B82F6' }]} />
+                  <View style={[styles.mealDetailMacroSeg, { flex: cPct, backgroundColor: '#F59E0B' }]} />
+                  <View style={[styles.mealDetailMacroSeg, { flex: fPct, backgroundColor: '#EF4444' }]} />
+                </View>
 
-                  {/* Macro bar */}
-                  <View style={styles.mealDetailMacroBar}>
-                    <View style={[styles.mealDetailMacroSeg, { flex: pPct, backgroundColor: '#3B82F6' }]} />
-                    <View style={[styles.mealDetailMacroSeg, { flex: cPct, backgroundColor: '#F59E0B' }]} />
-                    <View style={[styles.mealDetailMacroSeg, { flex: fPct, backgroundColor: '#EF4444' }]} />
-                  </View>
-
-                  {/* Macro row */}
-                  <View style={styles.mealDetailMacroRow}>
-                    {[
-                      { label: 'Protein', value: viewingMeal.protein || 0, color: '#3B82F6' },
-                      { label: 'Carbs', value: viewingMeal.carbs || 0, color: '#F59E0B' },
-                      { label: 'Fats', value: viewingMeal.fats || 0, color: '#EF4444' },
-                    ].map(m => (
-                      <View key={m.label} style={styles.mealDetailMacroItem}>
-                        <View style={[styles.mealDetailMacroDot, { backgroundColor: m.color }]} />
-                        <Text style={styles.mealDetailMacroVal}>{m.value}g</Text>
-                        <Text style={styles.mealDetailMacroLbl}>{m.label}</Text>
-                      </View>
-                    ))}
-                  </View>
+                {/* Macro row */}
+                <View style={styles.mealDetailMacroRow}>
+                  {[
+                    { label: 'Protein', value: viewingMeal.protein || 0, color: '#3B82F6' },
+                    { label: 'Carbs', value: viewingMeal.carbs || 0, color: '#F59E0B' },
+                    { label: 'Fats', value: viewingMeal.fats || 0, color: '#EF4444' },
+                  ].map(m => (
+                    <View key={m.label} style={styles.mealDetailMacroItem}>
+                      <View style={[styles.mealDetailMacroDot, { backgroundColor: m.color }]} />
+                      <Text style={styles.mealDetailMacroVal}>{m.value}g</Text>
+                      <Text style={styles.mealDetailMacroLbl}>{m.label}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
-            );
-          })()}
-        </View>
+            </View>
+          );
+        })()}
       </Modal>
 
       {/* Delete confirmation modal */}
@@ -894,134 +899,128 @@ const makeStyles = (c) => StyleSheet.create({
     color: c.textSecondary,
     paddingVertical: 2,
   },
-  mealDetailOverlay: {
+  mealDetailFull: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
+    backgroundColor: '#000',
   },
-  mealDetailCard: {
-    backgroundColor: c.card,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    overflow: 'hidden',
-  },
-  mealDetailPhotoWrap: {
-    height: 240,
-    backgroundColor: '#064E3B',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  mealDetailPhoto: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-  },
-  mealDetailPhotoPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mealDetailPhotoOverlay: {
+  mealDetailGradient: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 100,
-    background: Platform.OS === 'web' ? 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)' : undefined,
-    backgroundColor: Platform.OS !== 'web' ? 'transparent' : undefined,
+    height: '65%',
+    ...(Platform.OS === 'web'
+      ? { background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 60%, transparent 100%)' }
+      : { backgroundColor: 'rgba(0,0,0,0.55)' }),
   },
-  mealDetailClose: {
+  mealDetailTopBar: {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'web' ? 20 : 52,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  mealDetailCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.35)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mealDetailBrand: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-  },
   mealDetailBrandText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: '#fff',
   },
-  mealDetailInfo: {
-    padding: 24,
-    paddingBottom: 40,
+  mealDetailBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingBottom: Platform.OS === 'web' ? 40 : 56,
   },
-  mealDetailTime: {
+  mealDetailTimeLbl: {
     fontSize: 12,
-    color: c.textMuted,
-    marginBottom: 4,
-  },
-  mealDetailName: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: c.text,
-    marginBottom: 4,
-  },
-  mealDetailExtras: {
-    fontSize: 13,
-    color: c.textMuted,
+    color: 'rgba(255,255,255,0.6)',
     marginBottom: 12,
+  },
+  mealDetailIngredients: {
+    gap: 6,
+    marginBottom: 20,
+  },
+  mealDetailIngredientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  mealDetailIngredientDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34D399',
+  },
+  mealDetailIngredientText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
   mealDetailCalRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 6,
+    gap: 8,
     marginBottom: 16,
-    marginTop: 8,
   },
   mealDetailCalNum: {
-    fontSize: 48,
-    fontWeight: '800',
-    color: '#059669',
+    fontSize: 52,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: -1,
   },
   mealDetailCalLabel: {
     fontSize: 18,
-    fontWeight: '600',
-    color: c.textMuted,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.6)',
   },
   mealDetailMacroBar: {
     flexDirection: 'row',
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
-    marginBottom: 12,
+    marginBottom: 14,
+    opacity: 0.85,
   },
   mealDetailMacroSeg: {
     height: '100%',
   },
   mealDetailMacroRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    gap: 24,
   },
   mealDetailMacroItem: {
-    alignItems: 'center',
-    gap: 4,
+    alignItems: 'flex-start',
+    gap: 2,
   },
   mealDetailMacroDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
+    marginBottom: 2,
   },
   mealDetailMacroVal: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    color: c.text,
+    color: '#fff',
   },
   mealDetailMacroLbl: {
     fontSize: 11,
-    color: c.textMuted,
+    color: 'rgba(255,255,255,0.55)',
   },
 });
 
