@@ -316,16 +316,7 @@ Return ONLY a valid JSON object with no explanation, no markdown, no code blocks
 };
 
 const lookupItemNutrition = async (itemName) => {
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `You are a nutrition expert. Give the nutritional info for one typical serving of "${itemName}".
+  const prompt = `You are a nutrition expert. Give the nutritional info for one typical serving of "${itemName}".
 Return ONLY a raw JSON object with these fields:
 - name: the proper food name
 - qty: typical single serving size (e.g. "1 medium egg", "1 cup of rice") — be specific, no brackets or metric units
@@ -334,32 +325,38 @@ Return ONLY a raw JSON object with these fields:
 - carbs: carbohydrates in grams as a number
 - fats: fat in grams as a number
 - fiber: fiber in grams as a number
-No explanation, no markdown, just raw JSON.`
-            }]
-          }],
+No explanation, no markdown, just raw JSON.`;
+  for (const model of GEMINI_MODELS) {
+    try {
+      const response = await fetch(geminiUrl(model), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { temperature: 0.1 },
         }),
+      });
+      if (!response.ok) continue;
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
+      if (text) {
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          return {
+            name: parsed.name || itemName,
+            qty: parsed.qty || '1 serving',
+            cal: Number(parsed.cal) || 0,
+            protein: Number(parsed.protein) || 0,
+            carbs: Number(parsed.carbs) || 0,
+            fats: Number(parsed.fats) || 0,
+            fiber: Number(parsed.fiber) || 0,
+          };
+        }
       }
-    );
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
-    if (text) {
-      const match = text.match(/\{[\s\S]*\}/);
-      if (match) {
-        const parsed = JSON.parse(match[0]);
-        return {
-          name: parsed.name || itemName,
-          qty: parsed.qty || '1 serving',
-          cal: Number(parsed.cal) || 0,
-          protein: Number(parsed.protein) || 0,
-          carbs: Number(parsed.carbs) || 0,
-          fats: Number(parsed.fats) || 0,
-          fiber: Number(parsed.fiber) || 0,
-        };
-      }
+    } catch (e) {
+      console.log('[Gemini Lookup] Error:', model, e.message);
     }
-  } catch (e) {
-    console.log('[Gemini Lookup] Error:', e.message);
   }
   return null;
 };
@@ -377,17 +374,7 @@ const normalizeEditedQty = (foodName, oldQty, newQty) => {
 
 const recalculateFoodPortionWithGemini = async (foodName, oldQty, newQty, currentNutrition = {}) => {
   const normalizedQty = normalizeEditedQty(foodName, oldQty, newQty);
-
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `You are a nutrition expert specializing in African and global meals. Recalculate the nutrition for this food item based on the new portion or measurement the user entered.
+  const prompt = `You are a nutrition expert specializing in African and global meals. Recalculate the nutrition for this food item based on the new portion or measurement the user entered.
 
 Food item: "${foodName}"
 Old portion: "${oldQty}" → calories: ${currentNutrition.cal ?? 0} kcal, protein: ${currentNutrition.protein ?? 0}g, carbs: ${currentNutrition.carbs ?? 0}g, fats: ${currentNutrition.fats ?? 0}g, fiber: ${currentNutrition.fiber ?? 0}g
@@ -397,38 +384,44 @@ Rules:
 - If the new portion is the same unit but different quantity (e.g. "1 cup" → "2 cups"), scale the old nutrition proportionally.
 - If the measurement type changed (e.g. "1 cup" → "200g", or "1 bowl" → "3 tablespoons"), use your nutrition knowledge to calculate correct values for the new portion from scratch — do NOT just scale the old values.
 - Always return realistic, non-zero calorie values. A real food portion always has calories.
-- For "name", return a clean natural food name that matches the new portion — e.g. if food is "Jollof Rice" and new qty is "2 cups", name could be "Jollof Rice" (keep it clean, no need to embed qty in name).
+- For "name", return a clean natural food name that matches the new portion.
 - For "qty", return a clear human-readable portion string matching the new measurement.
 - Return ONLY a raw JSON object with these exact fields (all numbers, no units in values):
 
 {"name": "food name", "qty": "new portion text", "cal": 0, "protein": 0, "carbs": 0, "fats": 0, "fiber": 0}
 
-No explanation, no markdown, no extra text.`
-            }]
-          }],
+No explanation, no markdown, no extra text.`;
+  for (const model of GEMINI_MODELS) {
+    try {
+      const response = await fetch(geminiUrl(model), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { temperature: 0.1 },
         }),
+      });
+      if (!response.ok) continue;
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
+      if (text) {
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          return {
+            name: parsed.name || foodName,
+            qty: parsed.qty || normalizedQty,
+            cal: Number(parsed.cal) || 0,
+            protein: Number(parsed.protein) || 0,
+            carbs: Number(parsed.carbs) || 0,
+            fats: Number(parsed.fats) || 0,
+            fiber: Number(parsed.fiber) || 0,
+          };
+        }
       }
-    );
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
-    if (text) {
-      const match = text.match(/\{[\s\S]*\}/);
-      if (match) {
-        const parsed = JSON.parse(match[0]);
-        return {
-          name: parsed.name || foodName,
-          qty: parsed.qty || normalizedQty,
-          cal: Number(parsed.cal) || 0,
-          protein: Number(parsed.protein) || 0,
-          carbs: Number(parsed.carbs) || 0,
-          fats: Number(parsed.fats) || 0,
-          fiber: Number(parsed.fiber) || 0,
-        };
-      }
+    } catch (e) {
+      console.log('[Gemini Portion Recalc] Error:', model, e.message);
     }
-  } catch (e) {
-    console.log('[Gemini Portion Recalc] Error:', e.message);
   }
   return null;
 };
