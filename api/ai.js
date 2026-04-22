@@ -451,7 +451,40 @@ export default async function handler(req, res) {
         ...CARD_COLORS[i % CARD_COLORS.length],
       }));
 
-      return res.status(200).json({ cards, alertCard: '' });
+      // Stage 3: Prediction — one notification-ready sentence for tomorrow, or null
+      const predictionPrompt = `You have just analysed a person's health data and written ${cards.length} insight cards for them. Based on the analysis and cards, decide whether there is ONE meaningful prediction worth sending as a push notification tomorrow.
+
+The prediction should feel like the Flow app — personal, surprising, data-backed. Something the person hasn't noticed but the data clearly shows is coming.
+
+Rules:
+- Text: 10-15 words max. Confident, direct. No "you might" — say it like you know. No relative day words ("today", "tomorrow", "tonight"). Write it so it reads naturally at the moment it fires.
+- Timing: pick hour (0-23) and minute (0 or 30 only) based on the user's ACTUAL behavioral patterns from the data — meal timestamps, fast break times, check-in times. Not a generic time.
+- cardIndex: 0-based index of the card this prediction relates to most.
+- Only return a prediction if it is genuinely data-backed. If nothing stands out, return null.
+
+CARDS GENERATED:
+${cards.map((c, i) => `[${i}] ${c.feeling}`).join('\n')}
+
+HEALTH ANALYSIS SUMMARY:
+${analysis.slice(0, 1500)}
+
+Return ONLY one of:
+{"text":"...","cardIndex":0,"hour":12,"minute":0}
+or the word: null`;
+
+      let prediction = null;
+      try {
+        const predText = (await callClaude(predictionPrompt, CLAUDE_KEY)).trim();
+        if (predText && predText !== 'null') {
+          const predMatch = predText.match(/\{[\s\S]*\}/);
+          if (predMatch) {
+            const p = JSON.parse(predMatch[0]);
+            if (p.text && p.hour != null) prediction = p;
+          }
+        }
+      } catch (_) {}
+
+      return res.status(200).json({ cards, alertCard: '', prediction });
     }
 
     if (type === 'just_for_you') {

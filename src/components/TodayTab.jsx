@@ -5,6 +5,7 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
 import { getCachedDailyInsights, getScheduledDailyInsights, insightsNeedRefresh, getJustForYou } from '../lib/claudeInsights';
 import FormattedText from '../lib/FormattedText';
+import { schedulePredictionNotification } from '../lib/notifications';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -151,6 +152,8 @@ const TodayTab = ({
   isRestoringFast,
   dataReady,
   goalHistory,
+  pendingInsightIndex,
+  onClearPendingInsight,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
@@ -162,6 +165,14 @@ const TodayTab = ({
   const [insightLoading, setInsightLoading] = useState(true);
   const [jfyLoading, setJfyLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Open a specific card when tapped from a prediction notification
+  useEffect(() => {
+    if (pendingInsightIndex != null && dailyInsightCards?.[pendingInsightIndex]) {
+      setSelectedInsight(dailyInsightCards[pendingInsightIndex]);
+      onClearPendingInsight?.();
+    }
+  }, [pendingInsightIndex, dailyInsightCards]);
 
   const buildEnrichedMealLogs = () =>
     (recentMeals || []).map(meal => {
@@ -218,6 +229,9 @@ const TodayTab = ({
       if (result?.cards?.length) {
         setDailyInsightCards(result.cards);
         if (result.alertCard) setClaudeAlertCard(result.alertCard);
+        if (!result.fromCache && result.prediction && Platform.OS !== 'web') {
+          schedulePredictionNotification(result.prediction).catch(() => {});
+        }
       }
     } catch (_) {}
     setInsightLoading(false);

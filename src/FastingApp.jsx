@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Dimensions, Animated, Platform, StatusBar, Alert } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './lib/supabase';
 
@@ -164,6 +165,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const toastAnim = useRef(new Animated.Value(-80)).current;
   const [isOffline, setIsOffline] = useState(false);
   const [showLogMealModal, setShowLogMealModal] = useState(false);
+  const [pendingInsightIndex, setPendingInsightIndex] = useState(null);
   const [showMakeRecipePage, setShowMakeRecipePage] = useState(false);
   const [showFindRecipePage, setShowFindRecipePage] = useState(false);
   const [showMakeRecipeModal, setShowMakeRecipeModal] = useState(false);
@@ -547,6 +549,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
   // Request notification permissions
   useEffect(() => { requestNotificationPermissions(); }, []);
+
+  // Handle taps on prediction notifications — navigate to the linked insight card
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+      if (data?.type === 'prediction' && data?.cardIndex != null) {
+        setActiveTab('today');
+        setPendingInsightIndex(data.cardIndex);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Fetch total user count for Whispers unlock
   useEffect(() => {
@@ -1197,6 +1211,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           fatsGoal={fatsGoal}
           dataReady={dataLoadCount >= 5}
           goalHistory={goalHistory}
+          pendingInsightIndex={pendingInsightIndex}
+          onClearPendingInsight={() => setPendingInsightIndex(null)}
         />
       )}
 

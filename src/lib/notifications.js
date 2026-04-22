@@ -124,6 +124,28 @@ export const cancelMealReminder = async () => {
   await Notifications.cancelScheduledNotificationAsync('meal-reminder').catch(() => {});
 };
 
+// ─── Predictive insight notification (one per day, model-timed) ───
+export const schedulePredictionNotification = async (prediction) => {
+  await Notifications.cancelScheduledNotificationAsync('prediction-daily').catch(() => {});
+  if (!prediction?.text || prediction.hour == null) return;
+  const fireAt = new Date();
+  fireAt.setDate(fireAt.getDate() + 1);
+  fireAt.setHours(prediction.hour, prediction.minute ?? 0, 0, 0);
+  if (fireAt <= new Date()) return;
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'prediction-daily',
+    content: {
+      title: 'Afri Fast sees something coming',
+      body: prediction.text,
+      data: { type: 'prediction', cardIndex: prediction.cardIndex ?? 0 },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: fireAt,
+    },
+  });
+};
+
 // ─── Celebration / Achievement notification (fires immediately) ───
 export const fireCelebrationNotification = async (title, body) => {
   await Notifications.scheduleNotificationAsync({

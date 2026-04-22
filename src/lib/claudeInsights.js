@@ -91,7 +91,11 @@ export async function refreshDailyInsights(data) {
         alertCard: result.alertCard || '',
       });
     }
-    return { cards: result?.cards || null, alertCard: result?.alertCard || null };
+    return {
+      cards: result?.cards || null,
+      alertCard: result?.alertCard || null,
+      prediction: result?.prediction || null,
+    };
   } catch (e) {
     console.error('[DailyInsights error]', e);
     return null;
