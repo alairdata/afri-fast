@@ -870,6 +870,12 @@ const TodayTab = ({
                 <Text style={styles.insightDetailLabel}>WHAT TO DO</Text>
                 <FormattedText text={selectedInsight.action} bodyStyle={styles.insightDetailBody} />
               </View>
+              {selectedInsight.takeaway ? (
+                <View style={[styles.insightDetailSection, { borderLeftWidth: 3, borderLeftColor: selectedInsight.accent || '#059669', paddingLeft: 12 }]}>
+                  <Text style={[styles.insightDetailLabel, { color: selectedInsight.accent || '#059669' }]}>TAKEAWAY</Text>
+                  <FormattedText text={selectedInsight.takeaway} bodyStyle={styles.insightDetailBody} />
+                </View>
+              ) : null}
               <TouchableOpacity
                 style={styles.insightCoachBtn}
                 onPress={() => {

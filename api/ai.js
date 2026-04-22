@@ -84,9 +84,13 @@ The FINAL card must always be a goal trajectory card. Same 3-beat structure, but
 
 If they have no weight logs, no target weight set, or their goal is to maintain weight, skip this card entirely and just generate 3-4 regular cards.
 
+Each card has an optional fourth field: "takeaway". Use it only when the data supports a specific, concrete forward-looking action worth calling out separately — skip it if there is nothing genuinely useful to add. If you include it:
+- Reference a specific date or date range using the "Tomorrow's date" provided (e.g. "By April 25th..." or "April 23rd–April 27th..."). Never say "tomorrow", "next week", "the coming days", or any other relative time phrase.
+- Keep it to one concrete action tied directly to what the data shows.
+
 Return ONLY a valid JSON array, no markdown, no explanation:
 [
-  { "feeling": "...", "why": "...", "action": "..." },
+  { "feeling": "...", "why": "...", "action": "...", "takeaway": "..." },
   ...
 ]`;
 
@@ -412,7 +416,10 @@ export default async function handler(req, res) {
       const analysis = await callClaude(analystPrompt, CLAUDE_KEY);
 
       // Stage 2: Card generator — turn analysis into human insight cards
-      const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}`;
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}`;
       const cardText = await callClaude(cardPrompt, CLAUDE_KEY);
 
       const stripped = cardText.replace(/```json|```/g, '').trim();
