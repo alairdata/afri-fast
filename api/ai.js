@@ -343,7 +343,7 @@ function preprocessData(data) {
   return lines.join('\n');
 }
 
-async function callClaude(prompt, apiKey) {
+async function callClaude(prompt, apiKey, maxTokens = 2048) {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -353,7 +353,7 @@ async function callClaude(prompt, apiKey) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
     }),
   });
@@ -436,7 +436,7 @@ export default async function handler(req, res) {
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = tomorrow.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}`;
-      const cardText = await callClaude(cardPrompt, CLAUDE_KEY);
+      const cardText = await callClaude(cardPrompt, CLAUDE_KEY, 4096);
 
       const stripped = cardText.replace(/```json|```/g, '').trim();
       const jsonMatch = stripped.match(/\[[\s\S]*\]/);
