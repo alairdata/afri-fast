@@ -110,23 +110,11 @@ function preprocessData(data) {
 
   const daysBetween = (d1, d2) => Math.floor(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24));
 
-  // Today's date string — used to exclude incomplete today data
-  const todayStr = now.toDateString();
-
-  const isToday = (dateStr) => {
-    if (!dateStr) return false;
-    const d = new Date(dateStr);
-    if (isNaN(d)) return false;
-    return d.toDateString() === todayStr;
-  };
-
   const getWeekIndex = (dateStr) => {
     if (!dateStr) return -1;
     const d = new Date(dateStr);
     if (isNaN(d)) return -1;
-    const idx = Math.floor(daysBetween(now, d) / 7);
-    // Week 0 would include today — shift so week 0 = yesterday's week
-    return idx;
+    return Math.floor(daysBetween(now, d) / 7);
   };
 
   // Infer goal label
@@ -165,12 +153,10 @@ function preprocessData(data) {
   }
   lines.push('');
 
-  // Exclude today's incomplete data from all sources
-  const completedFastingSessions = (fastingSessions || []).filter(s => !isToday(s.date || s.startTime));
-  const completedMeals = (recentMeals || []).filter(m => !isToday(m.date));
-  const completedWaterLogs = (waterLogs || []).filter(w => !isToday(w.date));
-  const completedCheckIns = (checkInHistory || []).filter(c => !isToday(c.date));
-  // Weight logs are point-in-time snapshots — include today's if logged
+  const completedFastingSessions = fastingSessions || [];
+  const completedMeals = recentMeals || [];
+  const completedWaterLogs = waterLogs || [];
+  const completedCheckIns = checkInHistory || [];
   const allWeightLogs = weightLogs || [];
 
   // Fasting by week

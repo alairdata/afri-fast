@@ -40,6 +40,7 @@
   "devDependencies": {
     "@types/react": "~19.1.10",
     "typescript": "~5.9.2",
-    "webpack-dev-server": "^4.15.2"
+    "webpack-dev-server": "^4.15.2",
+    "xlsx": "^0.18.5"
   }
 }

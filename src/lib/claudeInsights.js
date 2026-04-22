@@ -4,15 +4,11 @@ const DAILY_CACHE_KEY = 'claude_daily_insights_v1';
 const JFY_CACHE_KEY = 'claude_just_for_you_v1';
 const JFY_TTL = 3 * 24 * 60 * 60 * 1000; // 72 hours
 
-// Returns the timestamp of the most recent scheduled refresh slot (8am or 8pm today/yesterday)
+// Returns the timestamp of the most recent 8pm refresh slot (today's if past 8pm, else yesterday's)
 function lastScheduledSlot() {
   const now = new Date();
-  const h = now.getHours();
   const slot8pm = new Date(now); slot8pm.setHours(20, 0, 0, 0);
-  const slot8am = new Date(now); slot8am.setHours(8, 0, 0, 0);
-  if (h >= 20) return slot8pm.getTime();
-  if (h >= 8) return slot8am.getTime();
-  // Before 8am — last slot was yesterday's 8pm
+  if (now.getHours() >= 20) return slot8pm.getTime();
   const yest8pm = new Date(now); yest8pm.setDate(yest8pm.getDate() - 1); yest8pm.setHours(20, 0, 0, 0);
   return yest8pm.getTime();
 }
