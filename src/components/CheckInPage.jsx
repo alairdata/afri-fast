@@ -36,7 +36,7 @@ const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = f
         <Pressable
           key={opt}
           style={[ss.chip, isSelected && ss.chipSelected, disabled && ss.chipDisabled]}
-          onPress={() => !disabled && onToggle(opt)}
+          onPress={() => !disabled && onToggle(isSelected && singleSelect ? null : opt)}
         >
           <Text style={[ss.chipText, isSelected && ss.chipTextSelected]}>{opt}</Text>
         </Pressable>
