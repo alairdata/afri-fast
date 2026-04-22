@@ -552,6 +552,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
   // Handle taps on prediction notifications — navigate to the linked insight card
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     const sub = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
       if (data?.type === 'prediction' && data?.cardIndex != null) {
