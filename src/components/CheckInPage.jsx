@@ -537,12 +537,12 @@ const CheckInPage = ({
             {/* ── Section 11: Stress & Mental Load ─────────────────────── */}
             <SectionCard title="🧠 Stress & Mental Load" subtitle="How stressed do you feel right now?">
               <ScoreSlider value={stressScore} onChange={setStressScore} lowLabel="1 Very calm" highLabel="10 Extremely stressed" />
-              <Text style={ss.followUpLabel}>What is contributing to your stress? (optional)</Text>
-              <Chips
+              {stressScore >= 5 && <Text style={ss.followUpLabel}>What is contributing to your stress?</Text>}
+              {stressScore >= 5 && <Chips
                 options={['💼 Work/school','💰 Finances','❤️ Relationships','🏥 Health','⏰ Time pressure','✅ Nothing specific','🔲 Other']}
                 selected={stressContributors}
                 onToggle={v => toggle(v, stressContributors, setStressContributors)}
-              />
+              />}
               <Text style={ss.followUpLabel}>How is your ability to focus right now?</Text>
               <Chips
                 options={['🎯 Sharp','😐 Normal','🌀 Scattered','💫 Completely distracted']}
