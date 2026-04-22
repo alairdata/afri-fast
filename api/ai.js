@@ -71,7 +71,7 @@ Rules:
 - If they recovered from a similar pattern before, mention it — give them that anchor
 - Vary the emotional tone across cards — one card can be matter-of-fact, another soft, another a little playful
 - Format the "why" and "action" fields for readability: use \n\n to separate distinct thoughts into paragraphs. Use **bold** to highlight key numbers, dates, or the single most important phrase in a sentence. Keep it natural — do not over-bold. Think of it like how a thoughtful person would write a personal note, not a report.
-- Generate 3-4 insight cards based on real observations, then always add one final GOAL TRAJECTORY card as the last card
+- Generate exactly 2 insight cards based on real observations, then always add one final GOAL TRAJECTORY card as the last card (3 cards total)
 - Never give more than one thing to do per card
 
 The FINAL card must always be a goal trajectory card. Same 3-beat structure, but focused entirely on where they are headed toward their goal:
@@ -82,7 +82,7 @@ The FINAL card must always be a goal trajectory card. Same 3-beat structure, but
   Compare their peak rate vs their current rate and name the exact gap. Beyond weight, you have full discretion to reference any other data that is directly relevant to the trajectory — nutrition patterns, hydration, fasting consistency, mood — if it helps explain why the pace is what it is or what's quietly affecting progress toward the goal. Only include it if it genuinely connects to the trajectory, not just for the sake of it.
 - action: one specific behaviour change that the data shows would most directly accelerate or protect their progress. Tie it directly to what the data reveals — not generic advice. Always end the action with this exact sentence: "These projections update daily — they shift as your behaviour changes, for better or for worse."
 
-If they have no weight logs, no target weight set, or their goal is to maintain weight, skip this card entirely and just generate 3-4 regular cards.
+If they have no weight logs, no target weight set, or their goal is to maintain weight, skip this card entirely and just generate 2-3 regular cards.
 
 Each card has an optional fourth field: "takeaway". Use it only when the data supports a specific, concrete forward-looking action worth calling out separately — skip it if there is nothing genuinely useful to add. If you include it:
 - Reference a specific date or date range using the "Tomorrow's date" provided (e.g. "By April 25th..." or "April 23rd–April 27th..."). Never say "tomorrow", "next week", "the coming days", or any other relative time phrase.

@@ -648,7 +648,7 @@ const TodayTab = ({
           <Text style={styles.sectionTitleTight}>Today's Insights</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.insightsScrollCompact}>
             {insightLoading && !dailyInsightCards ? (
-              [0, 1, 2, 3, 4].map(i => <InsightSkeletonCard key={i} />)
+              [0, 1, 2].map(i => <InsightSkeletonCard key={i} />)
             ) : (dailyInsightCards || []).map((insight, i) => (
               <TouchableOpacity
                 key={i}
