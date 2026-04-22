@@ -241,27 +241,24 @@ const CheckInPage = ({
             </SectionCard>
 
             {/* ── Section 2: Emotional State ───────────────────────────── */}
-            <SectionCard title="💭 Emotional State" subtitle="Which of these best describes your mood? (up to 3)">
+            <SectionCard title="💭 Emotional State" subtitle="Which of these best describes your mood? Pick all that apply.">
               <Text style={ss.groupLabel}>Positive</Text>
               <Chips
                 options={['😌 Calm','😊 Happy','💪 Motivated','🙏 Grateful','🎯 Focused','⚡ Energized','😇 Content','🌟 Hopeful','🏆 Proud']}
                 selected={emotionalMoods}
                 onToggle={v => toggle(v, emotionalMoods, setEmotionalMoods)}
-                maxSelect={3}
               />
               <Text style={[ss.groupLabel, { marginTop: 10 }]}>Negative</Text>
               <Chips
                 options={['😰 Anxious','😤 Irritable','😢 Sad','😴 Tired','😩 Overwhelmed','😓 Stressed','😑 Unmotivated','😞 Lonely','😖 Frustrated','😶 Numb']}
                 selected={emotionalMoods}
                 onToggle={v => toggle(v, emotionalMoods, setEmotionalMoods)}
-                maxSelect={3}
               />
               <Text style={[ss.groupLabel, { marginTop: 10 }]}>Neutral</Text>
               <Chips
                 options={['😐 Indifferent','😵 Distracted','🌀 Restless']}
                 selected={emotionalMoods}
                 onToggle={v => toggle(v, emotionalMoods, setEmotionalMoods)}
-                maxSelect={3}
               />
             </SectionCard>
 
