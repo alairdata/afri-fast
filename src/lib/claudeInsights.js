@@ -7,10 +7,10 @@ const JFY_TTL = 3 * 24 * 60 * 60 * 1000; // 72 hours
 // Returns the timestamp of the most recent 8pm refresh slot (today's if past 8pm, else yesterday's)
 function lastScheduledSlot() {
   const now = new Date();
-  const slot8pm = new Date(now); slot8pm.setHours(20, 0, 0, 0);
-  if (now.getHours() >= 20) return slot8pm.getTime();
-  const yest8pm = new Date(now); yest8pm.setDate(yest8pm.getDate() - 1); yest8pm.setHours(20, 0, 0, 0);
-  return yest8pm.getTime();
+  const slot830pm = new Date(now); slot830pm.setHours(20, 30, 0, 0);
+  if (now.getHours() > 20 || (now.getHours() === 20 && now.getMinutes() >= 30)) return slot830pm.getTime();
+  const yest830pm = new Date(now); yest830pm.setDate(yest830pm.getDate() - 1); yest830pm.setHours(20, 30, 0, 0);
+  return yest830pm.getTime();
 }
 
 const API_URL = '/api/ai';
