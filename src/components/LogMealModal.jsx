@@ -158,7 +158,7 @@ const streamResponseText = async (response, onProgress, startPct = 20, endPct = 
   return response.text();
 };
 
-const analyzeWithGemini = async (photoUri, onProgress) => {
+const analyzeWithGemini = async (photoUri, onProgress, userCountry = '') => {
   try {
     onProgress?.(5);
     console.log('[Gemini] Reading photo...', photoUri);
@@ -170,24 +170,37 @@ const analyzeWithGemini = async (photoUri, onProgress) => {
       contents: [{
         parts: [
           {
-            text: `You are a nutrition expert specializing in foods, particularly African meals since that is the target market. Analyze this food image and identify every food item visible.
+            text: `You are a food recognition expert for an African health and nutrition app. The user is from ${userCountry || 'Africa'}.
 
-IMPORTANT: First check if this image actually contains food. If it does NOT contain food, respond with exactly this format:
+CRITICAL: This app is used across Africa. Always apply African culinary context first — especially for the user's country. Never default to a Western food name when an African interpretation fits.
+
+IMPORTANT: First check if this image actually contains food. If it does NOT contain food, respond with exactly:
 NOT_FOOD: [what you see in the image]
 
 If it IS food, return a JSON object with three fields:
-1. "fromScreen": true if the image appears to be photographed from a screen, display, or digital device (look for screen glare, pixel patterns, overly flat/perfect lighting, UI elements, watermarks, or stock photo characteristics) — otherwise false.
-2. "title": Name the meal the way a local would naturally say it. Lead with the starchy base or carb if one is present. Follow with only the single most prominent accompaniment — the main soup, stew, or protein. The title must contain exactly two components joined by either "and" or "with", never both. Do not list more than two components in the title regardless of how many items are on the plate. No brackets, parentheses, or commas in the title.
-3. "foods": an array of objects, one per individual food item. Do NOT bundle multiple ingredients together into one entry — every distinct item on the plate gets its own entry. Each object must have these exact fields:
-   - name: the full food name in a typical way a local of that food's country of origin would call it
-   - qty: estimated portion size — be as specific as possible so calories are never underestimated. Always combine COUNT + SIZE + ITEM NAME for countable foods (e.g. "2 medium eggs", "1 large chicken thigh", "3 thick plantain slices", "1 small whole fish", "4 golf-ball-sized meatballs", "2 large sausages", "1 big cob of corn"). For non-countable items combine size + item (e.g. "1 heaped cup of white rice", "1 large bowl of egusi soup", "1 medium wrap of fufu", "2 tablespoons of groundnut oil"). Never say just "pieces", "items", or "servings" without specifying exactly what and how big.
+1. "fromScreen": true if the image appears to be from a screen or digital device (screen glare, pixel patterns, flat lighting, UI elements, watermarks) — otherwise false.
+2. "title": Name the meal as someone from the user's country would say it. Lead with the starchy base or carb if present, then the single most prominent accompaniment. Exactly two components joined by "and" or "with". No brackets, parentheses, or commas.
+3. "foods": an array of objects, one per distinct food item on the plate. Each object must have:
+   - name: what people in the user's country or neighbouring country would call this food — use local African names (e.g. suya, gobeh, kelewele, jollof rice, fufu, egusi soup, banku, waakye, eba, puff puff, koose, akara, tilapia, banga soup, indomie, amala, sadza, ugali, mandazi)
+   - qty: specific portion size. Countable: "2 medium eggs", "1 large chicken thigh", "3 thick plantain slices", "1 small whole fish", "2 large sausages". Non-countable: "1 heaped cup of white rice", "1 large bowl of egusi soup", "1 medium wrap of fufu". Never say just "pieces" or "servings" without saying exactly what and how big.
    - cal: estimated calories as a number
    - protein: protein in grams as a number
    - carbs: carbohydrates in grams as a number
    - fats: fat in grams as a number
    - fiber: fiber in grams as a number
 
-Return ONLY a valid JSON object with no explanation, no markdown, no code blocks. Just the raw JSON.`
+AFRICAN FOOD RECOGNITION GUIDE — apply this before guessing:
+- Cubed or sliced spiced meat (skewered or loose) → suya; NEVER "pork trotters" or "kebab"
+- Grilled sausages coated in dry groundnut spice → suya sausages or yaji sausages
+- Beans with cassava flakes/gari (white granules or powder alongside beans) → gobeh or gari-beans (Ghana); NOT "black-eyed peas and fish"
+- Black-eyed peas cooked with rice → waakye (Ghana)
+- Thick white starchy dough ball → fufu, banku, ugali, or eba depending on context
+- Spiced fried plantain cubes → kelewele; plain fried plantain slices → dodo
+- Fried dough balls → puff puff (West Africa) or mandazi (East Africa)
+- Yellow/orange rice → jollof rice
+- If street food context is unclear, default to West African street food names, not Western names
+
+Return ONLY a valid JSON object — no explanation, no markdown, no code blocks.`
           },
           { inline_data: { mime_type: 'image/jpeg', data: base64 } }
         ]
@@ -453,7 +466,7 @@ const ShareCardImage = ({ uri, height, style }) => {
   );
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, volumeUnit = 'glasses', recipeToLog = null, recipes = [], userEmail = null }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, volumeUnit = 'glasses', recipeToLog = null, recipes = [], userEmail = null, userCountry = '' }) => {
   const [showMiniCheckIn, setShowMiniCheckIn] = useState(false);
   const [miniFeelings, setMiniFeelings] = useState([]);
   const [miniFastingStatus, setMiniFastingStatus] = useState(null);
@@ -775,7 +788,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       setDetectedFoods([]);
       setScanProgress(0);
       setScanError(null);
-      const results = await analyzeWithGemini(photo.uri, setScanProgress);
+      const results = await analyzeWithGemini(photo.uri, setScanProgress, userCountry);
       setScanProgress(100);
       if (results?.error) {
         setScanError("Couldn't reach the server. Check your connection and try again.");
@@ -812,7 +825,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setDetectedFoods([]);
     setScanProgress(0);
     setScanError(null);
-    const results = await analyzeWithGemini(asset.uri, setScanProgress);
+    const results = await analyzeWithGemini(asset.uri, setScanProgress, userCountry);
     setScanProgress(100);
     if (results?.error) {
       setScanError("Couldn't reach the server. Check your connection and try again.");

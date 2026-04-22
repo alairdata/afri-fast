@@ -1455,6 +1455,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         logMealMethod={logMealMethod}
         recipeToLog={recipeToLog}
         selectedMealDate={selectedMealDate}
+        userCountry={userCountry}
         onSaveMeal={async (meal) => {
           if (meal._updatePhoto) {
             setRecentMeals(prev => prev.map(m => m.id === meal.id ? { ...m, photo: meal.photo } : m));
