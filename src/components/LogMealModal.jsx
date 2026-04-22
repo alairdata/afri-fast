@@ -172,33 +172,22 @@ const analyzeWithGemini = async (photoUri, onProgress, userCountry = '') => {
           {
             text: `You are a food recognition expert for an African health and nutrition app. The user is from ${userCountry || 'Africa'}.
 
-CRITICAL: This app is used across Africa. Always apply African culinary context first — especially for the user's country. Never default to a Western food name when an African interpretation fits.
+Your job is to identify food the way the user's own culture would name and understand it. Draw on your full knowledge of ${userCountry || 'African'} cuisine — street food, home cooking, and regional specialties. When something could be interpreted as a local dish or a Western equivalent, always prefer the local interpretation that fits the user's food culture.
 
 IMPORTANT: First check if this image actually contains food. If it does NOT contain food, respond with exactly:
 NOT_FOOD: [what you see in the image]
 
 If it IS food, return a JSON object with three fields:
 1. "fromScreen": true if the image appears to be from a screen or digital device (screen glare, pixel patterns, flat lighting, UI elements, watermarks) — otherwise false.
-2. "title": Name the meal as someone from the user's country would say it. Lead with the starchy base or carb if present, then the single most prominent accompaniment. Exactly two components joined by "and" or "with". No brackets, parentheses, or commas.
+2. "title": Name the meal as someone from the user's country would naturally say it. Lead with the starchy base or carb if present, then the single most prominent accompaniment. Exactly two components joined by "and" or "with". No brackets, parentheses, or commas.
 3. "foods": an array of objects, one per distinct food item on the plate. Each object must have:
-   - name: what people in the user's country or neighbouring country would call this food — use local African names (e.g. suya, gobeh, kelewele, jollof rice, fufu, egusi soup, banku, waakye, eba, puff puff, koose, akara, tilapia, banga soup, indomie, amala, sadza, ugali, mandazi)
-   - qty: specific portion size. Countable: "2 medium eggs", "1 large chicken thigh", "3 thick plantain slices", "1 small whole fish", "2 large sausages". Non-countable: "1 heaped cup of white rice", "1 large bowl of egusi soup", "1 medium wrap of fufu". Never say just "pieces" or "servings" without saying exactly what and how big.
+   - name: the name a person from the user's country would use for this food in everyday conversation
+   - qty: specific portion size. Countable: "2 medium eggs", "1 large chicken thigh", "3 thick plantain slices", "1 small whole fish", "2 large sausages". Non-countable: "1 heaped cup of white rice", "1 large bowl of soup", "1 medium wrap of fufu". Never say just "pieces" or "servings" without specifying exactly what and how big.
    - cal: estimated calories as a number
    - protein: protein in grams as a number
    - carbs: carbohydrates in grams as a number
    - fats: fat in grams as a number
    - fiber: fiber in grams as a number
-
-AFRICAN FOOD RECOGNITION GUIDE — apply this before guessing:
-- Cubed or sliced spiced meat (skewered or loose) → suya; NEVER "pork trotters" or "kebab"
-- Grilled sausages coated in dry groundnut spice → suya sausages or yaji sausages
-- Beans with cassava flakes/gari (white granules or powder alongside beans) → gobeh or gari-beans (Ghana); NOT "black-eyed peas and fish"
-- Black-eyed peas cooked with rice → waakye (Ghana)
-- Thick white starchy dough ball → fufu, banku, ugali, or eba depending on context
-- Spiced fried plantain cubes → kelewele; plain fried plantain slices → dodo
-- Fried dough balls → puff puff (West Africa) or mandazi (East Africa)
-- Yellow/orange rice → jollof rice
-- If street food context is unclear, default to West African street food names, not Western names
 
 Return ONLY a valid JSON object — no explanation, no markdown, no code blocks.`
           },
