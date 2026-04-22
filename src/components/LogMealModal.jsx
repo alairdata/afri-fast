@@ -119,248 +119,79 @@ const saveCommunityPhotos = async (mealId, photoUrl, detectedFoods, recipes, use
   }
 };
 
-import Constants from 'expo-constants';
+const GEMINI_API_URL = '/api/gemini';
 
-const GEMINI_API_KEY =
-  Constants.expoConfig?.extra?.geminiApiKey ||
-  process.env.EXPO_PUBLIC_GEMINI_API_KEY ||
-  '';
+async function callGeminiApi(type, data) {
+  const response = await fetch(GEMINI_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, data }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Gemini API error');
+  return result;
+}
 
-// Fallback chain — tried in order if a model returns 503
-const GEMINI_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-1.5-flash',
-];
-
-const geminiUrl = (model) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-
-const streamResponseText = async (response, onProgress, startPct = 20, endPct = 88) => {
-  if (response.body?.getReader) {
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let text = '';
-    let received = 0;
-    const ESTIMATED = 1400; // typical Gemini meal JSON response in bytes
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      received += value.length;
-      text += decoder.decode(value, { stream: true });
-      const pct = startPct + Math.min(endPct - startPct, ((received / ESTIMATED) * (endPct - startPct)));
-      onProgress?.(Math.round(pct));
-    }
-    return text;
-  }
-  // Fallback for environments without streaming
-  onProgress?.(Math.round((startPct + endPct) / 2));
-  return response.text();
-};
 
 const analyzeWithGemini = async (photoUri, onProgress, userCountry = '') => {
   try {
     onProgress?.(5);
-    console.log('[Gemini] Reading photo...', photoUri);
     const base64 = await readUriAsBase64(photoUri);
     onProgress?.(15);
-    console.log('[Gemini] Base64 length:', base64.length);
 
-    const requestBody = JSON.stringify({
-      contents: [{
-        parts: [
-          {
-            text: `You are a food recognition expert for an African health and nutrition app. The user is from ${userCountry || 'Africa'}.
+    // Animate progress while waiting for the server
+    let pct = 15;
+    const ticker = setInterval(() => {
+      pct = Math.min(pct + 2, 88);
+      onProgress?.(pct);
+    }, 400);
 
-Your job is to identify food the way the user's own culture would name and understand it. Draw on your full knowledge of ${userCountry || 'African'} cuisine — street food, home cooking, and regional specialties. When something could be interpreted as a local dish or a Western equivalent, always prefer the local interpretation that fits the user's food culture.
-
-IMPORTANT: First check if this image actually contains food. If it does NOT contain food, respond with exactly:
-NOT_FOOD: [what you see in the image]
-
-If it IS food, return a JSON object with three fields:
-1. "fromScreen": true if the image appears to be from a screen or digital device (screen glare, pixel patterns, flat lighting, UI elements, watermarks) — otherwise false.
-2. "title": Name the meal as someone from the user's country would naturally say it. Lead with the starchy base or carb if present, then the single most prominent accompaniment. Exactly two components joined by "and" or "with". No brackets, parentheses, or commas.
-3. "foods": an array of objects, one per distinct food item on the plate. Each object must have:
-   - name: the name a person from the user's country would use for this food in everyday conversation
-   - qty: specific portion size. Countable: "2 medium eggs", "1 large chicken thigh", "3 thick plantain slices", "1 small whole fish", "2 large sausages". Non-countable: "1 heaped cup of white rice", "1 large bowl of soup", "1 medium wrap of fufu". Never say just "pieces" or "servings" without specifying exactly what and how big.
-   - cal: estimated calories as a number
-   - protein: protein in grams as a number
-   - carbs: carbohydrates in grams as a number
-   - fats: fat in grams as a number
-   - fiber: fiber in grams as a number
-
-Return ONLY a valid JSON object — no explanation, no markdown, no code blocks.`
-          },
-          { inline_data: { mime_type: 'image/jpeg', data: base64 } }
-        ]
-      }],
-      generationConfig: { temperature: 0.1 },
-    });
-
-    let response, data;
-    for (const model of GEMINI_MODELS) {
-      console.log('[Gemini] Trying model:', model);
-      response = await fetch(geminiUrl(model), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody,
-      });
-      onProgress?.(18);
-      const rawText = await streamResponseText(response, onProgress, 18, 88);
-      data = JSON.parse(rawText);
-      console.log('[Gemini] Response status:', response.status, '| error:', data.error?.message || 'none');
-      if (response.status !== 503) break;
-      console.log('[Gemini] Model overloaded, trying next...');
+    let result;
+    try {
+      result = await callGeminiApi('scan_photo', { base64, userCountry });
+    } finally {
+      clearInterval(ticker);
     }
 
-    onProgress?.(90);
-    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
     onProgress?.(95);
-    if (text) {
-      if (text.startsWith('NOT_FOOD:')) {
-        const identified = text.replace('NOT_FOOD:', '').trim();
-        return { notFood: true, identified };
-      }
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        const foods = (parsed.foods || []).map(f => ({
-          name: f.name || 'Unknown food',
-          qty: f.qty || '1 serving',
-          cal: Number(f.cal) || 0,
-          protein: Number(f.protein) || 0,
-          carbs: Number(f.carbs) || 0,
-          fats: Number(f.fats) || 0,
-          fiber: Number(f.fiber) || 0,
-        }));
-        return { fromScreen: !!parsed.fromScreen, title: parsed.title || null, foods };
-      }
-    }
+    return result;
   } catch (e) {
-    console.log('[Gemini] Error:', e.message, e.stack);
+    console.log('[Gemini] Error:', e.message);
     return { error: true, message: e.message };
   }
-  return { error: true, message: 'Could not analyse the image. Please try again.' };
 };
 
 const analyzeTextWithGemini = async (mealText, onProgress) => {
   try {
     onProgress?.(8);
-    const requestBody = JSON.stringify({
-      contents: [{
-        parts: [{
-          text: `You are a nutrition expert specializing in African meals. The user has described a meal they ate — this could be a short name like "jollof rice", a messy description like "i had fufu and light soup with chicken and some koobi", or even a long paragraph. Your job is to extract all the food items from whatever they wrote.
+    let pct = 8;
+    const ticker = setInterval(() => {
+      pct = Math.min(pct + 3, 88);
+      onProgress?.(pct);
+    }, 350);
 
-IMPORTANT: Be extremely generous — almost anything could reference food. Only return NOT_FOOD if the input contains absolutely zero food references whatsoever (e.g. "my car broke down"). If there is ANY mention of food, extract it. A Ghanaian typing "bknu" likely means "Banku". Give it the benefit of the doubt always.
-
-If after attempting to interpret it there is genuinely NO food content at all, respond with exactly:
-NOT_FOOD: [short description of what it is]
-
-If it contains ANY food, return ONLY raw JSON with these fields:
-1. "correctedInput": a clean short summary of the meal (e.g. "Fufu with light soup and chicken"). Fix typos — do not add items not mentioned.
-2. "title": Name the meal the way a local would naturally say it. Lead with the starchy base or carb if one is present. Follow with only the single most prominent accompaniment. The title must contain exactly two components joined by either "and" or "with", never both. No brackets, parentheses, or commas.
-3. "foods": an array of objects, one per individual food item mentioned. Do NOT bundle multiple ingredients — every distinct item gets its own entry. Each object must have:
-   - name: full food name as a local would say it
-   - qty: estimated portion — combine COUNT + SIZE + ITEM for countable foods (e.g. "2 medium eggs", "1 large chicken thigh"). For non-countable combine size + item (e.g. "1 heaped cup of white rice", "1 large bowl of egusi soup"). Never use brackets, parentheses, or metric units.
-   - cal, protein, carbs, fats, fiber
-
-What the user wrote: "${mealText}"
-
-Return ONLY a valid JSON object with no explanation, no markdown, no code blocks. Just the raw JSON.`
-        }]
-      }],
-      generationConfig: { temperature: 0.1 },
-    });
-
-    let data;
-    for (const model of GEMINI_MODELS) {
-      const response = await fetch(geminiUrl(model), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody,
-      });
-      onProgress?.(15);
-      const rawText = await streamResponseText(response, onProgress, 15, 88);
-      data = JSON.parse(rawText);
-      if (response.status !== 503) break;
-      console.log('[Gemini text] Model overloaded, trying next...');
+    let result;
+    try {
+      result = await callGeminiApi('analyze_text', { mealText });
+    } finally {
+      clearInterval(ticker);
     }
 
-    onProgress?.(90);
-    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
     onProgress?.(95);
-    if (text) {
-      if (text.startsWith('NOT_FOOD:')) {
-        const identified = text.replace('NOT_FOOD:', '').trim();
-        return { notFood: true, identified };
-      }
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        const foods = (parsed.foods || []).map(f => ({
-          name: f.name || 'Unknown food',
-          qty: f.qty || '1 serving',
-          cal: Number(f.cal) || 0,
-          protein: Number(f.protein) || 0,
-          carbs: Number(f.carbs) || 0,
-          fats: Number(f.fats) || 0,
-          fiber: Number(f.fiber) || 0,
-        }));
-        return { title: parsed.title || null, correctedInput: parsed.correctedInput || null, foods };
-      }
-    }
+    return result;
   } catch (e) {
     console.log('[Gemini Text] Error:', e.message);
     return null;
   }
-  // Got a response but couldn't parse valid JSON — return null to trigger retry
-  return null;
 };
 
 const lookupItemNutrition = async (itemName) => {
-  const prompt = `You are a nutrition expert. Give the nutritional info for one typical serving of "${itemName}".
-Return ONLY a raw JSON object with these fields:
-- name: the proper food name
-- qty: typical single serving size (e.g. "1 medium egg", "1 cup of rice") — be specific, no brackets or metric units
-- cal: calories as a number
-- protein: protein in grams as a number
-- carbs: carbohydrates in grams as a number
-- fats: fat in grams as a number
-- fiber: fiber in grams as a number
-No explanation, no markdown, just raw JSON.`;
-  for (const model of GEMINI_MODELS) {
-    try {
-      const response = await fetch(geminiUrl(model), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.1 },
-        }),
-      });
-      if (!response.ok) continue;
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
-      if (text) {
-        const match = text.match(/\{[\s\S]*\}/);
-        if (match) {
-          const parsed = JSON.parse(match[0]);
-          return {
-            name: parsed.name || itemName,
-            qty: parsed.qty || '1 serving',
-            cal: Number(parsed.cal) || 0,
-            protein: Number(parsed.protein) || 0,
-            carbs: Number(parsed.carbs) || 0,
-            fats: Number(parsed.fats) || 0,
-            fiber: Number(parsed.fiber) || 0,
-          };
-        }
-      }
-    } catch (e) {
-      console.log('[Gemini Lookup] Error:', model, e.message);
-    }
+  try {
+    return await callGeminiApi('lookup_nutrition', { itemName });
+  } catch (e) {
+    console.log('[Gemini Lookup] Error:', e.message);
+    return null;
   }
-  return null;
 };
 
 const normalizeEditedQty = (foodName, oldQty, newQty) => {
@@ -376,56 +207,12 @@ const normalizeEditedQty = (foodName, oldQty, newQty) => {
 
 const recalculateFoodPortionWithGemini = async (foodName, oldQty, newQty, currentNutrition = {}) => {
   const normalizedQty = normalizeEditedQty(foodName, oldQty, newQty);
-  const prompt = `You are a nutrition expert specializing in African and global meals. Recalculate the nutrition for this food item based on the new portion or measurement the user entered.
-
-Food item: "${foodName}"
-Old portion: "${oldQty}" → calories: ${currentNutrition.cal ?? 0} kcal, protein: ${currentNutrition.protein ?? 0}g, carbs: ${currentNutrition.carbs ?? 0}g, fats: ${currentNutrition.fats ?? 0}g, fiber: ${currentNutrition.fiber ?? 0}g
-New portion: "${normalizedQty}"
-
-Rules:
-- If the new portion is the same unit but different quantity (e.g. "1 cup" → "2 cups"), scale the old nutrition proportionally.
-- If the measurement type changed (e.g. "1 cup" → "200g", or "1 bowl" → "3 tablespoons"), use your nutrition knowledge to calculate correct values for the new portion from scratch — do NOT just scale the old values.
-- Always return realistic, non-zero calorie values. A real food portion always has calories.
-- For "name", if the user's new portion text contains a food name (e.g. "1.5 cups of beans", "2 boiled eggs"), use that food name instead of the original. Otherwise keep the original name.
-- For "qty", return a clear human-readable portion string matching the new measurement.
-- Return ONLY a raw JSON object with these exact fields (all numbers, no units in values):
-
-{"name": "food name", "qty": "new portion text", "cal": 0, "protein": 0, "carbs": 0, "fats": 0, "fiber": 0}
-
-No explanation, no markdown, no extra text.`;
-  for (const model of GEMINI_MODELS) {
-    try {
-      const response = await fetch(geminiUrl(model), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.1 },
-        }),
-      });
-      if (!response.ok) continue;
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
-      if (text) {
-        const match = text.match(/\{[\s\S]*\}/);
-        if (match) {
-          const parsed = JSON.parse(match[0]);
-          return {
-            name: parsed.name || foodName,
-            qty: parsed.qty || normalizedQty,
-            cal: Number(parsed.cal) || 0,
-            protein: Number(parsed.protein) || 0,
-            carbs: Number(parsed.carbs) || 0,
-            fats: Number(parsed.fats) || 0,
-            fiber: Number(parsed.fiber) || 0,
-          };
-        }
-      }
-    } catch (e) {
-      console.log('[Gemini Portion Recalc] Error:', model, e.message);
-    }
+  try {
+    return await callGeminiApi('recalculate_portion', { foodName, oldQty, newQty: normalizedQty, currentNutrition });
+  } catch (e) {
+    console.log('[Gemini Portion Recalc] Error:', e.message);
+    return null;
   }
-  return null;
 };
 
 const CI_FEELINGS = ['😌 Calm', '🎯 Focused', '⚡ Energized', '😴 Low energy', '🍽️ Hungry', '🤤 Very hungry', '😤 Irritable', '💪🏿 Motivated'];
@@ -1072,52 +859,17 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setDetectProgress(0);
     try {
       const base64 = await readUriAsBase64(uri);
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                {
-                  text: `You are a nutrition expert specializing in African meals. The user has spoken the name of a meal they ate. Listen to the audio and identify the meal.
-
-If you cannot identify a food or meal, respond with exactly:
-NOT_FOOD: [description]
-
-If it IS a food or meal, return ONLY raw JSON with these fields:
-1. "title": Name the meal the way a local would naturally say it. Lead with the starchy base or carb if present. Follow with only the single most prominent accompaniment. Exactly two components joined by "and" or "with". No brackets or commas.
-2. "foods": array of objects, one per food item. Each must have:
-   - name: full food name as a local would say it
-   - qty: COUNT + SIZE + ITEM NAME (e.g. "2 medium eggs", "1 large wrap of fufu", "1 heaped cup of rice"). No brackets, no metric units.
-   - cal, protein, carbs, fats, fiber: numbers
-
-Return ONLY raw JSON, no markdown, no explanation.`
-                },
-                { inline_data: { mime_type: 'audio/m4a', data: base64 } }
-              ]
-            }],
-            generationConfig: { temperature: 0.1 },
-          }),
-        }
-      );
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
+      const result = await callGeminiApi('analyze_audio', { base64 });
       setDetectProgress(100);
-      if (!text || text.startsWith('NOT_FOOD:')) { setSayPhase('idle'); return; }
-      const match = text.match(/\{[\s\S]*\}/);
-      if (match) {
-        const parsed = JSON.parse(match[0]);
-        setMealTitle(parsed.title || null);
-        setVoiceTranscript(parsed.title || 'Meal detected');
-        setDetectedFoods((parsed.foods || []).map((f, i) => ({
-          name: f.name || 'Unknown', qty: f.qty || '1 serving',
-          cal: Number(f.cal) || 0, protein: Number(f.protein) || 0,
-          carbs: Number(f.carbs) || 0, fats: Number(f.fats) || 0, fiber: Number(f.fiber) || 0, id: i,
-        })));
-        setSayPhase('results');
-      } else { setSayPhase('idle'); }
+      if (!result || result.notFood) { setSayPhase('idle'); return; }
+      setMealTitle(result.title || null);
+      setVoiceTranscript(result.title || 'Meal detected');
+      setDetectedFoods((result.foods || []).map((f, i) => ({
+        name: f.name || 'Unknown', qty: f.qty || '1 serving',
+        cal: f.cal || 0, protein: f.protein || 0,
+        carbs: f.carbs || 0, fats: f.fats || 0, fiber: f.fiber || 0, id: i,
+      })));
+      setSayPhase('results');
     } catch (e) {
       console.log('[Gemini Audio] Error:', e.message);
       setSayPhase('idle');
