@@ -76,11 +76,11 @@ Rules:
 
 The FINAL card must always be a goal trajectory card. Same 3-beat structure, but focused entirely on where they are headed toward their goal:
 - feeling: a direct, honest one-liner about their current trajectory. Is it on track, slipping, or ahead of schedule? Make it feel personal and real. ALWAYS calculate the actual weeks from the data — never copy example numbers. E.g. "You're [X] weeks from your goal — but the last two weeks are quietly stretching that." where X is computed from the weight data.
-- why: use the actual weight data. State the exact target weight from the profile — NEVER invent or extrapolate a different target weight than what they have set. Name specific dates, specific weights. Compute the weekly rate of change. Then show two projections:
+- why: use the actual weight data. The target weight is explicitly labelled "CURRENT TARGET WEIGHT" in the profile — use that exact number, never a different one. Name specific dates, specific weights. Use the pre-computed weekly rate already given in the WEIGHT PROGRESS section (the "~X kg/week" figure) — do NOT recalculate it yourself. Remember: each week bucket in the data = exactly 7 calendar days, so two buckets = 14 days, not 14 weeks. Then show two projections:
   1. **At current pace** — how many weeks (and months in brackets) to reach the target at the current rate
   2. **At an improved pace** — only include this if the current rate is low or unsustainable (e.g. less than 0.3 kg/week for weight loss, or barely moving). Show what a realistic but better rate would look like in weeks (and months in brackets). Make the improved pace feel achievable, not punishing.
   Compare their peak rate vs their current rate and name the exact gap. Beyond weight, you have full discretion to reference any other data that is directly relevant to the trajectory — nutrition patterns, hydration, fasting consistency, mood — if it helps explain why the pace is what it is or what's quietly affecting progress toward the goal. Only include it if it genuinely connects to the trajectory, not just for the sake of it.
-- action: one specific behaviour change that the data shows would most directly accelerate or protect their progress. Tie it directly to what the data reveals — not generic advice.
+- action: one specific behaviour change that the data shows would most directly accelerate or protect their progress. Tie it directly to what the data reveals — not generic advice. Always end the action with this exact sentence: "These projections update daily — they shift as your behaviour changes, for better or for worse."
 
 If they have no weight logs, no target weight set, or their goal is to maintain weight, skip this card entirely and just generate 3-4 regular cards.
 
@@ -134,7 +134,7 @@ function preprocessData(data) {
   lines.push(`DAILY CALORIE GOAL (current): ${profile.dailyCalorieGoal || 2000} kcal | PROTEIN: ${profile.proteinGoal || '?'}g | CARBS: ${profile.carbsGoal || '?'}g | FATS: ${profile.fatsGoal || '?'}g`);
   lines.push(`WATER GOAL: ${profile.hydrationGoal || 8} ${profile.volumeUnit || 'glasses'}/day`);
   if (profile.startingWeight) {
-    lines.push(`STARTING WEIGHT: ${profile.startingWeight} ${profile.weightUnit || 'kg'} → TARGET: ${profile.targetWeight || '?'} ${profile.weightUnit || 'kg'}`);
+    lines.push(`STARTING WEIGHT: ${profile.startingWeight} ${profile.weightUnit || 'kg'} → CURRENT TARGET WEIGHT (use this exact value, do not change it): ${profile.targetWeight || '?'} ${profile.weightUnit || 'kg'}`);
   }
 
   // Goal history — shows what the targets were at different points in time
@@ -170,7 +170,7 @@ function preprocessData(data) {
 
   const maxFastWeek = Object.keys(fastingByWeek).length ? Math.max(...Object.keys(fastingByWeek).map(Number)) : -1;
   if (maxFastWeek >= 0) {
-    lines.push('FASTING SESSIONS BY WEEK (week 0 = this week, 1 = last week, etc.):');
+    lines.push('FASTING SESSIONS BY WEEK (each bucket = exactly 7 calendar days; week 0 = past 0–6 days, week 1 = past 7–13 days, etc.):');
     for (let w = 0; w <= Math.min(maxFastWeek, 11); w++) {
       const sessions = fastingByWeek[w] || [];
       const completed = sessions.filter(s => s.durationHours >= 0 || s.endTime);
@@ -198,7 +198,7 @@ function preprocessData(data) {
 
   const maxMealWeek = Object.keys(mealsByWeek).length ? Math.max(...Object.keys(mealsByWeek).map(Number)) : -1;
   if (maxMealWeek >= 0) {
-    lines.push('MEAL LOGS BY WEEK:');
+    lines.push('MEAL LOGS BY WEEK (each bucket = exactly 7 calendar days; week 0 = past 0–6 days, week 1 = past 7–13 days, etc.):');
     for (let w = 0; w <= Math.min(maxMealWeek, 11); w++) {
       const meals = mealsByWeek[w] || [];
       const label = w === 0 ? 'This week' : w === 1 ? 'Last week' : `${w} weeks ago`;
@@ -243,7 +243,7 @@ function preprocessData(data) {
   if (maxWaterWeek >= 0) {
     const waterGoal = profile.hydrationGoal || 8;
     const unit = profile.volumeUnit || 'glasses';
-    lines.push(`WATER INTAKE BY WEEK (goal: ${waterGoal} ${unit}/day):`);
+    lines.push(`WATER INTAKE BY WEEK (each bucket = exactly 7 calendar days; week 0 = past 0–6 days; goal: ${waterGoal} ${unit}/day):`);
     for (let w = 0; w <= Math.min(maxWaterWeek, 11); w++) {
       const byDay = waterByWeek[w];
       const label = w === 0 ? 'This week' : w === 1 ? 'Last week' : `${w} weeks ago`;
@@ -303,9 +303,7 @@ function preprocessData(data) {
   }
 
   // Enriched meal logs — each meal paired with how the user felt that day
-  const recentEnriched = (enrichedMealLogs || [])
-    .filter(m => !isToday(m.date))
-    .slice(0, 30);
+  const recentEnriched = (enrichedMealLogs || []).slice(0, 30);
   if (recentEnriched.length > 0) {
     lines.push('MEALS WITH EMOTIONAL & PHYSICAL CONTEXT (most recent first):');
     recentEnriched.forEach(m => {
