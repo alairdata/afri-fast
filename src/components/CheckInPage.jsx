@@ -577,7 +577,8 @@ const CheckInPage = ({
               />
             </SectionCard>
 
-            {/* ── Section 13: Daily Goal Check ─────────────────────────── */}
+            {/* ── Section 13: Daily Goal Check (hide if they didn't fast at all) ── */}
+            {fastingStatus !== '❌ I did not fast today' && fastingStatus !== '🌙 Fasting window hasn\'t started yet' && (
             <SectionCard title="🎯 Daily Goal Check">
               <Text style={ss.followUpLabel}>Did you meet your fasting goal today?</Text>
               <Chips
@@ -594,6 +595,7 @@ const CheckInPage = ({
                 singleSelect
               />
             </SectionCard>
+            )}
 
             {/* ── Notes (unchanged) ─────────────────────────────────────── */}
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
