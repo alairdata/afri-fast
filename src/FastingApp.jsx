@@ -178,31 +178,15 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [recipeToLog, setRecipeToLog] = useState(null);
 
   // === Check-in state ===
-  const [feelings, setFeelings] = useState([]);
-  const [fastingStatus, setFastingStatus] = useState('');
-  const [hungerLevel, setHungerLevel] = useState('');
-  const [moods, setMoods] = useState([]);
-  const [symptoms, setSymptoms] = useState([]);
-  const [fastBreak, setFastBreak] = useState([]);
-  const [activities, setActivities] = useState([]);
-  const [otherFactors, setOtherFactors] = useState([]);
   const [waterCount, setWaterCount] = useState(0);
   const [notes, setNotes] = useState('');
+  const [checkInInitialData, setCheckInInitialData] = useState(null);
 
   const openCheckInPage = () => {
     const todayCI = checkInHistory.find(c => c.date === new Date().toDateString());
-    if (todayCI) {
-      setFeelings(todayCI.feelings || []);
-      setFastingStatus(todayCI.fastingStatus || '');
-      setHungerLevel(todayCI.hungerLevel || '');
-      setMoods(todayCI.moods || []);
-      setSymptoms(todayCI.symptoms || []);
-      setFastBreak(todayCI.fastBreak || []);
-      setActivities(todayCI.activities || []);
-      setOtherFactors(todayCI.otherFactors || []);
-      setWaterCount(todayCI.waterCount || 0);
-      setNotes(todayCI.notes || '');
-    }
+    setWaterCount(todayCI?.waterCount || 0);
+    setNotes(todayCI?.notes || '');
+    setCheckInInitialData(todayCI?.v2Data || null);
     setShowCheckInPage(true);
   };
 
@@ -607,7 +591,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   useEffect(() => {
     if (!session?.user?.id) return;
     supabase.from('check_ins')
-      .select('id, date, logged_at, feelings, fasting_status, hunger_level, moods, symptoms, fast_break, activities, other_factors, water_count, volume_unit, notes, fasting_hours, fasting_minutes')
+      .select('id, date, logged_at, feelings, fasting_status, hunger_level, moods, symptoms, fast_break, activities, other_factors, water_count, volume_unit, notes, fasting_hours, fasting_minutes, v2_data')
       .eq('user_id', session.user.id)
       .order('logged_at', { ascending: false })
       .limit(100)
@@ -620,7 +604,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           symptoms: r.symptoms || [], fastBreak: r.fast_break || [],
           activities: r.activities || [], otherFactors: r.other_factors || [],
           waterCount: r.water_count, volumeUnit: r.volume_unit,
-          notes: r.notes, fastingHours: r.fasting_hours, fastingMinutes: r.fasting_minutes,
+          notes: r.notes, fastingHours: r.fasting_hours, fastingMinutes: r.fasting_minutes, v2Data: r.v2_data,
         })));
         setDataLoadCount(prev => prev + 1);
       });
@@ -940,21 +924,21 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     ]).start(() => setToastMessage(''));
   };
 
-  const saveCheckIn = () => {
+  const saveCheckIn = (data = {}) => {
     const now = new Date();
     const checkIn = {
       id: Date.now(),
       date: now.toDateString(),
       timestamp: Date.now(),
-      feelings,
-      fastingStatus,
-      hungerLevel,
-      moods,
-      symptoms,
-      fastBreak,
-      activities,
-      otherFactors,
-      waterCount,
+      feelings: data.feelings || [],
+      fastingStatus: data.fastingStatus || '',
+      hungerLevel: data.hungerLevel || '',
+      moods: data.moods || [],
+      symptoms: data.symptoms || [],
+      fastBreak: data.fastBreak || [],
+      activities: data.activities || [],
+      otherFactors: data.otherFactors || [],
+      waterCount: data.waterCount ?? waterCount,
       volumeUnit,
       notes,
       fastingHours,
@@ -974,6 +958,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       activities: checkIn.activities, other_factors: checkIn.otherFactors,
       water_count: checkIn.waterCount, volume_unit: checkIn.volumeUnit,
       notes: checkIn.notes, fasting_hours: checkIn.fastingHours, fasting_minutes: checkIn.fastingMinutes,
+      v2_data: data,
     };
     dbSave(
       existingCI
@@ -990,13 +975,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       notes: checkIn.notes,
     }).eq('user_id', session?.user?.id).eq('date', checkIn.date), 'backfill meal_logs checkin');
     // Also log water to waterLogs if any was tracked
-    if (waterCount > 0) {
+    const resolvedWaterCount = data.waterCount ?? waterCount;
+    if (resolvedWaterCount > 0) {
       const wId = Date.now() + 1;
       const waterLog = {
         id: wId,
         date: now.toDateString(),
         displayDate: `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()]}, ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-        amount: waterCount,
+        amount: resolvedWaterCount,
         unit: volumeUnit,
       };
       setWaterLogs(prev => [waterLog, ...prev]);
@@ -1382,30 +1368,15 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       <CheckInPage
         show={showCheckInPage}
         onClose={() => setShowCheckInPage(false)}
-        feelings={feelings}
-        setFeelings={setFeelings}
-        fastingStatus={fastingStatus}
-        setFastingStatus={setFastingStatus}
-        hungerLevel={hungerLevel}
-        setHungerLevel={setHungerLevel}
-        moods={moods}
-        setMoods={setMoods}
-        symptoms={symptoms}
-        setSymptoms={setSymptoms}
-        fastBreak={fastBreak}
-        setFastBreak={setFastBreak}
-        activities={activities}
-        setActivities={setActivities}
-        otherFactors={otherFactors}
-        setOtherFactors={setOtherFactors}
+        onSave={saveCheckIn}
         waterCount={waterCount}
         setWaterCount={setWaterCount}
         notes={notes}
         setNotes={setNotes}
-        onSave={saveCheckIn}
         volumeUnit={volumeUnit}
         setVolumeUnit={setVolumeUnit}
         onViewWaterLogs={() => { setShowCheckInPage(false); setShowHydrationDetails(true); }}
+        initialData={checkInInitialData}
       />
 
       <PlanSelectionPage
