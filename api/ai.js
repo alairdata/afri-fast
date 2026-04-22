@@ -121,6 +121,14 @@ function preprocessData(data) {
     return Math.floor(daysBetween(now, d) / 7);
   };
 
+  const fmt12h = (ts) => {
+    if (!ts) return '';
+    const d = new Date(typeof ts === 'number' ? ts : ts);
+    if (isNaN(d)) return '';
+    const h = d.getHours(), m = d.getMinutes().toString().padStart(2, '0');
+    return `${h % 12 || 12}:${m}${h >= 12 ? 'PM' : 'AM'}`;
+  };
+
   // Infer goal label
   const goalLabel = GOAL_LABELS[profile.goal] ||
     (profile.startingWeight && profile.targetWeight
@@ -184,6 +192,13 @@ function preprocessData(data) {
         const cutShort = completed.filter(s => s.durationHours < targetH).length;
         const avgDur = (completed.reduce((sum, s) => sum + (s.durationHours || 0) + (s.durationMinutes || 0) / 60, 0) / completed.length).toFixed(1);
         lines.push(`  ${label}: ${completed.length} fasts | avg ${avgDur}h${cutShort > 0 ? ` | ${cutShort} ended early` : ''}`);
+        completed.forEach(s => {
+          const startStr = s.startTime ? fmt12h(s.startTime) : '';
+          const endStr = s.endTime ? fmt12h(s.endTime) : '';
+          const dur = ((s.durationHours || 0) + (s.durationMinutes || 0) / 60).toFixed(1);
+          const dateLabel = s.date || new Date(s.startTime).toDateString();
+          lines.push(`    ${dateLabel}${startStr ? ` | started ${startStr}` : ''}${endStr ? ` → ended ${endStr}` : ''} | ${dur}h`);
+        });
       } else {
         lines.push(`  ${label}: 0 fasts`);
       }
@@ -223,7 +238,7 @@ function preprocessData(data) {
         const repDate = days[0]?.date;
         const goalAtTime = getGoalAtDate(goalHistory, repDate, profile);
         const calGoalAtTime = goalAtTime?.dailyCalorieGoal || profile.dailyCalorieGoal || 2000;
-        const mealList = meals.map(m => `${m.name}(${m.calories}cal,${m.protein || 0}g prot)`).join('; ');
+        const mealList = meals.map(m => `${m.name}(${m.calories}cal,${m.protein || 0}g prot${m.logged_at ? ` @${fmt12h(m.logged_at)}` : ''})`).join('; ');
         lines.push(`  ${label}: ${meals.length} meals across ${days.length} days | avg daily intake: ${avgDailyCal} kcal (goal was ${calGoalAtTime} kcal) | avg ${avgDailyProt}g protein | avg ${avgDailyCarb}g carbs`);
         lines.push(`    Meals: ${mealList}`);
       } else {
@@ -293,7 +308,8 @@ function preprocessData(data) {
   if (sortedCheckIns.length > 0) {
     lines.push('CHECK-IN HISTORY (most recent first):');
     sortedCheckIns.forEach(c => {
-      const parts = [`[${c.date}]`];
+      const timeStr = c.loggedAt ? ` ${fmt12h(c.loggedAt)}` : '';
+      const parts = [`[${c.date}${timeStr}]`];
       if (c.fastingStatus) parts.push(`fast:${c.fastingStatus}`);
       if (c.hungerLevel != null) parts.push(`hunger:${c.hungerLevel}/10`);
       if (c.feelings?.length) parts.push(`feelings:${c.feelings.join(',')}`);

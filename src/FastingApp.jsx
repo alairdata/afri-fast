@@ -592,14 +592,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   useEffect(() => {
     if (!session?.user?.id) return;
     supabase.from('check_ins')
-      .select('id, date, feelings, fasting_status, hunger_level, moods, symptoms, fast_break, activities, other_factors, water_count, volume_unit, notes, fasting_hours, fasting_minutes')
+      .select('id, date, logged_at, feelings, fasting_status, hunger_level, moods, symptoms, fast_break, activities, other_factors, water_count, volume_unit, notes, fasting_hours, fasting_minutes')
       .eq('user_id', session.user.id)
       .order('logged_at', { ascending: false })
       .limit(100)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch check_ins]', error); }
         if (data) setCheckInHistory(data.map(r => ({
-          id: r.id, date: r.date, timestamp: r.id,
+          id: r.id, date: r.date, loggedAt: r.logged_at, timestamp: r.id,
           feelings: r.feelings || [], fastingStatus: r.fasting_status,
           hungerLevel: r.hunger_level, moods: r.moods || [],
           symptoms: r.symptoms || [], fastBreak: r.fast_break || [],
