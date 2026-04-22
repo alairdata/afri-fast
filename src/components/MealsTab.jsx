@@ -196,7 +196,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
                 <View style={styles.recentMealLeftClean}>
                   <View style={styles.recentMealIconClean}>
                     {(meal.photo || meal.localPhoto)
-                      ? <Image source={{ uri: meal.photo || meal.localPhoto }} style={styles.recentMealPhoto} />
+                      ? <Image source={{ uri: meal.photo || meal.localPhoto }} style={styles.recentMealPhoto} resizeMode="cover" />
                       : <Text style={{ fontSize: 16 }}>{'\u{1F37D}\uFE0F'}</Text>
                     }
                   </View>

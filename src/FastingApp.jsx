@@ -1464,7 +1464,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           }
           setRecentMeals(prev => [meal, ...prev]);
           const { localPhoto, ...dbMeal } = meal;
-          const { error } = await supabase.from('meals').insert({ ...dbMeal, user_id: session.user.id });
+          // Never persist local file URIs — only save photo to DB once we have a real https URL
+          const photoForDb = dbMeal.photo?.startsWith('https://') ? dbMeal.photo : null;
+          const { error } = await supabase.from('meals').insert({ ...dbMeal, photo: photoForDb, user_id: session.user.id });
           if (error) { showToast('Failed to save meal. Try again.', 'error'); return; }
           showToast(`${meal.name || 'Meal'} logged!`);
           // Write combined meal+checkin log for ML/analytics
