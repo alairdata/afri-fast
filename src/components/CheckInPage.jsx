@@ -27,7 +27,7 @@ const ScoreSlider = ({ value, onChange, lowLabel, highLabel }) => (
   </View>
 );
 
-const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = false, chipStyle, selectedChipStyle, showCheckmark = false, largeEmoji = false }) => (
+const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = false, chipStyle, selectedChipStyle, showCheckmark = false, largeEmoji = false, checkmarkColor = '#F59E0B' }) => (
   <View style={ss.chipsContainer}>
     {options.map(opt => {
       const isSelected = singleSelect ? selected === opt : (selected || []).includes(opt);
@@ -51,7 +51,7 @@ const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = f
             <Text style={textStyle}>{label}</Text>
           )}
           {showCheckmark && isSelected && (
-            <View style={ss.checkmarkBadge}>
+            <View style={[ss.checkmarkBadge, { backgroundColor: checkmarkColor }]}>
               <Text style={ss.checkmarkText}>✓</Text>
             </View>
           )}
@@ -270,13 +270,18 @@ const CheckInPage = ({
             </SectionCard>
 
             {/* ── Section 4: Hunger & Appetite ─────────────────────────── */}
-            <SectionCard title="🍽️ Hunger & Appetite" subtitle="How hungry are you right now?">
+            <SectionCard title="Hunger & Appetite" titleStyle={{ fontSize: 17 }} subtitle="How hungry are you right now?">
               <ScoreSlider value={hungerScore} onChange={setHungerScore} lowLabel="1 Not hungry" highLabel="10 Unbearably hungry" />
               <Text style={ss.followUpLabel}>What kind of hunger are you feeling?</Text>
               <Chips
-                options={['🫃 Physical stomach hunger','🧠 Head hunger (craving, not physical)','💔 Emotional hunger','😴 Boredom hunger','🤷 Not sure']}
+                options={['🫃 Physical stomach hunger','🧠 Head hunger (craving, not physical)','💔 Emotional hunger','🛋️ Boredom hunger','❓ Not sure']}
                 selected={hungerTypes}
                 onToggle={v => toggle(v, hungerTypes, setHungerTypes)}
+                chipStyle={{ backgroundColor: '#F0FDF4', borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: '#F0FDF4', borderColor: '#22C55E', borderWidth: 1.5 }}
+                showCheckmark
+                checkmarkColor="#22C55E"
+                largeEmoji
               />
               <Text style={ss.followUpLabel}>Are you experiencing any cravings?</Text>
               <Chips
@@ -289,9 +294,14 @@ const CheckInPage = ({
                 <>
                   <Text style={ss.followUpLabel}>What are you craving?</Text>
                   <Chips
-                    options={['🍬 Sweet','🧂 Salty','🥩 Savory','🍟 Fried','🍞 Starchy/Carbs','🍎 Fruits','🥩 Meat','🧀 Dairy','🧊 Something cold','☕ Something warm','🤷 Nothing specific']}
+                    options={['🍬 Sweet','🧂 Salty','🍖 Savory','🍟 Fried','🍞 Starchy/Carbs','🍎 Fruits','🥩 Meat','🧀 Dairy','🧊 Something cold','☕ Something warm','❓ Nothing specific']}
                     selected={cravingTypes}
                     onToggle={v => toggle(v, cravingTypes, setCravingTypes)}
+                    chipStyle={{ backgroundColor: '#F0FDF4', borderColor: 'transparent' }}
+                    selectedChipStyle={{ backgroundColor: '#F0FDF4', borderColor: '#22C55E', borderWidth: 1.5 }}
+                    showCheckmark
+                    checkmarkColor="#22C55E"
+                    largeEmoji
                   />
                 </>
               )}
