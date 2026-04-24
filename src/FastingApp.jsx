@@ -911,9 +911,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     setFastingMinutes(0);
     setFastingSeconds(0);
     AsyncStorage.removeItem(ACTIVE_FAST_KEY).catch(() => {});
-    supabase.from('active_fasts').delete().eq('user_id', session?.user?.id).then(({ error }) => {
-      console.log('[active_fasts DELETE fired - confirmEndFast]', { error });
-      if (error) console.error('[active_fasts delete error]', error);
+    supabase.from('active_fasts').upsert({
+      user_id: session?.user?.id,
+      start_time: 0,
+      plan: null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' }).then(({ error }) => {
+      if (error) console.error('[active_fasts end-fast upsert error]', error);
     });
   };
 
@@ -1112,9 +1116,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       setFastStartTime(null);
       setFastingHours(0); setFastingMinutes(0); setFastingSeconds(0);
       AsyncStorage.removeItem(ACTIVE_FAST_KEY).catch(() => {});
-      supabase.from('active_fasts').delete().eq('user_id', session?.user?.id).then(({ error }) => {
-        console.log('[active_fasts DELETE fired - handleSaveTime end]', { error });
-        if (error) console.error('[active_fasts delete error]', error);
+      supabase.from('active_fasts').upsert({
+        user_id: session?.user?.id,
+        start_time: 0,
+        plan: null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' }).then(({ error }) => {
+        if (error) console.error('[active_fasts end-fast upsert error]', error);
       });
       showToast('Fast ended!');
     }
