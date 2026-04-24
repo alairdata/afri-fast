@@ -300,43 +300,26 @@ const CheckInPage = ({
               />
             </SectionCard>
 
-            {/* ── Section 4: Hunger & Appetite ─────────────────────────── */}
+            {/* ── Section 4: Hunger ────────────────────────────────────── */}
             <SectionCard title="How hungry are you?" titleStyle={{ fontSize: 17 }}>
               <HungerSlider value={hungerScore} onChange={setHungerScore} />
-              <Text style={ss.followUpLabel}>What kind of hunger are you feeling?</Text>
-              <Chips
-                options={['🫃 Physical stomach hunger','🧠 Head hunger (craving, not physical)','💔 Emotional hunger','🛋️ Boredom hunger','❓ Not sure']}
-                selected={hungerTypes}
-                onToggle={v => toggle(v, hungerTypes, setHungerTypes)}
-                chipStyle={{ backgroundColor: '#F0FDF4', borderColor: 'transparent' }}
-                selectedChipStyle={{ backgroundColor: '#F0FDF4', borderColor: '#22C55E', borderWidth: 1.5 }}
-                showCheckmark
-                checkmarkColor="#22C55E"
-                largeEmoji
-              />
-              <Text style={ss.followUpLabel}>Are you experiencing any cravings?</Text>
-              <Chips
-                options={['✅ Yes','❌ No']}
-                selected={hasCravings}
-                onToggle={setHasCravings}
-                singleSelect
-              />
-              {hasCravings === '✅ Yes' && (
-                <>
-                  <Text style={ss.followUpLabel}>What are you craving?</Text>
-                  <Chips
-                    options={['🍬 Sweet','🧂 Salty','🍖 Savory','🍟 Fried','🍞 Starchy/Carbs','🍎 Fruits','🥩 Meat','🧀 Dairy','🧊 Something cold','☕ Something warm','❓ Nothing specific']}
-                    selected={cravingTypes}
-                    onToggle={v => toggle(v, cravingTypes, setCravingTypes)}
-                    chipStyle={{ backgroundColor: '#F0FDF4', borderColor: 'transparent' }}
-                    selectedChipStyle={{ backgroundColor: '#F0FDF4', borderColor: '#22C55E', borderWidth: 1.5 }}
-                    showCheckmark
-                    checkmarkColor="#22C55E"
-                    largeEmoji
-                  />
-                </>
-              )}
             </SectionCard>
+
+            {/* ── Section 4b: Hunger type (only if score >= 5) ─────────── */}
+            {hungerScore >= 5 && (
+              <SectionCard title="What kind of hunger is it?" titleStyle={{ fontSize: 17 }}>
+                <Chips
+                  options={['🫃 Physical stomach hunger','🧠 Head hunger (craving, not physical)','💔 Emotional hunger','🛋️ Boredom hunger','❓ Not sure']}
+                  selected={hungerTypes}
+                  onToggle={v => toggle(v, hungerTypes, setHungerTypes)}
+                  chipStyle={{ backgroundColor: '#F0FDF4', borderColor: 'transparent' }}
+                  selectedChipStyle={{ backgroundColor: '#F0FDF4', borderColor: '#22C55E', borderWidth: 1.5 }}
+                  showCheckmark
+                  checkmarkColor="#22C55E"
+                  largeEmoji
+                />
+              </SectionCard>
+            )}
 
             {/* ── Section 5: Fasting Symptoms (show if fasting) ────────── */}
             {isFasting && (
