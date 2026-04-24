@@ -334,13 +334,6 @@ const CheckInPage = ({
                   checkmarkColor="#9333EA"
                   largeEmoji
                 />
-                <Text style={ss.followUpLabel}>How severe are your symptoms overall?</Text>
-                <Chips
-                  options={['🟢 None','🟡 Mild','🟠 Moderate','🔴 Severe']}
-                  selected={symptomSeverity}
-                  onToggle={setSymptomSeverity}
-                  singleSelect
-                />
               </SectionCard>
             )}
 
@@ -383,85 +376,7 @@ const CheckInPage = ({
               </SectionCard>
             )}
 
-            {/* ── Section 7: Energy Level ───────────────────────────────── */}
-            <SectionCard title="⚡ Energy Level" subtitle="What is your energy level right now?">
-              <ScoreSlider value={energyScore} onChange={setEnergyScore} lowLabel="1 Completely drained" highLabel="10 Extremely energetic" />
-              <Text style={ss.followUpLabel}>How has your energy changed compared to earlier today?</Text>
-              <Chips
-                options={['⬆️ Much better','↗️ Slightly better','➡️ About the same','↘️ Slightly worse','⬇️ Much worse','🌅 This is my first check-in today']}
-                selected={energyChange}
-                onToggle={setEnergyChange}
-                singleSelect
-              />
-            </SectionCard>
-
-            {/* ── Section 8: Physical Activity ─────────────────────────── */}
-            <SectionCard title="🏃 Physical Activity" subtitle="Have you exercised today?">
-              <Chips
-                options={['✅ Yes','❌ No','⏳ Planning to later']}
-                selected={exercisedToday}
-                onToggle={setExercisedToday}
-                singleSelect
-              />
-              {exercisedToday === '✅ Yes' && (
-                <>
-                  <Text style={ss.followUpLabel}>What type of activity?</Text>
-                  <Chips
-                    options={['🚶 Walking','🏃 Running','🏋️ Strength training','🧘 Yoga / stretching','🚴 Cycling','💥 HIIT','💃 Dance','🏊 Swimming','⚽ Sports','🧹 Housework / manual tasks','🔲 Other']}
-                    selected={exerciseTypes}
-                    onToggle={v => toggle(v, exerciseTypes, setExerciseTypes)}
-                  />
-                  <Text style={ss.followUpLabel}>How long did you exercise?</Text>
-                  <Chips
-                    options={['Under 15 min','15–30 min','30–45 min','45–60 min','Over 60 min']}
-                    selected={exerciseDuration}
-                    onToggle={setExerciseDuration}
-                    singleSelect
-                  />
-                  <Text style={ss.followUpLabel}>How intense was it?</Text>
-                  <Chips
-                    options={['🟢 Light','🟡 Moderate','🟠 Intense','🔴 Very intense']}
-                    selected={exerciseIntensity}
-                    onToggle={setExerciseIntensity}
-                    singleSelect
-                  />
-                  <Text style={ss.followUpLabel}>Did you exercise while fasting?</Text>
-                  <Chips
-                    options={['✅ Yes','❌ No']}
-                    selected={exercisedWhileFasting}
-                    onToggle={setExercisedWhileFasting}
-                    singleSelect
-                  />
-                  <Text style={ss.followUpLabel}>How did your body feel during activity?</Text>
-                  <Chips
-                    options={['💪 Strong','😐 Normal','😩 Weak','😵 Dizzy','⚡ Energized','😴 Sluggish']}
-                    selected={bodyFeelDuringExercise}
-                    onToggle={v => toggle(v, bodyFeelDuringExercise, setBodyFeelDuringExercise)}
-                  />
-                </>
-              )}
-            </SectionCard>
-
-            {/* ── Section 9: Sleep ──────────────────────────────────────── */}
-            <SectionCard title="😴 Sleep" subtitle="How many hours did you sleep last night?">
-              <Chips
-                options={['Under 4 hrs','4–5 hrs','5–6 hrs','6–7 hrs','7–8 hrs','8–9 hrs','Over 9 hrs']}
-                selected={sleepHours}
-                onToggle={setSleepHours}
-                singleSelect
-              />
-              <Text style={ss.followUpLabel}>How would you rate your sleep quality?</Text>
-              <ScoreSlider value={sleepQuality} onChange={setSleepQuality} lowLabel="1 Terrible" highLabel="10 Perfect" />
-              <Text style={ss.followUpLabel}>How did you wake up this morning?</Text>
-              <Chips
-                options={['🌟 Refreshed','😵 Groggy','😐 Okay','😴 Tired','🔄 Woke up multiple times','😫 Couldn\'t sleep']}
-                selected={wakeUpFeeling}
-                onToggle={setWakeUpFeeling}
-                singleSelect
-              />
-            </SectionCard>
-
-            {/* ── Section 10: Water (existing — unchanged) ──────────────── */}
+            {/* ── Section 10: Water ─────────────────────────────────────── */}
             <View style={ss.section}>
               <View style={ss.waterHeader}>
                 <Text style={ss.sectionTitle}>💧 Water</Text>
