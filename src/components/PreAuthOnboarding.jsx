@@ -97,6 +97,7 @@ export default function PreAuthOnboarding({ initialData, onComplete, onSkip }) {
   const progressWidth = `${((stepIndex + 1) / steps.length) * 100}%`;
   const needsTargetWeight = data.goal === 'lose' || data.goal === 'gain';
   const displayName = data.preferredName.trim() || 'friend';
+  const isDark = stepIndex === 0;
 
   useEffect(() => {
     if (!showSuccess) return;
@@ -263,16 +264,18 @@ export default function PreAuthOnboarding({ initialData, onComplete, onSkip }) {
               value={data.preferredName}
               onChangeText={(preferredName) => update({ preferredName })}
               placeholder="Your name"
-              placeholderTextColor="rgba(0,0,0,0.2)"
+              placeholderTextColor="rgba(255,255,255,0.2)"
               autoCapitalize="words"
               textAlign="left"
             />
           </View>
           {data.preferredName.trim() ? (
             <View style={styles.greetBanner}>
+              <Text style={styles.greetEmoji}>👋</Text>
               <Text style={styles.greetText}>
                 Nice to meet you, <Text style={styles.greetName}>{data.preferredName.trim()}</Text>!
               </Text>
+              <Text style={styles.greetEmoji}>🤝</Text>
             </View>
           ) : null}
         </View>
@@ -478,9 +481,9 @@ export default function PreAuthOnboarding({ initialData, onComplete, onSkip }) {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.bgGlowTop} />
-      <View style={styles.bgGlowBottom} />
+    <View style={[styles.container, isDark && styles.containerDark]}>
+      <View style={[styles.bgGlowTop, isDark && styles.bgGlowTopDark]} />
+      <View style={[styles.bgGlowBottom, isDark && styles.bgGlowBottomDark]} />
       <View style={styles.bgPattern}>
         <View style={styles.bgDot} />
         <View style={styles.bgDot} />
@@ -491,22 +494,22 @@ export default function PreAuthOnboarding({ initialData, onComplete, onSkip }) {
         <View style={styles.slideBody}>
           <View style={styles.topRow}>
             <TouchableOpacity
-              style={[styles.backBtn, stepIndex === 0 && styles.backBtnHidden]}
+              style={[styles.backBtn, isDark && styles.backBtnDark, stepIndex === 0 && styles.backBtnHidden]}
               onPress={goBack}
               disabled={stepIndex === 0}
             >
-              <Ionicons name="chevron-back" size={14} color="rgba(0,0,0,0.4)" />
+              <Ionicons name="chevron-back" size={14} color={isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.4)'} />
             </TouchableOpacity>
-            <Text style={styles.progressCount}>{`${stepIndex + 1} of ${steps.length}`}</Text>
+            <Text style={[styles.progressCount, isDark && styles.progressCountDark]}>{`${stepIndex + 1} of ${steps.length}`}</Text>
           </View>
 
-          <View style={styles.progressBar}>
+          <View style={[styles.progressBar, isDark && styles.progressBarDark]}>
             <View style={[styles.progressFillStatic, { width: progressWidth }]} />
           </View>
 
-          <Text style={styles.questionTag}>{step.tag}</Text>
-          <Text style={styles.questionText}>{step.title}</Text>
-          <Text style={styles.questionSub}>{step.subtitle}</Text>
+          <Text style={[styles.questionTag, isDark && styles.questionTagDark]}>{step.tag}</Text>
+          <Text style={[styles.questionText, isDark && styles.questionTextDark]}>{step.title}</Text>
+          <Text style={[styles.questionSub, isDark && styles.questionSubDark]}>{step.subtitle}</Text>
 
           <ScrollView
             style={styles.contentArea}
@@ -575,6 +578,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FCFBF7',
   },
+  containerDark: {
+    backgroundColor: '#0D0D1C',
+  },
   bgGlowTop: {
     position: 'absolute',
     top: -90,
@@ -584,6 +590,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: 'rgba(245, 158, 11, 0.10)',
   },
+  bgGlowTopDark: {
+    backgroundColor: 'rgba(245, 158, 11, 0.06)',
+  },
   bgGlowBottom: {
     position: 'absolute',
     left: -80,
@@ -592,6 +601,9 @@ const styles = StyleSheet.create({
     height: 220,
     borderRadius: 999,
     backgroundColor: 'rgba(16, 185, 129, 0.10)',
+  },
+  bgGlowBottomDark: {
+    backgroundColor: 'rgba(16, 185, 129, 0.06)',
   },
   bgPattern: {
     position: 'absolute',
@@ -636,6 +648,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'transparent',
   },
+  backBtnDark: {
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
   backBtnHidden: {
     opacity: 0,
   },
@@ -644,12 +659,18 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: 'rgba(0,0,0,0.35)',
   },
+  progressCountDark: {
+    color: 'rgba(255,255,255,0.35)',
+  },
   progressBar: {
     height: 2,
     borderRadius: 2,
     backgroundColor: 'rgba(120,113,108,0.16)',
     overflow: 'hidden',
     marginBottom: 26,
+  },
+  progressBarDark: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   progressFillStatic: {
     height: '100%',
@@ -664,6 +685,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: 'center',
   },
+  questionTagDark: {
+    color: '#2DD4A4',
+  },
   questionText: {
     fontSize: 28,
     fontWeight: '600',
@@ -672,6 +696,9 @@ const styles = StyleSheet.create({
     marginBottom: 7,
     textAlign: 'center',
   },
+  questionTextDark: {
+    color: '#FFFFFF',
+  },
   questionSub: {
     fontSize: 12,
     fontWeight: '300',
@@ -679,6 +706,9 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginBottom: 14,
     textAlign: 'center',
+  },
+  questionSubDark: {
+    color: 'rgba(255,255,255,0.42)',
   },
   contentArea: {
     flex: 1,
@@ -721,46 +751,43 @@ const styles = StyleSheet.create({
   },
   nameInputCard: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.07)',
+    borderColor: 'rgba(255,255,255,0.08)',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
   },
   nameLabel: {
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
-    color: 'rgba(0,0,0,0.35)',
+    color: 'rgba(255,255,255,0.4)',
     marginBottom: 6,
   },
   greetBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(245,158,11,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.25)',
+    backgroundColor: '#F5C842',
     borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingHorizontal: 18,
     width: '100%',
     justifyContent: 'center',
+    gap: 8,
+  },
+  greetEmoji: {
+    fontSize: 18,
   },
   greetText: {
     fontSize: 14,
-    fontWeight: '400',
-    color: '#92400E',
+    fontWeight: '500',
+    color: '#3B2A00',
   },
   greetName: {
-    fontWeight: '700',
-    color: '#92400E',
+    fontWeight: '800',
+    color: '#3B2A00',
   },
   mixedStep: {
     paddingBottom: 24,
@@ -796,7 +823,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     fontSize: 22,
     fontWeight: '400',
-    color: '#111111',
+    color: '#FFFFFF',
     outlineWidth: 0,
     textAlign: 'left',
   },
