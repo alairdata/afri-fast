@@ -27,7 +27,7 @@ const ScoreSlider = ({ value, onChange, lowLabel, highLabel }) => (
   </View>
 );
 
-const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = false, chipStyle }) => (
+const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = false, chipStyle, selectedChipStyle, showCheckmark = false }) => (
   <View style={ss.chipsContainer}>
     {options.map(opt => {
       const isSelected = singleSelect ? selected === opt : (selected || []).includes(opt);
@@ -35,19 +35,24 @@ const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = f
       return (
         <Pressable
           key={opt}
-          style={[ss.chip, chipStyle, isSelected && ss.chipSelected, disabled && ss.chipDisabled]}
+          style={[ss.chip, chipStyle, isSelected && (selectedChipStyle || ss.chipSelected), disabled && ss.chipDisabled]}
           onPress={() => !disabled && onToggle(isSelected && singleSelect ? null : opt)}
         >
-          <Text style={[ss.chipText, isSelected && ss.chipTextSelected]}>{opt}</Text>
+          <Text style={[ss.chipText, isSelected && (selectedChipStyle ? ss.chipTextDark : ss.chipTextSelected)]}>{opt}</Text>
+          {showCheckmark && isSelected && (
+            <View style={ss.checkmarkBadge}>
+              <Text style={ss.checkmarkText}>✓</Text>
+            </View>
+          )}
         </Pressable>
       );
     })}
   </View>
 );
 
-const SectionCard = ({ title, subtitle, children }) => (
+const SectionCard = ({ title, subtitle, children, titleStyle }) => (
   <View style={ss.section}>
-    <Text style={ss.sectionTitle}>{title}</Text>
+    <Text style={[ss.sectionTitle, titleStyle]}>{title}</Text>
     {subtitle ? <Text style={ss.sectionSubtitle}>{subtitle}</Text> : null}
     {children}
   </View>
@@ -236,12 +241,14 @@ const CheckInPage = ({
           <ScrollView style={ss.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={ss.scrollContent}>
 
             {/* ── Section 2: Mood ──────────────────────────────────────── */}
-            <SectionCard title="💭 Mood">
+            <SectionCard title="Mood" titleStyle={{ fontSize: 20 }}>
               <Chips
                 options={['😌 Calm','😰 Anxious','😊 Happy','😤 Irritable','🤩 Motivated','😢 Sad','🥹 Grateful','😴 Tired','🧐 Focused','😩 Overwhelmed','😄 Energized','😓 Stressed','😇 Content','😑 Unmotivated','🥺 Hopeful','😞 Lonely','😁 Proud','😖 Frustrated','😶 Numb','😐 Indifferent','😵 Distracted','😬 Restless']}
                 selected={emotionalMoods}
                 onToggle={v => toggle(v, emotionalMoods, setEmotionalMoods)}
-                chipStyle={{ backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }}
+                chipStyle={{ backgroundColor: '#FFFBEB', borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: '#FEF08A', borderColor: '#EAB308', borderWidth: 2 }}
+                showCheckmark
               />
             </SectionCard>
 
@@ -653,6 +660,13 @@ const ss = StyleSheet.create({
   chipDisabled: { opacity: 0.35 },
   chipText: { fontSize: 13, color: '#444', fontFamily: 'Inter' },
   chipTextSelected: { color: '#fff', fontWeight: '600', fontFamily: 'Inter' },
+  chipTextDark: { color: '#78350F', fontWeight: '600', fontFamily: 'Inter' },
+  checkmarkBadge: {
+    position: 'absolute', bottom: -5, right: -5,
+    width: 14, height: 14, borderRadius: 7,
+    backgroundColor: '#EAB308', alignItems: 'center', justifyContent: 'center',
+  },
+  checkmarkText: { fontSize: 8, color: '#fff', fontWeight: '700' },
 
   scoreRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
   scoreBtn: {
