@@ -492,15 +492,20 @@ export default function PreAuthOnboarding({ initialData, onComplete, onSkip }) {
             >
               <Ionicons name="chevron-back" size={14} color={isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.4)'} />
             </TouchableOpacity>
-            <Text style={[styles.progressCount, isDark && styles.progressCountDark]}>{`${stepIndex + 1} of ${steps.length}`}</Text>
+            {isDark ? (
+              <Text style={styles.navTitle}>{step.tag}</Text>
+            ) : (
+              <Text style={[styles.progressCount]}>{`${stepIndex + 1} of ${steps.length}`}</Text>
+            )}
+            <View style={{ width: 36 }} />
           </View>
 
           <View style={[styles.progressBar, isDark && styles.progressBarDark]}>
             <View style={[styles.progressFillStatic, { width: progressWidth }]} />
           </View>
 
-          <Text style={[styles.questionTag, isDark && styles.questionTagDark]}>{step.tag}</Text>
-          <Text style={[styles.questionText, isDark && styles.questionTextDark]}>{step.title}</Text>
+          {!isDark && <Text style={styles.questionTag}>{step.tag}</Text>}
+          <Text style={[styles.questionText, isDark && styles.questionTextDark, isDark && styles.questionTextDarkSpaced]}>{step.title}</Text>
           <Text style={[styles.questionSub, isDark && styles.questionSubDark]}>{step.subtitle}</Text>
 
           <ScrollView
@@ -688,8 +693,21 @@ const styles = StyleSheet.create({
     marginBottom: 7,
     textAlign: 'center',
   },
+  navTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    flex: 1,
+  },
   questionTextDark: {
     color: '#FFFFFF',
+  },
+  questionTextDarkSpaced: {
+    marginTop: 64,
+    fontSize: 32,
+    fontWeight: '700',
+    lineHeight: 40,
   },
   questionSub: {
     fontSize: 12,
