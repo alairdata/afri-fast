@@ -376,7 +376,52 @@ const CheckInPage = ({
               </SectionCard>
             )}
 
-            {/* ── Section 10: Water ─────────────────────────────────────── */}
+            {/* ── Section 12: Context ───────────────────────────────────── */}
+            <SectionCard title="📍 Context">
+              <Text style={ss.followUpLabel}>Where are you right now?</Text>
+              <Chips
+                options={['🏠 Home','💼 Work/school','🚗 Commuting','🌳 Outdoors','👥 Social setting','🔲 Other']}
+                selected={currentLocation}
+                onToggle={setCurrentLocation}
+                singleSelect
+              />
+              <Text style={ss.followUpLabel}>Who are you with?</Text>
+              <Chips
+                options={['🧘 Alone','👨‍👩‍👧 With family','👫 With friends','🏙️ In a public setting','🏢 At work/class']}
+                selected={currentCompany}
+                onToggle={setCurrentCompany}
+                singleSelect
+              />
+              <Text style={ss.followUpLabel}>Is today a typical day for you?</Text>
+              <Chips
+                options={['✅ Yes, fairly normal','🔥 Busier than usual','😌 More relaxed than usual','🌀 Unusual/disrupted day']}
+                selected={typicalDay}
+                onToggle={setTypicalDay}
+                singleSelect
+              />
+            </SectionCard>
+
+            {/* ── Section 13: Daily Goal Check (hide if they didn't fast at all) ── */}
+            {(isFasting || fastBroken) && (
+            <SectionCard title="🎯 Daily Goal Check">
+              <Text style={ss.followUpLabel}>Did you meet your fasting goal today?</Text>
+              <Chips
+                options={['✅ Yes, fully','⚠️ Partially — I fell short of my target window','❌ No — I didn\'t fast today','📅 Goal not set for today']}
+                selected={fastingGoalMet}
+                onToggle={setFastingGoalMet}
+                singleSelect
+              />
+              <Text style={ss.followUpLabel}>How confident are you about tomorrow's fast?</Text>
+              <Chips
+                options={['💪 Very confident','🙂 Somewhat confident','🤔 Uncertain','❌ Not planning to fast']}
+                selected={tomorrowConfidence}
+                onToggle={setTomorrowConfidence}
+                singleSelect
+              />
+            </SectionCard>
+            )}
+
+            {/* ── Water ────────────────────────────────────────────────── */}
             <View style={ss.section}>
               <View style={ss.waterHeader}>
                 <Text style={ss.sectionTitle}>💧 Water</Text>
@@ -438,70 +483,7 @@ const CheckInPage = ({
               </View>
             </View>
 
-            {/* ── Section 11: Stress & Mental Load ─────────────────────── */}
-            <SectionCard title="🧠 Stress & Mental Load" subtitle="How stressed do you feel right now?">
-              <ScoreSlider value={stressScore} onChange={setStressScore} lowLabel="1 Very calm" highLabel="10 Extremely stressed" />
-              {stressScore >= 5 && <Text style={ss.followUpLabel}>What is contributing to your stress?</Text>}
-              {stressScore >= 5 && <Chips
-                options={['💼 Work/school','💰 Finances','❤️ Relationships','🏥 Health','⏰ Time pressure','✅ Nothing specific','🔲 Other']}
-                selected={stressContributors}
-                onToggle={v => toggle(v, stressContributors, setStressContributors)}
-              />}
-              <Text style={ss.followUpLabel}>How is your ability to focus right now?</Text>
-              <Chips
-                options={['🎯 Sharp','😐 Normal','🌀 Scattered','💫 Completely distracted']}
-                selected={focusLevel}
-                onToggle={setFocusLevel}
-                singleSelect
-              />
-            </SectionCard>
-
-            {/* ── Section 12: Context ───────────────────────────────────── */}
-            <SectionCard title="📍 Context">
-              <Text style={ss.followUpLabel}>Where are you right now?</Text>
-              <Chips
-                options={['🏠 Home','💼 Work/school','🚗 Commuting','🌳 Outdoors','👥 Social setting','🔲 Other']}
-                selected={currentLocation}
-                onToggle={setCurrentLocation}
-                singleSelect
-              />
-              <Text style={ss.followUpLabel}>Who are you with?</Text>
-              <Chips
-                options={['🧘 Alone','👨‍👩‍👧 With family','👫 With friends','🏙️ In a public setting','🏢 At work/class']}
-                selected={currentCompany}
-                onToggle={setCurrentCompany}
-                singleSelect
-              />
-              <Text style={ss.followUpLabel}>Is today a typical day for you?</Text>
-              <Chips
-                options={['✅ Yes, fairly normal','🔥 Busier than usual','😌 More relaxed than usual','🌀 Unusual/disrupted day']}
-                selected={typicalDay}
-                onToggle={setTypicalDay}
-                singleSelect
-              />
-            </SectionCard>
-
-            {/* ── Section 13: Daily Goal Check (hide if they didn't fast at all) ── */}
-            {(isFasting || fastBroken) && (
-            <SectionCard title="🎯 Daily Goal Check">
-              <Text style={ss.followUpLabel}>Did you meet your fasting goal today?</Text>
-              <Chips
-                options={['✅ Yes, fully','⚠️ Partially — I fell short of my target window','❌ No — I didn\'t fast today','📅 Goal not set for today']}
-                selected={fastingGoalMet}
-                onToggle={setFastingGoalMet}
-                singleSelect
-              />
-              <Text style={ss.followUpLabel}>How confident are you about tomorrow's fast?</Text>
-              <Chips
-                options={['💪 Very confident','🙂 Somewhat confident','🤔 Uncertain','❌ Not planning to fast']}
-                selected={tomorrowConfidence}
-                onToggle={setTomorrowConfidence}
-                singleSelect
-              />
-            </SectionCard>
-            )}
-
-            {/* ── Notes (unchanged) ─────────────────────────────────────── */}
+            {/* ── Notes ─────────────────────────────────────────────────── */}
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
               <View style={ss.section}>
                 <Text style={ss.sectionTitle}>📝 Notes</Text>
