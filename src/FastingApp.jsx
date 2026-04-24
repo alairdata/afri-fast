@@ -509,6 +509,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.goal_history?.length) setGoalHistory(data.goal_history);
         if (data.personality) setUserPersonality(data.personality);
         if (data.personality_updated_at) setPersonalityUpdatedAt(new Date(data.personality_updated_at));
+        setDataLoadCount(prev => prev + 1);
 
         // Trigger monthly personality rebuild in background if older than 30 days
         const lastUpdate = data.personality_updated_at ? new Date(data.personality_updated_at) : null;
@@ -1196,7 +1197,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           proteinGoal={proteinGoal}
           carbsGoal={carbsGoal}
           fatsGoal={fatsGoal}
-          dataReady={dataLoadCount >= 5}
+          dataReady={dataLoadCount >= 6}
           goalHistory={goalHistory}
           pendingInsightIndex={pendingInsightIndex}
           onClearPendingInsight={() => setPendingInsightIndex(null)}
