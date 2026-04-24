@@ -1042,6 +1042,21 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                   setEditingQtyIdx(null);
                                   setUpdatingQtyIdx(i);
 
+                                  const bareNum = /^\d+(\.\d+)?$/.test(newQty) ? parseFloat(newQty) : null;
+                                  if (bareNum !== null && bareNum > 0) {
+                                    setDetectedFoods(prev => prev.map((f, idx) => idx === i ? {
+                                      ...f,
+                                      qty: `${newQty} serving${bareNum !== 1 ? 's' : ''}`,
+                                      cal: Math.round(food.cal * bareNum),
+                                      protein: Math.round(food.protein * bareNum * 10) / 10,
+                                      carbs: Math.round(food.carbs * bareNum * 10) / 10,
+                                      fats: Math.round(food.fats * bareNum * 10) / 10,
+                                      fiber: Math.round(food.fiber * bareNum * 10) / 10,
+                                    } : f));
+                                    setUpdatingQtyIdx(null);
+                                    return;
+                                  }
+
                                   const recalculated = await recalculateFoodPortionWithGemini(food.name, food.qty, newQty, food);
 
                                   setDetectedFoods(prev => prev.map((f, idx) => idx === i ? {
@@ -1312,6 +1327,20 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                   const newQty = editQtyValue.trim();
                                   setEditingQtyIdx(null);
                                   setUpdatingQtyIdx(i);
+                                  const bareNum2 = /^\d+(\.\d+)?$/.test(newQty) ? parseFloat(newQty) : null;
+                                  if (bareNum2 !== null && bareNum2 > 0) {
+                                    setDetectedFoods(prev => prev.map((f, idx) => idx === i ? {
+                                      ...f,
+                                      qty: `${newQty} serving${bareNum2 !== 1 ? 's' : ''}`,
+                                      cal: Math.round(food.cal * bareNum2),
+                                      protein: Math.round(food.protein * bareNum2 * 10) / 10,
+                                      carbs: Math.round(food.carbs * bareNum2 * 10) / 10,
+                                      fats: Math.round(food.fats * bareNum2 * 10) / 10,
+                                      fiber: Math.round(food.fiber * bareNum2 * 10) / 10,
+                                    } : f));
+                                    setUpdatingQtyIdx(null);
+                                    return;
+                                  }
                                   const recalculated = await recalculateFoodPortionWithGemini(food.name, food.qty, newQty, food);
                                   setDetectedFoods(prev => prev.map((f, idx) => idx === i ? {
                                     ...f,
@@ -1722,6 +1751,20 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                   const newQty = editQtyValue.trim();
                                   setEditingQtyIdx(null);
                                   setUpdatingQtyIdx(i);
+                                  const bareNum3 = /^\d+(\.\d+)?$/.test(newQty) ? parseFloat(newQty) : null;
+                                  if (bareNum3 !== null && bareNum3 > 0) {
+                                    setDetectedFoods(prev => prev.map((f, idx) => idx === i ? {
+                                      ...f,
+                                      qty: `${newQty} serving${bareNum3 !== 1 ? 's' : ''}`,
+                                      cal: Math.round(food.cal * bareNum3),
+                                      protein: Math.round(food.protein * bareNum3 * 10) / 10,
+                                      carbs: Math.round(food.carbs * bareNum3 * 10) / 10,
+                                      fats: Math.round(food.fats * bareNum3 * 10) / 10,
+                                      fiber: Math.round(food.fiber * bareNum3 * 10) / 10,
+                                    } : f));
+                                    setUpdatingQtyIdx(null);
+                                    return;
+                                  }
                                   const recalculated = await recalculateFoodPortionWithGemini(food.name, food.qty, newQty, food);
                                   setDetectedFoods(prev => prev.map((f, idx) => idx === i ? {
                                     ...f,
