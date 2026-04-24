@@ -27,18 +27,29 @@ const ScoreSlider = ({ value, onChange, lowLabel, highLabel }) => (
   </View>
 );
 
-const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = false, chipStyle, selectedChipStyle, showCheckmark = false }) => (
+const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = false, chipStyle, selectedChipStyle, showCheckmark = false, largeEmoji = false }) => (
   <View style={ss.chipsContainer}>
     {options.map(opt => {
       const isSelected = singleSelect ? selected === opt : (selected || []).includes(opt);
       const disabled = !isSelected && maxSelect != null && (selected || []).length >= maxSelect;
+      const spaceIdx = opt.indexOf(' ');
+      const emoji = largeEmoji && spaceIdx > -1 ? opt.slice(0, spaceIdx) : null;
+      const label = largeEmoji && spaceIdx > -1 ? opt.slice(spaceIdx + 1) : opt;
+      const textStyle = [ss.chipText, isSelected && (selectedChipStyle ? ss.chipTextDark : ss.chipTextSelected)];
       return (
         <Pressable
           key={opt}
           style={[ss.chip, chipStyle, isSelected && (selectedChipStyle || ss.chipSelected), disabled && ss.chipDisabled]}
           onPress={() => !disabled && onToggle(isSelected && singleSelect ? null : opt)}
         >
-          <Text style={[ss.chipText, isSelected && (selectedChipStyle ? ss.chipTextDark : ss.chipTextSelected)]}>{opt}</Text>
+          {emoji ? (
+            <View style={ss.chipInner}>
+              <Text style={ss.chipEmoji}>{emoji}</Text>
+              <Text style={textStyle}>{label}</Text>
+            </View>
+          ) : (
+            <Text style={textStyle}>{label}</Text>
+          )}
           {showCheckmark && isSelected && (
             <View style={ss.checkmarkBadge}>
               <Text style={ss.checkmarkText}>✓</Text>
@@ -241,7 +252,7 @@ const CheckInPage = ({
           <ScrollView style={ss.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={ss.scrollContent}>
 
             {/* ── Section 2: Mood ──────────────────────────────────────── */}
-            <SectionCard title="Mood" titleStyle={{ fontSize: 20 }}>
+            <SectionCard title="Mood" titleStyle={{ fontSize: 17 }}>
               <Chips
                 options={['😌 Calm','😰 Anxious','😊 Happy','😤 Irritable','🤩 Motivated','😢 Sad','🥹 Grateful','😴 Tired','🧐 Focused','😩 Overwhelmed','😄 Energized','😓 Stressed','😇 Content','😑 Unmotivated','🥺 Hopeful','😞 Lonely','😁 Proud','😖 Frustrated','😶 Numb','😐 Indifferent','😵 Distracted','😬 Restless']}
                 selected={emotionalMoods}
@@ -249,6 +260,7 @@ const CheckInPage = ({
                 chipStyle={{ backgroundColor: '#FFFBEB', borderColor: 'transparent' }}
                 selectedChipStyle={{ backgroundColor: '#FFFBEB', borderColor: '#F59E0B', borderWidth: 1.5 }}
                 showCheckmark
+                largeEmoji
               />
             </SectionCard>
 
@@ -658,6 +670,8 @@ const ss = StyleSheet.create({
   },
   chipSelected: { backgroundColor: '#059669', borderColor: 'transparent' },
   chipDisabled: { opacity: 0.35 },
+  chipInner: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  chipEmoji: { fontSize: 18 },
   chipText: { fontSize: 13, color: '#444', fontFamily: 'Inter' },
   chipTextSelected: { color: '#fff', fontWeight: '600', fontFamily: 'Inter' },
   chipTextDark: { color: '#78350F', fontWeight: '600', fontFamily: 'Inter' },
