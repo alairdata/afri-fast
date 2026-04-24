@@ -644,10 +644,10 @@ const ss = StyleSheet.create({
 
   chipsContainer: { flexDirection: 'row', flexWrap: 'wrap' },
   chip: {
-    paddingVertical: 9, paddingHorizontal: 13, borderRadius: 20,
+    paddingVertical: 6, paddingHorizontal: 13, borderRadius: 20,
     borderWidth: 1, borderColor: 'rgba(5,150,105,0.12)',
     backgroundColor: 'rgba(5,150,105,0.04)',
-    marginRight: 8, marginBottom: 8,
+    marginRight: 8, marginBottom: 6,
   },
   chipSelected: { backgroundColor: '#059669', borderColor: 'transparent' },
   chipDisabled: { opacity: 0.35 },
