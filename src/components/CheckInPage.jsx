@@ -27,7 +27,7 @@ const ScoreSlider = ({ value, onChange, lowLabel, highLabel }) => (
   </View>
 );
 
-const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = false }) => (
+const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = false, chipStyle }) => (
   <View style={ss.chipsContainer}>
     {options.map(opt => {
       const isSelected = singleSelect ? selected === opt : (selected || []).includes(opt);
@@ -35,7 +35,7 @@ const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = f
       return (
         <Pressable
           key={opt}
-          style={[ss.chip, isSelected && ss.chipSelected, disabled && ss.chipDisabled]}
+          style={[ss.chip, chipStyle, isSelected && ss.chipSelected, disabled && ss.chipDisabled]}
           onPress={() => !disabled && onToggle(isSelected && singleSelect ? null : opt)}
         >
           <Text style={[ss.chipText, isSelected && ss.chipTextSelected]}>{opt}</Text>
@@ -235,30 +235,13 @@ const CheckInPage = ({
 
           <ScrollView style={ss.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={ss.scrollContent}>
 
-            {/* ── Section 1: Overall Wellbeing ─────────────────────────── */}
-            <SectionCard title="🌡️ Overall Wellbeing" subtitle="How are you feeling overall right now?">
-              <ScoreSlider value={wellbeingScore} onChange={setWellbeingScore} lowLabel="1 Terrible" highLabel="10 Amazing" />
-            </SectionCard>
-
-            {/* ── Section 2: Emotional State ───────────────────────────── */}
-            <SectionCard title="💭 Emotional State" subtitle="Which of these best describes your mood? Pick all that apply.">
-              <Text style={ss.groupLabel}>Positive</Text>
+            {/* ── Section 2: Mood ──────────────────────────────────────── */}
+            <SectionCard title="💭 Mood">
               <Chips
-                options={['😌 Calm','😊 Happy','💪 Motivated','🙏 Grateful','🎯 Focused','⚡ Energized','😇 Content','🌟 Hopeful','🏆 Proud']}
+                options={['😌 Calm','😰 Anxious','😊 Happy','😤 Irritable','🤩 Motivated','😢 Sad','🥹 Grateful','😴 Tired','🧐 Focused','😩 Overwhelmed','😄 Energized','😓 Stressed','😇 Content','😑 Unmotivated','🥺 Hopeful','😞 Lonely','😁 Proud','😖 Frustrated','😶 Numb','😐 Indifferent','😵 Distracted','😬 Restless']}
                 selected={emotionalMoods}
                 onToggle={v => toggle(v, emotionalMoods, setEmotionalMoods)}
-              />
-              <Text style={[ss.groupLabel, { marginTop: 10 }]}>Negative</Text>
-              <Chips
-                options={['😰 Anxious','😤 Irritable','😢 Sad','😴 Tired','😩 Overwhelmed','😓 Stressed','😑 Unmotivated','😞 Lonely','😖 Frustrated','😶 Numb']}
-                selected={emotionalMoods}
-                onToggle={v => toggle(v, emotionalMoods, setEmotionalMoods)}
-              />
-              <Text style={[ss.groupLabel, { marginTop: 10 }]}>Neutral</Text>
-              <Chips
-                options={['😐 Indifferent','😵 Distracted','🌀 Restless']}
-                selected={emotionalMoods}
-                onToggle={v => toggle(v, emotionalMoods, setEmotionalMoods)}
+                chipStyle={{ backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }}
               />
             </SectionCard>
 
@@ -645,7 +628,7 @@ const ss = StyleSheet.create({
     width: 40, height: 40, borderRadius: 12,
     backgroundColor: 'rgba(5,150,105,0.08)', alignItems: 'center', justifyContent: 'center',
   },
-  headerDate: { fontSize: 16, fontWeight: '700', color: '#1F1F1F' },
+  headerDate: { fontSize: 16, fontWeight: '700', color: '#1F1F1F', fontFamily: 'Inter' },
 
   scroll: { flex: 1, paddingHorizontal: 20 },
   scrollContent: { paddingBottom: 20 },
@@ -654,10 +637,10 @@ const ss = StyleSheet.create({
     marginTop: 20, backgroundColor: '#fff', borderRadius: 16,
     padding: 16, borderWidth: 1, borderColor: 'rgba(5,150,105,0.06)',
   },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#1F1F1F', marginBottom: 4 },
-  sectionSubtitle: { fontSize: 13, color: '#6B7280', marginBottom: 14 },
-  groupLabel: { fontSize: 12, fontWeight: '600', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 8, textTransform: 'uppercase' },
-  followUpLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginTop: 16, marginBottom: 10 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#1F1F1F', marginBottom: 4, fontFamily: 'Inter' },
+  sectionSubtitle: { fontSize: 13, color: '#6B7280', marginBottom: 14, fontFamily: 'Inter' },
+  groupLabel: { fontSize: 12, fontWeight: '600', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 8, textTransform: 'uppercase', fontFamily: 'Inter' },
+  followUpLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginTop: 16, marginBottom: 10, fontFamily: 'Inter' },
 
   chipsContainer: { flexDirection: 'row', flexWrap: 'wrap' },
   chip: {
@@ -668,8 +651,8 @@ const ss = StyleSheet.create({
   },
   chipSelected: { backgroundColor: '#059669', borderColor: 'transparent' },
   chipDisabled: { opacity: 0.35 },
-  chipText: { fontSize: 13, color: '#444' },
-  chipTextSelected: { color: '#fff', fontWeight: '600' },
+  chipText: { fontSize: 13, color: '#444', fontFamily: 'Inter' },
+  chipTextSelected: { color: '#fff', fontWeight: '600', fontFamily: 'Inter' },
 
   scoreRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
   scoreBtn: {
@@ -677,21 +660,21 @@ const ss = StyleSheet.create({
     backgroundColor: 'rgba(5,150,105,0.06)', borderWidth: 1, borderColor: 'rgba(5,150,105,0.1)',
   },
   scoreBtnSelected: { backgroundColor: '#059669', borderColor: 'transparent' },
-  scoreBtnText: { fontSize: 13, fontWeight: '600', color: '#374151' },
-  scoreBtnTextSelected: { color: '#fff' },
+  scoreBtnText: { fontSize: 13, fontWeight: '600', color: '#374151', fontFamily: 'Inter' },
+  scoreBtnTextSelected: { color: '#fff', fontFamily: 'Inter' },
   scoreLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  scoreLabel: { fontSize: 11, color: '#9CA3AF' },
+  scoreLabel: { fontSize: 11, color: '#9CA3AF', fontFamily: 'Inter' },
 
   timeInput: {
     borderWidth: 1, borderColor: 'rgba(5,150,105,0.15)', borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#1F1F1F',
-    backgroundColor: 'rgba(5,150,105,0.03)',
+    backgroundColor: 'rgba(5,150,105,0.03)', fontFamily: 'Inter',
   },
 
   // Water section (unchanged styles)
   waterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, zIndex: 100 },
   unitBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ECFDF5', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
-  unitBtnText: { fontSize: 13, fontWeight: '600', color: '#059669' },
+  unitBtnText: { fontSize: 13, fontWeight: '600', color: '#059669', fontFamily: 'Inter' },
   unitArrow: { fontSize: 8, color: '#059669' },
   unitDropdown: {
     position: 'absolute', right: 0, top: 32, width: 120, backgroundColor: '#fff',
@@ -701,24 +684,24 @@ const ss = StyleSheet.create({
   },
   unitOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.04)' },
   unitOptionActive: { backgroundColor: '#ECFDF5' },
-  unitOptionText: { fontSize: 14, fontWeight: '500', color: '#374151' },
-  unitOptionTextActive: { color: '#059669', fontWeight: '600' },
-  unitCheck: { fontSize: 14, color: '#059669', fontWeight: '700' },
+  unitOptionText: { fontSize: 14, fontWeight: '500', color: '#374151', fontFamily: 'Inter' },
+  unitOptionTextActive: { color: '#059669', fontWeight: '600', fontFamily: 'Inter' },
+  unitCheck: { fontSize: 14, color: '#059669', fontWeight: '700', fontFamily: 'Inter' },
   waterCard: { backgroundColor: 'rgba(5,150,105,0.02)', borderRadius: 12, padding: 20, paddingBottom: 24 },
   waterCounter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   waterBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(5,150,105,0.1)', alignItems: 'center', justifyContent: 'center' },
   waterDisplay: { alignItems: 'center', marginHorizontal: 20 },
-  waterAmount: { fontSize: 32, fontWeight: '700', color: '#1F1F1F' },
-  waterUnit: { fontSize: 14, color: '#999', marginLeft: 4 },
+  waterAmount: { fontSize: 32, fontWeight: '700', color: '#1F1F1F', fontFamily: 'Inter' },
+  waterUnit: { fontSize: 14, color: '#999', marginLeft: 4, fontFamily: 'Inter' },
   waterEntryChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ECFDF5', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
-  waterEntryText: { fontSize: 14, fontWeight: '600', color: '#059669' },
-  waterEntryRemove: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
+  waterEntryText: { fontSize: 14, fontWeight: '600', color: '#059669', fontFamily: 'Inter' },
+  waterEntryRemove: { fontSize: 12, color: '#9CA3AF', fontWeight: '600', fontFamily: 'Inter' },
   waterActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingHorizontal: 4 },
-  waterViewLogs: { fontSize: 13, fontWeight: '600', color: '#0EA5E9' },
-  waterSaveLog: { fontSize: 13, fontWeight: '600', color: '#059669' },
+  waterViewLogs: { fontSize: 13, fontWeight: '600', color: '#0EA5E9', fontFamily: 'Inter' },
+  waterSaveLog: { fontSize: 13, fontWeight: '600', color: '#059669', fontFamily: 'Inter' },
 
   notesCard: { backgroundColor: 'rgba(5,150,105,0.02)', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16 },
-  notesInput: { width: '100%', minHeight: 100, fontSize: 14, color: '#1F1F1F', lineHeight: 21, backgroundColor: 'transparent', textAlignVertical: 'top', padding: 0 },
+  notesInput: { width: '100%', minHeight: 100, fontSize: 14, color: '#1F1F1F', lineHeight: 21, backgroundColor: 'transparent', textAlignVertical: 'top', padding: 0, fontFamily: 'Inter' },
 
   footer: {
     paddingHorizontal: 20, paddingTop: 16, paddingBottom: Platform.OS === 'web' ? 24 : 32,
@@ -729,7 +712,7 @@ const ss = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     shadowColor: 'rgba(5,150,105,1)', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 6,
   },
-  saveBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  saveBtnText: { fontSize: 16, fontWeight: '700', color: '#fff', fontFamily: 'Inter' },
 });
 
 export default CheckInPage;
