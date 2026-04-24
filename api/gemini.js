@@ -57,9 +57,9 @@ export default async function handler(req, res) {
       const { base64, userCountry } = data;
       const text = await callGemini(GEMINI_KEY, [
         {
-          text: `You are a food recognition expert for an African health and nutrition app. The user is from ${userCountry || 'Africa'}.
+          text: `You are a food recognition expert for an African health and nutrition app. This particular user is from ${userCountry || 'Africa'}.
 
-Your job is to identify food the way the user's own culture would name and understand it. Draw on your full knowledge of ${userCountry || 'African'} cuisine — street food, home cooking, and regional specialties. When something could be interpreted as a local dish or a Western equivalent, always prefer the local interpretation that fits the user's food culture.
+Your job is to identify food the way the user's own culture would name and understand it. Draw on your full knowledge of ${userCountry || 'Africa'}. Make sure that you are not over assuming or oversimplifying the meal. For example: tom brown looks like groundnut soup but it is not — they are different if you take a much closer look. This is just an example of what I mean.
 
 IMPORTANT: First check if this image actually contains food. If it does NOT contain food, respond with exactly:
 NOT_FOOD: [what you see in the image]
