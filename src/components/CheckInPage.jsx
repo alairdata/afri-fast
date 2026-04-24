@@ -214,7 +214,7 @@ const CheckInPage = ({
     // Legacy field mappings for backward compat
     const legacy = {
       feelings: emotionalMoods.slice(0, 4),
-      fastingStatus: fastingStatus || '',
+      fastingStatus: derivedFastingStatus,
       hungerLevel: hungerScore ? `${hungerScore}/10` : '',
       moods: emotionalMoods,
       symptoms: fastingSymptoms,
