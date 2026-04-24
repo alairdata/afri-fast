@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Animated, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Share, Modal } from 'react-native';
@@ -242,7 +242,18 @@ const ShareCardImage = ({ uri, height, style }) => {
   );
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], streak = 0, viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, volumeUnit = 'glasses', recipeToLog = null, recipes = [], userEmail = null, userCountry = '' }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, volumeUnit = 'glasses', recipeToLog = null, recipes = [], userEmail = null, userCountry = '' }) => {
+  const streak = useMemo(() => {
+    let s = 0;
+    const now = new Date();
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      if (recentMeals.some(m => m.date === d.toDateString())) s++;
+      else break;
+    }
+    return s;
+  }, [recentMeals]);
   const [showMiniCheckIn, setShowMiniCheckIn] = useState(false);
   const [miniFeelings, setMiniFeelings] = useState([]);
   const [miniFastingStatus, setMiniFastingStatus] = useState(null);
