@@ -567,7 +567,7 @@ const CheckInPage = ({
             </SectionCard>
 
             {/* ── Section 13: Daily Goal Check (hide if they didn't fast at all) ── */}
-            {fastingStatus !== '❌ I did not fast today' && fastingStatus !== '🌙 Fasting window hasn\'t started yet' && (
+            {(isFasting || fastBroken) && (
             <SectionCard title="🎯 Daily Goal Check">
               <Text style={ss.followUpLabel}>Did you meet your fasting goal today?</Text>
               <Chips
