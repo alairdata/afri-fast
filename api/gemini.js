@@ -61,6 +61,8 @@ export default async function handler(req, res) {
 
 Your job is to identify food the way the user's own culture would name and understand it. Draw on your full knowledge of ${userCountry || 'Africa'}. Make sure that you are not over assuming or oversimplifying the meal. For example: tom brown looks like groundnut soup but it is not — they are different if you take a much closer look. This is just an example of what I mean.
 
+When identifying food, always think: what would someone from ${userCountry || 'Africa'} actually call this at home or on the street? Use that name. Do not fall back on generic or Western equivalents just because the visual appearance resembles them.
+
 IMPORTANT: First check if this image actually contains food. If it does NOT contain food, respond with exactly:
 NOT_FOOD: [what you see in the image]
 
