@@ -127,6 +127,15 @@ const getUserColor = (str = '') => {
   return WHISPER_COLORS[Math.abs(hash) % WHISPER_COLORS.length];
 };
 
+// Supabase DATE columns return "2026-04-24"; app comparisons all use toDateString() "Thu Apr 24 2026".
+// Normalize on fetch so both old TEXT-stored and new DATE-type values match correctly.
+function normalizeMealDate(dateStr) {
+  if (!dateStr) return dateStr;
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]).toDateString();
+  return dateStr;
+}
+
 const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // === Core fasting state ===
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -564,7 +573,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .limit(200)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch meals]', error); }
-        if (data) setRecentMeals(data);
+        if (data) setRecentMeals(data.map(m => ({
+          ...m,
+          date: normalizeMealDate(m.date),
+        })));
         setDataLoadCount(prev => prev + 1);
       });
   }, [session]);
