@@ -247,7 +247,7 @@ const CheckInPage = ({
                 selected={emotionalMoods}
                 onToggle={v => toggle(v, emotionalMoods, setEmotionalMoods)}
                 chipStyle={{ backgroundColor: '#FFFBEB', borderColor: 'transparent' }}
-                selectedChipStyle={{ backgroundColor: '#FEF08A', borderColor: '#EAB308', borderWidth: 2 }}
+                selectedChipStyle={{ backgroundColor: '#FFFBEB', borderColor: '#F59E0B', borderWidth: 1.5 }}
                 showCheckmark
               />
             </SectionCard>
@@ -664,7 +664,7 @@ const ss = StyleSheet.create({
   checkmarkBadge: {
     position: 'absolute', bottom: -5, right: -5,
     width: 14, height: 14, borderRadius: 7,
-    backgroundColor: '#EAB308', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center',
   },
   checkmarkText: { fontSize: 8, color: '#fff', fontWeight: '700' },
 
