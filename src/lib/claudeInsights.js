@@ -4,13 +4,13 @@ const DAILY_CACHE_KEY = 'claude_daily_insights_v1';
 const JFY_CACHE_KEY = 'claude_just_for_you_v1';
 const JFY_TTL = 3 * 24 * 60 * 60 * 1000; // 72 hours
 
-// Returns the timestamp of the most recent 8pm refresh slot (today's if past 8pm, else yesterday's)
+// Returns the timestamp of the most recent 1:30am refresh slot (today's if past 1:30am, else yesterday's)
 function lastScheduledSlot() {
   const now = new Date();
-  const slot830pm = new Date(now); slot830pm.setHours(20, 30, 0, 0);
-  if (now.getHours() > 20 || (now.getHours() === 20 && now.getMinutes() >= 30)) return slot830pm.getTime();
-  const yest830pm = new Date(now); yest830pm.setDate(yest830pm.getDate() - 1); yest830pm.setHours(20, 30, 0, 0);
-  return yest830pm.getTime();
+  const slot130am = new Date(now); slot130am.setHours(1, 30, 0, 0);
+  if (now.getHours() > 1 || (now.getHours() === 1 && now.getMinutes() >= 30)) return slot130am.getTime();
+  const yest130am = new Date(now); yest130am.setDate(yest130am.getDate() - 1); yest130am.setHours(1, 30, 0, 0);
+  return yest130am.getTime();
 }
 
 const API_URL = '/api/ai';
