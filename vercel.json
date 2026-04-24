@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx expo export:web",
+  "buildCommand": "npx expo export:web && cp public/sw.js web-build/sw.js && cp public/manifest.json web-build/manifest.json",
   "outputDirectory": "web-build",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
