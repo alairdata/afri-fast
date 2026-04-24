@@ -1378,6 +1378,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         setVolumeUnit={setVolumeUnit}
         onViewWaterLogs={() => { setShowCheckInPage(false); setShowHydrationDetails(true); }}
         initialData={checkInInitialData}
+        fastingSessions={fastingSessions}
+        isFastingNow={isFasting}
       />
 
       <PlanSelectionPage

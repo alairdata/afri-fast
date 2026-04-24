@@ -78,6 +78,8 @@ const CheckInPage = ({
   volumeUnit, setVolumeUnit,
   onViewWaterLogs,
   initialData,
+  fastingSessions = [],
+  isFastingNow = false,
 }) => {
   const [checkInDate, setCheckInDate] = useState(new Date());
   const [showUnitPicker, setShowUnitPicker] = useState(false);
@@ -86,13 +88,8 @@ const CheckInPage = ({
   // ── Section 1: Overall Wellbeing ─────────────────────────────────────────
   const [wellbeingScore, setWellbeingScore] = useState(null);
 
-  // ── Section 2: Emotional State ───────────────────────────────────────────
+  // ── Section 2: Mood ───────────────────────────────────────────────────────
   const [emotionalMoods, setEmotionalMoods] = useState([]);
-
-  // ── Section 3: Fasting Status ────────────────────────────────────────────
-  const [fastingStatus, setFastingStatus] = useState(null);
-  const [fastingDuration, setFastingDuration] = useState(null);
-  const [planningToBreak, setPlanningToBreak] = useState(null);
 
   // ── Section 4: Hunger & Appetite ─────────────────────────────────────────
   const [hungerScore, setHungerScore] = useState(null);
@@ -147,9 +144,6 @@ const CheckInPage = ({
     if (show && initialData) {
       setWellbeingScore(initialData.wellbeingScore ?? null);
       setEmotionalMoods(initialData.emotionalMoods ?? []);
-      setFastingStatus(initialData.fastingStatus ?? null);
-      setFastingDuration(initialData.fastingDuration ?? null);
-      setPlanningToBreak(initialData.planningToBreak ?? null);
       setHungerScore(initialData.hungerScore ?? null);
       setHungerTypes(initialData.hungerTypes ?? []);
       setHasCravings(initialData.hasCravings ?? null);
@@ -188,13 +182,24 @@ const CheckInPage = ({
 
   const toggle = (val, arr, setArr) => setArr(arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val]);
 
-  const isFasting = fastingStatus === '⏳ Currently fasting';
-  const fastBroken = fastingStatus === '🍽️ I broke my fast today';
+  const checkInDateStr = checkInDate.toISOString().split('T')[0];
+  const isFasting = isToday
+    ? isFastingNow
+    : (fastingSessions).some(s => {
+        const start = new Date(s.startTime).toISOString().split('T')[0];
+        const end = s.endTime ? new Date(s.endTime).toISOString().split('T')[0] : null;
+        return start <= checkInDateStr && (!end || end >= checkInDateStr);
+      });
+  const fastBroken = (fastingSessions).some(s => {
+    if (!s.endTime) return false;
+    return new Date(s.endTime).toISOString().split('T')[0] === checkInDateStr;
+  });
 
   const handleSave = () => {
+    const derivedFastingStatus = isFasting ? '⏳ Currently fasting' : fastBroken ? '🍽️ I broke my fast today' : '❌ I did not fast today';
     const v2 = {
       wellbeingScore, emotionalMoods,
-      fastingStatus, fastingDuration, planningToBreak,
+      fastingStatus: derivedFastingStatus,
       hungerScore, hungerTypes, hasCravings, cravingTypes,
       fastingSymptoms, symptomSeverity,
       fastBreakTime, fastBreakFoods, fastBreakIntentionality, physicalAfterEating, emotionalAfterEating,
@@ -262,34 +267,6 @@ const CheckInPage = ({
                 showCheckmark
                 largeEmoji
               />
-            </SectionCard>
-
-            {/* ── Section 3: Fasting Status ─────────────────────────────── */}
-            <SectionCard title="⏱️ Fasting Status" subtitle="What is your fasting status right now?">
-              <Chips
-                options={['⏳ Currently fasting','🍽️ I broke my fast today','❌ I did not fast today','🌙 Fasting window hasn\'t started yet']}
-                selected={fastingStatus}
-                onToggle={setFastingStatus}
-                singleSelect
-              />
-              {isFasting && (
-                <>
-                  <Text style={ss.followUpLabel}>How long have you been fasting?</Text>
-                  <Chips
-                    options={['Under 4 hrs','4–8 hrs','8–12 hrs','12–16 hrs','16–20 hrs','20+ hrs']}
-                    selected={fastingDuration}
-                    onToggle={setFastingDuration}
-                    singleSelect
-                  />
-                  <Text style={ss.followUpLabel}>Are you planning to break your fast today?</Text>
-                  <Chips
-                    options={['✅ Yes','❌ No','🤔 Not sure']}
-                    selected={planningToBreak}
-                    onToggle={setPlanningToBreak}
-                    singleSelect
-                  />
-                </>
-              )}
             </SectionCard>
 
             {/* ── Section 4: Hunger & Appetite ─────────────────────────── */}
