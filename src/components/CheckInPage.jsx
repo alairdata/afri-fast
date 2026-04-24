@@ -323,30 +323,16 @@ const CheckInPage = ({
 
             {/* ── Section 5: Fasting Symptoms (show if fasting) ────────── */}
             {isFasting && (
-              <SectionCard title="🩺 Fasting Symptoms" subtitle="Are you experiencing any of the following?">
-                <Text style={ss.groupLabel}>Physical</Text>
+              <SectionCard title="Fasting Symptoms" titleStyle={{ fontSize: 17 }}>
                 <Chips
-                  options={['🤕 Headache','😵 Dizziness','🤢 Nausea','😴 Fatigue','💪 Muscle weakness','😣 Stomach cramping','🫃 Bloating','💓 Heart palpitations','🥶 Feeling cold','👄 Dry mouth']}
+                  options={['🤕 Headache','😵 Dizziness','🤢 Nausea','😴 Fatigue','🦵 Muscle weakness','😣 Stomach cramping','🫃 Bloating','💓 Heart palpitations','🥶 Feeling cold','👄 Dry mouth','🌫️ Brain fog','🤔 Difficulty concentrating','😶 Forgetfulness','🐢 Slow thinking','😤 Irritability','🎭 Mood swings','😰 Anxiety','😑 Low motivation','✨ Mental clarity','🪶 Feeling light','🎯 Improved focus','🏅 Sense of control','✅ No symptoms']}
                   selected={fastingSymptoms}
                   onToggle={v => toggle(v, fastingSymptoms, setFastingSymptoms)}
-                />
-                <Text style={[ss.groupLabel, { marginTop: 10 }]}>Cognitive</Text>
-                <Chips
-                  options={['🌫️ Brain fog','🤔 Difficulty concentrating','😶 Forgetfulness','🐢 Slow thinking']}
-                  selected={fastingSymptoms}
-                  onToggle={v => toggle(v, fastingSymptoms, setFastingSymptoms)}
-                />
-                <Text style={[ss.groupLabel, { marginTop: 10 }]}>Mood-related</Text>
-                <Chips
-                  options={['😤 Irritability','🎭 Mood swings','😰 Anxiety','😑 Low motivation']}
-                  selected={fastingSymptoms}
-                  onToggle={v => toggle(v, fastingSymptoms, setFastingSymptoms)}
-                />
-                <Text style={[ss.groupLabel, { marginTop: 10 }]}>Positive</Text>
-                <Chips
-                  options={['✨ Mental clarity','🪶 Feeling light','🎯 Improved focus','💪 Sense of control','✅ No symptoms']}
-                  selected={fastingSymptoms}
-                  onToggle={v => toggle(v, fastingSymptoms, setFastingSymptoms)}
+                  chipStyle={{ backgroundColor: '#FAF5FF', borderColor: 'transparent' }}
+                  selectedChipStyle={{ backgroundColor: '#FAF5FF', borderColor: '#9333EA', borderWidth: 1.5 }}
+                  showCheckmark
+                  checkmarkColor="#9333EA"
+                  largeEmoji
                 />
                 <Text style={ss.followUpLabel}>How severe are your symptoms overall?</Text>
                 <Chips
