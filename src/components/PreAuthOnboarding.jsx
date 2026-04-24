@@ -482,14 +482,6 @@ export default function PreAuthOnboarding({ initialData, onComplete, onSkip }) {
 
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
-      <View style={[styles.bgGlowTop, isDark && styles.bgGlowTopDark]} />
-      <View style={[styles.bgGlowBottom, isDark && styles.bgGlowBottomDark]} />
-      <View style={styles.bgPattern}>
-        <View style={styles.bgDot} />
-        <View style={styles.bgDot} />
-        <View style={styles.bgDot} />
-        <View style={styles.bgDot} />
-      </View>
       <View style={styles.screenWrap}>
         <View style={styles.slideBody}>
           <View style={styles.topRow}>
