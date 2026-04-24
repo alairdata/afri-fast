@@ -270,7 +270,7 @@ const CheckInPage = ({
             </SectionCard>
 
             {/* ── Section 4: Hunger & Appetite ─────────────────────────── */}
-            <SectionCard title="Hunger & Appetite" titleStyle={{ fontSize: 17 }} subtitle="How hungry are you right now?">
+            <SectionCard title="How hungry are you?" titleStyle={{ fontSize: 17 }}>
               <ScoreSlider value={hungerScore} onChange={setHungerScore} lowLabel="1 Not hungry" highLabel="10 Unbearably hungry" />
               <Text style={ss.followUpLabel}>What kind of hunger are you feeling?</Text>
               <Chips
