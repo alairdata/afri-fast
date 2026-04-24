@@ -41,8 +41,8 @@ const conditionOptions = [
 const steps = [
   {
     tag: 'Welcome',
-    title: "What's your\nname?",
-    subtitle: "This won't be 25 questions before signup, we promise!",
+    title: 'What is your\nname?',
+    subtitle: 'Your name helps us make your Afri Fast experience feel personal from day one.',
   },
   {
     tag: 'About you',
@@ -253,15 +253,28 @@ export default function PreAuthOnboarding({ initialData, onComplete, onSkip }) {
     if (stepIndex === 0) {
       return (
         <View style={styles.nameStage}>
-          <TextInput
-            style={styles.bigInput}
-            value={data.preferredName}
-            onChangeText={(preferredName) => update({ preferredName })}
-            placeholder="Your name"
-            placeholderTextColor="rgba(0,0,0,0.2)"
-            autoCapitalize="words"
-            textAlign="center"
-          />
+          <View style={styles.waveIconWrap}>
+            <Text style={styles.waveEmoji}>👋</Text>
+          </View>
+          <View style={styles.nameInputCard}>
+            <Text style={styles.nameLabel}>NAME</Text>
+            <TextInput
+              style={styles.bigInput}
+              value={data.preferredName}
+              onChangeText={(preferredName) => update({ preferredName })}
+              placeholder="Your name"
+              placeholderTextColor="rgba(0,0,0,0.2)"
+              autoCapitalize="words"
+              textAlign="left"
+            />
+          </View>
+          {data.preferredName.trim() ? (
+            <View style={styles.greetBanner}>
+              <Text style={styles.greetText}>
+                Nice to meet you, <Text style={styles.greetName}>{data.preferredName.trim()}</Text>!
+              </Text>
+            </View>
+          ) : null}
         </View>
       );
     }
@@ -688,6 +701,66 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: 0,
     paddingBottom: 0,
+    gap: 20,
+  },
+  waveIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  waveEmoji: {
+    fontSize: 30,
+  },
+  nameInputCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.07)',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  nameLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: 'rgba(0,0,0,0.35)',
+    marginBottom: 6,
+  },
+  greetBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.25)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  greetText: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#92400E',
+  },
+  greetName: {
+    fontWeight: '700',
+    color: '#92400E',
   },
   mixedStep: {
     paddingBottom: 24,
@@ -718,16 +791,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   bigInput: {
-    width: '80%',
+    width: '100%',
     borderWidth: 0,
-    borderBottomWidth: 1.5,
-    borderBottomColor: 'rgba(0,0,0,0.12)',
-    paddingVertical: 8,
-    fontSize: 26,
-    fontWeight: '300',
+    paddingVertical: 0,
+    fontSize: 22,
+    fontWeight: '400',
     color: '#111111',
     outlineWidth: 0,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   unitToggle: {
     flexDirection: 'row',
