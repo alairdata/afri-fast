@@ -2,8 +2,39 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Pressable, ScrollView, TextInput, StyleSheet, Modal, Platform, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Slider from '@react-native-community/slider';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+const HUNGER_LABELS = {
+  1: 'Not hungry at all',
+  2: 'Barely hungry',
+  3: 'Slightly hungry',
+  4: 'A little hungry',
+  5: 'Moderately hungry',
+  6: 'Noticeably hungry',
+  7: 'Pretty hungry',
+  8: 'Very hungry',
+  9: 'Extremely hungry',
+  10: 'Starving',
+};
+
+const HungerSlider = ({ value, onChange }) => (
+  <View style={ss.hungerSliderWrap}>
+    <Text style={ss.hungerLabel}>{value ? HUNGER_LABELS[value] : '—'}</Text>
+    <Slider
+      style={ss.hungerSlider}
+      minimumValue={1}
+      maximumValue={10}
+      step={1}
+      value={value || 1}
+      onValueChange={onChange}
+      minimumTrackTintColor="#22C55E"
+      maximumTrackTintColor="#D1FAE5"
+      thumbTintColor="#22C55E"
+    />
+  </View>
+);
 
 const ScoreSlider = ({ value, onChange, lowLabel, highLabel }) => (
   <View>
@@ -271,7 +302,7 @@ const CheckInPage = ({
 
             {/* ── Section 4: Hunger & Appetite ─────────────────────────── */}
             <SectionCard title="How hungry are you?" titleStyle={{ fontSize: 17 }}>
-              <ScoreSlider value={hungerScore} onChange={setHungerScore} lowLabel="1 Not hungry" highLabel="10 Unbearably hungry" />
+              <HungerSlider value={hungerScore} onChange={setHungerScore} />
               <Text style={ss.followUpLabel}>What kind of hunger are you feeling?</Text>
               <Chips
                 options={['🫃 Physical stomach hunger','🧠 Head hunger (craving, not physical)','💔 Emotional hunger','🛋️ Boredom hunger','❓ Not sure']}
@@ -668,6 +699,10 @@ const ss = StyleSheet.create({
     backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center',
   },
   checkmarkText: { fontSize: 8, color: '#fff', fontWeight: '700' },
+
+  hungerSliderWrap: { paddingVertical: 8 },
+  hungerLabel: { textAlign: 'center', fontSize: 16, fontWeight: '600', color: '#16A34A', fontFamily: 'Inter', marginBottom: 12 },
+  hungerSlider: { width: '100%', height: 40 },
 
   scoreRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
   scoreBtn: {
