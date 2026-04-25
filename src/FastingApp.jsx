@@ -1886,34 +1886,34 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                     confirmEndFast(true, pendingConfettiEndTs.current);
                   }} />
                 )}
+
+                {showSummaryTimeEdit && (
+                  <TimeEditModal
+                    show={showSummaryTimeEdit}
+                    onClose={() => setShowSummaryTimeEdit(false)}
+                    onSave={() => setShowSummaryTimeEdit(false)}
+                    editingTime="end"
+                    editDateStr={summaryEndDateStr}
+                    setEditDateStr={setSummaryEndDateStr}
+                    startHour={summaryEndHour}
+                    startMinute={summaryEndMinute}
+                    startSecond={0}
+                    endHour={summaryEndHour}
+                    endMinute={summaryEndMinute}
+                    endSecond={0}
+                    setStartHour={() => {}}
+                    setStartMinute={() => {}}
+                    setStartSecond={() => {}}
+                    setEndHour={setSummaryEndHour}
+                    setEndMinute={setSummaryEndMinute}
+                    setEndSecond={() => {}}
+                  />
+                )}
               </View>
             </View>
           </Modal>
         );
       })()}
-
-      {showSummaryTimeEdit && (
-        <TimeEditModal
-          show={showSummaryTimeEdit}
-          onClose={() => setShowSummaryTimeEdit(false)}
-          onSave={() => setShowSummaryTimeEdit(false)}
-          editingTime="end"
-          editDateStr={summaryEndDateStr}
-          setEditDateStr={setSummaryEndDateStr}
-          startHour={summaryEndHour}
-          startMinute={summaryEndMinute}
-          startSecond={0}
-          endHour={summaryEndHour}
-          endMinute={summaryEndMinute}
-          endSecond={0}
-          setStartHour={() => {}}
-          setStartMinute={() => {}}
-          setStartSecond={() => {}}
-          setEndHour={setSummaryEndHour}
-          setEndMinute={setSummaryEndMinute}
-          setEndSecond={() => {}}
-        />
-      )}
 
       <Modal visible={showEndFastWarning} transparent animationType="fade">
         <View style={styles.modalOverlay}>
