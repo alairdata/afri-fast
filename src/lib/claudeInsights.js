@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 
 const DAILY_CACHE_KEY = 'claude_daily_insights_v1';
-const JFY_CACHE_KEY = 'claude_just_for_you_v1';
+const JFY_CACHE_KEY = 'claude_just_for_you_v2';
 const JFY_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 // Returns the timestamp of the most recent 6am refresh slot (today's if past 6am, else yesterday's)
