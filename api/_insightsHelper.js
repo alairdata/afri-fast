@@ -1,14 +1,14 @@
-const CARD_COLORS = [
-  { color: '#E8F5E9', accent: '#4CAF50' },
+{ color: '#E8F5E9', accent: '#4CAF50' },
+export const CARD_COLORS = [
   { color: '#FFF3E0', accent: '#FF9800' },
   { color: '#E3F2FD', accent: '#2196F3' },
   { color: '#FCE4EC', accent: '#E91E63' },
   { color: '#EDE7F6', accent: '#7C3AED' },
   { color: '#E0F7FA', accent: '#0097A7' },
 ];
-
 const GOAL_LABELS = {
-  lose: 'Lose weight',
+lose: 'Lose weight',
+
   gain: 'Gain weight',
   maintain: 'Maintain weight',
   gutHealth: 'Improve gut health',
@@ -16,37 +16,36 @@ const GOAL_LABELS = {
   mentalClarity: 'Mental clarity',
   liveLonger: 'Live longer',
 };
-
 const ANALYST_PROMPT = `You are a rigorous health data analyst. When given user health data (fasting logs, meal logs, weight logs, water intake, mood/check-ins), do NOT produce surface-level observations. Instead:
 
 1. FIND THE REAL STORY
-   - What is the data actually saying beneath the obvious trend?
+- What is the data actually saying beneath the obvious trend?
+
    - What is improving on paper but quietly degrading underneath?
    - What correlations exist across multiple data types that wouldn't be visible looking at any one metric alone?
-
 2. DIAGNOSE ROOT CAUSES, NOT SYMPTOMS
    - Don't say "calories are increasing." Say WHY — what pattern in the surrounding data (mood, hydration, day of week, stress markers) explains it?
+   
    - Is the trigger physiological, environmental, or emotional?
-
 3. CHALLENGE THE OBVIOUS INTERPRETATION
    - If results look good, ask: is this momentum from past behavior or current behavior?
+   
    - If the person seems to be struggling, ask: is it the plan failing or the environment failing the plan?
-
 4. QUANTIFY THE STAKES
    - Translate patterns into concrete projections. What happens if this trend continues vs. reverses?
+   
    - Name the exact gap between current trajectory and goal.
-
 5. SPECIFICITY OVER GENERALITY
    - Name exact dates, exact meals, exact numbers.
+   
    - Never say "some days." Say specific dates with specific context.
    - Never say "eat healthier." Say which specific food swaps, why they matter, and what the data shows about when the drift started.
-
 6. MOOD AND BEHAVIOR AS DATA
    - Treat check-in moods and notes as leading indicators, not commentary. They predict the day's outcomes — analyze them that way.
-
+   
 Format: Lead with the most non-obvious insight first. Save the predictable observations for last or skip them entirely.`;
-
-const CARD_GENERATOR_PROMPT = `You are a close friend who has quietly been watching this person's health journey. You have just read a detailed analysis of everything they have logged. Now you are writing them a note — warm, direct, honest, and personal.
+   
+   const CARD_GENERATOR_PROMPT = `You are a close friend who has quietly been watching this person's health journey. You have just read a detailed analysis of everything they have logged. Now you are writing them a note — warm, direct, honest, and personal.
 
 Each card has three parts:
 
@@ -58,12 +57,13 @@ Each card has three parts:
 
 Before writing any card, silently work through:
 - Yesterday: what happened that is directly affecting how they feel today?
+
 - Last 7 days: what pattern is quietly building that they haven't noticed?
 - Last 4 weeks: is the momentum going toward their goal or away from it?
 - Full history: have they been here before and recovered? Say so — it's the most powerful thing you can tell someone who feels stuck.
-
 Rules:
 - You are a warm, honest friend — not a coach, not a report, not a robot
+
 - Never say "based on your data" or "your logs show" — you just know them
 - Never make them feel judged or like they failed — frame everything as "here's what's happening" not "here's what you did wrong"
 - The feeling line has NO question marks and NO hedging — it is a statement
@@ -73,32 +73,31 @@ Rules:
 - Format the "why" and "action" fields for readability: use \n\n to separate distinct thoughts into paragraphs. Use **bold** to highlight key numbers, dates, or the single most important phrase in a sentence. Keep it natural — do not over-bold. Think of it like how a thoughtful person would write a personal note, not a report.
 - Generate exactly 2 insight cards based on real observations, then always add one final GOAL TRAJECTORY card as the last card (3 cards total)
 - Never give more than one thing to do per card
-
 The FINAL card must always be a goal trajectory card. Same 3-beat structure, but focused entirely on where they are headed toward their goal:
 - feeling: a direct, honest one-liner about their current trajectory. Is it on track, slipping, or ahead of schedule? Make it feel personal and real. ALWAYS calculate the actual weeks from the data — never copy example numbers. E.g. "You're [X] weeks from your goal — but the last two weeks are quietly stretching that." where X is computed from the weight data.
-- why: use the actual weight data. The target weight is explicitly labelled "CURRENT TARGET WEIGHT" in the profile — use that exact number, never a different one. Name specific dates, specific weights. Use the pre-computed weekly rate already given in the WEIGHT PROGRESS section (the "~X kg/week" figure) — do NOT recalculate it yourself. Remember: each week bucket in the data = exactly 7 calendar days, so two buckets = 14 days, not 14 weeks. Then show two projections:
+
+- why: use the actual weight data. The user's exact target weight is provided at the bottom of this prompt under "GROUND TRUTH". Use ONLY that number — never substitute a weight log entry, a projection, or any other figure. Name specific dates, specific weights. Use the pre-computed weekly rate already given in the WEIGHT PROGRESS section (the "~X kg/week" figure) — do NOT recalculate it yourself. Remember: each week bucket in the data = exactly 7 calendar days, so two buckets = 14 days, not 14 weeks. Then show two projections:
   1. **At current pace** — how many weeks (and months in brackets) to reach the target at the current rate
   2. **At an improved pace** — only include this if the current rate is low or unsustainable (e.g. less than 0.3 kg/week for weight loss, or barely moving). Show what a realistic but better rate would look like in weeks (and months in brackets). Make the improved pace feel achievable, not punishing.
   Compare their peak rate vs their current rate and name the exact gap. Beyond weight, you have full discretion to reference any other data that is directly relevant to the trajectory — nutrition patterns, hydration, fasting consistency, mood — if it helps explain why the pace is what it is or what's quietly affecting progress toward the goal. Only include it if it genuinely connects to the trajectory, not just for the sake of it.
 - action: one specific behaviour change that the data shows would most directly accelerate or protect their progress. Tie it directly to what the data reveals — not generic advice. Always end the action with this exact sentence: "These projections update daily — they shift as your behaviour changes, for better or for worse."
-
 If they have no weight logs, no target weight set, or their goal is to maintain weight, skip this card entirely and just generate 2-3 regular cards.
 
 Each card has an optional fourth field: "takeaway". Use it only when the data supports a specific, concrete forward-looking action worth calling out separately — skip it if there is nothing genuinely useful to add. If you include it:
 - Reference a specific date or date range using the "Tomorrow's date" provided (e.g. "By April 25th..." or "April 23rd–April 27th..."). Never say "tomorrow", "next week", "the coming days", or any other relative time phrase.
-- Keep it to one concrete action tied directly to what the data shows.
 
+- Keep it to one concrete action tied directly to what the data shows.
 Return ONLY a valid JSON array, no markdown, no explanation:
 [
+  
   { "feeling": "...", "why": "...", "action": "...", "takeaway": "..." },
   ...
 ]`;
-
 function getGoalAtDate(goalHistory, dateStr, profile) {
-  if (!goalHistory?.length || !dateStr) return profile;
+if (!goalHistory?.length || !dateStr) return profile;
+
   const date = new Date(dateStr);
   if (isNaN(date)) return profile;
-  // Find the most recent snapshot that was set on or before this date
   const sorted = [...goalHistory].sort((a, b) => new Date(a.from) - new Date(b.from));
   let applicable = null;
   for (const snap of sorted) {
@@ -107,50 +106,48 @@ function getGoalAtDate(goalHistory, dateStr, profile) {
   }
   return applicable ? { ...profile, ...applicable } : profile;
 }
+export function preprocessData(data) {
+const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs, goalHistory } = data;
 
-function preprocessData(data) {
-  const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs, goalHistory } = data;
   const now = new Date();
-
+  now.setUTCHours(0, 0, 0, 0);
   const daysBetween = (d1, d2) => Math.floor(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24));
-
+  
   const getWeekIndex = (dateStr) => {
-    if (!dateStr) return -1;
+  if (!dateStr) return -1;
+
     const d = new Date(dateStr);
     if (isNaN(d)) return -1;
     return Math.floor(daysBetween(now, d) / 7);
   };
-
   const fmt12h = (ts) => {
-    if (!ts) return '';
+  if (!ts) return '';
+
     const d = new Date(typeof ts === 'number' ? ts : ts);
     if (isNaN(d)) return '';
     const h = d.getHours(), m = d.getMinutes().toString().padStart(2, '0');
     return `${h % 12 || 12}:${m}${h >= 12 ? 'PM' : 'AM'}`;
   };
-
-  // Infer goal label
   const goalLabel = GOAL_LABELS[profile.goal] ||
+
     (profile.startingWeight && profile.targetWeight
       ? profile.startingWeight > profile.targetWeight ? 'Lose weight'
         : profile.startingWeight < profile.targetWeight ? 'Gain weight'
         : 'Maintain weight'
       : 'Not specified');
-
   const lines = [];
 
-  // Profile
   lines.push(`NAME: ${profile.userName || 'User'} | COUNTRY: ${profile.userCountry || 'Not specified'}`);
   lines.push(`GOAL: ${goalLabel}`);
+
   lines.push(`PLAN: ${profile.selectedPlan || '16:8'} fasting`);
   lines.push(`DAILY CALORIE GOAL (current): ${profile.dailyCalorieGoal || 2000} kcal | PROTEIN: ${profile.proteinGoal || '?'}g | CARBS: ${profile.carbsGoal || '?'}g | FATS: ${profile.fatsGoal || '?'}g`);
   lines.push(`WATER GOAL: ${profile.hydrationGoal || 8} ${profile.volumeUnit || 'glasses'}/day`);
   if (profile.startingWeight) {
     lines.push(`STARTING WEIGHT: ${profile.startingWeight} ${profile.weightUnit || 'kg'} → CURRENT TARGET WEIGHT (use this exact value, do not change it): ${profile.targetWeight || '?'} ${profile.weightUnit || 'kg'}`);
   }
-
-  // Goal history — shows what the targets were at different points in time
   const sortedGoalHistory = [...(goalHistory || [])].sort((a, b) => new Date(a.from) - new Date(b.from));
+
   if (sortedGoalHistory.length > 0) {
     lines.push('');
     lines.push('GOAL HISTORY (important: evaluate each meal against the goal that was active on that date, NOT the current goal):');
@@ -164,23 +161,22 @@ function preprocessData(data) {
     });
   }
   lines.push('');
-
   const completedFastingSessions = fastingSessions || [];
   const completedMeals = recentMeals || [];
+
   const completedWaterLogs = waterLogs || [];
   const completedCheckIns = checkInHistory || [];
   const allWeightLogs = weightLogs || [];
-
-  // Fasting by week
   const fastingByWeek = {};
+
   completedFastingSessions.forEach(s => {
     const w = getWeekIndex(s.date || s.startTime);
     if (w < 0 || w > 11) return;
     if (!fastingByWeek[w]) fastingByWeek[w] = [];
     fastingByWeek[w].push(s);
   });
-
   const maxFastWeek = Object.keys(fastingByWeek).length ? Math.max(...Object.keys(fastingByWeek).map(Number)) : -1;
+
   if (maxFastWeek >= 0) {
     lines.push('FASTING SESSIONS BY WEEK (each bucket = exactly 7 calendar days; week 0 = past 0–6 days, week 1 = past 7–13 days, etc.):');
     for (let w = 0; w <= Math.min(maxFastWeek, 11); w++) {
@@ -205,24 +201,22 @@ function preprocessData(data) {
     }
     lines.push('');
   }
-
-  // Meals by week
   const mealsByWeek = {};
+
   completedMeals.forEach(m => {
     const w = getWeekIndex(m.date);
     if (w < 0 || w > 11) return;
     if (!mealsByWeek[w]) mealsByWeek[w] = [];
     mealsByWeek[w].push(m);
   });
-
   const maxMealWeek = Object.keys(mealsByWeek).length ? Math.max(...Object.keys(mealsByWeek).map(Number)) : -1;
+
   if (maxMealWeek >= 0) {
     lines.push('MEAL LOGS BY WEEK (each bucket = exactly 7 calendar days; week 0 = past 0–6 days, week 1 = past 7–13 days, etc.):');
     for (let w = 0; w <= Math.min(maxMealWeek, 11); w++) {
       const meals = mealsByWeek[w] || [];
       const label = w === 0 ? 'This week' : w === 1 ? 'Last week' : `${w} weeks ago`;
       if (meals.length > 0) {
-        // Group by day to get daily totals, then average across days
         const byDay = {};
         meals.forEach(m => {
           if (!byDay[m.date]) byDay[m.date] = { cal: 0, prot: 0, carb: 0, date: m.date };
@@ -234,7 +228,6 @@ function preprocessData(data) {
         const avgDailyCal = Math.round(days.reduce((s, d) => s + d.cal, 0) / days.length);
         const avgDailyProt = Math.round(days.reduce((s, d) => s + d.prot, 0) / days.length);
         const avgDailyCarb = Math.round(days.reduce((s, d) => s + d.carb, 0) / days.length);
-        // Show calorie goal that was active during this period (use first day's date as representative)
         const repDate = days[0]?.date;
         const goalAtTime = getGoalAtDate(goalHistory, repDate, profile);
         const calGoalAtTime = goalAtTime?.dailyCalorieGoal || profile.dailyCalorieGoal || 2000;
@@ -247,9 +240,8 @@ function preprocessData(data) {
     }
     lines.push('');
   }
-
-  // Water by week
   const waterByWeek = {};
+
   completedWaterLogs.forEach(wl => {
     const w = getWeekIndex(wl.date);
     if (w < 0 || w > 11) return;
@@ -257,8 +249,8 @@ function preprocessData(data) {
     if (!waterByWeek[w][wl.date]) waterByWeek[w][wl.date] = 0;
     waterByWeek[w][wl.date] += (wl.amount || 1);
   });
-
   const maxWaterWeek = Object.keys(waterByWeek).length ? Math.max(...Object.keys(waterByWeek).map(Number)) : -1;
+
   if (maxWaterWeek >= 0) {
     const waterGoal = profile.hydrationGoal || 8;
     const unit = profile.volumeUnit || 'glasses';
@@ -277,9 +269,8 @@ function preprocessData(data) {
     }
     lines.push('');
   }
-
-  // Weight progress
   const sortedWeights = [...allWeightLogs].sort((a, b) => new Date(a.date) - new Date(b.date));
+
   if (sortedWeights.length > 0) {
     lines.push('WEIGHT PROGRESS:');
     sortedWeights.forEach(wl => lines.push(`  ${wl.date}: ${wl.weight} ${wl.unit}`));
@@ -300,10 +291,9 @@ function preprocessData(data) {
     }
     lines.push('');
   }
-
-  // Check-ins (most recent 30, today excluded)
   const sortedCheckIns = [...completedCheckIns]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
+  .sort((a, b) => new Date(b.date) - new Date(a.date))
+
     .slice(0, 30);
   if (sortedCheckIns.length > 0) {
     lines.push('CHECK-IN HISTORY (most recent first):');
@@ -321,9 +311,8 @@ function preprocessData(data) {
     });
     lines.push('');
   }
-
-  // Enriched meal logs — each meal paired with how the user felt that day
   const recentEnriched = (enrichedMealLogs || []).slice(0, 30);
+
   if (recentEnriched.length > 0) {
     lines.push('MEALS WITH EMOTIONAL & PHYSICAL CONTEXT (most recent first):');
     recentEnriched.forEach(m => {
@@ -339,12 +328,12 @@ function preprocessData(data) {
     });
     lines.push('');
   }
-
   return lines.join('\n');
-}
 
-async function callClaude(prompt, apiKey, maxTokens = 2048) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+}
+export async function callClaude(prompt, apiKey, maxTokens = 2048) {
+const response = await fetch('https://api.anthropic.com/v1/messages', {
+    
     method: 'POST',
     headers: {
       'x-api-key': apiKey,
@@ -361,107 +350,41 @@ async function callClaude(prompt, apiKey, maxTokens = 2048) {
   if (!response.ok) throw new Error(result.error?.message || 'Claude API error');
   return result.content?.[0]?.text || '';
 }
+export async function generateDailyInsights(data, claudeKey) {
+const processedData = preprocessData(data);
 
-function buildJustForYouPrompt(data) {
-  const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs } = data;
+  const analystPrompt = `${ANALYST_PROMPT}\n\nHEALTH DATA FOR ANALYSIS:\n\n${processedData}`;
+  const analysis = await callClaude(analystPrompt, claudeKey);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const recentSessions = (fastingSessions || []).slice(0, 14);
-  const recentWeight = (weightLogs || []).slice(0, 10);
-  const recentCheckIns = (checkInHistory || []).slice(0, 10);
-  const recentMealsSlice = (recentMeals || []).slice(0, 20);
-  const recentWater = (waterLogs || []).slice(0, 14);
-  const recentEnriched = (enrichedMealLogs || []).slice(0, 20);
+  const tomorrowStr = tomorrow.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const tw = data.profile?.targetWeight;
+  const wu = data.profile?.weightUnit || 'kg';
 
-  return `You are a warm, supportive personal health coach inside Afri Fast, an African fasting and nutrition app.
+  const groundTruth = tw != null
+    ? `\n\nGROUND TRUTH (do NOT override these with any other value):\n- User's target weight: ${tw} ${wu}\n- User's starting weight: ${data.profile?.startingWeight ?? 'not set'} ${wu}`
+    : '';
+  const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}${groundTruth}`;
 
-USER PROFILE:
-- Name: ${profile.userName || 'User'}
-- Country: ${profile.userCountry || 'Not specified'}
-- Fasting plan: ${profile.selectedPlan || '16:8'}
-- Goal: ${profile.goal || 'Not specified'}
-- Health conditions: ${(profile.conditions || []).join(', ') || 'None'}
-- Starting weight: ${profile.startingWeight || 'Not set'} ${profile.weightUnit || 'kg'}
-- Target weight: ${profile.targetWeight || 'Not set'} ${profile.weightUnit || 'kg'}
-- Daily calorie goal: ${profile.dailyCalorieGoal || 2000} kcal
-- Protein goal: ${profile.proteinGoal || 'Not set'}g | Carbs: ${profile.carbsGoal || 'Not set'}g | Fats: ${profile.fatsGoal || 'Not set'}g
-- Hydration goal: ${profile.hydrationGoal || 6} ${profile.volumeUnit || 'sachets'}/day
+  const cardText = await callClaude(cardPrompt, claudeKey, 1600);
+  const stripped = cardText.replace(/```json|```/g, '').trim();
+  const jsonMatch = stripped.match(/\[[\s\S]*\]/);
 
-USER DATA:
-- Fasting sessions: ${JSON.stringify(recentSessions)}
-- Weight logs: ${JSON.stringify(recentWeight)}
-- Check-ins: ${JSON.stringify(recentCheckIns)}
-- Recent meals: ${JSON.stringify(recentMealsSlice)}
-- Water logs: ${JSON.stringify(recentWater)}
-- Meals with emotional/physical context: ${JSON.stringify(recentEnriched)}
+  if (!jsonMatch) throw new Error('Could not parse insight cards from Claude response');
+  const rawCards = JSON.parse(jsonMatch[0]);
+  const cards = rawCards.map((card, i) => ({ ...card, ...CARD_COLORS[i % CARD_COLORS.length] }));
 
-Look at this person's goals vs their actual progress across all areas — fasting consistency, weight progress, nutrition, hydration, energy, mood. Generate actionable insight cards — things they can specifically learn from or act on.
-
-Rules:
-- Each card must tie directly to a real pattern or gap you see between their goals and their data
-- Be encouraging, never judgmental
-- The "desc" is a short teaser shown on the card (1-2 sentences)
-- The "body" is the full insight shown when they tap "Learn more" (3-5 sentences, specific and actionable)
-- Generate between 2 and 5 cards — only where there are genuine goal-vs-progress observations
-
-Return ONLY a valid JSON array, no markdown, no explanation:
-[
-  { "title": "...", "desc": "...", "body": "..." },
-  ...
-]`;
-}
-
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  const CLAUDE_KEY = process.env.CLAUDE_KEY;
-  if (!CLAUDE_KEY) return res.status(500).json({ error: 'API key not configured' });
-
-  const { type, data } = req.body || {};
-  if (!type || !data) return res.status(400).json({ error: 'Missing type or data' });
-
-  try {
-    if (type === 'daily_insights') {
-      // Stage 1: Analyst — find the real patterns
-      const processedData = preprocessData(data);
-      const analystPrompt = `${ANALYST_PROMPT}\n\nHEALTH DATA FOR ANALYSIS:\n\n${processedData}`;
-      const analysis = await callClaude(analystPrompt, CLAUDE_KEY);
-
-      // Stage 2: Card generator — turn analysis into human insight cards
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = tomorrow.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-      const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}`;
-      const cardText = await callClaude(cardPrompt, CLAUDE_KEY, 1600);
-
-      const stripped = cardText.replace(/```json|```/g, '').trim();
-      const jsonMatch = stripped.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        console.error('[/api/ai daily_insights] No JSON array in card response:', cardText.slice(0, 300));
-        return res.status(500).json({ error: 'Could not parse insight cards' });
-      }
-
-      const rawCards = JSON.parse(jsonMatch[0]);
-      const cards = rawCards.map((card, i) => ({
-        ...card,
-        ...CARD_COLORS[i % CARD_COLORS.length],
-      }));
-
-      // Stage 3: Prediction — one notification-ready sentence for tomorrow, or null
-      const predictionPrompt = `You have just analysed a person's health data and written ${cards.length} insight cards for them. Based on the analysis and cards, decide whether there is ONE meaningful prediction worth sending as a push notification tomorrow.
-
+  const predictionPrompt = `You have just analysed a person's health data and written ${cards.length} insight cards for them. Based on the analysis and cards, decide whether there is ONE meaningful prediction worth sending as a push notification tomorrow.
+  
 The prediction should feel like the Flow app — personal, surprising, data-backed. Something the person hasn't noticed but the data clearly shows is coming.
-
-Rules:
+  
+  Rules:
 - Text: 10-15 words max. Confident, direct. No "you might" — say it like you know. No relative day words ("today", "tomorrow", "tonight"). Write it so it reads naturally at the moment it fires.
+
 - Timing: pick hour (0-23) and minute (0 or 30 only) based on the user's ACTUAL behavioral patterns from the data — meal timestamps, fast break times, check-in times. Not a generic time.
 - cardIndex: 0-based index of the card this prediction relates to most.
 - Only return a prediction if it is genuinely data-backed. If nothing stands out, return null.
-
 CARDS GENERATED:
 ${cards.map((c, i) => `[${i}] ${c.feeling}`).join('\n')}
 
@@ -470,39 +393,20 @@ ${analysis.slice(0, 1500)}
 
 Return ONLY one of:
 {"text":"...","cardIndex":0,"hour":12,"minute":0}
+
 or the word: null`;
+  let prediction = null;
 
-      let prediction = null;
-      try {
-        const predText = (await callClaude(predictionPrompt, CLAUDE_KEY, 150)).trim();
-        if (predText && predText !== 'null') {
-          const predMatch = predText.match(/\{[\s\S]*\}/);
-          if (predMatch) {
-            const p = JSON.parse(predMatch[0]);
-            if (p.text && p.hour != null) prediction = p;
-          }
-        }
-      } catch (_) {}
-
-      return res.status(200).json({ cards, alertCard: '', prediction });
-    }
-
-    if (type === 'just_for_you') {
-      const prompt = buildJustForYouPrompt(data);
-      const text = await callClaude(prompt, CLAUDE_KEY);
-      const stripped = text.replace(/```json|```/g, '').trim();
-      const jsonMatch = stripped.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        console.error('[/api/ai just_for_you] No JSON array in response:', text.slice(0, 300));
-        return res.status(500).json({ error: 'Could not parse response' });
+  try {
+    const predText = (await callClaude(predictionPrompt, claudeKey, 150)).trim();
+    if (predText && predText !== 'null') {
+      const predMatch = predText.match(/\{[\s\S]*\}/);
+      if (predMatch) {
+        const p = JSON.parse(predMatch[0]);
+        if (p.text && p.hour != null) prediction = p;
       }
-      const cards = JSON.parse(jsonMatch[0]);
-      return res.status(200).json({ cards });
     }
+  } catch (_) {}
+  return { cards, alertCard: '', prediction };
 
-    return res.status(400).json({ error: 'Invalid type' });
-  } catch (e) {
-    console.error('[/api/ai exception]', e);
-    return res.status(500).json({ error: e.message });
-  }
 }
