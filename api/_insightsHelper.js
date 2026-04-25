@@ -367,7 +367,7 @@ const processedData = preprocessData(data);
     : '';
   const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}${groundTruth}`;
 
-  const cardText = await callClaude(cardPrompt, claudeKey, 1600);
+  const cardText = await callClaude(cardPrompt, claudeKey, 2048);
   const stripped = cardText.replace(/```json|```/g, '').trim();
   const jsonMatch = stripped.match(/\[[\s\S]*\]/);
 

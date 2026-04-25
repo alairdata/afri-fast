@@ -436,7 +436,7 @@ export default async function handler(req, res) {
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = tomorrow.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}`;
-      const cardText = await callClaude(cardPrompt, CLAUDE_KEY, 1600);
+      const cardText = await callClaude(cardPrompt, CLAUDE_KEY, 2048);
 
       const stripped = cardText.replace(/```json|```/g, '').trim();
       const jsonMatch = stripped.match(/\[[\s\S]*\]/);
