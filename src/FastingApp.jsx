@@ -1812,7 +1812,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                   {durationHrs > 0 ? `${durationHrs}h ` : ''}{durationMins}m
                 </Text>
 
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 12, width: '100%' }}>
                   <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }}>
                     <Text style={{ fontSize: 10, fontWeight: '600', color: 'rgba(0,0,0,0.35)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Stage</Text>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: '#059669', textAlign: 'center', lineHeight: 18 }}>{stage}</Text>
@@ -1823,7 +1823,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                   </View>
                 </View>
 
-                <View style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#fff' }}>
+                <View style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#fff', width: '100%' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 }}>
                     <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.4)' }}>Started</Text>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>{startFmt} · {startDateFmt}</Text>
