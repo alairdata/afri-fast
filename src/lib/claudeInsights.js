@@ -82,21 +82,34 @@ async function saveRemoteCache(userId, type, payload) {
 
 // Returns fresh cached data (local or remote) or null if both are stale.
 // maxAge: milliseconds TTL (JFY). If null, uses slot-based freshness (daily insights).
+//
+// Server is the source of truth across devices. We always read both local and
+// remote in parallel and prefer whichever is more recent — that way every
+// device converges on the same cards and we never burn an extra API call when
+// another device already generated them.
 async function getCached(cacheKey, userId, remoteType, maxAge = null) {
   const isStale = (ts) => maxAge ? (Date.now() - ts > maxAge) : (ts < lastScheduledSlot());
 
-  const local = await getLocalCache(cacheKey, userId);
-  if (local && !isStale(local.timestamp)) return local;
+  const [local, remote] = await Promise.all([
+    getLocalCache(cacheKey, userId),
+    getRemoteCache(userId, remoteType),
+  ]);
 
-  // Local is stale or missing — check Supabase for cross-device sync
-  const remote = await getRemoteCache(userId, remoteType);
-  if (!remote) return null;
+  const localTs = local?.timestamp || 0;
+  const remoteTs = remote?.timestamp || 0;
+  const localFresh = local && !isStale(localTs);
+  const remoteFresh = remote && !isStale(remoteTs);
 
-  if (!isStale(remote.timestamp)) {
-    // Remote is fresh — sync to local so next read is instant
-    await saveLocalCache(cacheKey, userId, { cards: remote.cards, alertCard: remote.alertCard });
-    return { userId, timestamp: remote.timestamp, cards: remote.cards, alertCard: remote.alertCard };
+  // Remote at least as recent as local and fresh → use remote (and sync down if newer).
+  if (remoteFresh && remoteTs >= localTs) {
+    if (remoteTs > localTs) {
+      await saveLocalCache(cacheKey, userId, { cards: remote.cards, alertCard: remote.alertCard });
+    }
+    return { userId, timestamp: remoteTs, cards: remote.cards, alertCard: remote.alertCard };
   }
+
+  // Otherwise fall back to local if it's still fresh (offline / remote unreachable).
+  if (localFresh) return local;
 
   return null;
 }
