@@ -100,17 +100,29 @@ async function getCached(cacheKey, userId, remoteType, maxAge = null) {
   const localFresh = local && !isStale(localTs);
   const remoteFresh = remote && !isStale(remoteTs);
 
+  const log = (chose) => console.log(
+    `[insights-cache] ${remoteType}`,
+    'local:', localTs ? new Date(localTs).toISOString() : 'none',
+    'remote:', remoteTs ? new Date(remoteTs).toISOString() : 'none',
+    '→', chose,
+  );
+
   // Remote at least as recent as local and fresh → use remote (and sync down if newer).
   if (remoteFresh && remoteTs >= localTs) {
     if (remoteTs > localTs) {
       await saveLocalCache(cacheKey, userId, { cards: remote.cards, alertCard: remote.alertCard });
     }
+    log('remote');
     return { userId, timestamp: remoteTs, cards: remote.cards, alertCard: remote.alertCard };
   }
 
   // Otherwise fall back to local if it's still fresh (offline / remote unreachable).
-  if (localFresh) return local;
+  if (localFresh) {
+    log('local');
+    return local;
+  }
 
+  log('miss');
   return null;
 }
 
