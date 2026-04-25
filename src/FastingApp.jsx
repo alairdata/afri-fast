@@ -446,7 +446,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
     (async () => {
       try {
-        // 1. Try AsyncStorage first (instant, works on same device)
+        // 1. Read local tombstone + cached active fast for instant optimistic restore
         const local = await AsyncStorage.getItem(ACTIVE_FAST_KEY);
         const lastEndedRaw = await AsyncStorage.getItem(LAST_FAST_END_KEY);
         if (lastEndedRaw) {
@@ -454,68 +454,61 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           if (parsedEnd?.userId === userId && parsedEnd?.endTime > 0) {
             lastEndedAt = Number(parsedEnd.endTime);
             setLastFastEndTime(lastEndedAt);
-            console.warn('[fast-trace] restored lastFastEndTime from storage', {
-              userId,
-              lastEndedAt,
-            });
-            pushFastDebugEvent('restored lastFastEndTime', {
-              userId,
-              lastEndedAt,
-            });
           }
         }
+        let localStartTime = 0;
+        let localPlan = null;
         if (local) {
           const parsed = JSON.parse(local);
-          console.warn('[fast-trace] local ACTIVE_FAST_KEY found', parsed);
-          pushFastDebugEvent('local ACTIVE_FAST_KEY', parsed);
           if (parsed.userId === userId) {
-            if (shouldRestoreFast(parsed.startTime)) {
-              applyFastRestore(parsed.startTime, parsed.plan);
-              // Sync to active_fasts table so other devices can restore
-              supabase.from('active_fasts').upsert({
-                user_id: userId,
-                start_time: parsed.startTime,
-                plan: parsed.plan || '16:8',
-                updated_at: new Date().toISOString(),
-              }, { onConflict: 'user_id' }).then(({ error }) => {
-                if (error) console.error('[active_fasts sync error]', error);
-              });
-              return;
+            localStartTime = Number(parsed.startTime || 0);
+            localPlan = parsed.plan || null;
+            if (shouldRestoreFast(localStartTime)) {
+              applyFastRestore(localStartTime, localPlan);
             }
-            if (parsed.startTime > 0) {
-              persistEndedState(lastEndedAt || Date.now());
-            }
-            // startTime === 0 is a tombstone — user explicitly ended on this device.
-            // Don't fall back to Supabase (it might be stale due to async upsert race).
-            return;
           }
         }
-        // 2. Fallback: query active_fasts table (cross-device / PWA restore)
-        // Re-fetch live session to ensure Supabase client is authenticated before querying
+
+        // 2. Always reconcile with Supabase — it's the source of truth for cross-device sync
         const { data: { session: liveSession } } = await supabase.auth.getSession();
         const liveUserId = liveSession?.user?.id || userId;
         const { data, error } = await supabase
           .from('active_fasts')
-          .select('start_time, plan')
+          .select('start_time, plan, updated_at')
           .eq('user_id', liveUserId)
           .maybeSingle();
-        console.log('[active_fasts restore]', { data, error, userId: liveUserId });
         if (error) { console.error('[active_fasts fetch error]', error); return; }
-        pushFastDebugEvent('active_fasts restore', {
-          start_time: data?.start_time || null,
-          plan: data?.plan || null,
-          userId: liveUserId,
-        });
-        if (shouldRestoreFast(data?.start_time)) {
-          applyFastRestore(Number(data.start_time), data.plan);
-          // Repopulate AsyncStorage for next time
+        if (!data) return;
+
+        const remoteStart = Number(data.start_time || 0);
+        const remoteUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
+
+        if (shouldRestoreFast(remoteStart)) {
+          // Supabase has an active fast we should restore (cross-device new fast,
+          // or first load on a fresh device).
+          applyFastRestore(remoteStart, data.plan);
           AsyncStorage.setItem(ACTIVE_FAST_KEY, JSON.stringify({
             userId,
-            startTime: data.start_time,
+            startTime: remoteStart,
             plan: data.plan,
           })).catch(() => {});
-        } else if (data?.start_time > 0) {
-          persistEndedState(lastEndedAt || Date.now());
+        } else if (remoteStart === 0) {
+          // Supabase tombstone. Honor it unless our local end is significantly newer
+          // (prevents a stale fetch from clobbering a just-completed local end-fast).
+          const localEndIsNewer = lastEndedAt && remoteUpdatedAt < lastEndedAt - 5000;
+          if (!localEndIsNewer) {
+            persistEndedState(remoteUpdatedAt || lastEndedAt || Date.now());
+          }
+        } else if (localStartTime > 0 && remoteStart === 0 && remoteUpdatedAt < (lastEndedAt || 0)) {
+          // Local says active fast and is newer than the Supabase tombstone — push local up.
+          supabase.from('active_fasts').upsert({
+            user_id: userId,
+            start_time: localStartTime,
+            plan: localPlan || '16:8',
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id' }).then(({ error: upErr }) => {
+            if (upErr) console.error('[active_fasts sync error]', upErr);
+          });
         }
       } catch (_) {}
       finally {
