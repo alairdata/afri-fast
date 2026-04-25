@@ -1802,6 +1802,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         const startFmt = fastStartTime ? fmt(new Date(fastStartTime).getHours(), new Date(fastStartTime).getMinutes()) : '--';
         const startDateFmt = fastStartTime ? new Date(fastStartTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
         const endFmt = fmt(summaryEndHour, summaryEndMinute);
+        const endDateFmt = summaryEndDateStr
+          ? (() => { const [y, mo, d] = summaryEndDateStr.split('-').map(Number); return new Date(y, mo - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); })()
+          : startDateFmt;
 
         return (
           <Modal visible={showEndFastSummary} transparent animationType="slide">
@@ -1826,7 +1829,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                 <View style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#fff', width: '100%' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 }}>
                     <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.4)' }}>Started</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>{startFmt} · {startDateFmt}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>{startDateFmt} · {startFmt}</Text>
                   </View>
                   <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)' }} />
                   <TouchableOpacity
@@ -1835,7 +1838,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                   >
                     <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.4)' }}>Ended</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#059669' }}>{endFmt}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#059669' }}>{endDateFmt} · {endFmt}</Text>
                       <Ionicons name="pencil-outline" size={13} color="#059669" />
                     </View>
                   </TouchableOpacity>
