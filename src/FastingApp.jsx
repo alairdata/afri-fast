@@ -137,6 +137,62 @@ function normalizeMealDate(dateStr) {
   return dateStr;
 }
 
+const CONFETTI_COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#EF4444', '#8B5CF6', '#EC4899', '#F97316'];
+const CONFETTI_COUNT = 60;
+
+function ConfettiBurst({ onDone }) {
+  const particles = useRef(
+    Array.from({ length: CONFETTI_COUNT }, (_, i) => {
+      const angle = (Math.PI * 2 * i) / CONFETTI_COUNT + Math.random() * 0.3;
+      const speed = 180 + Math.random() * 220;
+      return {
+        x: new Animated.Value(0),
+        y: new Animated.Value(0),
+        opacity: new Animated.Value(1),
+        rotate: new Animated.Value(0),
+        dx: Math.cos(angle) * speed,
+        dy: Math.sin(angle) * speed - 120,
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      };
+    })
+  ).current;
+
+  useEffect(() => {
+    const anims = particles.map((p) =>
+      Animated.parallel([
+        Animated.timing(p.x, { toValue: p.dx, duration: 800, useNativeDriver: true }),
+        Animated.timing(p.y, { toValue: p.dy + 300, duration: 800, useNativeDriver: true }),
+        Animated.timing(p.opacity, { toValue: 0, duration: 800, delay: 200, useNativeDriver: true }),
+        Animated.timing(p.rotate, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    Animated.parallel(anims).start(() => onDone?.());
+  }, []);
+
+  return (
+    <View style={{ position: 'absolute', top: '40%', left: '50%', zIndex: 999, pointerEvents: 'none' }}>
+      {particles.map((p, i) => (
+        <Animated.View
+          key={i}
+          style={{
+            position: 'absolute',
+            width: 8,
+            height: 8,
+            borderRadius: 2,
+            backgroundColor: p.color,
+            transform: [
+              { translateX: p.x },
+              { translateY: p.y },
+              { rotate: p.rotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
+            ],
+            opacity: p.opacity,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
 const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // === Core fasting state ===
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -866,6 +922,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [summaryEndMinute, setSummaryEndMinute] = useState(0);
   const [summaryEndDateStr, setSummaryEndDateStr] = useState('');
   const [showSummaryTimeEdit, setShowSummaryTimeEdit] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const pendingConfettiEndTs = useRef(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleEndFast = () => {
@@ -1754,18 +1812,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                   {durationHrs > 0 ? `${durationHrs}h ` : ''}{durationMins}m
                 </Text>
 
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 20 }}>
-                  <View style={{ flex: 1, backgroundColor: '#D1FAE5', borderRadius: 16, padding: 14, alignItems: 'center' }}>
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#065F46', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Stage</Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 12 }}>
+                  <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: 'rgba(0,0,0,0.35)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Stage</Text>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: '#059669', textAlign: 'center', lineHeight: 18 }}>{stage}</Text>
                   </View>
-                  <View style={{ flex: 1, backgroundColor: '#EDE9FE', borderRadius: 16, padding: 14, alignItems: 'center' }}>
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#4C1D95', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Fast</Text>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#7C3AED', textAlign: 'center' }}>#{fastNumber}</Text>
+                  <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: 'rgba(0,0,0,0.35)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Fast count</Text>
+                    <Text style={{ fontSize: 22, fontWeight: '800', color: '#7C3AED', textAlign: 'center' }}>{fastNumber}</Text>
                   </View>
                 </View>
 
-                <View style={{ backgroundColor: '#F9FAFB', borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
+                <View style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#fff' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 }}>
                     <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.4)' }}>Started</Text>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>{startFmt} · {startDateFmt}</Text>
@@ -1785,7 +1843,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
                 <TouchableOpacity
                   style={[styles.modalPrimaryBtn, { backgroundColor: '#059669' }]}
-                  onPress={() => confirmEndFast(true, summaryEndTs)}
+                  onPress={() => {
+                    pendingConfettiEndTs.current = summaryEndTs;
+                    setShowConfetti(true);
+                  }}
                 >
                   <Text style={[styles.modalPrimaryBtnText, { color: '#fff' }]}>Finish Fast</Text>
                 </TouchableOpacity>
@@ -1795,6 +1856,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                 >
                   <Text style={styles.modalSecondaryBtnText}>Continue Fasting</Text>
                 </TouchableOpacity>
+
+                {showConfetti && (
+                  <ConfettiBurst onDone={() => {
+                    setShowConfetti(false);
+                    confirmEndFast(true, pendingConfettiEndTs.current);
+                  }} />
+                )}
               </View>
             </View>
           </Modal>
