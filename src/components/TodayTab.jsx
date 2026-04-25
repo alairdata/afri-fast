@@ -654,8 +654,7 @@ const TodayTab = ({
                 activeOpacity={0.82}
               >
                 <View style={styles.eduContent}>
-                  <Text style={styles.eduTitle} numberOfLines={3}>{card.feeling}</Text>
-                  <Text style={styles.eduDesc} numberOfLines={3}>{card.why?.replace(/\*\*/g, '').slice(0, 90)}…</Text>
+                  <Text style={styles.eduFeeling} numberOfLines={4}>{card.feeling}</Text>
                   <View style={styles.eduBtn}>
                     <Text style={styles.eduBtnText}>{card.cta || 'Read on'}</Text>
                   </View>
@@ -1316,6 +1315,14 @@ const makeStyles = (c) => StyleSheet.create({
     marginBottom: 8,
     lineHeight: 26,
     letterSpacing: -0.3,
+  },
+  eduFeeling: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: 'rgba(255,255,255,0.92)',
+    lineHeight: 22,
+    flex: 1,
+    marginBottom: 16,
   },
   eduDesc: {
     fontSize: 14,
