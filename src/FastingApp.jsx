@@ -1357,6 +1357,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           onStartFast={handleStartFast}
           onEndFast={handleEndFast}
           isRestoringFast={isRestoringFast}
+          lastFastEndTime={lastFastEndTime}
           fastingSessions={fastingSessions}
           recentMeals={recentMeals}
           waterCount={waterCount}

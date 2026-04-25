@@ -191,6 +191,7 @@ const TodayTab = ({
   onNavigateToHydration,
   onStartFast,
   onEndFast,
+  lastFastEndTime,
   fastingSessions,
   recentMeals,
   waterCount,
@@ -291,12 +292,19 @@ const TodayTab = ({
   // Time since last fast counter
   useEffect(() => {
     if (isFasting) { setTimeSinceFast(null); return; }
-    const lastCompleted = (fastingSessions || [])
+    // Use whichever is most recent: the in-memory end time (catches sub-30min
+    // fasts that don't get logged to fasting_sessions) or the latest logged
+    // session's endTime.
+    const latestLogged = (fastingSessions || [])
       .filter(s => s.endTime)
-      .sort((a, b) => Number(b.endTime) - Number(a.endTime))[0];
-    if (!lastCompleted) { setTimeSinceFast(null); return; }
+      .sort((a, b) => Number(b.endTime) - Number(a.endTime))[0]?.endTime;
+    const eatingWindowStart = Math.max(
+      Number(lastFastEndTime) || 0,
+      Number(latestLogged) || 0,
+    );
+    if (!eatingWindowStart) { setTimeSinceFast(null); return; }
     const tick = () => {
-      const diff = Math.floor((Date.now() - Number(lastCompleted.endTime)) / 1000);
+      const diff = Math.floor((Date.now() - eatingWindowStart) / 1000);
       if (diff < 0) { setTimeSinceFast(null); return; }
       const h = Math.floor(diff / 3600);
       const m = Math.floor((diff % 3600) / 60);
@@ -306,7 +314,7 @@ const TodayTab = ({
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [isFasting, fastingSessions]);
+  }, [isFasting, fastingSessions, lastFastEndTime]);
 
   const formatDate = () => {
     const options = { weekday: 'long', month: 'short', day: 'numeric' };
