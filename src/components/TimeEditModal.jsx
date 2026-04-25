@@ -2,13 +2,14 @@ import React, { useRef, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, Vibration } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const ITEM_H = 48;
+const ITEM_H = 46;
 const VISIBLE = 5;
 const PICKER_H = ITEM_H * VISIBLE;
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+// Generate date strings (YYYY-MM-DD) for past 13 days up to and including today (no future)
 const buildDates = () => {
   const result = [];
   const now = new Date();
@@ -20,7 +21,7 @@ const buildDates = () => {
     const dd   = String(d.getDate()).padStart(2, '0');
     result.push(`${yyyy}-${mm}-${dd}`);
   }
-  return result;
+  return result; // 14 dates: 13 past days + today
 };
 
 const formatDateLabel = (dateStr) => {
@@ -51,6 +52,7 @@ const PickerCol = ({ items, value, onChange, format, flex }) => {
 
   useEffect(() => {
     if (idx < 0) return;
+    // Double rAF ensures layout is complete before scrolling
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         ref.current?.scrollTo({ y: idx * ITEM_H, animated: false });
@@ -121,21 +123,21 @@ const col = StyleSheet.create({
   selBand: {
     position: 'absolute',
     top: ITEM_H * 2,
-    left: 6, right: 6,
+    left: 4, right: 4,
     height: ITEM_H,
-    backgroundColor: 'rgba(5,150,105,0.07)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(5, 150, 105, 0.08)',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(5,150,105,0.18)',
+    borderColor: 'rgba(5, 150, 105, 0.15)',
     zIndex: 1,
   },
-  item:     { height: ITEM_H, alignItems: 'center', justifyContent: 'center' },
+  item: { height: ITEM_H, alignItems: 'center', justifyContent: 'center' },
   text:     { fontSize: 18, fontWeight: '500', color: '#1F1F1F' },
-  textSel:  { fontSize: 21, fontWeight: '800', color: '#059669' },
+  textSel:  { fontSize: 20, fontWeight: '700', color: '#059669' },
   textNear: { fontSize: 17, fontWeight: '400', color: '#9CA3AF' },
-  textFar:  { fontSize: 14, fontWeight: '400', color: '#E5E7EB' },
-  fadeTop:  { position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H * 2, zIndex: 2 },
-  fadeBot:  { position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H * 2, zIndex: 2 },
+  textFar:  { fontSize: 15, fontWeight: '400', color: '#E5E7EB' },
+  fadeTop: { position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H * 2, zIndex: 2 },
+  fadeBot: { position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H * 2, zIndex: 2 },
 });
 
 const TimeEditModal = ({
@@ -156,6 +158,7 @@ const TimeEditModal = ({
   const setHour = isStart ? setStartHour   : setEndHour;
   const setMin  = isStart ? setStartMinute : setEndMinute;
 
+  // Fallback: if editDateStr not in list, use today
   const activeDateStr = dates.includes(editDateStr) ? editDateStr : dates[dates.length - 1];
 
   return (
@@ -164,35 +167,28 @@ const TimeEditModal = ({
 
         <View style={s.handle} />
 
-        {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={onClose} style={s.cancelBtn}>
+          <TouchableOpacity style={s.headerBtn} onPress={onClose}>
             <Text style={s.cancelText}>Cancel</Text>
           </TouchableOpacity>
           <Text style={s.title}>{isStart ? 'Start Time' : 'End Time'}</Text>
-          <TouchableOpacity onPress={onSave} style={s.doneBtn}>
+          <TouchableOpacity style={s.headerBtn} onPress={onSave}>
             <Text style={s.doneText}>Done</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Column labels */}
-        <View style={s.colLabels}>
-          <Text style={[s.colLabel, { flex: 2, textAlign: 'center' }]}>Date</Text>
-          <View style={{ width: 1 }} />
-          <Text style={[s.colLabel, { flex: 1, textAlign: 'center' }]}>Hour</Text>
-          <View style={{ width: 28 }} />
-          <Text style={[s.colLabel, { flex: 1, textAlign: 'center' }]}>Min</Text>
-        </View>
-
-        {/* Pickers */}
         <View style={s.pickers}>
-          <PickerCol items={dates} value={activeDateStr} onChange={setEditDateStr} format={formatDateLabel} flex={2} />
-          <View style={s.divider} />
-          <PickerCol items={hours} value={hour} onChange={setHour} flex={1} />
-          <View style={s.colonWrap}>
-            <Text style={s.colonText}>:</Text>
-          </View>
-          <PickerCol items={mins} value={minute} onChange={setMin} flex={1} />
+          <PickerCol
+            items={dates}
+            value={activeDateStr}
+            onChange={setEditDateStr}
+            format={formatDateLabel}
+            flex={2}
+          />
+          <View style={s.colDivider} />
+          <PickerCol items={hours}  value={hour}   onChange={setHour} flex={1} />
+          <View style={s.colDivider} />
+          <PickerCol items={mins}   value={minute} onChange={setMin}  flex={1} />
         </View>
 
       </TouchableOpacity>
@@ -204,7 +200,7 @@ const s = StyleSheet.create({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
     alignItems: 'center',
     zIndex: 1000,
@@ -212,75 +208,45 @@ const s = StyleSheet.create({
   sheet: {
     width: '100%',
     maxWidth: 430,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingBottom: 40,
+    paddingBottom: 36,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 20,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 16,
   },
   handle: {
-    width: 40, height: 4,
+    width: 36, height: 4,
     backgroundColor: '#E5E7EB',
     borderRadius: 2,
     alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 4,
+    marginTop: 10,
+    marginBottom: 2,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  cancelBtn: { minWidth: 70 },
-  cancelText: { fontSize: 15, color: '#9CA3AF', fontWeight: '500' },
-  title: { fontSize: 16, fontWeight: '700', color: '#111', letterSpacing: -0.3 },
-  doneBtn: {
-    backgroundColor: '#059669',
-    borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 7,
-    minWidth: 70,
-    alignItems: 'center',
+    paddingVertical: 12,
   },
-  doneText: { fontSize: 14, color: '#fff', fontWeight: '700' },
-  colLabels: {
-    flexDirection: 'row',
-    paddingHorizontal: 10,
-    paddingBottom: 6,
-    alignItems: 'center',
-  },
-  colLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: 'rgba(0,0,0,0.28)',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
+  headerBtn:  { paddingHorizontal: 4, paddingVertical: 4, minWidth: 64 },
+  title:      { fontSize: 15, fontWeight: '600', color: '#1F1F1F' },
+  cancelText: { fontSize: 15, color: '#9CA3AF', fontWeight: '500' },
+  doneText:   { fontSize: 15, color: '#059669', fontWeight: '700', textAlign: 'right' },
   pickers: {
     flexDirection: 'row',
     paddingHorizontal: 10,
-    alignItems: 'center',
-  },
-  divider: {
-    width: 1,
-    height: PICKER_H * 0.5,
-    backgroundColor: 'rgba(0,0,0,0.06)',
-  },
-  colonWrap: {
-    width: 28,
-    alignItems: 'center',
+    paddingTop: 4,
     paddingBottom: 4,
   },
-  colonText: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#059669',
+  colDivider: {
+    width: 1,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    marginVertical: 12,
   },
 });
 
