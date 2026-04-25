@@ -191,6 +191,9 @@ const TodayTab = ({
   onNavigateToHydration,
   onStartFast,
   onEndFast,
+  fastStartTime,
+  lastFastEndTime,
+  fastDebugEvents,
   fastingSessions,
   recentMeals,
   waterCount,
@@ -291,12 +294,29 @@ const TodayTab = ({
   // Time since last fast counter
   useEffect(() => {
     if (isFasting) { setTimeSinceFast(null); return; }
-    const lastCompleted = (fastingSessions || [])
+    const mostRecentCompleted = (fastingSessions || [])
       .filter(s => s.endTime)
-      .sort((a, b) => new Date(b.endTime) - new Date(a.endTime))[0];
-    if (!lastCompleted) { setTimeSinceFast(null); return; }
+      .sort((a, b) => Number(b.endTime) - Number(a.endTime))[0];
+    const eatingWindowStart = lastFastEndTime || mostRecentCompleted?.endTime || null;
+    console.warn('[fast-trace] TodayTab eating-window source', {
+      isFasting,
+      lastFastEndTime,
+      mostRecentCompletedEndTime: mostRecentCompleted?.endTime || null,
+      chosenEatingWindowStart: eatingWindowStart,
+    });
+    if (typeof window !== 'undefined') {
+      window.__AFRI_FAST_DEBUG__ = {
+        isFasting,
+        fastStartTime,
+        lastFastEndTime,
+        mostRecentCompletedEndTime: mostRecentCompleted?.endTime || null,
+        chosenEatingWindowStart: eatingWindowStart,
+        fastDebugEvents: fastDebugEvents || [],
+      };
+    }
+    if (!eatingWindowStart) { setTimeSinceFast(null); return; }
     const tick = () => {
-      const diff = Math.floor((Date.now() - new Date(lastCompleted.endTime).getTime()) / 1000);
+      const diff = Math.floor((Date.now() - Number(eatingWindowStart)) / 1000);
       if (diff < 0) { setTimeSinceFast(null); return; }
       const h = Math.floor(diff / 3600);
       const m = Math.floor((diff % 3600) / 60);
@@ -306,7 +326,7 @@ const TodayTab = ({
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [isFasting, fastingSessions]);
+  }, [isFasting, fastingSessions, lastFastEndTime, fastStartTime, fastDebugEvents]);
 
   const formatDate = () => {
     const options = { weekday: 'long', month: 'short', day: 'numeric' };
@@ -671,6 +691,22 @@ const TodayTab = ({
                   )}
                 </TouchableOpacity>
               </View>
+            </View>
+            <View style={styles.debugCard}>
+              <Text style={styles.debugTitle}>Debug State</Text>
+              <Text style={styles.debugLine}>isFasting: {String(isFasting)}</Text>
+              <Text style={styles.debugLine}>fastStartTime: {fastStartTime ? new Date(fastStartTime).toLocaleString() : 'null'}</Text>
+              <Text style={styles.debugLine}>lastFastEndTime: {lastFastEndTime ? new Date(lastFastEndTime).toLocaleString() : 'null'}</Text>
+              <Text style={styles.debugLine}>latestSessionEnd: {(() => {
+                const latest = (fastingSessions || []).filter(s => s.endTime).sort((a, b) => Number(b.endTime) - Number(a.endTime))[0];
+                return latest?.endTime ? new Date(latest.endTime).toLocaleString() : 'null';
+              })()}</Text>
+              <Text style={styles.debugTitle}>Recent Events</Text>
+              {(fastDebugEvents || []).slice(0, 6).map((event) => (
+                <Text key={event.id} style={styles.debugEvent}>
+                  [{event.at}] {event.label}: {JSON.stringify(event.data)}
+                </Text>
+              ))}
             </View>
           </View>
         </View>
@@ -1223,6 +1259,31 @@ const makeStyles = (c) => StyleSheet.create({
   fastTimeEditIcon: {
     fontSize: 8,
     color: '#059669',
+  },
+  debugCard: {
+    alignSelf: 'stretch',
+    marginTop: 8,
+    borderRadius: 14,
+    padding: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(15, 23, 42, 0.08)',
+  },
+  debugTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: c.text,
+    marginBottom: 6,
+  },
+  debugLine: {
+    fontSize: 11,
+    color: c.textSecondary,
+    marginBottom: 3,
+  },
+  debugEvent: {
+    fontSize: 10,
+    color: c.textMuted,
+    marginBottom: 4,
   },
   sectionTight: {
     marginTop: 12,

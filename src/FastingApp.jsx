@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './lib/supabase';
 
 const ACTIVE_FAST_KEY = 'afri_active_fast_v1';
+const LAST_FAST_END_KEY = 'afri_last_fast_end_v1';
 const SETTINGS_KEY = 'afri_user_settings_v2';
 import {
   requestNotificationPermissions,
@@ -137,62 +138,6 @@ function normalizeMealDate(dateStr) {
   return dateStr;
 }
 
-const CONFETTI_COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#EF4444', '#8B5CF6', '#EC4899', '#F97316'];
-const CONFETTI_COUNT = 60;
-
-function ConfettiBurst({ onDone }) {
-  const particles = useRef(
-    Array.from({ length: CONFETTI_COUNT }, (_, i) => {
-      const angle = (Math.PI * 2 * i) / CONFETTI_COUNT + Math.random() * 0.3;
-      const speed = 180 + Math.random() * 220;
-      return {
-        x: new Animated.Value(0),
-        y: new Animated.Value(0),
-        opacity: new Animated.Value(1),
-        rotate: new Animated.Value(0),
-        dx: Math.cos(angle) * speed,
-        dy: Math.sin(angle) * speed - 120,
-        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-      };
-    })
-  ).current;
-
-  useEffect(() => {
-    const anims = particles.map((p) =>
-      Animated.parallel([
-        Animated.timing(p.x, { toValue: p.dx, duration: 800, useNativeDriver: true }),
-        Animated.timing(p.y, { toValue: p.dy + 300, duration: 800, useNativeDriver: true }),
-        Animated.timing(p.opacity, { toValue: 0, duration: 800, delay: 200, useNativeDriver: true }),
-        Animated.timing(p.rotate, { toValue: 1, duration: 800, useNativeDriver: true }),
-      ])
-    );
-    Animated.parallel(anims).start(() => onDone?.());
-  }, []);
-
-  return (
-    <View style={{ position: 'absolute', top: '40%', left: '50%', zIndex: 999, pointerEvents: 'none' }}>
-      {particles.map((p, i) => (
-        <Animated.View
-          key={i}
-          style={{
-            position: 'absolute',
-            width: 8,
-            height: 8,
-            borderRadius: 2,
-            backgroundColor: p.color,
-            transform: [
-              { translateX: p.x },
-              { translateY: p.y },
-              { rotate: p.rotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
-            ],
-            opacity: p.opacity,
-          }}
-        />
-      ))}
-    </View>
-  );
-}
-
 const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // === Core fasting state ===
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -201,6 +146,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [fastingSeconds, setFastingSeconds] = useState(0);
   const [isFasting, setIsFasting] = useState(false);
   const [fastStartTime, setFastStartTime] = useState(null);
+  const [lastFastEndTime, setLastFastEndTime] = useState(null);
   const [isRestoringFast, setIsRestoringFast] = useState(true);
   const [dataLoadCount, setDataLoadCount] = useState(0);
   const [fastingSessions, setFastingSessions] = useState([]);
@@ -359,6 +305,60 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [endSecond, setEndSecond] = useState(0);
   // Date string (YYYY-MM-DD) used by TimeEditModal drum-roll date column
   const [editDateStr, setEditDateStr] = useState('');
+  const [fastDebugEvents, setFastDebugEvents] = useState([]);
+
+  const pushFastDebugEvent = (label, data = {}) => {
+    setFastDebugEvents((prev) => [
+      {
+        id: Date.now() + Math.random(),
+        at: new Date().toLocaleTimeString('en-US', { hour12: false }),
+        label,
+        data,
+      },
+      ...prev,
+    ].slice(0, 12));
+  };
+
+  const persistFastEndedState = (endedAt, planOverride = null) => {
+    const resolvedPlan = planOverride || selectedPlan || '16:8';
+    console.warn('[fast-trace] persistFastEndedState', {
+      endedAt,
+      resolvedPlan,
+      wasFasting: isFasting,
+      previousFastStartTime: fastStartTime,
+    });
+    pushFastDebugEvent('persistFastEndedState', {
+      endedAt,
+      resolvedPlan,
+      wasFasting: isFasting,
+      previousFastStartTime: fastStartTime,
+    });
+    setIsFasting(false);
+    setFastStartTime(null);
+    setLastFastEndTime(endedAt || null);
+    setFastingHours(0);
+    setFastingMinutes(0);
+    setFastingSeconds(0);
+    AsyncStorage.setItem(ACTIVE_FAST_KEY, JSON.stringify({
+      userId: session?.user?.id,
+      startTime: 0,
+      plan: resolvedPlan,
+    })).catch(() => {});
+    if (endedAt > 0) {
+      AsyncStorage.setItem(LAST_FAST_END_KEY, JSON.stringify({
+        userId: session?.user?.id,
+        endTime: endedAt,
+      })).catch(() => {});
+    }
+    supabase.from('active_fasts').upsert({
+      user_id: session?.user?.id,
+      start_time: 0,
+      plan: resolvedPlan,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' }).then(({ error }) => {
+      if (error) console.error('[active_fasts end-fast upsert error]', error);
+    });
+  };
 
   const upsertProfile = async (patch, label) => {
     if (!session?.user?.id) {
@@ -389,12 +389,50 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
   // === Restore active fast — AsyncStorage first (instant), then active_fasts table (cross-device) ===
   useEffect(() => {
-    if (!session?.user?.id) return;
+    const userId = session?.user?.id;
+    if (!userId) return;
+    let lastEndedAt = null;
+    const persistEndedState = (endedAt) => {
+      console.warn('[fast-trace] restore rejected, forcing ended state', {
+        endedAt,
+        selectedPlan,
+      });
+      pushFastDebugEvent('restore rejected', {
+        endedAt,
+        selectedPlan,
+      });
+      persistFastEndedState(endedAt, selectedPlan || '16:8');
+    };
+    const shouldRestoreFast = (startTime) => {
+      const decision = !(startTime > 0) ? false : !(lastEndedAt > 0) ? true : Number(startTime) > Number(lastEndedAt);
+      console.warn('[fast-trace] shouldRestoreFast', {
+        startTime,
+        lastEndedAt,
+        decision,
+      });
+      pushFastDebugEvent('shouldRestoreFast', {
+        startTime,
+        lastEndedAt,
+        decision,
+      });
+      return decision;
+    };
     const applyFastRestore = (startTime, plan) => {
       const restoredPlan = plan || '16:8';
       const toLabel = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      console.warn('[fast-trace] applyFastRestore', {
+        startTime,
+        restoredPlan,
+        lastEndedAt,
+      });
+      pushFastDebugEvent('applyFastRestore', {
+        startTime,
+        restoredPlan,
+        lastEndedAt,
+      });
       setIsFasting(true);
       setFastStartTime(startTime);
+      setSelectedPlan(restoredPlan);
       const startDate = new Date(startTime);
       setStartDay(toLabel(startDate));
       setStartHour(startDate.getHours());
@@ -410,48 +448,116 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       try {
         // 1. Try AsyncStorage first (instant, works on same device)
         const local = await AsyncStorage.getItem(ACTIVE_FAST_KEY);
+        const lastEndedRaw = await AsyncStorage.getItem(LAST_FAST_END_KEY);
+        if (lastEndedRaw) {
+          const parsedEnd = JSON.parse(lastEndedRaw);
+          if (parsedEnd?.userId === userId && parsedEnd?.endTime > 0) {
+            lastEndedAt = Number(parsedEnd.endTime);
+            setLastFastEndTime(lastEndedAt);
+            console.warn('[fast-trace] restored lastFastEndTime from storage', {
+              userId,
+              lastEndedAt,
+            });
+            pushFastDebugEvent('restored lastFastEndTime', {
+              userId,
+              lastEndedAt,
+            });
+          }
+        }
         if (local) {
           const parsed = JSON.parse(local);
-          if (parsed.userId === session.user.id && parsed.startTime > 0) {
-            applyFastRestore(parsed.startTime, parsed.plan);
-            // Sync to active_fasts table so other devices can restore
-            supabase.from('active_fasts').upsert({
-              user_id: session.user.id,
-              start_time: parsed.startTime,
-              plan: parsed.plan || '16:8',
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'user_id' }).then(({ error }) => {
-              if (error) console.error('[active_fasts sync error]', error);
-            });
+          console.warn('[fast-trace] local ACTIVE_FAST_KEY found', parsed);
+          pushFastDebugEvent('local ACTIVE_FAST_KEY', parsed);
+          if (parsed.userId === userId) {
+            if (shouldRestoreFast(parsed.startTime)) {
+              applyFastRestore(parsed.startTime, parsed.plan);
+              // Sync to active_fasts table so other devices can restore
+              supabase.from('active_fasts').upsert({
+                user_id: userId,
+                start_time: parsed.startTime,
+                plan: parsed.plan || '16:8',
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'user_id' }).then(({ error }) => {
+                if (error) console.error('[active_fasts sync error]', error);
+              });
+              return;
+            }
+            if (parsed.startTime > 0) {
+              persistEndedState(lastEndedAt || Date.now());
+            }
+            // startTime === 0 is a tombstone — user explicitly ended on this device.
+            // Don't fall back to Supabase (it might be stale due to async upsert race).
             return;
           }
         }
         // 2. Fallback: query active_fasts table (cross-device / PWA restore)
         // Re-fetch live session to ensure Supabase client is authenticated before querying
         const { data: { session: liveSession } } = await supabase.auth.getSession();
-        const userId = liveSession?.user?.id || session.user.id;
+        const liveUserId = liveSession?.user?.id || userId;
         const { data, error } = await supabase
           .from('active_fasts')
           .select('start_time, plan')
-          .eq('user_id', userId)
+          .eq('user_id', liveUserId)
           .maybeSingle();
-        console.log('[active_fasts restore]', { data, error, userId });
+        console.log('[active_fasts restore]', { data, error, userId: liveUserId });
         if (error) { console.error('[active_fasts fetch error]', error); return; }
-        if (data?.start_time > 0) {
+        pushFastDebugEvent('active_fasts restore', {
+          start_time: data?.start_time || null,
+          plan: data?.plan || null,
+          userId: liveUserId,
+        });
+        if (shouldRestoreFast(data?.start_time)) {
           applyFastRestore(Number(data.start_time), data.plan);
           // Repopulate AsyncStorage for next time
           AsyncStorage.setItem(ACTIVE_FAST_KEY, JSON.stringify({
-            userId: session.user.id,
+            userId,
             startTime: data.start_time,
             plan: data.plan,
           })).catch(() => {});
+        } else if (data?.start_time > 0) {
+          persistEndedState(lastEndedAt || Date.now());
         }
       } catch (_) {}
       finally {
         setIsRestoringFast(false);
       }
     })();
-  }, [session]);
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    const latestCompletedEnd = Math.max(
+      0,
+      ...(fastingSessions || [])
+        .map((session) => Number(session?.endTime) || 0)
+        .filter(Boolean)
+    );
+    if (!latestCompletedEnd) return;
+    if (!isFasting) {
+      if (!lastFastEndTime || latestCompletedEnd > lastFastEndTime) {
+        console.warn('[fast-trace] syncing lastFastEndTime from fastingSessions', {
+          latestCompletedEnd,
+          previousLastFastEndTime: lastFastEndTime,
+        });
+        pushFastDebugEvent('sync lastFastEndTime from sessions', {
+          latestCompletedEnd,
+          previousLastFastEndTime: lastFastEndTime,
+        });
+        setLastFastEndTime(latestCompletedEnd);
+      }
+      return;
+    }
+    if (fastStartTime && latestCompletedEnd >= fastStartTime) {
+      console.warn('[fast-trace] active fast conflicts with completed session, forcing end', {
+        fastStartTime,
+        latestCompletedEnd,
+      });
+      pushFastDebugEvent('conflict: active fast vs completed session', {
+        fastStartTime,
+        latestCompletedEnd,
+      });
+      persistFastEndedState(latestCompletedEnd, selectedPlan || '16:8');
+    }
+  }, [fastingSessions, isFasting, fastStartTime, lastFastEndTime, selectedPlan]);
 
   // Restore Make it Yours settings from AsyncStorage (instant — before DB fetch)
   useEffect(() => {
@@ -881,7 +987,16 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     }
     const now = new Date();
     const startTs = now.getTime();
+    console.warn('[fast-trace] handleStartFast', {
+      startTs,
+      selectedPlan,
+    });
+    pushFastDebugEvent('handleStartFast', {
+      startTs,
+      selectedPlan,
+    });
     setFastStartTime(startTs);
+    setLastFastEndTime(null);
     setFastingHours(0);
     setFastingMinutes(0);
     setFastingSeconds(0);
@@ -895,6 +1010,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       startTime: startTs,
       plan: selectedPlan,
     })).catch(() => {});
+    AsyncStorage.removeItem(LAST_FAST_END_KEY).catch(() => {});
     supabase.from('active_fasts').upsert({
       user_id: session?.user?.id,
       start_time: startTs,
@@ -922,11 +1038,19 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [summaryEndMinute, setSummaryEndMinute] = useState(0);
   const [summaryEndDateStr, setSummaryEndDateStr] = useState('');
   const [showSummaryTimeEdit, setShowSummaryTimeEdit] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const pendingConfettiEndTs = useRef(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleEndFast = () => {
+    console.warn('[fast-trace] handleEndFast opened', {
+      fastStartTime,
+      selectedPlan,
+      currentElapsedSeconds: fastStartTime ? Math.floor((Date.now() - fastStartTime) / 1000) : null,
+    });
+    pushFastDebugEvent('handleEndFast opened', {
+      fastStartTime,
+      selectedPlan,
+      currentElapsedSeconds: fastStartTime ? Math.floor((Date.now() - fastStartTime) / 1000) : null,
+    });
     if (fastStartTime) {
       const elapsedMinutes = (Date.now() - fastStartTime) / 1000 / 60;
       if (elapsedMinutes < 30) {
@@ -935,17 +1059,25 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       }
     }
     const now = new Date();
-    setSummaryEndHour(now.getHours());
-    setSummaryEndMinute(now.getMinutes());
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    setSummaryEndDateStr(`${yyyy}-${mm}-${dd}`);
-    setShowEndFastSummary(true);
+    confirmEndFast(true, now.getTime());
   };
 
   const confirmEndFast = (shouldLog, customEndTime = null) => {
     const endTime = customEndTime || Date.now();
+    console.warn('[fast-trace] confirmEndFast', {
+      shouldLog,
+      customEndTime,
+      resolvedEndTime: endTime,
+      fastStartTime,
+      selectedPlan,
+    });
+    pushFastDebugEvent('confirmEndFast', {
+      shouldLog,
+      customEndTime,
+      resolvedEndTime: endTime,
+      fastStartTime,
+      selectedPlan,
+    });
     cancelFastingNotifications();
     setShowEndFastSummary(false);
     setShowEndFastWarning(false);
@@ -957,7 +1089,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         endTime: endTime,
         durationHours: Math.floor(duration / 3600),
         durationMinutes: Math.floor((duration % 3600) / 60),
-        plan: selectedPlan,
+        plan: selectedPlan || '16:8',
         date: new Date(endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       };
       setFastingSessions(prev => [fastSession, ...prev]);
@@ -977,20 +1109,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         : `${mins}min${mins !== 1 ? 's' : ''}`;
       showToast(`Yaay! You fasted for ${timeStr} — well done!`);
     }
-    setIsFasting(false);
-    setFastStartTime(null);
-    setFastingHours(0);
-    setFastingMinutes(0);
-    setFastingSeconds(0);
-    AsyncStorage.removeItem(ACTIVE_FAST_KEY).catch(() => {});
-    supabase.from('active_fasts').upsert({
-      user_id: session?.user?.id,
-      start_time: 0,
-      plan: null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' }).then(({ error }) => {
-      if (error) console.error('[active_fasts end-fast upsert error]', error);
-    });
+    persistFastEndedState(endTime, selectedPlan || '16:8');
   };
 
   const prefersReducedMotion = Platform.OS === 'web' &&
@@ -1174,7 +1293,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         endTime: newEndTime,
         durationHours: Math.floor(duration / 3600),
         durationMinutes: Math.floor((duration % 3600) / 60),
-        plan: selectedPlan,
+        plan: selectedPlan || '16:8',
         date: new Date(newEndTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       };
       setFastingSessions(prev => [fastSession, ...prev]);
@@ -1184,18 +1303,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         duration_hours: fastSession.durationHours, duration_minutes: fastSession.durationMinutes,
         plan: fastSession.plan, date: fastSession.date,
       }), 'save fasting_session', (msg) => showToast(msg, 'error'));
-      setIsFasting(false);
-      setFastStartTime(null);
-      setFastingHours(0); setFastingMinutes(0); setFastingSeconds(0);
-      AsyncStorage.removeItem(ACTIVE_FAST_KEY).catch(() => {});
-      supabase.from('active_fasts').upsert({
-        user_id: session?.user?.id,
-        start_time: 0,
-        plan: null,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' }).then(({ error }) => {
-        if (error) console.error('[active_fasts end-fast upsert error]', error);
-      });
+      persistFastEndedState(newEndTime, selectedPlan || '16:8');
       showToast('Fast ended!');
     }
     setShowTimeModal(false);
@@ -1256,6 +1364,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           onStartFast={handleStartFast}
           onEndFast={handleEndFast}
           isRestoringFast={isRestoringFast}
+          fastStartTime={fastStartTime}
+          lastFastEndTime={lastFastEndTime}
+          fastDebugEvents={fastDebugEvents}
           fastingSessions={fastingSessions}
           recentMeals={recentMeals}
           waterCount={waterCount}
@@ -1865,10 +1976,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
                   <TouchableOpacity
                     style={[styles.modalPrimaryBtn, { backgroundColor: '#059669', marginBottom: 0 }]}
-                    onPress={() => {
-                      pendingConfettiEndTs.current = summaryEndTs;
-                      setShowConfetti(true);
-                    }}
+                    onPress={() => confirmEndFast(true, summaryEndTs)}
                   >
                     <Text style={[styles.modalPrimaryBtnText, { color: '#fff' }]}>Finish Fast</Text>
                   </TouchableOpacity>
@@ -1879,13 +1987,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                     <Text style={styles.modalSecondaryBtnText}>Continue Fasting</Text>
                   </TouchableOpacity>
                 </View>
-
-                {showConfetti && (
-                  <ConfettiBurst onDone={() => {
-                    setShowConfetti(false);
-                    confirmEndFast(true, pendingConfettiEndTs.current);
-                  }} />
-                )}
 
                 {showSummaryTimeEdit && (
                   <TimeEditModal

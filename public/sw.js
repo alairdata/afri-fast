@@ -1,28 +1,13 @@
-const CACHE_NAME = 'afri-fast-v3';
-const STATIC_ASSETS = ['/'];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
-  self.skipWaiting();
-});
-
+// Self-unregistering service worker — replaces the previous caching SW.
+// When this loads, it wipes itself and all caches so the page serves fresh code.
+self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', (event) => {
-  // Network-first for API calls
-  if (event.request.url.includes('generativelanguage.googleapis.com')) {
-    return;
-  }
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    Promise.all([
+      caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))),
+      self.registration.unregister(),
+    ]).then(() => self.clients.matchAll().then((clients) => {
+      clients.forEach((c) => c.navigate(c.url));
+    }))
   );
 });
