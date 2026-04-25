@@ -1793,7 +1793,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           : progress < 0.5 ? 'Settling In'
           : progress < 0.75 ? 'Fat-Burning Shift'
           : progress < 1 ? 'Almost There'
-          : '🎯 Goal Reached';
+          : 'Goal Reached';
         const fastNumber = (fastingSessions || []).length + 1;
         const fmt = (h, m) => {
           const period = h >= 12 ? 'PM' : 'AM';
