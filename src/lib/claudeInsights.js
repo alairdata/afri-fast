@@ -56,7 +56,7 @@ async function getRemoteCache(userId, type) {
       .select('cards, alert_card, refreshed_at')
       .eq('user_id', userId)
       .eq('type', type)
-      .single();
+      .maybeSingle();
     if (error || !data) return null;
     return {
       cards: data.cards,
