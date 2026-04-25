@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, ActivityIndicator, Animated, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, Animated, RefreshControl } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
 import { getJustForYou } from '../lib/claudeInsights';
@@ -100,6 +100,43 @@ const skeletonStyles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#C4C4C4',
   },
+});
+
+const JfySkeletonCard = () => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 1, duration: 850, useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 0, duration: 850, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.7] });
+  return (
+    <Animated.View style={[jfySkeletonStyles.card, { opacity }]}>
+      <View style={jfySkeletonStyles.line1} />
+      <View style={jfySkeletonStyles.line2} />
+      <View style={jfySkeletonStyles.line3} />
+      <View style={jfySkeletonStyles.btn} />
+    </Animated.View>
+  );
+};
+
+const jfySkeletonStyles = StyleSheet.create({
+  card: {
+    width: 280,
+    height: 220,
+    borderRadius: 24,
+    backgroundColor: '#C4C4C4',
+    marginRight: 12,
+    padding: 24,
+    justifyContent: 'space-between',
+  },
+  line1: { height: 14, width: '90%', borderRadius: 7, backgroundColor: 'rgba(255,255,255,0.3)', marginBottom: 8 },
+  line2: { height: 14, width: '75%', borderRadius: 7, backgroundColor: 'rgba(255,255,255,0.3)', marginBottom: 8 },
+  line3: { height: 14, width: '55%', borderRadius: 7, backgroundColor: 'rgba(255,255,255,0.3)' },
+  btn:   { height: 38, width: 100, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', marginTop: 'auto' },
 });
 
 const TypewriterText = ({ text, style, numberOfLines, delay = 0 }) => {
@@ -643,9 +680,7 @@ const TodayTab = ({
           <Text style={styles.sectionTitleTight}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
             {jfyLoading ? (
-              <View style={[styles.educationCard, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="small" color="#fff" />
-              </View>
+              [0, 1, 2].map(i => <JfySkeletonCard key={i} />)
             ) : (justForYouCards || []).map((card, i) => (
               <TouchableOpacity
                 key={i}
@@ -1318,7 +1353,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   eduFeeling: {
     fontSize: 15,
-    fontWeight: '400',
+    fontWeight: '700',
     color: 'rgba(255,255,255,0.92)',
     lineHeight: 22,
     flex: 1,
