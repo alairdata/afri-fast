@@ -20,7 +20,7 @@ const INSIGHT_POOL = [
   { title: 'Consistency beats perfection', subtitle: 'Six imperfect fasts beat two perfect ones every single week', color: '#E3F2FD', accent: '#2196F3' },
   { title: 'Morning light resets hunger', subtitle: 'Sunlight in your first hour regulates appetite hormones all day', color: '#FFF3E0', accent: '#FF9800' },
   { title: 'African foods and fasting', subtitle: 'Fermented foods like ogi support gut bacteria that make fasting easier', color: '#E8F5E9', accent: '#4CAF50' },
-  { title: 'Stress breaks fasts (sort of)', subtitle: 'Cortisol spikes can stall fat burning even when you haven't eaten', color: '#EDE7F6', accent: '#7C3AED' },
+  { title: 'Stress breaks fasts (sort of)', subtitle: "Cortisol spikes can stall fat burning even when you haven't eaten", color: '#EDE7F6', accent: '#7C3AED' },
   { title: 'Weight fluctuates — that\'s normal', subtitle: 'Day-to-day changes are mostly water, not fat. Look at weekly trends', color: '#FCE4EC', accent: '#E91E63' },
   { title: 'The hunger wave passes', subtitle: 'True hunger peaks then fades within 20 minutes — outlast it', color: '#E3F2FD', accent: '#2196F3' },
   { title: 'Calories aren\'t the whole story', subtitle: 'When you eat matters almost as much as what you eat', color: '#FFF3E0', accent: '#FF9800' },
