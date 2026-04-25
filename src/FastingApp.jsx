@@ -1829,7 +1829,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                 <View style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#fff', width: '100%' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 }}>
                     <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.4)' }}>Started</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>{startDateFmt} · {startFmt}</Text>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.45)' }}>{startDateFmt}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#111', marginTop: 2 }}>{startFmt}</Text>
+                    </View>
                   </View>
                   <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)' }} />
                   <TouchableOpacity
@@ -1838,7 +1841,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                   >
                     <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.4)' }}>Ended</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#059669' }}>{endDateFmt} · {endFmt}</Text>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.45)' }}>{endDateFmt}</Text>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: '#059669', marginTop: 2 }}>{endFmt}</Text>
+                      </View>
                       <Ionicons name="pencil-outline" size={13} color="#059669" />
                     </View>
                   </TouchableOpacity>
