@@ -3,11 +3,35 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, ActivityIndicator, Animated, RefreshControl } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
-import { getCachedDailyInsights, getScheduledDailyInsights, insightsNeedRefresh, getJustForYou } from '../lib/claudeInsights';
+import { getJustForYou } from '../lib/claudeInsights';
 import FormattedText from '../lib/FormattedText';
-import { schedulePredictionNotification } from '../lib/notifications';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const INSIGHT_POOL = [
+  { title: 'Fat burning starts here', subtitle: 'After 12h fasting, your body flips its fuel source', color: '#E8F5E9', accent: '#4CAF50' },
+  { title: 'Protein protects muscle', subtitle: 'Eating enough protein stops your body burning muscle during a fast', color: '#E3F2FD', accent: '#2196F3' },
+  { title: 'Water amplifies fasting', subtitle: 'Dehydration mimics hunger — most cravings are actually thirst', color: '#E0F7FA', accent: '#0097A7' },
+  { title: 'Sleep is your secret weapon', subtitle: 'Poor sleep raises hunger hormones by up to 24% the next day', color: '#EDE7F6', accent: '#7C3AED' },
+  { title: 'The 16h milestone', subtitle: 'At 16 hours your body begins producing more growth hormone', color: '#E8F5E9', accent: '#4CAF50' },
+  { title: 'Electrolytes matter', subtitle: 'Salt, potassium and magnesium keep energy stable through a long fast', color: '#FFF3E0', accent: '#FF9800' },
+  { title: 'Breaking your fast right', subtitle: 'What you eat first ends your fast — make it count with protein and fibre', color: '#FCE4EC', accent: '#E91E63' },
+  { title: 'Your gut needs rest too', subtitle: 'Fasting gives your digestive system the break it rarely gets', color: '#E0F7FA', accent: '#0097A7' },
+  { title: 'Consistency beats perfection', subtitle: 'Six imperfect fasts beat two perfect ones every single week', color: '#E3F2FD', accent: '#2196F3' },
+  { title: 'Morning light resets hunger', subtitle: 'Sunlight in your first hour regulates appetite hormones all day', color: '#FFF3E0', accent: '#FF9800' },
+  { title: 'African foods and fasting', subtitle: 'Fermented foods like ogi support gut bacteria that make fasting easier', color: '#E8F5E9', accent: '#4CAF50' },
+  { title: 'Stress breaks fasts (sort of)', subtitle: 'Cortisol spikes can stall fat burning even when you haven't eaten', color: '#EDE7F6', accent: '#7C3AED' },
+  { title: 'Weight fluctuates — that\'s normal', subtitle: 'Day-to-day changes are mostly water, not fat. Look at weekly trends', color: '#FCE4EC', accent: '#E91E63' },
+  { title: 'The hunger wave passes', subtitle: 'True hunger peaks then fades within 20 minutes — outlast it', color: '#E3F2FD', accent: '#2196F3' },
+  { title: 'Calories aren\'t the whole story', subtitle: 'When you eat matters almost as much as what you eat', color: '#FFF3E0', accent: '#FF9800' },
+  { title: 'Movement extends your fast', subtitle: 'Light walking after eating lowers blood sugar and makes fasting easier next time', color: '#E0F7FA', accent: '#0097A7' },
+];
+
+function getTodayInsightCards(count = 4) {
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+  const start = dayOfYear % INSIGHT_POOL.length;
+  return Array.from({ length: count }, (_, i) => INSIGHT_POOL[(start + i) % INSIGHT_POOL.length]);
+}
 
 const InsightSkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -158,21 +182,11 @@ const TodayTab = ({
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
 
-  const [dailyInsightCards, setDailyInsightCards] = useState(null);
-  const [claudeAlertCard, setClaudeAlertCard] = useState(null);
   const [timeSinceFast, setTimeSinceFast] = useState(null);
   const [justForYouCards, setJustForYouCards] = useState(null);
-  const [insightLoading, setInsightLoading] = useState(true);
   const [jfyLoading, setJfyLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Open a specific card when tapped from a prediction notification
-  useEffect(() => {
-    if (pendingInsightIndex != null && dailyInsightCards?.[pendingInsightIndex]) {
-      setSelectedInsight(dailyInsightCards[pendingInsightIndex]);
-      onClearPendingInsight?.();
-    }
-  }, [pendingInsightIndex, dailyInsightCards]);
+  const todayInsightCards = getTodayInsightCards(4);
 
   const buildEnrichedMealLogs = () =>
     (recentMeals || []).map(meal => {
@@ -218,24 +232,6 @@ const TodayTab = ({
   });
 
   const fetchInsights = async (payload) => {
-    const userId = payload?.profile?.userId;
-    const needsRefresh = await insightsNeedRefresh(userId);
-    if (needsRefresh) {
-      setDailyInsightCards(null); // clear so shimmer shows
-      setInsightLoading(true);
-    }
-    try {
-      const result = await getScheduledDailyInsights(payload);
-      if (result?.cards?.length) {
-        setDailyInsightCards(result.cards);
-        if (result.alertCard) setClaudeAlertCard(result.alertCard);
-        if (!result.fromCache && result.prediction && Platform.OS !== 'web') {
-          schedulePredictionNotification(result.prediction).catch(() => {});
-        }
-      }
-    } catch (_) {}
-    setInsightLoading(false);
-
     setJfyLoading(true);
     getJustForYou(payload)
       .then(cards => { setJustForYouCards(cards); setJfyLoading(false); })
@@ -418,8 +414,7 @@ const TodayTab = ({
   const significantlyOver = calorieRatio !== null && calorieRatio > 1.15;
   const significantlyUnder = calorieRatio !== null && calorieRatio < 0.5 && todayCalories > 0;
 
-  // Claude-generated alert card (from daily insights call), with computed fallback
-  let alertInsight = claudeAlertCard;
+  let alertInsight = null;
   if (!alertInsight) {
     if (recentSessions14.length > 0 && recentCheckIns.length === 0) {
       alertInsight = "You haven't checked in during any of your recent fasts. Check-ins help us understand how your body is responding and give you better coaching.";
@@ -643,39 +638,7 @@ const TodayTab = ({
           </View>
         </View>
 
-        {/* Today's Insights */}
-        <View style={[styles.sectionTight, { marginTop: 28 }]}>
-          <Text style={styles.sectionTitleTight}>Today's Insights</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.insightsScrollCompact}>
-            {insightLoading && !dailyInsightCards ? (
-              [0, 1, 2].map(i => <InsightSkeletonCard key={i} />)
-            ) : (dailyInsightCards || []).map((insight, i) => (
-              <TouchableOpacity
-                key={i}
-                style={[styles.insightCardCompact, { backgroundColor: isDark ? colors.card : (insight.color || '#E8F5E9') }]}
-                onPress={insight.feeling ? () => setSelectedInsight(insight) : undefined}
-                activeOpacity={insight.feeling ? 0.75 : 1}
-              >
-                <View style={[styles.insightAccentSmall, { backgroundColor: insight.accent || '#4CAF50' }]} />
-                {insight.feeling ? (
-                  <TypewriterText
-                    text={insight.feeling}
-                    style={[styles.insightFeelingText, isDark && { color: colors.text }]}
-                    numberOfLines={4}
-                    delay={i * 150}
-                  />
-                ) : (
-                  <>
-                    <Text style={[styles.insightTitleSmall, isDark && { color: colors.text }]} numberOfLines={2}>{insight.title}</Text>
-                    <Text style={[styles.insightSubSmall, isDark && { color: colors.textSecondary }]} numberOfLines={2}>{insight.subtitle}</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Just for You Cards */}
+        {/* Just for You Cards — weekly AI insights */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <Text style={styles.sectionTitleTight}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
@@ -689,9 +652,26 @@ const TodayTab = ({
                   <Text style={styles.eduTitle}>{card.title}</Text>
                   <Text style={styles.eduDesc} numberOfLines={3}>{card.desc}</Text>
                   <TouchableOpacity style={styles.eduBtn} onPress={() => setSelectedArticle({ title: card.title, body: card.body })}>
-                    <Text style={styles.eduBtnText}>Learn more</Text>
+                    <Text style={styles.eduBtnText}>{card.cta || 'Read on'}</Text>
                   </TouchableOpacity>
                 </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Today's Insights — daily rotating lessons, no API cost */}
+        <View style={[styles.sectionTight, { marginTop: 28 }]}>
+          <Text style={styles.sectionTitleTight}>Today's Insights</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.insightsScrollCompact}>
+            {todayInsightCards.map((insight, i) => (
+              <View
+                key={i}
+                style={[styles.insightCardCompact, { backgroundColor: isDark ? colors.card : insight.color }]}
+              >
+                <View style={[styles.insightAccentSmall, { backgroundColor: insight.accent }]} />
+                <Text style={[styles.insightTitleSmall, isDark && { color: colors.text }]} numberOfLines={2}>{insight.title}</Text>
+                <Text style={[styles.insightSubSmall, isDark && { color: colors.textSecondary }]} numberOfLines={3}>{insight.subtitle}</Text>
               </View>
             ))}
           </ScrollView>

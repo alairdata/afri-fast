@@ -394,18 +394,19 @@ USER DATA:
 - Water logs: ${JSON.stringify(recentWater)}
 - Meals with emotional/physical context: ${JSON.stringify(recentEnriched)}
 
-Look at this person's goals vs their actual progress across all areas — fasting consistency, weight progress, nutrition, hydration, energy, mood. Generate actionable insight cards — things they can specifically learn from or act on.
+Look at this person's goals vs their actual progress across all areas — fasting consistency, weight progress, nutrition, hydration, energy, mood. Generate actionable insight cards — things they can specifically learn from or act on. These refresh weekly so they must reflect genuine patterns across the past 7 days, not just surface observations.
 
 Rules:
 - Each card must tie directly to a real pattern or gap you see between their goals and their data
 - Be encouraging, never judgmental
 - The "desc" is a short teaser shown on the card (1-2 sentences)
-- The "body" is the full insight shown when they tap "Learn more" (3-5 sentences, specific and actionable)
-- Generate between 2 and 5 cards — only where there are genuine goal-vs-progress observations
+- The "body" is the full insight shown when they tap the CTA button (3-5 sentences, specific and actionable)
+- The "cta" is a 2-word button label you choose — make it feel curious or personal, never generic. Examples: "Find out", "Dig in", "See why", "Tell me", "Show me", "Read on", "Unpack it", "Worth knowing". Never use "Learn more".
+- Generate between 3 and 5 cards — only where there are genuine goal-vs-progress observations
 
 Return ONLY a valid JSON array, no markdown, no explanation:
 [
-  { "title": "...", "desc": "...", "body": "..." },
+  { "title": "...", "desc": "...", "body": "...", "cta": "..." },
   ...
 ]`;
 }
