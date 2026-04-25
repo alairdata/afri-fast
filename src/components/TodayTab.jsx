@@ -638,7 +638,7 @@ const TodayTab = ({
           </View>
         </View>
 
-        {/* Just for You Cards — weekly AI insights */}
+        {/* Just for You Cards — weekly AI insights (analyst + card pipeline) */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <Text style={styles.sectionTitleTight}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
@@ -647,15 +647,20 @@ const TodayTab = ({
                 <ActivityIndicator size="small" color="#fff" />
               </View>
             ) : (justForYouCards || []).map((card, i) => (
-              <View key={i} style={[styles.educationCard, { backgroundColor: ['#059669', '#0F766E', '#9333EA', '#1D4ED8', '#B45309'][i % 5] }]}>
+              <TouchableOpacity
+                key={i}
+                style={[styles.educationCard, { backgroundColor: ['#059669', '#0F766E', '#9333EA', '#1D4ED8', '#B45309'][i % 5] }]}
+                onPress={() => setSelectedInsight(card)}
+                activeOpacity={0.82}
+              >
                 <View style={styles.eduContent}>
-                  <Text style={styles.eduTitle}>{card.title}</Text>
-                  <Text style={styles.eduDesc} numberOfLines={3}>{card.desc}</Text>
-                  <TouchableOpacity style={styles.eduBtn} onPress={() => setSelectedArticle({ title: card.title, body: card.body })}>
+                  <Text style={styles.eduTitle} numberOfLines={3}>{card.feeling}</Text>
+                  <Text style={styles.eduDesc} numberOfLines={3}>{card.why?.replace(/\*\*/g, '').slice(0, 90)}…</Text>
+                  <View style={styles.eduBtn}>
                     <Text style={styles.eduBtnText}>{card.cta || 'Read on'}</Text>
-                  </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
