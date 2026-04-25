@@ -163,14 +163,14 @@ export async function getJustForYou(data, forceRefresh = false) {
   if (!userId) return null;
 
   if (!forceRefresh) {
-    const cached = await getCached(JFY_CACHE_KEY, userId, 'just_for_you', JFY_TTL);
+    const cached = await getCached(JFY_CACHE_KEY, userId, 'just_for_you_v2', JFY_TTL);
     if (cached?.cards?.length) return cached.cards;
   }
 
   try {
     const result = await callApi('just_for_you', data);
     const cards = result?.cards;
-    if (cards?.length) await saveCache(JFY_CACHE_KEY, userId, 'just_for_you', { cards });
+    if (cards?.length) await saveCache(JFY_CACHE_KEY, userId, 'just_for_you_v2', { cards });
     return cards;
   } catch (e) {
     console.error('[JustForYou error]', e);
