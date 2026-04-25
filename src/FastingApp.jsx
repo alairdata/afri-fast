@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Dimensions, Animated, Platform, StatusBar, Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -860,10 +861,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   };
 
   const [showEndFastWarning, setShowEndFastWarning] = useState(false);
+  const [showEndFastSummary, setShowEndFastSummary] = useState(false);
+  const [summaryEndHour, setSummaryEndHour] = useState(0);
+  const [summaryEndMinute, setSummaryEndMinute] = useState(0);
+  const [summaryEndDateStr, setSummaryEndDateStr] = useState('');
+  const [showSummaryTimeEdit, setShowSummaryTimeEdit] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleEndFast = () => {
-    // Check if fasting less than 30 minutes
     if (fastStartTime) {
       const elapsedMinutes = (Date.now() - fastStartTime) / 1000 / 60;
       if (elapsedMinutes < 30) {
@@ -871,22 +876,31 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         return;
       }
     }
-    confirmEndFast(true);
+    const now = new Date();
+    setSummaryEndHour(now.getHours());
+    setSummaryEndMinute(now.getMinutes());
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    setSummaryEndDateStr(`${yyyy}-${mm}-${dd}`);
+    setShowEndFastSummary(true);
   };
 
-  const confirmEndFast = (shouldLog) => {
+  const confirmEndFast = (shouldLog, customEndTime = null) => {
+    const endTime = customEndTime || Date.now();
     cancelFastingNotifications();
+    setShowEndFastSummary(false);
     setShowEndFastWarning(false);
     if (shouldLog && fastStartTime) {
-      const duration = Math.floor((Date.now() - fastStartTime) / 1000);
+      const duration = Math.floor((endTime - fastStartTime) / 1000);
       const fastSession = {
         id: Date.now(),
         startTime: fastStartTime,
-        endTime: Date.now(),
+        endTime: endTime,
         durationHours: Math.floor(duration / 3600),
         durationMinutes: Math.floor((duration % 3600) / 60),
         plan: selectedPlan,
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        date: new Date(endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       };
       setFastingSessions(prev => [fastSession, ...prev]);
       dbSave(supabase.from('fasting_sessions').insert({
@@ -897,7 +911,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       }), 'save fasting_session', (msg) => showToast(msg, 'error'));
     }
     if (shouldLog && fastStartTime) {
-      const duration = Math.floor((Date.now() - fastStartTime) / 1000);
+      const duration = Math.floor((endTime - fastStartTime) / 1000);
       const hrs = Math.floor(duration / 3600);
       const mins = Math.floor((duration % 3600) / 60);
       const timeStr = hrs > 0
@@ -1703,6 +1717,112 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           </View>
         </View>
       </Modal>
+
+      {/* === End Fast Summary Modal === */}
+      {(() => {
+        if (!showEndFastSummary) return null;
+        const summaryEndTs = (() => {
+          if (!summaryEndDateStr) return Date.now();
+          const [yyyy, mm, dd] = summaryEndDateStr.split('-').map(Number);
+          return new Date(yyyy, mm - 1, dd, summaryEndHour, summaryEndMinute, 0, 0).getTime();
+        })();
+        const durationSecs = fastStartTime ? Math.max(0, Math.floor((summaryEndTs - fastStartTime) / 1000)) : 0;
+        const durationHrs = Math.floor(durationSecs / 3600);
+        const durationMins = Math.floor((durationSecs % 3600) / 60);
+        const targetHours = parseInt((selectedPlan || '16:8').split(':')[0]) || 16;
+        const progress = targetHours > 0 ? (durationHrs + durationMins / 60) / targetHours : 0;
+        const stage = progress < 0.25 ? 'Fed State'
+          : progress < 0.5 ? 'Settling In'
+          : progress < 0.75 ? 'Fat-Burning Shift'
+          : progress < 1 ? 'Almost There'
+          : '🎯 Goal Reached';
+        const fastNumber = (fastingSessions || []).length + 1;
+        const fmt = (h, m) => {
+          const period = h >= 12 ? 'PM' : 'AM';
+          return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${period}`;
+        };
+        const startFmt = fastStartTime ? fmt(new Date(fastStartTime).getHours(), new Date(fastStartTime).getMinutes()) : '--';
+        const startDateFmt = fastStartTime ? new Date(fastStartTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+        const endFmt = fmt(summaryEndHour, summaryEndMinute);
+
+        return (
+          <Modal visible={showEndFastSummary} transparent animationType="slide">
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalCard, { paddingTop: 28, paddingBottom: 28, width: '92%', maxWidth: 400 }]}>
+                <Text style={{ fontSize: 13, fontWeight: '500', color: 'rgba(0,0,0,0.4)', letterSpacing: 0.5, marginBottom: 4, textAlign: 'center' }}>You fasted for</Text>
+                <Text style={{ fontSize: 48, fontWeight: '800', color: '#059669', letterSpacing: -2, textAlign: 'center', lineHeight: 56 }}>
+                  {durationHrs > 0 ? `${durationHrs}h ` : ''}{durationMins}m
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 20 }}>
+                  <View style={{ flex: 1, backgroundColor: '#D1FAE5', borderRadius: 16, padding: 14, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#065F46', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Stage</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#059669', textAlign: 'center', lineHeight: 18 }}>{stage}</Text>
+                  </View>
+                  <View style={{ flex: 1, backgroundColor: '#EDE9FE', borderRadius: 16, padding: 14, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#4C1D95', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Fast</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#7C3AED', textAlign: 'center' }}>#{fastNumber}</Text>
+                  </View>
+                </View>
+
+                <View style={{ backgroundColor: '#F9FAFB', borderRadius: 16, overflow: 'hidden', marginBottom: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.4)' }}>Started</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>{startFmt} · {startDateFmt}</Text>
+                  </View>
+                  <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)' }} />
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 }}
+                    onPress={() => setShowSummaryTimeEdit(true)}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.4)' }}>Ended</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#059669' }}>{endFmt}</Text>
+                      <Ionicons name="pencil-outline" size={13} color="#059669" />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.modalPrimaryBtn, { backgroundColor: '#059669' }]}
+                  onPress={() => confirmEndFast(true, summaryEndTs)}
+                >
+                  <Text style={[styles.modalPrimaryBtnText, { color: '#fff' }]}>Finish Fast</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalSecondaryBtn, { marginTop: 10 }]}
+                  onPress={() => setShowEndFastSummary(false)}
+                >
+                  <Text style={styles.modalSecondaryBtnText}>Continue Fasting</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        );
+      })()}
+
+      {showSummaryTimeEdit && (
+        <TimeEditModal
+          show={showSummaryTimeEdit}
+          onClose={() => setShowSummaryTimeEdit(false)}
+          onSave={() => setShowSummaryTimeEdit(false)}
+          editingTime="end"
+          editDateStr={summaryEndDateStr}
+          setEditDateStr={setSummaryEndDateStr}
+          startHour={summaryEndHour}
+          startMinute={summaryEndMinute}
+          startSecond={0}
+          endHour={summaryEndHour}
+          endMinute={summaryEndMinute}
+          endSecond={0}
+          setStartHour={() => {}}
+          setStartMinute={() => {}}
+          setStartSecond={() => {}}
+          setEndHour={setSummaryEndHour}
+          setEndMinute={setSummaryEndMinute}
+          setEndSecond={() => {}}
+        />
+      )}
 
       <Modal visible={showEndFastWarning} transparent animationType="fade">
         <View style={styles.modalOverlay}>
