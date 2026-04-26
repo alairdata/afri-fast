@@ -1544,11 +1544,14 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     const totalProtein = todayMeals.reduce((s, m) => s + (m.protein || 0), 0);
                     const totalCarbs = todayMeals.reduce((s, m) => s + (m.carbs || 0), 0);
                     const totalFats = todayMeals.reduce((s, m) => s + (m.fats || 0), 0);
-                    const mealCal = detectedFoods.reduce((s, f) => s + (f.cal || 0), 0);
-                    const mealProtein = detectedFoods.reduce((s, f) => s + (f.protein || 0), 0);
-                    const mealCarbs = detectedFoods.reduce((s, f) => s + (f.carbs || 0), 0);
-                    const mealFats = detectedFoods.reduce((s, f) => s + (f.fats || 0), 0);
-                    const foodLines = detectedFoods.map(f => `${f.name} - ${f.cal} cal`).join('\n');
+                    const hasFoods = detectedFoods.length > 0;
+                    const mealCal = hasFoods ? detectedFoods.reduce((s, f) => s + (f.cal || 0), 0) : (viewingMeal?.calories || 0);
+                    const mealProtein = hasFoods ? detectedFoods.reduce((s, f) => s + (f.protein || 0), 0) : (viewingMeal?.protein || 0);
+                    const mealCarbs = hasFoods ? detectedFoods.reduce((s, f) => s + (f.carbs || 0), 0) : (viewingMeal?.carbs || 0);
+                    const mealFats = hasFoods ? detectedFoods.reduce((s, f) => s + (f.fats || 0), 0) : (viewingMeal?.fats || 0);
+                    const foodLines = hasFoods
+                      ? detectedFoods.map(f => `${f.name} - ${f.cal} cal`).join('\n')
+                      : (viewingMeal?.name || mealTitle || '').split(',').map(f => f.trim()).filter(Boolean).join('\n');
                     const now2 = new Date();
                     const hour = now2.getHours();
                     const mealType = hour < 11 ? 'breakfast' : hour < 15 ? 'lunch' : hour < 18 ? 'snack' : 'dinner';

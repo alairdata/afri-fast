@@ -746,7 +746,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   useEffect(() => {
     if (!session?.user?.id) return;
     supabase.from('meals')
-      .select('id, user_id, name, calories, protein, carbs, fats, date, logged_at, method, image_url, notes, photo, detected_name')
+      .select('id, user_id, name, calories, protein, carbs, fats, date, logged_at, method, image_url, notes, photo, detected_name, foods')
       .eq('user_id', session.user.id)
       .order('logged_at', { ascending: false })
       .limit(200)
