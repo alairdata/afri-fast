@@ -175,6 +175,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const toastAnim = useRef(new Animated.Value(-80)).current;
   // Holds photo URLs that arrived before their meal's DB insert completed (race: upload beats insert)
   const pendingPhotoUrls = useRef({});
+  // Set to true after a manual start-time edit so the conflict check doesn't immediately kill the fast
+  const skipConflictCheck = useRef(false);
   const [isOffline, setIsOffline] = useState(false);
   const [showLogMealModal, setShowLogMealModal] = useState(false);
   const [pendingInsightIndex, setPendingInsightIndex] = useState(null);
@@ -559,6 +561,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       return;
     }
     if (fastStartTime && latestCompletedEnd >= fastStartTime) {
+      if (skipConflictCheck.current) {
+        skipConflictCheck.current = false;
+        console.warn('[fast-trace] conflict check skipped — user just manually set start time', { fastStartTime, latestCompletedEnd });
+        return;
+      }
       console.warn('[fast-trace] active fast conflicts with completed session, forcing end', {
         fastStartTime,
         latestCompletedEnd,
@@ -1272,6 +1279,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         showToast('Start time cannot be in the future');
         return;
       }
+      skipConflictCheck.current = true;
       setFastStartTime(newStartTime);
       setStartDay(formatDateLabel(targetDate));
       const fastHours = parseInt((selectedPlan || '16:8').split(':')[0]) || 16;
