@@ -311,11 +311,12 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const [micPermSaved, setMicPermSaved] = useState(false);
 
   // Auto-request camera permission when scan tab is opened — OS handles "don't ask again"
+  // Skip when just viewing a logged meal (viewingMeal = share card mode, no camera needed)
   useEffect(() => {
-    if (logMealMethod === 'scan') {
+    if (logMealMethod === 'scan' && !viewingMeal) {
       requestPermission();
     }
-  }, [logMealMethod]);
+  }, [logMealMethod, viewingMeal]);
 
   useEffect(() => {
     AsyncStorage.getItem('afri-fast-mic-perm').then((mic) => {
