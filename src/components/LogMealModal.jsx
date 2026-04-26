@@ -1553,7 +1553,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     const mealCarbs = hasFoods ? detectedFoods.reduce((s, f) => s + (f.carbs || 0), 0) : (viewingMeal?.carbs || 0);
                     const mealFats = hasFoods ? detectedFoods.reduce((s, f) => s + (f.fats || 0), 0) : (viewingMeal?.fats || 0);
                     const foodLines = hasFoods
-                      ? detectedFoods.map(f => `${f.name} - ${f.cal} cal`).join('\n')
+                      ? detectedFoods.map(f => `${f.name}${f.qty ? ` (${f.qty})` : ''} - ${f.cal} cal`).join('\n')
                       : (viewingMeal?.name || mealTitle || '').split(',').map(f => f.trim()).filter(Boolean).join('\n');
                     const now2 = new Date();
                     const hour = now2.getHours();
