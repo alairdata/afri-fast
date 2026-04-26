@@ -1501,7 +1501,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         </View>
                         <View style={styles.shareCardProgressCol}>
                           <View style={styles.shareCardProgressMeta}>
-                            <Text style={styles.shareCardProgressText}>{dayTotal.toLocaleString()} out of {(dailyCalorieGoal || 0).toLocaleString()} daily goal so far</Text>
+                            <Text style={styles.shareCardProgressText}>{dayTotal.toLocaleString()} out of {(dailyCalorieGoal || 0).toLocaleString()} daily goal</Text>
                             <Text style={[styles.shareCardProgressPct, isOver && { color: '#f97316' }]}>{Math.round(rawPct * 100)}%</Text>
                           </View>
                           <View style={styles.shareCardProgressBar}>
