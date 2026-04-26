@@ -350,11 +350,17 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         endTime: endedAt,
       })).catch(() => {});
     }
+    // Mirror endedAt into Supabase updated_at so other devices can see exactly
+    // when the fast ended (not when the upsert reached the server). Without this
+    // the local LAST_FAST_END_KEY and remote updated_at drift apart by network
+    // latency and other devices can't tell apart "same end with delay" vs
+    // "newer end from another device".
+    const endedAtIso = endedAt > 0 ? new Date(endedAt).toISOString() : new Date().toISOString();
     supabase.from('active_fasts').upsert({
       user_id: session?.user?.id,
       start_time: 0,
       plan: resolvedPlan,
-      updated_at: new Date().toISOString(),
+      updated_at: endedAtIso,
     }, { onConflict: 'user_id' }).then(({ error }) => {
       if (error) console.error('[active_fasts end-fast upsert error]', error);
     });
@@ -494,25 +500,25 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           })).catch(() => {});
         } else if (remoteStart === 0) {
           // Supabase says ended. Three sub-cases:
-          //   (a) local thought we were active → we need to actually end the fast
+          //   (a) local thought we were active → end the fast per remote
           //   (b) fresh device with no local end record → adopt remote's end time
-          //   (c) we're already in the ended state with a known lastEndedAt → DO NOTHING
-          //       (calling persistFastEndedState here would overwrite lastEndedAt with
-          //       Supabase's updated_at, which is typically a few seconds newer than the
-          //       real end time due to upsert latency, resetting the eating-window timer
-          //       on every refresh.)
+          //   (c) already ended locally → adopt remote's end time only if it's
+          //       strictly newer (means another device ended a fast more recently
+          //       than we know about). Same-device refresh hits this path with
+          //       remoteUpdatedAt === lastEndedAt because persistFastEndedState
+          //       writes the same timestamp to both sides.
           if (localStartTime > 0) {
-            // (a) End the fast — remote authority.
+            // (a)
             persistEndedState(remoteUpdatedAt || lastEndedAt || Date.now());
-          } else if (!lastEndedAt && remoteUpdatedAt > 0) {
-            // (b) Adopt remote's end time so the eating-window timer can run.
+          } else if (remoteUpdatedAt > 0 && (!lastEndedAt || remoteUpdatedAt > lastEndedAt)) {
+            // (b) and (c-cross-device): adopt remote's end time
             setLastFastEndTime(remoteUpdatedAt);
             AsyncStorage.setItem(LAST_FAST_END_KEY, JSON.stringify({
               userId,
               endTime: remoteUpdatedAt,
             })).catch(() => {});
           }
-          // (c) noop — already ended with a real end time
+          // else: no-op — local end time is current or newer (same end event)
         } else if (localStartTime > 0 && remoteStart === 0 && remoteUpdatedAt < (lastEndedAt || 0)) {
           // Local says active fast and is newer than the Supabase tombstone — push local up.
           supabase.from('active_fasts').upsert({
