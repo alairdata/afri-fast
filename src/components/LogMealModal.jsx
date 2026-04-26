@@ -328,6 +328,10 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [capturedPhotoSize, setCapturedPhotoSize] = useState(null);
   const [scanPhase, setScanPhase] = useState('camera');
+  const [selectedMealType, setSelectedMealType] = useState(() => {
+    const h = new Date().getHours();
+    return h < 11 ? 'Breakfast' : h < 15 ? 'Lunch' : h < 18 ? 'Snack' : 'Dinner';
+  });
   const [scanProgress, setScanProgress] = useState(0);
   const [scanError, setScanError] = useState(null);
   const [scanFromScreen, setScanFromScreen] = useState(false);
@@ -1146,6 +1150,29 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     </View>
                   </View>
 
+                  {/* Meal type selector */}
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 16, marginBottom: 4 }}>
+                    {['Breakfast', 'Lunch', 'Snack', 'Dinner'].map(type => (
+                      <TouchableOpacity
+                        key={type}
+                        onPress={() => setSelectedMealType(type)}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          alignItems: 'center',
+                          backgroundColor: selectedMealType === type ? '#059669' : '#F3F4F6',
+                          borderWidth: 1,
+                          borderColor: selectedMealType === type ? '#059669' : '#E5E7EB',
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: selectedMealType === type ? '#fff' : '#6B7280' }}>
+                          {type}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
                   {renderCheckInWidget()}
 
                   {/* Log Meal */}
@@ -1520,8 +1547,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                 {/* FOOTER */}
                 {(() => {
                   const now = new Date();
-                  const h = now.getHours();
-                  const mealType = h < 12 ? 'Breakfast' : h < 16 ? 'Lunch' : 'Dinner';
+                  const mealType = selectedMealType;
                   const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
                   return (
                     <View style={styles.shareCardFooter}>
@@ -1556,8 +1582,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       ? detectedFoods.map(f => `${f.name}${f.qty ? ` (${f.qty})` : ''} - ${f.cal} cal`).join('\n')
                       : (viewingMeal?.name || mealTitle || '').split(',').map(f => f.trim()).filter(Boolean).join('\n');
                     const now2 = new Date();
-                    const hour = now2.getHours();
-                    const mealType = hour < 11 ? 'breakfast' : hour < 15 ? 'lunch' : hour < 18 ? 'snack' : 'dinner';
+                    const mealType = selectedMealType.toLowerCase();
                     const dateStr = now2.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
                     const detailsText = [
                       `Today ${dateStr}'s ${mealType} was ${mealTitle || 'my meal'} — ${mealCal} cal`,
