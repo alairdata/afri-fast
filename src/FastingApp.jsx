@@ -493,12 +493,26 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
             plan: data.plan,
           })).catch(() => {});
         } else if (remoteStart === 0) {
-          // Supabase tombstone. Honor it unless our local end is significantly newer
-          // (prevents a stale fetch from clobbering a just-completed local end-fast).
-          const localEndIsNewer = lastEndedAt && remoteUpdatedAt < lastEndedAt - 5000;
-          if (!localEndIsNewer) {
+          // Supabase says ended. Three sub-cases:
+          //   (a) local thought we were active → we need to actually end the fast
+          //   (b) fresh device with no local end record → adopt remote's end time
+          //   (c) we're already in the ended state with a known lastEndedAt → DO NOTHING
+          //       (calling persistFastEndedState here would overwrite lastEndedAt with
+          //       Supabase's updated_at, which is typically a few seconds newer than the
+          //       real end time due to upsert latency, resetting the eating-window timer
+          //       on every refresh.)
+          if (localStartTime > 0) {
+            // (a) End the fast — remote authority.
             persistEndedState(remoteUpdatedAt || lastEndedAt || Date.now());
+          } else if (!lastEndedAt && remoteUpdatedAt > 0) {
+            // (b) Adopt remote's end time so the eating-window timer can run.
+            setLastFastEndTime(remoteUpdatedAt);
+            AsyncStorage.setItem(LAST_FAST_END_KEY, JSON.stringify({
+              userId,
+              endTime: remoteUpdatedAt,
+            })).catch(() => {});
           }
+          // (c) noop — already ended with a real end time
         } else if (localStartTime > 0 && remoteStart === 0 && remoteUpdatedAt < (lastEndedAt || 0)) {
           // Local says active fast and is newer than the Supabase tombstone — push local up.
           supabase.from('active_fasts').upsert({
