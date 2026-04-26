@@ -8,6 +8,9 @@ import { supabase } from './lib/supabase';
 const ACTIVE_FAST_KEY = 'afri_active_fast_v1';
 const LAST_FAST_END_KEY = 'afri_last_fast_end_v1';
 const SETTINGS_KEY = 'afri_user_settings_v2';
+// Persists the start-time the user manually set so the conflict check doesn't
+// kill the fast on the next page refresh (the ref resets but this survives).
+const CONFLICT_BYPASS_KEY = 'afri_conflict_bypass_v1';
 import {
   requestNotificationPermissions,
   scheduleFastEndNotification,
@@ -177,6 +180,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const pendingPhotoUrls = useRef({});
   // Set to true after a manual start-time edit so the conflict check doesn't immediately kill the fast
   const skipConflictCheck = useRef(false);
+  // Stores the start-time for which the user has explicitly bypassed the conflict check (persisted across refreshes)
+  const conflictBypassStartTime = useRef(null);
   const [isOffline, setIsOffline] = useState(false);
   const [showLogMealModal, setShowLogMealModal] = useState(false);
   const [pendingInsightIndex, setPendingInsightIndex] = useState(null);
@@ -340,11 +345,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     setFastingHours(0);
     setFastingMinutes(0);
     setFastingSeconds(0);
+    conflictBypassStartTime.current = null;
     AsyncStorage.setItem(ACTIVE_FAST_KEY, JSON.stringify({
       userId: session?.user?.id,
       startTime: 0,
       plan: resolvedPlan,
     })).catch(() => {});
+    AsyncStorage.removeItem(CONFLICT_BYPASS_KEY).catch(() => {});
     if (endedAt > 0) {
       AsyncStorage.setItem(LAST_FAST_END_KEY, JSON.stringify({
         userId: session?.user?.id,
@@ -454,8 +461,17 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     (async () => {
       try {
         // 1. Read local tombstone + cached active fast for instant optimistic restore
-        const local = await AsyncStorage.getItem(ACTIVE_FAST_KEY);
-        const lastEndedRaw = await AsyncStorage.getItem(LAST_FAST_END_KEY);
+        const [local, lastEndedRaw, bypassRaw] = await Promise.all([
+          AsyncStorage.getItem(ACTIVE_FAST_KEY),
+          AsyncStorage.getItem(LAST_FAST_END_KEY),
+          AsyncStorage.getItem(CONFLICT_BYPASS_KEY),
+        ]);
+        if (bypassRaw) {
+          const bypassParsed = JSON.parse(bypassRaw);
+          if (bypassParsed?.userId === userId && bypassParsed?.bypassedStartTime > 0) {
+            conflictBypassStartTime.current = bypassParsed.bypassedStartTime;
+          }
+        }
         if (lastEndedRaw) {
           const parsedEnd = JSON.parse(lastEndedRaw);
           if (parsedEnd?.userId === userId && parsedEnd?.endTime > 0) {
@@ -509,8 +525,23 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           //       remoteUpdatedAt === lastEndedAt because persistFastEndedState
           //       writes the same timestamp to both sides.
           if (localStartTime > 0) {
-            // (a)
-            persistEndedState(remoteUpdatedAt || lastEndedAt || Date.now());
+            // (a) local thinks we're fasting, remote says ended.
+            // Trust remote only if remote's end event is at or after local's start.
+            // If local started AFTER remote's last update the DB has a stale 0 —
+            // restore from local and fix the DB.
+            if (localStartTime > remoteUpdatedAt) {
+              applyFastRestore(localStartTime, localPlan || data.plan);
+              supabase.from('active_fasts').upsert({
+                user_id: liveUserId,
+                start_time: localStartTime,
+                plan: localPlan || data.plan || '16:8',
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'user_id' }).then(({ error: upErr }) => {
+                if (upErr) console.error('[active_fasts restore-heal error]', upErr);
+              });
+            } else {
+              persistEndedState(remoteUpdatedAt || lastEndedAt || Date.now());
+            }
           } else if (remoteUpdatedAt > 0 && (!lastEndedAt || remoteUpdatedAt > lastEndedAt)) {
             // (b) and (c-cross-device): adopt remote's end time
             setLastFastEndTime(remoteUpdatedAt);
@@ -563,7 +594,16 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     if (fastStartTime && latestCompletedEnd >= fastStartTime) {
       if (skipConflictCheck.current) {
         skipConflictCheck.current = false;
+        conflictBypassStartTime.current = fastStartTime;
+        AsyncStorage.setItem(CONFLICT_BYPASS_KEY, JSON.stringify({
+          userId: session?.user?.id,
+          bypassedStartTime: fastStartTime,
+        })).catch(() => {});
         console.warn('[fast-trace] conflict check skipped — user just manually set start time', { fastStartTime, latestCompletedEnd });
+        return;
+      }
+      if (conflictBypassStartTime.current === fastStartTime) {
+        console.warn('[fast-trace] conflict check skipped — persisted bypass for this start time', { fastStartTime, latestCompletedEnd });
         return;
       }
       console.warn('[fast-trace] active fast conflicts with completed session, forcing end', {
@@ -1280,6 +1320,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         return;
       }
       skipConflictCheck.current = true;
+      conflictBypassStartTime.current = newStartTime;
       setFastStartTime(newStartTime);
       setStartDay(formatDateLabel(targetDate));
       const fastHours = parseInt((selectedPlan || '16:8').split(':')[0]) || 16;
@@ -1292,6 +1333,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         userId: session?.user?.id,
         startTime: newStartTime,
         plan: selectedPlan,
+      })).catch(() => {});
+      AsyncStorage.setItem(CONFLICT_BYPASS_KEY, JSON.stringify({
+        userId: session?.user?.id,
+        bypassedStartTime: newStartTime,
       })).catch(() => {});
       supabase.from('active_fasts').upsert({
         user_id: session?.user?.id,
