@@ -41,7 +41,8 @@ import FastingQuizPage from './components/FastingQuizPage';
 import NutritionQuizPage from './components/NutritionQuizPage';
 
 // Modal components
-import LogMealModal from './components/LogMealModal';
+import LogMealModal, { saveCommunityPhotos } from './components/LogMealModal';
+import { processPendingMealPhotos } from './lib/mealPhotoUpload';
 import { AFRICAN_RECIPES } from './lib/africanRecipes';
 import MakeRecipePage from './components/MakeRecipePage';
 import FindRecipePage from './components/FindRecipePage';
@@ -175,6 +176,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
   const toastAnim = useRef(new Animated.Value(-80)).current;
+  // Holds photo URLs that arrived before their meal's DB insert completed (race: upload beats insert)
+  const pendingPhotoUrls = useRef({});
   const [isOffline, setIsOffline] = useState(false);
   const [showLogMealModal, setShowLogMealModal] = useState(false);
   const [pendingInsightIndex, setPendingInsightIndex] = useState(null);
@@ -754,6 +757,15 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           date: normalizeMealDate(m.date),
         })));
         setDataLoadCount(prev => prev + 1);
+        // Retry any meal photo uploads that failed in a prior session
+        processPendingMealPhotos({
+          saveCommunityPhotos,
+          recipes: AFRICAN_RECIPES,
+          userEmail: session.user.email,
+          onPhotoUploaded: (mealId, photoUrl) => {
+            setRecentMeals(prev => prev.map(m => m.id === mealId ? { ...m, photo: photoUrl } : m));
+          },
+        }).catch(e => console.log('[Pending uploads] drain error:', e.message));
       });
   }, [session]);
 
@@ -1664,36 +1676,69 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         onSaveMeal={async (meal) => {
           if (meal._updatePhoto) {
             setRecentMeals(prev => prev.map(m => m.id === meal.id ? { ...m, photo: meal.photo } : m));
-            supabase.from('meals').update({ photo: meal.photo }).eq('id', meal.id);
+            // Store so attemptInsert can apply it if the insert hasn't completed yet
+            pendingPhotoUrls.current[meal.id] = meal.photo;
+            supabase.from('meals').update({ photo: meal.photo }).eq('id', meal.id).select('id')
+              .then(({ error, data }) => {
+                if (error) console.log('[Photo update] DB error', error.message, error.code);
+                else if (!data?.length) console.log('[Photo update] no row matched yet for meal', meal.id, '— will be caught by insert path');
+                else console.log('[Photo update] saved photo for meal', meal.id);
+              });
             return;
           }
-          setRecentMeals(prev => [meal, ...prev]);
-          const { localPhoto, ...dbMeal } = meal;
-          // Never persist local file URIs — only save photo to DB once we have a real https URL
-          const photoForDb = dbMeal.photo?.startsWith('https://') ? dbMeal.photo : null;
-          const { error } = await supabase.from('meals').insert({ ...dbMeal, photo: photoForDb, user_id: session.user.id });
-          if (error) { showToast('Failed to save meal. Try again.', 'error'); return; }
-          showToast(`${meal.name || 'Meal'} logged!`);
-          // Write combined meal+checkin log for ML/analytics
-          const ci = checkInHistory.find(c => c.date === meal.date) || null;
-          dbSave(supabase.from('meal_logs').insert({
-            id: meal.id,
-            user_id: session.user.id,
-            meal_id: meal.id,
-            date: meal.date,
-            meal_name: meal.name || 'Meal',
-            total_calories: meal.calories || 0,
-            ingredients: meal.foods || [],
-            feelings: ci?.feelings || [],
-            moods: ci?.moods || [],
-            fasting_status: ci?.fastingStatus || null,
-            hunger_level: ci?.hungerLevel || null,
-            symptoms: ci?.symptoms || [],
-            activities: ci?.activities || [],
-            other_factors: ci?.otherFactors || [],
-            water_count: ci?.waterCount || 0,
-            notes: ci?.notes || null,
-          }), 'save meal_log');
+          const attemptInsert = async (mealToSave) => {
+            setRecentMeals(prev => prev.some(m => m.id === mealToSave.id) ? prev : [mealToSave, ...prev]);
+            const { localPhoto, ...dbMeal } = mealToSave;
+            // Never persist local file URIs — only save photo to DB once we have a real https URL
+            const photoForDb = dbMeal.photo?.startsWith('https://') ? dbMeal.photo : null;
+            const { error } = await supabase.from('meals').insert({ ...dbMeal, photo: photoForDb, user_id: session.user.id });
+            if (error) {
+              console.log('[DB Error - insert meal]', error.message, error.code);
+              // Roll back the optimistic add so DB and UI agree
+              setRecentMeals(prev => prev.filter(m => m.id !== mealToSave.id));
+              Alert.alert(
+                "Couldn't save meal",
+                `${mealToSave.name || 'Meal'} didn't save. Tap retry to try again.`,
+                [
+                  { text: 'Discard', style: 'cancel' },
+                  { text: 'Retry', onPress: () => attemptInsert(mealToSave) },
+                ],
+              );
+              return;
+            }
+            // If the photo upload finished before the insert, apply it now
+            const earlyPhoto = pendingPhotoUrls.current[mealToSave.id];
+            if (earlyPhoto) {
+              delete pendingPhotoUrls.current[mealToSave.id];
+              supabase.from('meals').update({ photo: earlyPhoto }).eq('id', mealToSave.id)
+                .then(({ error: e }) => {
+                  if (e) console.log('[Photo update] late-apply error', e.message);
+                  else console.log('[Photo update] late-applied photo for meal', mealToSave.id);
+                });
+            }
+            showToast(`${mealToSave.name || 'Meal'} logged!`);
+            // Write combined meal+checkin log for ML/analytics
+            const ci = checkInHistory.find(c => c.date === mealToSave.date) || null;
+            dbSave(supabase.from('meal_logs').insert({
+              id: mealToSave.id,
+              user_id: session.user.id,
+              meal_id: mealToSave.id,
+              date: mealToSave.date,
+              meal_name: mealToSave.name || 'Meal',
+              total_calories: mealToSave.calories || 0,
+              ingredients: mealToSave.foods || [],
+              feelings: ci?.feelings || [],
+              moods: ci?.moods || [],
+              fasting_status: ci?.fastingStatus || null,
+              hunger_level: ci?.hungerLevel || null,
+              symptoms: ci?.symptoms || [],
+              activities: ci?.activities || [],
+              other_factors: ci?.otherFactors || [],
+              water_count: ci?.waterCount || 0,
+              notes: ci?.notes || null,
+            }), 'save meal_log');
+          };
+          await attemptInsert(meal);
         }}
         dailyCalorieGoal={dailyCalorieGoal}
         recentMeals={recentMeals}

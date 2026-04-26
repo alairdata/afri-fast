@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
+import { uploadMealPhoto, enqueuePendingMealPhoto } from '../lib/mealPhotoUpload';
 
 // Web-safe helper: convert a URI (blob URL or data URL) to base64 string
 const readUriAsBase64 = async (uri) => {
@@ -32,54 +33,6 @@ const readUriAsBase64 = async (uri) => {
 
 const DOT_COLORS = ['#4ade80', '#f59e0b', '#60a5fa', '#f472b6', '#a78bfa'];
 
-const SUPABASE_URL = 'https://exvbplhajnvuhanykumm.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4dmJwbGhham52dWhhbnlrdW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwODY2NTEsImV4cCI6MjA5MDY2MjY1MX0.L-D_1nnehcjcQZ52XEl0rhKOoUm7HmOMC4_wGIwQETE';
-
-const uploadMealPhoto = async (uri) => {
-  if (!uri) return null;
-  if (uri.startsWith('https://')) return uri; // already uploaded
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return null;
-    const fileName = `${session.user.id}/${Date.now()}.jpg`;
-
-    if (Platform.OS !== 'web') {
-      // Native: fetch() can't upload local file URIs — use FileSystem.uploadAsync instead
-      const result = await FileSystem.uploadAsync(
-        `${SUPABASE_URL}/storage/v1/object/meal-photos/${fileName}`,
-        uri,
-        {
-          httpMethod: 'POST',
-          uploadType: FileSystem.FileSystemUploadType?.BINARY_CONTENT ?? 0,
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            apikey: SUPABASE_ANON_KEY,
-            'Content-Type': 'image/jpeg',
-            'x-upsert': 'false',
-          },
-        }
-      );
-      if (result.status !== 200) {
-        console.log('[Upload Error] native:', result.status, result.body);
-        return null;
-      }
-    } else {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const { error } = await supabase.storage
-        .from('meal-photos')
-        .upload(fileName, blob, { contentType: 'image/jpeg', upsert: false });
-      if (error) { console.log('[Upload Error]', error.message); return null; }
-    }
-
-    const { data } = supabase.storage.from('meal-photos').getPublicUrl(fileName);
-    return data.publicUrl;
-  } catch (e) {
-    console.log('[Upload Error]', e.message);
-    return null;
-  }
-};
-
 // Match detected food names against recipe library — returns array of matching recipe IDs
 const matchRecipes = (detectedFoods, recipes) => {
   const matched = new Set();
@@ -98,7 +51,7 @@ const matchRecipes = (detectedFoods, recipes) => {
   return [...matched];
 };
 
-const saveCommunityPhotos = async (mealId, photoUrl, detectedFoods, recipes, userEmail) => {
+export const saveCommunityPhotos = async (mealId, photoUrl, detectedFoods, recipes, userEmail) => {
   if (!photoUrl || !detectedFoods?.length) return;
   try {
     const recipeIds = matchRecipes(detectedFoods, recipes);
@@ -910,15 +863,20 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         localPhoto: capturedPhoto,   // kept even after remote URL replaces photo
         foods: detectedFoods,
       });
-      // Upload photo in background, then swap in the remote URL (localPhoto stays for fast display)
+      // Upload photo in background, then swap in the remote URL (localPhoto stays for fast display).
+      // If the upload fails, stage the file and enqueue it for retry on next app open.
       if (capturedPhoto) {
         uploadMealPhoto(capturedPhoto).then(photoUrl => {
           if (photoUrl) {
             Image.prefetch(photoUrl).catch(() => {});
             onSaveMeal({ id: mealId, _updatePhoto: true, photo: photoUrl });
             saveCommunityPhotos(mealId, photoUrl, detectedFoods, recipes, userEmail);
+          } else {
+            enqueuePendingMealPhoto({ mealId, localUri: capturedPhoto, items: detectedFoods });
           }
-        }).catch(() => {});
+        }).catch(() => {
+          enqueuePendingMealPhoto({ mealId, localUri: capturedPhoto, items: detectedFoods });
+        });
       }
     }
     setScanPhase('shareCard');
