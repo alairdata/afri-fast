@@ -191,7 +191,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
               <TouchableOpacity
                 key={meal.id}
                 style={styles.recentMealItemClean}
-                onPress={() => setViewingMeal(meal)}
+                onPress={() => onViewMeal ? onViewMeal(meal) : setViewingMeal(meal)}
               >
                 <View style={styles.recentMealLeftClean}>
                   <View style={styles.recentMealIconClean}>
