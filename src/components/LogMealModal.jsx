@@ -1455,6 +1455,33 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     </View>
                   </View>
 
+                  <View style={[styles.foodCard, { marginTop: 16 }]}>
+                    <View style={styles.foodCardHead}>
+                      <Text style={styles.foodCardTitle}>MEAL TYPE</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', padding: 12, gap: 8 }}>
+                      {['Breakfast', 'Lunch', 'Snack', 'Dinner'].map(type => (
+                        <TouchableOpacity
+                          key={type}
+                          onPress={() => setSelectedMealType(type)}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 10,
+                            borderRadius: 10,
+                            alignItems: 'center',
+                            backgroundColor: selectedMealType === type ? '#059669' : '#F9FAFB',
+                            borderWidth: 1.5,
+                            borderColor: selectedMealType === type ? '#059669' : 'transparent',
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>
+                            {type.toUpperCase()}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
             {renderCheckInWidget()}
 
             <TouchableOpacity style={[styles.logBtn, { marginHorizontal: 20 }]} onPress={logMeal}>
@@ -1885,6 +1912,33 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     <View style={styles.foodTotal}>
                       <Text style={styles.foodTotalLabel}>TOTAL</Text>
                       <Text style={styles.foodTotalValue}>{getTotalCal()} cal</Text>
+                    </View>
+                  </View>
+
+                  <View style={[styles.foodCard, { marginTop: 16 }]}>
+                    <View style={styles.foodCardHead}>
+                      <Text style={styles.foodCardTitle}>MEAL TYPE</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', padding: 12, gap: 8 }}>
+                      {['Breakfast', 'Lunch', 'Snack', 'Dinner'].map(type => (
+                        <TouchableOpacity
+                          key={type}
+                          onPress={() => setSelectedMealType(type)}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 10,
+                            borderRadius: 10,
+                            alignItems: 'center',
+                            backgroundColor: selectedMealType === type ? '#059669' : '#F9FAFB',
+                            borderWidth: 1.5,
+                            borderColor: selectedMealType === type ? '#059669' : 'transparent',
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>
+                            {type.toUpperCase()}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
                   </View>
 
