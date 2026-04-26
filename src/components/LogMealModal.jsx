@@ -1263,7 +1263,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         )}
 
         {/* Write Results — full-height scrollable layout, mirrors scan results */}
-        {logMealMethod === 'write' && writePhase === 'results' && (
+        {logMealMethod === 'write' && writePhase === 'results' && scanPhase !== 'shareCard' && (
           <ScrollView style={styles.scanResultsContainer} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Re-write row */}
             <View style={[styles.reRecordRow, { marginHorizontal: 20 }]}>
