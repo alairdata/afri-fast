@@ -269,7 +269,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     }).filter(Boolean);
 
     return (
-      <View style={{ marginHorizontal: 20, marginBottom: 12 }}>
+      <View style={{ marginHorizontal: 20, marginBottom: 12, marginTop: 20 }}>
         <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: '#111', marginBottom: 10, paddingHorizontal: 20 }}>CHECK-IN</Text>
         {hasCheckIns ? (
           <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' }}>
