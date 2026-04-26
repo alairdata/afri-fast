@@ -27,7 +27,6 @@ import SettingsTab from './components/SettingsTab';
 import BottomTabBar from './components/BottomTabBar';
 
 // Overlay/Page components
-import ChatScreen from './components/ChatScreen';
 import CheckInPage from './components/CheckInPage';
 import PlanSelectionPage from './components/PlanSelectionPage';
 import WeightLogPage from './components/WeightLogPage';
@@ -162,8 +161,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [showPlanPage, setShowPlanPage] = useState(false);
   const [showCheckInPage, setShowCheckInPage] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [chatOpeningContext, setChatOpeningContext] = useState(null);
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showFastingDetails, setShowFastingDetails] = useState(false);
   const [showBMIDetails, setShowBMIDetails] = useState(false);
@@ -206,7 +203,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   };
 
   // === Chat state ===
-  const [chatMessages, setChatMessages] = useState([]);
 
   // === User/profile state ===
   const [userName, setUserName] = useState('');
@@ -1385,7 +1381,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           strokeDashoffset={strokeDashoffset}
           onShowPlanPage={handleOpenPlanPage}
           onShowCheckInPage={openCheckInPage}
-          onShowChat={(context) => { setChatOpeningContext(context || null); setShowChat(true); }}
           onStartFast={handleStartFast}
           onEndFast={handleEndFast}
           isRestoringFast={isRestoringFast}
@@ -2098,40 +2093,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       />
 
       {/* === Chat (above everything incl. tab bar) === */}
-      <ChatScreen
-        show={showChat}
-        onClose={() => { setShowChat(false); setChatOpeningContext(null); }}
-        messages={chatMessages}
-        setMessages={setChatMessages}
-        openingContext={chatOpeningContext}
-        userId={session?.user?.id}
-        userName={userName}
-        userCountry={userCountry}
-        selectedPlan={selectedPlan}
-        targetWeight={targetWeight}
-        startingWeight={startingWeight}
-        weightUnit={weightUnit}
-        dailyCalorieGoal={dailyCalorieGoal}
-        hydrationGoal={hydrationGoal}
-        volumeUnit={volumeUnit}
-        proteinGoal={proteinGoal}
-        carbsGoal={carbsGoal}
-        fatsGoal={fatsGoal}
-        fastingSessions={fastingSessions}
-        checkInHistory={checkInHistory}
-        recentMeals={recentMeals}
-        weightLogs={weightLogs}
-        waterLogs={waterLogs}
-        goalHistory={goalHistory}
-        personality={userPersonality}
-        onUpdatePersonality={(updated) => {
-          setUserPersonality(updated);
-          supabase.from('profiles').update({
-            personality: updated,
-            personality_updated_at: new Date().toISOString(),
-          }).eq('id', session.user.id).then(() => {});
-        }}
-      />
 
       <FastingQuizPage
         show={showFastingQuiz}

@@ -294,7 +294,6 @@ const TodayTab = ({
   endMinute,
   onShowPlanPage,
   onShowCheckInPage,
-  onShowChat,
   onEditStartTime,
   onEditEndTime,
   canEditEndTime,
@@ -808,9 +807,6 @@ const TodayTab = ({
             </View>
             <View style={styles.alertContent}>
               <Text style={styles.alertText}>{alertInsight}</Text>
-              <TouchableOpacity style={styles.alertBtn} onPress={() => onShowChat(alertInsight)}>
-                <Text style={styles.alertBtnText}>Talk to coach</Text>
-              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -979,15 +975,6 @@ const TodayTab = ({
                   <FormattedText text={selectedInsight.takeaway} bodyStyle={styles.insightDetailBody} />
                 </View>
               ) : null}
-              <TouchableOpacity
-                style={styles.insightCoachBtn}
-                onPress={() => {
-                  setSelectedInsight(null);
-                  onShowChat(`${selectedInsight.feeling}\n\n${selectedInsight.why}`);
-                }}
-              >
-                <Text style={styles.insightCoachBtnText}>Talk to coach about this</Text>
-              </TouchableOpacity>
               <View style={{ height: 40 }} />
             </ScrollView>
           )}
