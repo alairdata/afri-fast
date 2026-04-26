@@ -3,7 +3,14 @@ import { supabase } from './supabase';
 
 const DAILY_CACHE_KEY = 'claude_daily_insights_v1';
 const JFY_CACHE_KEY = 'claude_just_for_you_v2';
-const JFY_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+// Returns the timestamp of the most recent 8:15pm refresh slot
+function lastJfySlot() {
+  const now = new Date();
+  const slot = new Date(now); slot.setHours(20, 15, 0, 0);
+  if (now >= slot) return slot.getTime();
+  const yest = new Date(now); yest.setDate(yest.getDate() - 1); yest.setHours(20, 15, 0, 0);
+  return yest.getTime();
+}
 
 // Returns the timestamp of the most recent 6am refresh slot (today's if past 6am, else yesterday's)
 function lastScheduledSlot() {
@@ -188,8 +195,8 @@ export async function getJustForYou(data, forceRefresh = false) {
   if (!userId) return null;
 
   if (!forceRefresh) {
-    const cached = await getCached(JFY_CACHE_KEY, userId, 'just_for_you_v2', JFY_TTL);
-    if (cached?.cards?.length) return cached.cards;
+    const cached = await getCached(JFY_CACHE_KEY, userId, 'just_for_you_v2');
+    if (cached?.cards?.length && cached.timestamp >= lastJfySlot()) return cached.cards;
   }
 
   try {
