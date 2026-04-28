@@ -1127,7 +1127,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       }
     }
     const now = new Date();
-    confirmEndFast(true, now.getTime());
+    const pad = (n) => String(n).padStart(2, '0');
+    setSummaryEndDateStr(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+    setSummaryEndHour(now.getHours());
+    setSummaryEndMinute(now.getMinutes());
+    setShowEndFastSummary(true);
   };
 
   const confirmEndFast = (shouldLog, customEndTime = null) => {
