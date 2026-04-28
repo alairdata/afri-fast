@@ -568,28 +568,6 @@ const TodayTab = ({
   const significantlyOver = calorieRatio !== null && calorieRatio > 1.15;
   const significantlyUnder = calorieRatio !== null && calorieRatio < 0.5 && todayCalories > 0;
 
-  let alertInsight = null;
-  if (!alertInsight) {
-    if (recentSessions14.length > 0 && recentCheckIns.length === 0) {
-      alertInsight = "You haven't checked in during any of your recent fasts. Check-ins help us understand how your body is responding and give you better coaching.";
-    } else if (abandonedRecent >= 2 && abandonedRecent > completedRecent) {
-      alertInsight = "You've abandoned more fasts than you've completed lately. That's okay — your coach can help figure out what's getting in the way.";
-    } else if (significantlyOver) {
-      alertInsight = "You've gone over your calorie target today. That doesn't erase your fast — but your coach can help you understand how to balance it so your progress stays on track.";
-    } else if (significantlyUnder) {
-      alertInsight = "You've eaten well below your calorie target today. Under-eating can slow your metabolism and make fasting harder tomorrow — your coach can help you find the right balance.";
-    } else if (todayWater === 0 && (waterLogs || []).length > 0) {
-      alertInsight = "You haven't logged any water today. Dehydration makes fasting significantly harder — your coach can share some tips to stay on top of it.";
-    } else if (weightLostVal != null && weightLostVal <= 0 && (weightLogs || []).length >= 3) {
-      alertInsight = "Your weight hasn't moved recently despite fasting. This is common — your coach can help identify what might need adjusting.";
-    } else if (streak === 0 && (fastingSessions || []).length > 0) {
-      alertInsight = "You haven't completed a fast recently. Getting back on track starts with one good day — your coach is here to help.";
-    } else if (streak >= 7) {
-      alertInsight = "You've been incredibly consistent. Your coach wants to make sure you're not overdoing it — check in to talk about your progress.";
-    } else {
-      alertInsight = "Your coach is watching your patterns and has some thoughts on how you can get even better results. Tap to chat.";
-    }
-  }
 
   const patternCards = getDailyArticles(5);
 
@@ -797,18 +775,6 @@ const TodayTab = ({
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
-
-        {/* Alert Card */}
-        <View style={styles.sectionTight}>
-          <View style={styles.alertCard}>
-            <View style={styles.alertIcon}>
-              <Text style={{ fontSize: 18 }}>{'\u26A1'}</Text>
-            </View>
-            <View style={styles.alertContent}>
-              <Text style={styles.alertText}>{alertInsight}</Text>
-            </View>
-          </View>
         </View>
 
         {/* This Week */}
@@ -1433,44 +1399,6 @@ const makeStyles = (c) => StyleSheet.create({
     fontSize: 12,
     color: c.textMuted,
     fontWeight: '400',
-  },
-  alertCard: {
-    flexDirection: 'row',
-    gap: 12,
-    padding: 14,
-    backgroundColor: '#FFF7ED',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 146, 60, 0.2)',
-  },
-  alertIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FB923C',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  alertContent: {
-    flex: 1,
-  },
-  alertText: {
-    fontSize: 12,
-    color: '#92400E',
-    lineHeight: 17,
-    marginBottom: 8,
-  },
-  alertBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#FB923C',
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  alertBtnText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
   },
   historyHeader: {
     flexDirection: 'row',
