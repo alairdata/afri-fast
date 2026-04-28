@@ -1135,11 +1135,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   };
 
   const confirmEndFast = (shouldLog, customEndTime = null) => {
-    // The "logged" end time is what the user set in the summary (used for session
-    // history and duration display). The eating window always starts from right now
-    // — when the user tapped "Finish Fast" — so the timer starts at 0.
-    const loggedEndTime = customEndTime || Date.now();
-    const endTime = Date.now();
+    const endTime = customEndTime || Date.now();
     console.warn('[fast-trace] confirmEndFast', {
       shouldLog,
       customEndTime,
@@ -1158,15 +1154,15 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     setShowEndFastSummary(false);
     setShowEndFastWarning(false);
     if (shouldLog && fastStartTime) {
-      const duration = Math.floor((loggedEndTime - fastStartTime) / 1000);
+      const duration = Math.floor((endTime - fastStartTime) / 1000);
       const fastSession = {
         id: Date.now(),
         startTime: fastStartTime,
-        endTime: loggedEndTime,
+        endTime: endTime,
         durationHours: Math.floor(duration / 3600),
         durationMinutes: Math.floor((duration % 3600) / 60),
         plan: selectedPlan || '16:8',
-        date: new Date(loggedEndTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        date: new Date(endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       };
       setFastingSessions(prev => [fastSession, ...prev]);
       dbSave(supabase.from('fasting_sessions').insert({
@@ -1177,7 +1173,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       }), 'save fasting_session', (msg) => showToast(msg, 'error'));
     }
     if (shouldLog && fastStartTime) {
-      const duration = Math.floor((loggedEndTime - fastStartTime) / 1000);
+      const duration = Math.floor((endTime - fastStartTime) / 1000);
       const hrs = Math.floor(duration / 3600);
       const mins = Math.floor((duration % 3600) / 60);
       const timeStr = hrs > 0
@@ -1185,7 +1181,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         : `${mins}min${mins !== 1 ? 's' : ''}`;
       showToast(`Yaay! You fasted for ${timeStr} — well done!`);
     }
-    // endTime = Date.now() so the eating window timer starts at 0 immediately
     persistFastEndedState(endTime, selectedPlan || '16:8');
   };
 
