@@ -326,6 +326,7 @@ const TodayTab = ({
   goalHistory,
   pendingInsightIndex,
   onClearPendingInsight,
+  onShowChat,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
@@ -334,6 +335,7 @@ const TodayTab = ({
   const [justForYouCards, setJustForYouCards] = useState(null);
   const [jfyLoading, setJfyLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [readCards, setReadCards] = useState(new Set());
 
   const buildEnrichedMealLogs = () =>
     (recentMeals || []).map(meal => {
@@ -381,7 +383,7 @@ const TodayTab = ({
   const fetchInsights = async (payload) => {
     setJfyLoading(true);
     getJustForYou(payload)
-      .then(cards => { setJustForYouCards(cards); setJfyLoading(false); })
+      .then(cards => { setJustForYouCards(cards); setReadCards(new Set()); setJfyLoading(false); })
       .catch(() => setJfyLoading(false));
   };
 
@@ -741,7 +743,14 @@ const TodayTab = ({
 
         {/* Just for You Cards — weekly AI insights (analyst + card pipeline) */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
-          <Text style={styles.sectionTitleTight}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+            <Text style={styles.sectionTitleTight}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
+            {!jfyLoading && (justForYouCards || []).length > 0 && readCards.size < (justForYouCards || []).length && (
+              <View style={{ backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>New Insights</Text>
+              </View>
+            )}
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
             {jfyLoading ? (
               [0, 1, 2].map(i => <JfySkeletonCard key={i} />)
@@ -749,7 +758,7 @@ const TodayTab = ({
               <TouchableOpacity
                 key={i}
                 style={[styles.educationCard, { backgroundColor: ['#059669', '#0F766E', '#9333EA', '#1D4ED8', '#B45309'][i % 5] }]}
-                onPress={() => setSelectedInsight(card)}
+                onPress={() => { setReadCards(prev => new Set([...prev, i])); setSelectedInsight(card); }}
                 activeOpacity={0.82}
               >
                 <View style={styles.eduContent}>
@@ -941,6 +950,14 @@ const TodayTab = ({
                   <FormattedText text={selectedInsight.takeaway} bodyStyle={styles.insightDetailBody} />
                 </View>
               ) : null}
+              {onShowChat && (
+                <TouchableOpacity
+                  style={{ marginHorizontal: 20, marginTop: 24, backgroundColor: '#059669', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}
+                  onPress={() => { setSelectedInsight(null); onShowChat(`I just read this insight: "${selectedInsight?.feeling}" — can you tell me more?`); }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Talk to Coach</Text>
+                </TouchableOpacity>
+              )}
               <View style={{ height: 40 }} />
             </ScrollView>
           )}

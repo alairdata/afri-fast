@@ -29,6 +29,8 @@ import ProgressTab from './components/ProgressTab';
 import SettingsTab from './components/SettingsTab';
 import BottomTabBar from './components/BottomTabBar';
 
+import ChatScreen from './components/ChatScreen';
+
 // Overlay/Page components
 import CheckInPage from './components/CheckInPage';
 import PlanSelectionPage from './components/PlanSelectionPage';
@@ -210,6 +212,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   };
 
   // === Chat state ===
+  const [showChat, setShowChat] = useState(false);
+  const [chatOpeningContext, setChatOpeningContext] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
 
   // === User/profile state ===
   const [userName, setUserName] = useState('');
@@ -1438,6 +1443,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           strokeDashoffset={strokeDashoffset}
           onShowPlanPage={handleOpenPlanPage}
           onShowCheckInPage={openCheckInPage}
+          onShowChat={(context) => { setChatOpeningContext(context || null); setShowChat(true); }}
           onStartFast={handleStartFast}
           onEndFast={handleEndFast}
           isRestoringFast={isRestoringFast}
@@ -2150,6 +2156,37 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       />
 
       {/* === Chat (above everything incl. tab bar) === */}
+      <ChatScreen
+        show={showChat}
+        onClose={() => { setShowChat(false); setChatOpeningContext(null); }}
+        messages={chatMessages}
+        setMessages={setChatMessages}
+        openingContext={chatOpeningContext}
+        userId={session?.user?.id}
+        userName={userName}
+        userCountry={userCountry}
+        selectedPlan={selectedPlan}
+        targetWeight={targetWeight}
+        startingWeight={startingWeight}
+        weightUnit={weightUnit}
+        dailyCalorieGoal={dailyCalorieGoal}
+        hydrationGoal={hydrationGoal}
+        volumeUnit={volumeUnit}
+        proteinGoal={proteinGoal}
+        carbsGoal={carbsGoal}
+        fatsGoal={fatsGoal}
+        fastingSessions={fastingSessions}
+        checkInHistory={checkInHistory}
+        recentMeals={recentMeals}
+        weightLogs={weightLogs}
+        waterLogs={waterLogs}
+        goalHistory={goalHistory}
+        personality={userPersonality}
+        onUpdatePersonality={(updated) => {
+          setUserPersonality(updated);
+          upsertProfile({ personality: updated }, 'update personality from chat');
+        }}
+      />
 
       <FastingQuizPage
         show={showFastingQuiz}
