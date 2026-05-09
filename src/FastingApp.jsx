@@ -224,6 +224,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [userEmail, setUserEmail] = useState(session?.user?.email ?? '');
   const [userCountry, setUserCountry] = useState('');
   const [userCount, setUserCount] = useState(0);
+  const [userJoinDate, setUserJoinDate] = useState(null);
 
   // === Notification settings ===
   const [notifyFastStart, setNotifyFastStart] = useState(true);
@@ -730,6 +731,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
         if (data.name) setUserName(data.name);
         if (data.country) setUserCountry(data.country);
+        if (data.created_at) setUserJoinDate(data.created_at);
         if (data.selected_plan) setSelectedPlan(data.selected_plan);
         if (data.target_weight != null) setTargetWeight(parseFloat(data.target_weight));
         if (data.starting_weight != null) setStartingWeight(parseFloat(data.starting_weight));
@@ -1487,6 +1489,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           hydrationGoal={hydrationGoal}
           userName={userName}
           userCountry={userCountry}
+          userJoinDate={userJoinDate}
           userId={session?.user?.id}
           proteinGoal={proteinGoal}
           carbsGoal={carbsGoal}

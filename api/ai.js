@@ -143,7 +143,15 @@ function preprocessData(data) {
   const lines = [];
 
   // Profile
+  const joinDateStr = profile.userJoinDate
+    ? (() => {
+        const d = new Date(profile.userJoinDate);
+        const days = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+        return `${d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} (${days} days ago)`;
+      })()
+    : 'Unknown';
   lines.push(`NAME: ${profile.userName || 'User'} | COUNTRY: ${profile.userCountry || 'Not specified'}`);
+  lines.push(`MEMBER SINCE: ${joinDateStr}`);
   lines.push(`GOAL: ${goalLabel}`);
   lines.push(`PLAN: ${profile.selectedPlan || '16:8'} fasting`);
   lines.push(`DAILY CALORIE GOAL (current): ${profile.dailyCalorieGoal || 2000} kcal | PROTEIN: ${profile.proteinGoal || '?'}g | CARBS: ${profile.carbsGoal || '?'}g | FATS: ${profile.fatsGoal || '?'}g`);
@@ -438,6 +446,7 @@ function buildJustForYouPrompt(data) {
 USER PROFILE:
 - Name: ${profile.userName || 'User'}
 - Country: ${profile.userCountry || 'Not specified'}
+- Member since: ${profile.userJoinDate ? new Date(profile.userJoinDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Unknown'}
 - Fasting plan: ${profile.selectedPlan || '16:8'}
 - Goal: ${profile.goal || 'Not specified'}
 - Health conditions: ${(profile.conditions || []).join(', ') || 'None'}
