@@ -20,6 +20,9 @@ import {
   cancelFastStartReminder,
   scheduleMealReminder,
   cancelMealReminder,
+  scheduleBreakFastReminder,
+  scheduleEatingWindowCloseReminder,
+  cancelEatingWindowReminder,
 } from './lib/notifications';
 
 // Tab components
@@ -1076,7 +1079,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     setIsFasting(true);
     setCheckedIn(false);
     const planHours = parseInt((selectedPlan || '16:8').split(':')[0]) || 16;
-    if (notifyFastEnd) scheduleFastEndNotification(startTs, planHours);
+    if (notifyFastEnd) {
+      scheduleFastEndNotification(startTs, planHours);
+      scheduleBreakFastReminder(startTs, planHours);
+    }
     if (notifyMilestones) scheduleMilestoneNotifications(startTs, planHours);
     AsyncStorage.setItem(ACTIVE_FAST_KEY, JSON.stringify({
       userId: session?.user?.id,
@@ -1156,6 +1162,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       selectedPlan,
     });
     cancelFastingNotifications();
+    if (notifyFastEnd) {
+      const planH = parseInt((selectedPlan || '16:8').split(':')[0]) || 16;
+      scheduleEatingWindowCloseReminder(endTime, planH);
+    }
     setShowEndFastSummary(false);
     setShowEndFastWarning(false);
     if (shouldLog && fastStartTime) {
@@ -1675,6 +1685,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           setSelectedPlan(plan.id);
           recordGoalChange({ selectedPlan: plan.id });
           upsertProfile({ selected_plan: plan.id }, 'save selected_plan');
+          const newPlanHours = parseInt(plan.id.split(':')[0]) || 16;
+          if (notifyFastEnd) {
+            if (isFasting && fastStartTime) {
+              // Reschedule fast-end and break-fast reminder with new plan duration
+              scheduleFastEndNotification(fastStartTime, newPlanHours);
+              scheduleBreakFastReminder(fastStartTime, newPlanHours);
+            } else if (!isFasting && lastFastEndTime) {
+              // Reschedule eating window close with new plan's eating window
+              cancelEatingWindowReminder();
+              scheduleEatingWindowCloseReminder(lastFastEndTime, newPlanHours);
+            }
+          }
         }}
       />
 

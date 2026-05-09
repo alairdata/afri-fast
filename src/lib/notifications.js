@@ -57,8 +57,49 @@ export const scheduleMilestoneNotifications = async (fastStartTimestamp, planHou
 };
 
 export const cancelFastingNotifications = async () => {
-  const ids = ['fast-end', 'milestone-12h', 'milestone-16h', 'milestone-24h'];
+  const ids = ['fast-end', 'milestone-12h', 'milestone-16h', 'milestone-24h', 'break-fast-reminder'];
   await Promise.all(ids.map(id => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})));
+};
+
+// ─── Break Fast Reminder (30 min before fast ends) ───
+export const scheduleBreakFastReminder = async (fastStartTimestamp, planHours) => {
+  await Notifications.cancelScheduledNotificationAsync('break-fast-reminder').catch(() => {});
+  const reminderTime = new Date(fastStartTimestamp + planHours * 3600000 - 30 * 60000);
+  if (reminderTime <= new Date()) return;
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'break-fast-reminder',
+    content: {
+      title: 'Breaking your fast in 30 mins 🍽️',
+      body: "Almost time — get ready to break your fast mindfully.",
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: reminderTime,
+    },
+  });
+};
+
+// ─── Eating Window Close Reminder (30 min before eating window closes) ───
+export const scheduleEatingWindowCloseReminder = async (fastEndTimestamp, planHours) => {
+  await Notifications.cancelScheduledNotificationAsync('eating-window-close').catch(() => {});
+  const eatingWindowHours = 24 - planHours;
+  const reminderTime = new Date(fastEndTimestamp + eatingWindowHours * 3600000 - 30 * 60000);
+  if (reminderTime <= new Date()) return;
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'eating-window-close',
+    content: {
+      title: 'Eating window closing in 30 mins 🌙',
+      body: 'Wrap up your last meal — your fast starts soon.',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: reminderTime,
+    },
+  });
+};
+
+export const cancelEatingWindowReminder = async () => {
+  await Notifications.cancelScheduledNotificationAsync('eating-window-close').catch(() => {});
 };
 
 // ─── Daily Fast Start Reminder ───
