@@ -43,6 +43,7 @@ import CalorieDetailsPage from './components/CalorieDetailsPage';
 import BMIDetailsPage from './components/BMIDetailsPage';
 import FastingDetailsPage from './components/FastingDetailsPage';
 import WhispersTab from './components/WhispersTab';
+import WillpowerTab from './components/WillpowerTab';
 import FastingCalendarPage from './components/FastingCalendarPage';
 import FastingQuizPage from './components/FastingQuizPage';
 import NutritionQuizPage from './components/NutritionQuizPage';
@@ -1548,6 +1549,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           targetWeight={targetWeight}
           startingWeight={startingWeight}
         />
+      )}
+
+      {activeTab === 'willpower' && (
+        <WillpowerTab userId={session?.user?.id} />
       )}
 
       {activeTab === 'whispers' && (

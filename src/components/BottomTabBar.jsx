@@ -7,6 +7,7 @@ const ALL_TABS = [
   { id: 'today', label: 'Today', icon: 'home-outline', iconActive: 'home' },
   { id: 'meals', label: 'Meals', icon: 'restaurant-outline', iconActive: 'restaurant' },
   { id: 'progress', label: 'Progress', icon: 'bar-chart-outline', iconActive: 'bar-chart' },
+  { id: 'willpower', label: 'Willpower', icon: 'leaf-outline', iconActive: 'leaf' },
   { id: 'whispers', label: 'Whispers', icon: 'chatbubbles-outline', iconActive: 'chatbubbles' },
   { id: 'settings', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
 ];
