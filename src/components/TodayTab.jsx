@@ -770,8 +770,8 @@ const TodayTab = ({
 
         {/* Just for You Cards — weekly AI insights (analyst + card pipeline) */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 2 }}>
-            <Text style={styles.sectionTitleTight}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <Text style={[styles.sectionTitleTight, { marginBottom: 0 }]}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
             {jfyFreshReady && readCards.size < (justForYouCards || []).length && (
               <View style={{ backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
                 <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>New Insights</Text>
