@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, Animated, RefreshControl } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
-import { getJustForYou } from '../lib/claudeInsights';
+import { getJustForYou, getCachedJustForYou } from '../lib/claudeInsights';
 import FormattedText from '../lib/FormattedText';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -335,6 +335,8 @@ const TodayTab = ({
   const [timeSinceFast, setTimeSinceFast] = useState(null);
   const [justForYouCards, setJustForYouCards] = useState(null);
   const [jfyLoading, setJfyLoading] = useState(true);
+  const [jfyRefreshing, setJfyRefreshing] = useState(false);
+  const [jfyFreshReady, setJfyFreshReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [readCards, setReadCards] = useState(new Set());
 
@@ -383,17 +385,40 @@ const TodayTab = ({
   });
 
   const fetchInsights = async (payload) => {
-    setJfyLoading(true);
+    const userId = payload?.profile?.userId;
+
+    // Phase 1 — show cached cards instantly so the screen is never blank
+    const cached = await getCachedJustForYou(userId);
+    if (cached?.length) {
+      setJustForYouCards(cached);
+      setJfyLoading(false);
+      setJfyFreshReady(false);
+    }
+
+    // Phase 2 — fetch fresh cards in the background
+    setJfyRefreshing(true);
     getJustForYou(payload)
-      .then(cards => { setJustForYouCards(cards); setReadCards(new Set()); setJfyLoading(false); })
-      .catch(() => setJfyLoading(false));
+      .then(freshCards => {
+        if (!freshCards?.length) return;
+        const cachedStr = JSON.stringify(cached || []);
+        const freshStr = JSON.stringify(freshCards);
+        setJustForYouCards(freshCards);
+        setJfyLoading(false);
+        if (freshStr !== cachedStr) {
+          // Genuinely new cards arrived — reset read state and show badge
+          setReadCards(new Set());
+          setJfyFreshReady(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setJfyRefreshing(false));
   };
 
   const handleRefresh = () => {
     setRefreshing(true);
+    setJfyFreshReady(false);
     const payload = buildPayload();
     fetchInsights(payload);
-    // Stop pull-to-refresh spinner once insight loading kicks in
     setTimeout(() => setRefreshing(false), 800);
   };
 
@@ -747,7 +772,7 @@ const TodayTab = ({
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 2 }}>
             <Text style={styles.sectionTitleTight}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
-            {!jfyLoading && (justForYouCards || []).length > 0 && readCards.size < (justForYouCards || []).length && (
+            {jfyFreshReady && readCards.size < (justForYouCards || []).length && (
               <View style={{ backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
                 <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>New Insights</Text>
               </View>
@@ -760,7 +785,12 @@ const TodayTab = ({
               <TouchableOpacity
                 key={i}
                 style={[styles.educationCard, { backgroundColor: ['#059669', '#0F766E', '#9333EA', '#1D4ED8', '#B45309'][i % 5] }]}
-                onPress={() => { setReadCards(prev => new Set([...prev, i])); setSelectedInsight(card); }}
+                onPress={() => {
+                  const next = new Set([...readCards, i]);
+                  setReadCards(next);
+                  if (next.size >= (justForYouCards || []).length) setJfyFreshReady(false);
+                  setSelectedInsight(card);
+                }}
                 activeOpacity={0.82}
               >
                 <View style={styles.eduContent}>
@@ -935,6 +965,11 @@ const TodayTab = ({
           </View>
           {selectedInsight && (
             <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false}>
+              {jfyRefreshing && (
+                <View style={{ backgroundColor: '#F0FDF4', borderBottomWidth: 1, borderBottomColor: '#BBF7D0', paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 13, color: '#059669', fontWeight: '600' }}>Today's fresh insights are loading in the background</Text>
+                </View>
+              )}
               <View style={[styles.insightDetailHeader, { backgroundColor: selectedInsight.color || '#E8F5E9', borderLeftColor: selectedInsight.accent || '#4CAF50' }]}>
                 <Text style={[styles.insightDetailFeeling, { color: selectedInsight.accent || '#059669' }]}>{selectedInsight.feeling}</Text>
               </View>

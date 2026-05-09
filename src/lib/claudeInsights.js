@@ -190,6 +190,15 @@ export async function refreshDailyInsights(data) {
   }
 }
 
+// Fast path — returns whatever is in local cache immediately, no freshness check.
+// Used to show stale cards instantly while a background refresh runs.
+export async function getCachedJustForYou(userId) {
+  if (!userId) return null;
+  const cached = await getLocalCache(JFY_CACHE_KEY, userId);
+  if (!cached?.cards?.length) return null;
+  return cached.cards;
+}
+
 export async function getJustForYou(data, forceRefresh = false) {
   const userId = data?.profile?.userId;
   if (!userId) return null;
