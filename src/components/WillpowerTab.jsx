@@ -1,9 +1,10 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated, Dimensions, Platform, ScrollView,
   StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
+import { addWillpowerEntry, WILLPOWER_KEY } from '../lib/willpower';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/theme';
 import Confetti from './Confetti';
@@ -41,10 +42,16 @@ const STRUGGLE_MESSAGES = [
 ];
 
 const BADGES = [
-  { id: 'anchor', name: 'The Anchor', desc: 'Resist 3 days in a row', icon: '⚓', req: (count, streak) => streak >= 3 },
-  { id: 'second_wind', name: 'Second Wind', desc: 'First 10 resistances', icon: '💨', req: (count) => count >= 10 },
-  { id: 'architect', name: 'The Architect', desc: '25 total resistances', icon: '🏗️', req: (count) => count >= 25 },
-  { id: 'titanium', name: 'Titanium', desc: '50 total resistances', icon: '🌿', req: (count) => count >= 50 },
+  { id: 'first_blood',   name: 'First Blood',     desc: 'First resistance logged',        icon: '🔥', req: (c) => c >= 1 },
+  { id: 'iron_will',     name: 'Iron Will',        desc: '5 resistances',                  icon: '💪', req: (c) => c >= 5 },
+  { id: 'second_wind',   name: 'Second Wind',      desc: '10 resistances',                 icon: '💨', req: (c) => c >= 10 },
+  { id: 'unbreakable',   name: 'Unbreakable',      desc: '20 resistances',                 icon: '⛓️', req: (c) => c >= 20 },
+  { id: 'architect',     name: 'The Architect',    desc: '30 resistances',                 icon: '🏗️', req: (c) => c >= 30 },
+  { id: 'anchor',        name: 'The Anchor',       desc: '50 resistances',                 icon: '⚓', req: (c) => c >= 50 },
+  { id: 'titanium',      name: 'Titanium',         desc: '75 resistances',                 icon: '🪨', req: (c) => c >= 75 },
+  { id: 'centurion',     name: 'Centurion',        desc: '100 resistances',                icon: '🛡️', req: (c) => c >= 100 },
+  { id: 'unstoppable',   name: 'Unstoppable',      desc: '150 resistances',                icon: '⚡', req: (c) => c >= 150 },
+  { id: 'ancient',       name: 'Ancient Oak',      desc: '200 resistances — full power',   icon: '🌳', req: (c) => c >= 200 },
 ];
 
 const W = Dimensions.get('window').width;
@@ -177,11 +184,8 @@ export default function WillpowerTab({ userId }) {
       isLevelUp: didLevelUp,
     });
 
-    try { await AsyncStorage.setItem(`${WILLPOWER_KEY}_${userId}`, String(newCount)); } catch (_) {}
-    try {
-      await supabase.from('willpower_logs').insert({ user_id: userId, label: null });
-      loadHistory();
-    } catch (_) {}
+    await addWillpowerEntry(userId, null);
+    loadHistory();
   };
 
   const handleStruggling = () => {
@@ -202,7 +206,7 @@ export default function WillpowerTab({ userId }) {
 
   const barWidth = xpAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
 
-  const earnedBadges = BADGES.filter(b => b.req(count, 0));
+  const earnedBadges = BADGES.filter(b => b.req(count));
 
   const formatDate = (iso) => {
     const d = new Date(iso);
@@ -283,7 +287,7 @@ export default function WillpowerTab({ userId }) {
           <View style={[styles.badgesSection, { backgroundColor: isDark ? '#1a3328' : '#fff' }]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Milestones</Text>
             <View style={styles.badgesRow}>
-              {BADGES.filter(b => !b.req(count, 0)).slice(0, 2).map(b => (
+              {BADGES.filter(b => !b.req(count)).slice(0, 3).map(b => (
                 <View key={b.id} style={[styles.badge, styles.badgeLocked, { backgroundColor: isDark ? '#0d2e1f' : '#f0faf4' }]}>
                   <Text style={[styles.badgeIcon, { opacity: 0.3 }]}>{b.icon}</Text>
                   <Text style={[styles.badgeName, { color: colors.textMuted }]}>{b.name}</Text>

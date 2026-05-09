@@ -44,6 +44,7 @@ import BMIDetailsPage from './components/BMIDetailsPage';
 import FastingDetailsPage from './components/FastingDetailsPage';
 import WhispersTab from './components/WhispersTab';
 import WillpowerTab from './components/WillpowerTab';
+import { addWillpowerEntry } from './lib/willpower';
 import FastingCalendarPage from './components/FastingCalendarPage';
 import FastingQuizPage from './components/FastingQuizPage';
 import NutritionQuizPage from './components/NutritionQuizPage';
@@ -1198,6 +1199,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         ? `${hrs}hr${hrs !== 1 ? 's' : ''} ${mins}min${mins !== 1 ? 's' : ''}`
         : `${mins}min${mins !== 1 ? 's' : ''}`;
       showToast(`Yaay! You fasted for ${timeStr} — well done!`);
+      addWillpowerEntry(session?.user?.id, 'fast_complete');
+      setTimeout(() => showToast('🌿 Your willpower tree just grew!'), 2800);
     }
     persistFastEndedState(endTime, selectedPlan || '16:8');
   };
