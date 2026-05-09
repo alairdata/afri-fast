@@ -172,6 +172,17 @@ function preprocessData(data) {
   const completedCheckIns = checkInHistory || [];
   const allWeightLogs = weightLogs || [];
 
+  // Overall date range across all data types — drives zero-fill so gaps are visible to the AI
+  const overallMaxWeek = Math.min(11, Math.max(
+    -1,
+    ...[
+      ...completedFastingSessions.map(s => getWeekIndex(s.date || s.startTime)),
+      ...completedMeals.map(m => getWeekIndex(m.date)),
+      ...completedWaterLogs.map(wl => getWeekIndex(wl.date)),
+      ...allWeightLogs.map(wl => getWeekIndex(wl.date)),
+    ].filter(w => w >= 0 && w <= 11)
+  ));
+
   // Fasting by week
   const fastingByWeek = {};
   completedFastingSessions.forEach(s => {
@@ -181,10 +192,9 @@ function preprocessData(data) {
     fastingByWeek[w].push(s);
   });
 
-  const maxFastWeek = Object.keys(fastingByWeek).length ? Math.max(...Object.keys(fastingByWeek).map(Number)) : -1;
-  if (maxFastWeek >= 0) {
-    lines.push('FASTING SESSIONS BY WEEK (each bucket = exactly 7 calendar days; week 0 = past 0–6 days, week 1 = past 7–13 days, etc.):');
-    for (let w = 0; w <= Math.min(maxFastWeek, 11); w++) {
+  if (overallMaxWeek >= 0) {
+    lines.push('FASTING SESSIONS BY WEEK (each bucket = exactly 7 calendar days; week 0 = past 0–6 days, week 1 = past 7–13 days, etc.; weeks with 0 fasts = app not used or fasting skipped that week):');
+    for (let w = 0; w <= overallMaxWeek; w++) {
       const sessions = fastingByWeek[w] || [];
       const completed = sessions.filter(s => s.durationHours >= 0 || s.endTime);
       const label = w === 0 ? 'This week' : w === 1 ? 'Last week' : `${w} weeks ago`;
@@ -201,13 +211,41 @@ function preprocessData(data) {
           lines.push(`    ${dateLabel}${startStr ? ` | started ${startStr}` : ''}${endStr ? ` → ended ${endStr}` : ''} | ${dur}h`);
         });
       } else {
-        lines.push(`  ${label}: 0 fasts`);
+        lines.push(`  ${label}: 0 fasts (app not used or fasting skipped)`);
       }
     }
     lines.push('');
   }
 
-  // Meals by week
+  // Eating windows — gap between breaking one fast and starting the next
+  const sortedByTime = [...completedFastingSessions]
+    .filter(s => s.startTime && s.endTime)
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+
+  if (sortedByTime.length >= 2) {
+    const targetFastH = parseInt((profile.selectedPlan || '16:8').split(':')[0]) || 16;
+    const targetEatingH = 24 - targetFastH;
+    const windows = [];
+    for (let i = 1; i < sortedByTime.length; i++) {
+      const prevEnd = new Date(sortedByTime[i - 1].endTime);
+      const currStart = new Date(sortedByTime[i].startTime);
+      const gapH = (currStart - prevEnd) / (1000 * 60 * 60);
+      if (gapH >= 0 && gapH <= 24) {
+        windows.push({ gapH, breakFastTime: fmt12h(prevEnd), nextFastTime: fmt12h(currStart), date: sortedByTime[i - 1].date || new Date(prevEnd).toDateString() });
+      }
+    }
+    if (windows.length > 0) {
+      const avgWindow = (windows.reduce((s, w) => s + w.gapH, 0) / windows.length).toFixed(1);
+      lines.push(`EATING WINDOWS (time between breaking a fast and starting the next; target for ${profile.selectedPlan || '16:8'} plan: ${targetEatingH}h):`);
+      lines.push(`  Average eating window: ${avgWindow}h (target: ${targetEatingH}h) | ${parseFloat(avgWindow) > targetEatingH ? `⚠ ${(parseFloat(avgWindow) - targetEatingH).toFixed(1)}h over target` : '✓ within target'}`);
+      windows.slice(-14).forEach(w => {
+        lines.push(`  ${w.date}: ate for ${w.gapH.toFixed(1)}h (broke fast ${w.breakFastTime} → next fast ${w.nextFastTime})`);
+      });
+      lines.push('');
+    }
+  }
+
+  // Meals by week — divide by 7 so zero-logged days drag the average down (honest engagement signal)
   const mealsByWeek = {};
   completedMeals.forEach(m => {
     const w = getWeekIndex(m.date);
@@ -216,14 +254,12 @@ function preprocessData(data) {
     mealsByWeek[w].push(m);
   });
 
-  const maxMealWeek = Object.keys(mealsByWeek).length ? Math.max(...Object.keys(mealsByWeek).map(Number)) : -1;
-  if (maxMealWeek >= 0) {
-    lines.push('MEAL LOGS BY WEEK (each bucket = exactly 7 calendar days; week 0 = past 0–6 days, week 1 = past 7–13 days, etc.):');
-    for (let w = 0; w <= Math.min(maxMealWeek, 11); w++) {
+  if (overallMaxWeek >= 0) {
+    lines.push('MEAL LOGS BY WEEK (each bucket = exactly 7 calendar days; week 0 = past 0–6 days, week 1 = past 7–13 days, etc.; avg daily intake divides by 7 so zero-log days are counted as 0 kcal):');
+    for (let w = 0; w <= overallMaxWeek; w++) {
       const meals = mealsByWeek[w] || [];
       const label = w === 0 ? 'This week' : w === 1 ? 'Last week' : `${w} weeks ago`;
       if (meals.length > 0) {
-        // Group by day to get daily totals, then average across days
         const byDay = {};
         meals.forEach(m => {
           if (!byDay[m.date]) byDay[m.date] = { cal: 0, prot: 0, carb: 0, date: m.date };
@@ -232,24 +268,26 @@ function preprocessData(data) {
           byDay[m.date].carb += (m.carbs || 0);
         });
         const days = Object.values(byDay);
-        const avgDailyCal = Math.round(days.reduce((s, d) => s + d.cal, 0) / days.length);
-        const avgDailyProt = Math.round(days.reduce((s, d) => s + d.prot, 0) / days.length);
-        const avgDailyCarb = Math.round(days.reduce((s, d) => s + d.carb, 0) / days.length);
-        // Show calorie goal that was active during this period (use first day's date as representative)
+        const totalCal = days.reduce((s, d) => s + d.cal, 0);
+        const totalProt = days.reduce((s, d) => s + d.prot, 0);
+        const totalCarb = days.reduce((s, d) => s + d.carb, 0);
+        const avgDailyCal = Math.round(totalCal / 7);
+        const avgDailyProt = Math.round(totalProt / 7);
+        const avgDailyCarb = Math.round(totalCarb / 7);
         const repDate = days[0]?.date;
         const goalAtTime = getGoalAtDate(goalHistory, repDate, profile);
         const calGoalAtTime = goalAtTime?.dailyCalorieGoal || profile.dailyCalorieGoal || 2000;
         const mealList = meals.map(m => `${m.name}(${m.calories}cal,${m.protein || 0}g prot${m.logged_at ? ` @${fmt12h(m.logged_at)}` : ''})`).join('; ');
-        lines.push(`  ${label}: ${meals.length} meals across ${days.length} days | avg daily intake: ${avgDailyCal} kcal (goal was ${calGoalAtTime} kcal) | avg ${avgDailyProt}g protein | avg ${avgDailyCarb}g carbs`);
+        lines.push(`  ${label}: ${meals.length} meals across ${days.length}/7 days | avg daily intake: ${avgDailyCal} kcal (goal: ${calGoalAtTime} kcal) | avg ${avgDailyProt}g protein | avg ${avgDailyCarb}g carbs`);
         lines.push(`    Meals: ${mealList}`);
       } else {
-        lines.push(`  ${label}: no meals logged`);
+        lines.push(`  ${label}: 0 meals logged, 0 kcal (app not used or all meals skipped)`);
       }
     }
     lines.push('');
   }
 
-  // Water by week
+  // Water by week — divide by 7 so zero-log days count as 0 (honest engagement signal)
   const waterByWeek = {};
   completedWaterLogs.forEach(wl => {
     const w = getWeekIndex(wl.date);
@@ -259,21 +297,20 @@ function preprocessData(data) {
     waterByWeek[w][wl.date] += (wl.amount || 1);
   });
 
-  const maxWaterWeek = Object.keys(waterByWeek).length ? Math.max(...Object.keys(waterByWeek).map(Number)) : -1;
-  if (maxWaterWeek >= 0) {
+  if (overallMaxWeek >= 0) {
     const waterGoal = profile.hydrationGoal || 8;
     const unit = profile.volumeUnit || 'glasses';
-    lines.push(`WATER INTAKE BY WEEK (each bucket = exactly 7 calendar days; week 0 = past 0–6 days; goal: ${waterGoal} ${unit}/day):`);
-    for (let w = 0; w <= Math.min(maxWaterWeek, 11); w++) {
+    lines.push(`WATER INTAKE BY WEEK (each bucket = exactly 7 calendar days; week 0 = past 0–6 days; goal: ${waterGoal} ${unit}/day; avg divides by 7 so zero-log days count as 0):`);
+    for (let w = 0; w <= overallMaxWeek; w++) {
       const byDay = waterByWeek[w];
       const label = w === 0 ? 'This week' : w === 1 ? 'Last week' : `${w} weeks ago`;
       if (byDay) {
         const days = Object.keys(byDay);
-        const avgDaily = (days.reduce((s, d) => s + byDay[d], 0) / days.length).toFixed(1);
+        const avgDaily = (days.reduce((s, d) => s + byDay[d], 0) / 7).toFixed(1);
         const status = avgDaily >= waterGoal ? '✓ on track' : avgDaily >= waterGoal * 0.75 ? '~ close' : '↓ below goal';
-        lines.push(`  ${label}: avg ${avgDaily} ${unit}/day (${status})`);
+        lines.push(`  ${label}: avg ${avgDaily} ${unit}/day across ${days.length}/7 days (${status})`);
       } else {
-        lines.push(`  ${label}: no water logged`);
+        lines.push(`  ${label}: 0 ${unit} logged (app not used or water tracking skipped)`);
       }
     }
     lines.push('');
@@ -373,6 +410,27 @@ function buildJustForYouPrompt(data) {
   const recentWater = (waterLogs || []).slice(0, 14);
   const recentEnriched = (enrichedMealLogs || []).slice(0, 20);
 
+  // Compute eating windows from consecutive fast sessions
+  const sortedByTime = [...(fastingSessions || [])]
+    .filter(s => s.startTime && s.endTime)
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+  const fmt12h = (ts) => {
+    if (!ts) return '';
+    const d = new Date(typeof ts === 'number' ? ts : ts);
+    if (isNaN(d)) return '';
+    const h = d.getHours(), m = d.getMinutes().toString().padStart(2, '0');
+    return `${h % 12 || 12}:${m}${h >= 12 ? 'PM' : 'AM'}`;
+  };
+  const eatingWindows = [];
+  for (let i = 1; i < sortedByTime.length; i++) {
+    const prevEnd = new Date(sortedByTime[i - 1].endTime);
+    const currStart = new Date(sortedByTime[i].startTime);
+    const gapH = (currStart - prevEnd) / (1000 * 60 * 60);
+    if (gapH >= 0 && gapH <= 24) {
+      eatingWindows.push({ date: sortedByTime[i - 1].date, windowHours: parseFloat(gapH.toFixed(1)), breakFastTime: fmt12h(prevEnd), nextFastTime: fmt12h(currStart) });
+    }
+  }
+
   return `You are a warm, supportive personal health coach inside Afri Fast, an African fasting and nutrition app.
 
 USER PROFILE:
@@ -389,6 +447,7 @@ USER PROFILE:
 
 USER DATA:
 - Fasting sessions: ${JSON.stringify(recentSessions)}
+- Eating windows (gap between breaking a fast and starting the next; target for ${profile.selectedPlan || '16:8'}: ${24 - (parseInt((profile.selectedPlan || '16:8').split(':')[0]) || 16)}h): ${JSON.stringify(eatingWindows.slice(-14))}
 - Weight logs: ${JSON.stringify(recentWeight)}
 - Check-ins: ${JSON.stringify(recentCheckIns)}
 - Recent meals: ${JSON.stringify(recentMealsSlice)}
