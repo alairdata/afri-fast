@@ -425,6 +425,22 @@ const TodayTab = ({
     fetchInsights(buildPayload());
   }, [userId, dataReady]);
 
+  // Auto-refresh JFY cards at 9:15pm slot while app is open
+  useEffect(() => {
+    if (!userId || !dataReady) return;
+    const id = setInterval(() => {
+      if (jfyRefreshing) return;
+      const now = new Date();
+      const slot = new Date(now); slot.setHours(21, 15, 0, 0);
+      // Trigger only in the 60s window right after the slot
+      const msSinceSlot = now - slot;
+      if (msSinceSlot >= 0 && msSinceSlot < 60000) {
+        fetchInsights(buildPayload());
+      }
+    }, 60000);
+    return () => clearInterval(id);
+  }, [userId, dataReady, jfyRefreshing]);
+
   // Time since last fast counter
   useEffect(() => {
     if (isFasting) { setTimeSinceFast(null); return; }
