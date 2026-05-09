@@ -6,7 +6,7 @@ const JFY_CACHE_KEY = 'claude_just_for_you_v2';
 // Returns the timestamp of the most recent 8:15pm refresh slot
 function lastJfySlot() {
   const now = new Date();
-  const slot = new Date(now); slot.setHours(20, 15, 0, 0);
+  const slot = new Date(now); slot.setHours(21, 15, 0, 0);
   if (now >= slot) return slot.getTime();
   const yest = new Date(now); yest.setDate(yest.getDate() - 1); yest.setHours(20, 15, 0, 0);
   return yest.getTime();
