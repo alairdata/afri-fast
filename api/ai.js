@@ -391,7 +391,7 @@ function preprocessData(data) {
   return lines.join('\n');
 }
 
-async function callClaude(prompt, apiKey, maxTokens = 2048) {
+async function callClaude(prompt, apiKey, maxTokens = 2048, model = 'claude-sonnet-4-6') {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -400,7 +400,7 @@ async function callClaude(prompt, apiKey, maxTokens = 2048) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model,
       max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -409,6 +409,23 @@ async function callClaude(prompt, apiKey, maxTokens = 2048) {
   if (!response.ok) throw new Error(result.error?.message || 'Claude API error');
   return result.content?.[0]?.text || '';
 }
+
+const NEW_USER_CARDS = [
+  {
+    feeling: "You're just getting started — and that's the best place to be.",
+    why: "Your journey with Afri Fast begins today. The first step is always the hardest, and you've already taken it.\n\nAs you start logging your fasts, meals, and weight, your insights will become more personalised. The AI will learn your patterns and give you guidance tailored to exactly how your body responds.",
+    action: "Start your first fast today. Even a 12-hour overnight fast counts — it builds the habit.",
+    cta: "Let's go",
+    ...CARD_COLORS[0],
+  },
+  {
+    feeling: "Your goal is set. Now let's build the streak that gets you there.",
+    why: "Progress in fasting is almost never linear — but consistency over 2-3 weeks is what separates people who see results from those who don't.\n\nYour goal trajectory card will appear here once you've logged your first weight entry and completed a few fasts. Give it a few days.",
+    action: "Log your current weight now so we have a starting point to track your progress from.",
+    cta: "Makes sense",
+    ...CARD_COLORS[4],
+  },
+];
 
 function buildJustForYouPrompt(data) {
   const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs } = data;
@@ -560,10 +577,19 @@ or the word: null`;
     }
 
     if (type === 'just_for_you') {
-      const processedData = preprocessData(data);
-      const analystPrompt = `${ANALYST_PROMPT}\n\nHEALTH DATA FOR ANALYSIS:\n\n${processedData}`;
-      const analysis = await callClaude(analystPrompt, CLAUDE_KEY);
+      const hasFastingSessions = (data.fastingSessions || []).length > 0;
+      const hasMeals = (data.recentMeals || []).length > 0;
+      const hasWeightLogs = (data.weightLogs || []).length > 0;
+      const hasWaterLogs = (data.waterLogs || []).length > 0;
+      const hasAnyData = hasFastingSessions || hasMeals || hasWeightLogs || hasWaterLogs;
 
+      // New user with no data — skip API calls entirely, return static welcome cards
+      if (!hasAnyData) {
+        return res.status(200).json({ cards: NEW_USER_CARDS });
+      }
+
+      // Single-call Haiku pipeline: analyse + generate cards in one prompt (faster than 2x Sonnet)
+      const processedData = preprocessData(data);
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = tomorrow.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -572,8 +598,10 @@ or the word: null`;
       const groundTruth = tw != null
         ? `\n\nGROUND TRUTH (do NOT override these with any other value):\n- User's target weight: ${tw} ${wu}\n- User's starting weight: ${data.profile?.startingWeight ?? 'not set'} ${wu}`
         : '';
-      const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}${groundTruth}`;
-      const cardText = await callClaude(cardPrompt, CLAUDE_KEY, 2048);
+
+      const combinedPrompt = `${ANALYST_PROMPT}\n\nHEALTH DATA:\n\n${processedData}\n\n---\n\nNow, using your analysis above, apply the following card generation rules:\n\n${CARD_GENERATOR_PROMPT}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}${groundTruth}`;
+
+      const cardText = await callClaude(combinedPrompt, CLAUDE_KEY, 2048, 'claude-haiku-4-5-20251001');
 
       const stripped = cardText.replace(/```json|```/g, '').trim();
       const jsonMatch = stripped.match(/\[[\s\S]*\]/);
