@@ -384,7 +384,7 @@ const TodayTab = ({
     goalHistory: goalHistory || [],
   });
 
-  const fetchInsights = async (payload) => {
+  const fetchInsights = async (payload, forceRefresh = false) => {
     const userId = payload?.profile?.userId;
 
     // Phase 1 — show cached cards instantly so the screen is never blank
@@ -397,13 +397,12 @@ const TodayTab = ({
 
     // Phase 2 — fetch fresh cards in the background
     setJfyRefreshing(true);
-    getJustForYou(payload)
+    getJustForYou(payload, forceRefresh)
       .then(({ cards: freshCards, fromApi }) => {
         if (!freshCards?.length) return;
         setJustForYouCards(freshCards);
         setJfyLoading(false);
         if (fromApi) {
-          // Real new API response — reset read state and show badge
           setReadCards(new Set());
           setJfyFreshReady(true);
         }
@@ -435,7 +434,7 @@ const TodayTab = ({
       // Trigger only in the 60s window right after the slot
       const msSinceSlot = now - slot;
       if (msSinceSlot >= 0 && msSinceSlot < 60000) {
-        fetchInsights(buildPayload());
+        fetchInsights(buildPayload(), true);
       }
     }, 60000);
     return () => clearInterval(id);
