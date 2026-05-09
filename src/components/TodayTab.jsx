@@ -398,14 +398,12 @@ const TodayTab = ({
     // Phase 2 — fetch fresh cards in the background
     setJfyRefreshing(true);
     getJustForYou(payload)
-      .then(freshCards => {
+      .then(({ cards: freshCards, fromApi }) => {
         if (!freshCards?.length) return;
-        const cachedStr = JSON.stringify(cached || []);
-        const freshStr = JSON.stringify(freshCards);
         setJustForYouCards(freshCards);
         setJfyLoading(false);
-        if (freshStr !== cachedStr) {
-          // Genuinely new cards arrived — reset read state and show badge
+        if (fromApi) {
+          // Real new API response — reset read state and show badge
           setReadCards(new Set());
           setJfyFreshReady(true);
         }

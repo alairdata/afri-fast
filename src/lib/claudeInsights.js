@@ -199,22 +199,26 @@ export async function getCachedJustForYou(userId) {
   return cached.cards;
 }
 
+// Returns { cards, fromApi } — fromApi is true only when a real API call was made.
+// Callers use fromApi to decide whether to show the "New Insights" badge.
 export async function getJustForYou(data, forceRefresh = false) {
   const userId = data?.profile?.userId;
-  if (!userId) return null;
+  if (!userId) return { cards: null, fromApi: false };
 
   if (!forceRefresh) {
     const cached = await getCached(JFY_CACHE_KEY, userId, 'just_for_you_v2');
-    if (cached?.cards?.length && cached.timestamp >= lastJfySlot()) return cached.cards;
+    if (cached?.cards?.length && cached.timestamp >= lastJfySlot()) {
+      return { cards: cached.cards, fromApi: false };
+    }
   }
 
   try {
     const result = await callApi('just_for_you', data);
     const cards = result?.cards;
     if (cards?.length) await saveCache(JFY_CACHE_KEY, userId, 'just_for_you_v2', { cards });
-    return cards;
+    return { cards: cards || null, fromApi: true };
   } catch (e) {
     console.error('[JustForYou error]', e);
-    return null;
+    return { cards: null, fromApi: false };
   }
 }
