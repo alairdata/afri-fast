@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx expo export:web && cp public/sw.js web-build/sw.js && cp public/manifest.json web-build/manifest.json && cp public/apple-touch-icon.png web-build/apple-touch-icon.png && cp public/icon-192.png web-build/icon-192.png && cp public/icon-512.png web-build/icon-512.png",
+  "buildCommand": "npx expo export:web && cp public/{sw.js,manifest.json,apple-touch-icon.png,icon-192.png,icon-512.png} web-build/",
   "outputDirectory": "web-build",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
