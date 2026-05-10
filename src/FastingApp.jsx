@@ -205,13 +205,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
   // === Check-in state ===
   const [waterCount, setWaterCount] = useState(0);
-  const [notes, setNotes] = useState('');
+  const [noteEntries, setNoteEntries] = useState([]);
   const [checkInInitialData, setCheckInInitialData] = useState(null);
 
   const openCheckInPage = () => {
     const todayCI = checkInHistory.find(c => c.date === new Date().toDateString());
     setWaterCount(todayCI?.waterCount || 0);
-    setNotes(todayCI?.notes || '');
+    const existingEntries = todayCI?.v2Data?.noteEntries;
+    setNoteEntries(existingEntries || (todayCI?.notes ? [{ text: todayCI.notes, savedAt: todayCI.loggedAt || new Date().toISOString() }] : []));
     setCheckInInitialData(todayCI?.v2Data || null);
     setShowCheckInPage(true);
   };
@@ -1241,7 +1242,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       otherFactors: data.otherFactors || [],
       waterCount: data.waterCount ?? waterCount,
       volumeUnit,
-      notes,
+      notes: (data.noteEntries || noteEntries || []).map(e => e.text).join('\n\n'),
       fastingHours,
       fastingMinutes,
     };
@@ -1677,8 +1678,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         onSave={saveCheckIn}
         waterCount={waterCount}
         setWaterCount={setWaterCount}
-        notes={notes}
-        setNotes={setNotes}
+        noteEntries={noteEntries}
+        setNoteEntries={setNoteEntries}
         volumeUnit={volumeUnit}
         setVolumeUnit={setVolumeUnit}
         onViewWaterLogs={() => { setShowCheckInPage(false); setShowHydrationDetails(true); }}

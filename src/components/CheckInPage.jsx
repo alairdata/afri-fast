@@ -105,7 +105,7 @@ const SectionCard = ({ title, subtitle, children, titleStyle }) => (
 const CheckInPage = ({
   show, onClose, onSave,
   waterCount, setWaterCount,
-  notes, setNotes,
+  noteEntries, setNoteEntries,
   volumeUnit, setVolumeUnit,
   onViewWaterLogs,
   initialData,
@@ -115,6 +115,7 @@ const CheckInPage = ({
   const [checkInDate, setCheckInDate] = useState(new Date());
   const [showUnitPicker, setShowUnitPicker] = useState(false);
   const [waterEntries, setWaterEntries] = useState([]);
+  const [newNoteText, setNewNoteText] = useState('');
 
   // ── Section 1: Overall Wellbeing ─────────────────────────────────────────
   const [wellbeingScore, setWellbeingScore] = useState(null);
@@ -240,7 +241,7 @@ const CheckInPage = ({
       stressScore, stressContributors, focusLevel,
       currentLocation, currentCompany, typicalDay,
       fastingGoalMet, tomorrowConfidence,
-      waterCount, notes,
+      waterCount, noteEntries: noteEntries || [],
     };
     // Legacy field mappings for backward compat
     const legacy = {
@@ -518,15 +519,34 @@ const CheckInPage = ({
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
               <View style={ss.section}>
                 <Text style={ss.sectionTitle}>📝 Notes</Text>
+                {(noteEntries || []).map((entry, i) => (
+                  <View key={i} style={ss.noteEntry}>
+                    <Text style={ss.noteEntryTime}>
+                      {new Date(entry.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                    <Text style={ss.noteEntryText}>{entry.text}</Text>
+                  </View>
+                ))}
                 <View style={ss.notesCard}>
                   <TextInput
                     multiline
                     style={ss.notesInput}
-                    placeholder="Add notes about your fast, hunger, energy, or anything unusual today."
+                    placeholder={(noteEntries || []).length > 0 ? 'Add another note...' : 'Add notes about your fast, hunger, energy, or anything unusual today.'}
                     placeholderTextColor="#999"
-                    value={notes}
-                    onChangeText={text => setNotes(text)}
+                    value={newNoteText}
+                    onChangeText={setNewNoteText}
                   />
+                  {newNoteText.trim().length > 0 && (
+                    <TouchableOpacity
+                      style={ss.addNoteBtn}
+                      onPress={() => {
+                        setNoteEntries([...(noteEntries || []), { text: newNoteText.trim(), savedAt: new Date().toISOString() }]);
+                        setNewNoteText('');
+                      }}
+                    >
+                      <Text style={ss.addNoteBtnText}>+ Add Note</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </KeyboardAvoidingView>
@@ -647,8 +667,13 @@ const ss = StyleSheet.create({
   waterViewLogs: { fontSize: 13, fontWeight: '600', color: '#0EA5E9', fontFamily: 'Inter' },
   waterSaveLog: { fontSize: 13, fontWeight: '600', color: '#059669', fontFamily: 'Inter' },
 
-  notesCard: { backgroundColor: 'rgba(5,150,105,0.02)', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16 },
-  notesInput: { width: '100%', minHeight: 100, fontSize: 14, color: '#1F1F1F', lineHeight: 21, backgroundColor: 'transparent', textAlignVertical: 'top', padding: 0, fontFamily: 'Inter' },
+  notesCard: { backgroundColor: 'rgba(5,150,105,0.02)', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, marginTop: 8 },
+  notesInput: { width: '100%', minHeight: 80, fontSize: 14, color: '#1F1F1F', lineHeight: 21, backgroundColor: 'transparent', textAlignVertical: 'top', padding: 0, fontFamily: 'Inter' },
+  noteEntry: { backgroundColor: 'rgba(5,150,105,0.05)', borderRadius: 10, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#059669' },
+  noteEntryTime: { fontSize: 11, fontWeight: '600', color: '#059669', marginBottom: 4 },
+  noteEntryText: { fontSize: 14, color: '#1F1F1F', lineHeight: 20 },
+  addNoteBtn: { alignSelf: 'flex-end', marginTop: 8, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: '#059669', borderRadius: 10 },
+  addNoteBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
   footer: {
     paddingHorizontal: 20, paddingTop: 16, paddingBottom: Platform.OS === 'web' ? 24 : 32,
