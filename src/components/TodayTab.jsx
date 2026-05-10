@@ -337,6 +337,7 @@ const TodayTab = ({
   const [jfyLoading, setJfyLoading] = useState(true);
   const [jfyRefreshing, setJfyRefreshing] = useState(false);
   const [jfyFreshReady, setJfyFreshReady] = useState(false);
+  const [readCards, setReadCards] = useState(new Set());
   const [refreshing, setRefreshing] = useState(false);
 
   const buildEnrichedMealLogs = () =>
@@ -401,7 +402,7 @@ const TodayTab = ({
         if (!freshCards?.length) return;
         setJustForYouCards(freshCards);
         setJfyLoading(false);
-        if (fromApi) setJfyFreshReady(true);
+        if (fromApi) { setReadCards(new Set()); setJfyFreshReady(true); }
       })
       .catch(() => {})
       .finally(() => setJfyRefreshing(false));
@@ -783,12 +784,9 @@ const TodayTab = ({
               <Text style={{ fontSize: 12, color: '#059669', fontWeight: '500' }}>Refreshing...</Text>
             )}
             {!jfyRefreshing && jfyFreshReady && (
-              <TouchableOpacity
-                onPress={() => setJfyFreshReady(false)}
-                style={{ backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}
-              >
+              <View style={{ backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
                 <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>New Insights</Text>
-              </TouchableOpacity>
+              </View>
             )}
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
@@ -798,7 +796,12 @@ const TodayTab = ({
               <TouchableOpacity
                 key={i}
                 style={[styles.educationCard, { backgroundColor: ['#059669', '#0F766E', '#9333EA', '#1D4ED8', '#B45309'][i % 5] }]}
-                onPress={() => setSelectedInsight(card)}
+                onPress={() => {
+                  const next = new Set([...readCards, i]);
+                  setReadCards(next);
+                  if (next.size >= (justForYouCards || []).length) setJfyFreshReady(false);
+                  setSelectedInsight(card);
+                }}
                 activeOpacity={0.82}
               >
                 <View style={styles.eduContent}>
