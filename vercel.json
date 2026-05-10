@@ -1,10 +1,16 @@
 {
-  "buildCommand": "npx expo export:web && cp public/sw.js web-build/sw.js && cp public/manifest.json web-build/manifest.json",
+  "buildCommand": "npx expo export:web && cp public/sw.js web-build/sw.js && cp public/manifest.json web-build/manifest.json && cp public/apple-touch-icon.png web-build/apple-touch-icon.png && cp public/icon-192.png web-build/icon-192.png && cp public/icon-512.png web-build/icon-512.png",
   "outputDirectory": "web-build",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
+    {
+      "source": "/apple-touch-icon.png",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
     {
       "source": "/index.html",
       "headers": [
