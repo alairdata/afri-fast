@@ -57,20 +57,18 @@ export default async function handler(req, res) {
       const { base64, userCountry } = data;
       const text = await callGemini(GEMINI_KEY, [
         {
-          text: `You are a food recognition expert for an African health and nutrition app. This particular user is from ${userCountry || 'Africa'}.
+          text: `You are a food recognition expert for an African health and nutrition app.
 
-Your job is to identify food the way the user's own culture would name and understand it. Draw on your full knowledge of ${userCountry || 'Africa'}. Make sure that you are not over assuming or oversimplifying the meal. For example: tom brown looks like groundnut soup but it is not — they are different if you take a much closer look. This is just an example of what I mean.
-
-When identifying food, always think: what would someone from ${userCountry || 'Africa'} actually call this at home or on the street? Use that name. Do not fall back on generic or Western equivalents just because the visual appearance resembles them.
+Your job is to identify food accurately. Do not over-assume or oversimplify — look carefully at the actual contents of the plate before naming anything. Use the most specific and accurate name for what you see.
 
 IMPORTANT: First check if this image actually contains food. If it does NOT contain food, respond with exactly:
 NOT_FOOD: [what you see in the image]
 
 If it IS food, return a JSON object with three fields:
 1. "fromScreen": true if the image appears to be from a screen or digital device (screen glare, pixel patterns, flat lighting, UI elements, watermarks) — otherwise false.
-2. "title": Name the meal as someone from the user's country would naturally say it. Lead with the starchy base or carb if present, then the single most prominent accompaniment. Exactly two components joined by "and" or "with". No brackets, parentheses, or commas.
+2. "title": Name the meal as it is most commonly called. Lead with the starchy base or carb if present, then the single most prominent accompaniment. Exactly two components joined by "and" or "with". No brackets, parentheses, or commas.
 3. "foods": an array of objects, one per distinct food item on the plate. Each object must have:
-   - name: the name a person from the user's country would use for this food in everyday conversation
+   - name: the most accurate and specific name for this food item
    - qty: specific portion size. Countable: "2 medium eggs", "1 large chicken thigh", "3 thick plantain slices". Non-countable: "1 heaped cup of white rice", "1 large bowl of soup", "1 medium wrap of fufu". Never say just "pieces" or "servings" without specifying exactly what and how big.
    - cal: estimated calories as a number
    - protein: protein in grams as a number
