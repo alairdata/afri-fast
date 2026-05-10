@@ -1834,6 +1834,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         dailyCalorieGoal={dailyCalorieGoal}
         recentMeals={recentMeals}
         checkInHistory={checkInHistory}
+        onOpenCheckIn={openCheckInPage}
         onSaveCheckIn={(data) => {
           const dateStr = new Date().toDateString();
           const existing = checkInHistory.find(c => c.date === dateStr);
