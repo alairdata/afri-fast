@@ -55,8 +55,6 @@ const BADGES = [
 ];
 
 const W = Dimensions.get('window').width;
-const WILLPOWER_KEY = 'willpower_v1';
-
 export default function WillpowerTab({ userId }) {
   const { colors, isDark } = useTheme();
   const [count, setCount] = useState(0);
