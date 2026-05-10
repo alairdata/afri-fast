@@ -336,6 +336,7 @@ const TodayTab = ({
   const [justForYouCards, setJustForYouCards] = useState(null);
   const [jfyLoading, setJfyLoading] = useState(true);
   const [jfyRefreshing, setJfyRefreshing] = useState(false);
+  const [jfyFreshReady, setJfyFreshReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const buildEnrichedMealLogs = () =>
@@ -393,12 +394,14 @@ const TodayTab = ({
     }
 
     // Phase 2 — fetch fresh cards in the background
+    setJfyFreshReady(false);
     setJfyRefreshing(true);
     getJustForYou(payload, forceRefresh)
-      .then(({ cards: freshCards }) => {
+      .then(({ cards: freshCards, fromApi }) => {
         if (!freshCards?.length) return;
         setJustForYouCards(freshCards);
         setJfyLoading(false);
+        if (fromApi) setJfyFreshReady(true);
       })
       .catch(() => {})
       .finally(() => setJfyRefreshing(false));
@@ -774,17 +777,19 @@ const TodayTab = ({
 
         {/* Just for You Cards — weekly AI insights (analyst + card pipeline) */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <Text style={[styles.sectionTitleTight, { marginBottom: 0 }]}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
-            <TouchableOpacity
-              style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1.5, borderColor: '#059669', opacity: jfyRefreshing ? 0.5 : 1 }}
-              onPress={() => fetchInsights(buildPayload(), true)}
-              disabled={jfyRefreshing}
-            >
-              <Text style={{ fontSize: 12, fontWeight: '600', color: '#059669' }}>
-                {jfyRefreshing ? 'Refreshing...' : '↻ Refresh'}
-              </Text>
-            </TouchableOpacity>
+            {jfyRefreshing && (
+              <Text style={{ fontSize: 12, color: '#059669', fontWeight: '500' }}>Refreshing...</Text>
+            )}
+            {!jfyRefreshing && jfyFreshReady && (
+              <TouchableOpacity
+                onPress={() => setJfyFreshReady(false)}
+                style={{ backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}
+              >
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>New Insights</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
             {jfyLoading ? (
