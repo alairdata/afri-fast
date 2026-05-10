@@ -12,13 +12,13 @@ function lastJfySlot() {
   return yest.getTime();
 }
 
-// Returns the timestamp of the most recent 6am refresh slot (today's if past 6am, else yesterday's)
+// Returns the timestamp of the most recent 6pm refresh slot (today's if past 6pm, else yesterday's)
 function lastScheduledSlot() {
   const now = new Date();
-  const slot6am = new Date(now); slot6am.setHours(6, 0, 0, 0);
-  if (now.getHours() >= 6) return slot6am.getTime();
-  const yest6am = new Date(now); yest6am.setDate(yest6am.getDate() - 1); yest6am.setHours(6, 0, 0, 0);
-  return yest6am.getTime();
+  const slot6pm = new Date(now); slot6pm.setHours(18, 0, 0, 0);
+  if (now.getHours() >= 18) return slot6pm.getTime();
+  const yest6pm = new Date(now); yest6pm.setDate(yest6pm.getDate() - 1); yest6pm.setHours(18, 0, 0, 0);
+  return yest6pm.getTime();
 }
 
 const API_URL = '/api/ai';
