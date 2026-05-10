@@ -1259,7 +1259,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       activities: checkIn.activities, other_factors: checkIn.otherFactors,
       water_count: checkIn.waterCount, volume_unit: checkIn.volumeUnit,
       notes: checkIn.notes, fasting_hours: checkIn.fastingHours, fasting_minutes: checkIn.fastingMinutes,
-      v2_data: data,
+      v2_data: data, logged_at: now.toISOString(),
     };
     dbSave(
       existingCI
@@ -1869,6 +1869,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
             activities: checkIn.activities, other_factors: checkIn.otherFactors,
             water_count: checkIn.waterCount, volume_unit: volumeUnit,
             notes: checkIn.notes, fasting_hours: checkIn.fastingHours, fasting_minutes: checkIn.fastingMinutes,
+            logged_at: new Date().toISOString(),
           };
           dbSave(
             existing
