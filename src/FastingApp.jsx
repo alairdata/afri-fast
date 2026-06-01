@@ -712,9 +712,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
             if (name) setUserName(name);
             return;
           }
-          // Email user with no profile — account was deleted, force sign out
-          console.warn('[Auth] No profile found for email user — forcing sign out');
-          await supabase.auth.signOut();
+          // Email user with no profile — create it from user metadata (e.g. profile insert failed at signup)
+          const name = session.user.user_metadata?.name || '';
+          await supabase.from('profiles').insert({
+            id: session.user.id,
+            email: session.user.email,
+            name,
+          });
+          if (name) setUserName(name);
           return;
         }
 

@@ -235,7 +235,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     if (!name || !email || !password) { setError('Please fill in all fields.'); return; }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setLoading(true); setError(''); setMessage('');
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name } } });
     if (error) {
       if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already exists')) {
         setError(`Hey! We already have an account for ${email.trim()}. Log in below instead.`);
