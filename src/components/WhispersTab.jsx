@@ -30,6 +30,12 @@ const CATEGORIES = [
   { name: 'Confessions', bg: '#ec4899', image: 'https://images.unsplash.com/photo-1541963463532-d38c2168e1f5?w=300&h=400&fit=crop' },
 ];
 
+const CATEGORY_GROUPS = [
+  { title: 'Nutrition',  items: ['Meal Wins', 'Recipes', 'Hunger Tips'] },
+  { title: 'Mindset',    items: ['Motivation', 'Struggles', 'Confessions'] },
+  { title: 'Knowledge',  items: ['Science'] },
+];
+
 const AVATAR_COLORS = ['#059669', '#8b5cf6', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#06b6d4', '#f97316'];
 const WHISPER_ICONS = ['🦁', '🐯', '🦊', '🐺', '🦝', '🐻', '🐼', '🦄', '🐸', '🦋', '🦜', '🦚', '🦩', '🐬', '🦭', '🐆', '🦓', '🦒', '🦘', '🦫', '🦦', '🦥', '🐙', '🐘'];
 
@@ -986,9 +992,9 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
             <View style={{ width: 24 }} />
           </View>
 
-          {/* Filter chips */}
+          {/* Filter pills */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.allCatsFilterRow}>
-            {['All', 'Following'].map(f => (
+            {['All', 'Following', ...CATEGORY_GROUPS.map(g => g.title)].map(f => (
               <TouchableOpacity
                 key={f}
                 style={[styles.allCatsFilterChip, catFilter === f && styles.allCatsFilterChipActive]}
@@ -1000,27 +1006,48 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
           </ScrollView>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            {CATEGORIES
-              .filter(cat => catFilter === 'All' || followedCategories[cat.name])
-              .map(cat => (
-                <View key={cat.name} style={styles.allCatRow}>
-                  <Image source={{ uri: cat.image }} style={styles.allCatImage} />
-                  <Text style={[styles.allCatName, { color: colors.text }]}>{cat.name}</Text>
-                  <TouchableOpacity
-                    style={[styles.allCatFollowBtn, followedCategories[cat.name] && styles.allCatFollowingBtn]}
-                    onPress={() => setFollowedCategories(prev => ({ ...prev, [cat.name]: !prev[cat.name] }))}
-                  >
-                    <Text style={[styles.allCatFollowText, followedCategories[cat.name] && styles.allCatFollowingText]}>
-                      {followedCategories[cat.name] ? 'Following' : 'Follow'}
-                    </Text>
-                  </TouchableOpacity>
+            {(() => {
+              const groups = catFilter === 'Following'
+                ? [{ title: null, items: CATEGORIES.filter(c => followedCategories[c.name]).map(c => c.name) }]
+                : catFilter === 'All'
+                  ? CATEGORY_GROUPS
+                  : CATEGORY_GROUPS.filter(g => g.title === catFilter);
+
+              const allEmpty = groups.every(g => g.items.length === 0);
+              if (allEmpty) return (
+                <View style={styles.allCatsEmpty}>
+                  <Text style={[styles.allCatsEmptyText, { color: colors.textMuted }]}>
+                    {catFilter === 'Following' ? "You're not following any categories yet" : 'Nothing here yet'}
+                  </Text>
                 </View>
-              ))}
-            {catFilter === 'Following' && Object.keys(followedCategories).filter(k => followedCategories[k]).length === 0 && (
-              <View style={styles.allCatsEmpty}>
-                <Text style={[styles.allCatsEmptyText, { color: colors.textMuted }]}>You're not following any categories yet</Text>
-              </View>
-            )}
+              );
+
+              return groups.map(group => (
+                <View key={group.title || 'group'}>
+                  {group.title && (
+                    <Text style={[styles.allCatsGroupTitle, { color: colors.textMuted }]}>{group.title}</Text>
+                  )}
+                  {group.items.map(name => {
+                    const cat = CATEGORIES.find(c => c.name === name);
+                    if (!cat) return null;
+                    return (
+                      <View key={name} style={[styles.allCatRow, { borderBottomColor: colors.border }]}>
+                        <Image source={{ uri: cat.image }} style={[styles.allCatImage, { backgroundColor: cat.bg }]} />
+                        <Text style={[styles.allCatName, { color: colors.text }]}>{cat.name}</Text>
+                        <TouchableOpacity
+                          style={[styles.allCatFollowBtn, followedCategories[name] && styles.allCatFollowingBtn]}
+                          onPress={() => setFollowedCategories(prev => ({ ...prev, [name]: !prev[name] }))}
+                        >
+                          <Text style={[styles.allCatFollowText, followedCategories[name] && styles.allCatFollowingText]}>
+                            {followedCategories[name] ? 'Following' : 'Follow'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              ));
+            })()}
           </ScrollView>
         </View>
       )}
@@ -1840,43 +1867,46 @@ const makeStyles = (c) => StyleSheet.create({
   },
   allCatsFilterRow: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     gap: 8,
   },
   allCatsFilterChip: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: c.border,
-    backgroundColor: c.card,
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    borderRadius: 50,
+    backgroundColor: '#F3F4F6',
   },
   allCatsFilterChipActive: {
     backgroundColor: '#059669',
-    borderColor: '#059669',
   },
   allCatsFilterText: {
     fontSize: 13,
     fontWeight: '600',
-    color: c.textSecondary,
+    color: '#6B7280',
   },
   allCatsFilterTextActive: {
     color: '#fff',
+  },
+  allCatsGroupTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 6,
   },
   allCatRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: c.border,
-    gap: 14,
+    gap: 12,
   },
   allCatImage: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: c.border,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   allCatName: {
     flex: 1,
