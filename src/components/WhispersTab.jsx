@@ -1068,23 +1068,16 @@ const makeStyles = (c) => StyleSheet.create({
     flex: 1,
   },
   feedContent: {
-    paddingHorizontal: 16,
     paddingTop: 4,
   },
 
   // Post card
   postCard: {
     backgroundColor: c.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#f0f1f3',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f1f3',
   },
   postHeader: {
     flexDirection: 'row',
