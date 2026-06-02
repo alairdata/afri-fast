@@ -5,6 +5,8 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
 import { getJustForYou, getCachedJustForYou } from '../lib/claudeInsights';
 import FormattedText from '../lib/FormattedText';
+import { AFRICAN_RECIPES } from '../lib/africanRecipes';
+import { RecipeDetailModal, RecipeCard } from './MakeRecipePage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -328,6 +330,10 @@ const TodayTab = ({
   pendingInsightIndex,
   onClearPendingInsight,
   onShowChat,
+  onNavigateToMeals,
+  onLogMeal,
+  eatingStyle,
+  eatingWindow,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
@@ -364,7 +370,6 @@ const TodayTab = ({
       userName,
       userCountry,
       userJoinDate,
-      selectedPlan,
       goal,
       targetWeight,
       startingWeight,
@@ -374,8 +379,10 @@ const TodayTab = ({
       proteinGoal,
       carbsGoal,
       fatsGoal,
+      eatingStyle: eatingStyle || 'flexible',
+      eatingWindow: eatingWindow || 'evening',
     },
-    fastingSessions: fastingSessions || [],
+    fastingSessions: [],
     checkInHistory: checkInHistory || [],
     recentMeals: recentMeals || [],
     weightLogs: weightLogs || [],
@@ -606,40 +613,105 @@ const TodayTab = ({
   const significantlyUnder = calorieRatio !== null && calorieRatio < 0.5 && todayCalories > 0;
 
 
-  const patternCards = getDailyArticles(5);
-
-  const [selectedArticle, setSelectedArticle] = useState(null);
-  const [selectedInsight, setSelectedInsight] = useState(null);
-
   const weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  // Calculate this week's fasting history from real sessions
   const sessions = fastingSessions || [];
-  const getWeekHistory = () => {
+
+  // Calorie ring calculations
+  const CAL_CIRCUMFERENCE = 2 * Math.PI * 90;
+  const calRatio = dailyCalorieGoal > 0 ? Math.min(todayCalories / dailyCalorieGoal, 1) : 0;
+  const calOffset = CAL_CIRCUMFERENCE * (1 - calRatio);
+  const calRemaining = Math.max((dailyCalorieGoal || 0) - todayCalories, 0);
+  const isCalOver = dailyCalorieGoal > 0 && todayCalories > dailyCalorieGoal;
+
+  // Today's meals
+  const todayDateStr = new Date().toDateString();
+  const todayMeals = (recentMeals || []).filter(m => m.date === todayDateStr);
+
+  // Eating-style-aware meal context
+  const hour = new Date().getHours();
+  const style = eatingStyle || 'flexible';
+  const window = eatingWindow || 'evening';
+
+  const getMealContext = () => {
+    if (style === 'omad') {
+      const windowRanges = { morning: [6, 12], midday: [11, 15], evening: [17, 22], night: [20, 24] };
+      const [wStart, wEnd] = windowRanges[window] || [17, 22];
+      if (hour >= wStart && hour < wEnd)
+        return { label: 'Your meal for today', budgetRatio: 1.0 };
+      return { label: null, budgetRatio: 0 }; // outside window — hide suggestions
+    }
+
+    if (style === '2x') {
+      const isMorning = hour >= 6 && hour < 12;
+      const isEvening = hour >= 17 && hour < 22;
+      if (isMorning) return { label: 'First meal of the day',    budgetRatio: 0.50 };
+      if (isEvening) return { label: 'Second meal of the day',   budgetRatio: 0.50 };
+      return { label: 'Between meals — keep it light', budgetRatio: 0.08, maxCal: 200 };
+    }
+
+    if (style === '3x') {
+      if (hour >= 5  && hour < 11) return { label: 'Try one of these for breakfast', budgetRatio: 0.25 };
+      if (hour >= 11 && hour < 15) return { label: 'Lunch ideas for you',            budgetRatio: 0.35 };
+      if (hour >= 15 && hour < 18) return { label: 'Want a snack? You have options', budgetRatio: 0.12, maxCal: 300 };
+      if (hour >= 18 && hour < 22) return { label: "What's for dinner?",             budgetRatio: 0.30 };
+      return { label: 'Late night snack ideas', budgetRatio: 0.08, maxCal: 200 };
+    }
+
+    if (style === '4x') {
+      if (hour >= 5  && hour < 10) return { label: 'Breakfast ideas',       budgetRatio: 0.20 };
+      if (hour >= 10 && hour < 12) return { label: 'Mid-morning snack',     budgetRatio: 0.10, maxCal: 250 };
+      if (hour >= 12 && hour < 15) return { label: 'Lunch ideas',           budgetRatio: 0.30 };
+      if (hour >= 15 && hour < 17) return { label: 'Afternoon snack',       budgetRatio: 0.10, maxCal: 250 };
+      if (hour >= 17 && hour < 22) return { label: "What's for dinner?",    budgetRatio: 0.25 };
+      return { label: 'Late snack', budgetRatio: 0.05, maxCal: 150 };
+    }
+
+    // flexible — time label only, budget = all remaining
+    if (hour >= 5  && hour < 11) return { label: 'Try one of these for breakfast', budgetRatio: 1.0 };
+    if (hour >= 11 && hour < 15) return { label: 'Lunch ideas for you',            budgetRatio: 1.0 };
+    if (hour >= 15 && hour < 18) return { label: 'Want a snack?',                  budgetRatio: 0.15, maxCal: 400 };
+    if (hour >= 18 && hour < 22) return { label: "What's for dinner?",             budgetRatio: 1.0 };
+    return { label: 'Late night snack ideas', budgetRatio: 0.10, maxCal: 200 };
+  };
+
+  const mealContext = getMealContext();
+  const slotBudget = mealContext.budgetRatio === 0 ? 0
+    : dailyCalorieGoal
+      ? Math.min(
+          mealContext.maxCal ?? Math.round(dailyCalorieGoal * mealContext.budgetRatio),
+          isCalOver ? 0 : calRemaining
+        )
+      : 600;
+  const suggestedRecipes = (AFRICAN_RECIPES || [])
+    .filter(r => r.calories <= Math.max(slotBudget, 150))
+    .slice(0, 3);
+
+  // Calorie adherence this week
+  const getWeekCalHistory = () => {
     const today = new Date();
     const dayOfWeek = today.getDay();
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const monday = new Date(today);
     monday.setDate(today.getDate() + mondayOffset);
     monday.setHours(0, 0, 0, 0);
-
     return weekDays.map((_, i) => {
       const day = new Date(monday);
       day.setDate(monday.getDate() + i);
-      const dayStr = day.toDateString();
-      const todayStr = today.toDateString();
-
-      if (dayStr === todayStr) {
-        const fastedToday = sessions.some(s => new Date(s.startTime).toDateString() === dayStr);
-        return isFasting || fastedToday ? true : null;
-      } else if (day > today) {
-        return null;
-      } else {
-        const fasted = sessions.some(s => new Date(s.startTime).toDateString() === dayStr);
-        return fasted ? true : false;
-      }
+      if (day > today) return null;
+      const ds = day.toDateString();
+      const dayCals = (recentMeals || []).filter(m => m.date === ds).reduce((s, m) => s + (m.calories || 0), 0);
+      if (dayCals === 0 || !dailyCalorieGoal) return null;
+      const ratio = dayCals / dailyCalorieGoal;
+      return ratio >= 0.7 && ratio <= 1.15 ? true : false;
     });
   };
-  const fastHistory = getWeekHistory();
+  const calHistory = getWeekCalHistory();
+
+  const patternCards = getDailyArticles(5);
+
+  const [selectedArticle, setSelectedArticle] = useState(null);
+  const [selectedInsight, setSelectedInsight] = useState(null);
+  const [selectedSuggestedRecipe, setSelectedSuggestedRecipe] = useState(null);
 
   return (
     <View style={styles.wrapper}>
@@ -659,122 +731,88 @@ const TodayTab = ({
       {Platform.OS === 'web' && <View style={{ height: 44 }} />}
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}>
-        {/* Primary Status Card */}
+        {/* Calorie Ring Hero */}
         <View style={styles.heroCardCompact}>
           <View style={styles.heroContent}>
-            {/* Fast type badge */}
-            <TouchableOpacity style={styles.fastTypeBadge} onPress={onShowPlanPage}>
-              <Text style={styles.fastTypeBadgeText}>{selectedPlan ? `${selectedPlan} Fast` : 'Choose a plan'}</Text>
+            <TouchableOpacity style={styles.fastTypeBadge} onPress={onNavigateToProgress}>
+              <Text style={styles.fastTypeBadgeText}>
+                {dailyCalorieGoal ? `${dailyCalorieGoal.toLocaleString()} cal daily goal` : 'Set a calorie goal'}
+              </Text>
               <Ionicons name="chevron-forward" size={14} color="#059669" />
             </TouchableOpacity>
 
             <View style={styles.progressRingSmall}>
               <Svg width={200} height={200} viewBox="0 0 200 200">
                 <Defs>
-                  <LinearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <Stop offset="0%" stopColor="#059669" />
-                    <Stop offset="100%" stopColor="#34D399" />
+                  <LinearGradient id="calGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <Stop offset="0%" stopColor={isCalOver ? '#EF4444' : '#059669'} />
+                    <Stop offset="100%" stopColor={isCalOver ? '#F97316' : '#34D399'} />
                   </LinearGradient>
                 </Defs>
-                {/* Background track */}
+                <Circle cx="100" cy="100" r="90" stroke={isCalOver ? '#FEE2E2' : '#D1FAE5'} strokeWidth="8" fill="none" />
                 <Circle
-                  cx="100"
-                  cy="100"
-                  r="90"
-                  stroke="#D1FAE5"
-                  strokeWidth="8"
-                  fill="none"
-                />
-                {/* Progress arc */}
-                <Circle
-                  cx="100"
-                  cy="100"
-                  r="90"
-                  stroke="url(#ringGradient)"
-                  strokeWidth="10"
-                  fill="none"
+                  cx="100" cy="100" r="90"
+                  stroke={isCalOver ? '#EF4444' : 'url(#calGradient)'}
+                  strokeWidth="10" fill="none"
                   strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
+                  strokeDasharray={CAL_CIRCUMFERENCE}
+                  strokeDashoffset={calOffset}
                   transform="rotate(-90 100 100)"
                 />
               </Svg>
               <View style={styles.progressInnerSmall}>
-                {isRefining ? (
-                  <>
-                    <Text style={styles.refiningIconSmall}>{'\u2728'}</Text>
-                    <Text style={styles.refiningTextSmall}>Refining...</Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.fastingLabelSmall}>
-                      {isFasting ? 'FASTING' : timeSinceFast ? 'EATING WINDOW' : 'NOT FASTING'}
-                    </Text>
-                    <Text style={styles.timeDisplayCompact}>
-                      {isFasting
-                        ? `${fastingHours}h ${fastingMinutes}m\n${fastingSeconds}s`
-                        : timeSinceFast
-                          ? `${timeSinceFast.h}h ${timeSinceFast.m}m\n${timeSinceFast.s}s`
-                          : '0h 0m\n0s'}
-                    </Text>
-                    {isFasting
-                      ? <Text style={styles.stageTextSmall}>{getStageInfo().stage}</Text>
-                      : timeSinceFast
-                        ? <Text style={styles.stageTextSmall}>since last fast</Text>
-                        : null}
-                  </>
-                )}
+                <Text style={[styles.fastingLabelSmall, isCalOver && { color: '#EF4444' }]}>
+                  {isCalOver ? 'OVER GOAL' : calRemaining === 0 && dailyCalorieGoal ? 'GOAL MET' : 'REMAINING'}
+                </Text>
+                <Text style={[styles.timeDisplayCompact, { fontSize: 36 }]}>
+                  {isCalOver
+                    ? `+${(todayCalories - (dailyCalorieGoal || 0)).toLocaleString()}`
+                    : dailyCalorieGoal ? calRemaining.toLocaleString() : '--'}
+                </Text>
+                <Text style={[styles.stageTextSmall, isCalOver && { color: '#EF4444' }]}>cal</Text>
               </View>
             </View>
 
-            {/* Check-in Button */}
+            <View style={styles.fastTimesRow}>
+              <View style={styles.fastTimeBlock}>
+                <Text style={styles.fastTimeLabel}>EATEN</Text>
+                <Text style={styles.fastTimeValue}>{todayCalories > 0 ? todayCalories.toLocaleString() : '--'}</Text>
+                <Text style={styles.fastTimeDate}>calories</Text>
+              </View>
+              <View style={styles.fastTimeDivider} />
+              <View style={styles.fastTimeBlock}>
+                <Text style={styles.fastTimeLabel}>GOAL</Text>
+                <Text style={styles.fastTimeValue}>{dailyCalorieGoal ? dailyCalorieGoal.toLocaleString() : '--'}</Text>
+                <Text style={styles.fastTimeDate}>calories</Text>
+              </View>
+            </View>
+
             <TouchableOpacity style={styles.checkInBtnIntegrated} onPress={onShowCheckInPage}>
               <Text style={styles.checkInIcon}>+</Text>
               <Text style={styles.checkInText}>Check In</Text>
             </TouchableOpacity>
-
-            <View style={styles.fastingControlsContainer}>
-              {!isFasting ? (
-                <TouchableOpacity
-                  style={[styles.fastActionBtn, isRestoringFast && { opacity: 0.4 }]}
-                  onPress={isRestoringFast ? null : onStartFast}
-                  disabled={isRestoringFast}
-                >
-                  <Text style={styles.fastActionBtnText}>
-                    {isRestoringFast ? 'Restoring...' : 'Start Fast'}
-                  </Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.fastActionBtn} onPress={onEndFast}>
-                  <Text style={styles.fastActionBtnText}>End Fast</Text>
-                </TouchableOpacity>
-              )}
-              <View style={styles.fastTimesRow}>
-                <TouchableOpacity style={styles.fastTimeBlock} onPress={isFasting ? onEditStartTime : undefined} disabled={!isFasting}>
-                  <Text style={styles.fastTimeLabel}>STARTED</Text>
-                  <Text style={[styles.fastTimeValue, !isFasting && styles.fastTimeDash]}>{isFasting ? formatTime(startHour, startMinute) : '--:--'}</Text>
-                  <Text style={[styles.fastTimeDate, !isFasting && styles.fastTimeDash]}>{isFasting ? formatDisplayDate(startDay) : '--'}</Text>
-                  {isFasting && (
-                    <View style={styles.fastTimeEditBadge}>
-                      <Text style={styles.fastTimeEditIcon}>{'\u270E'}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-                <View style={styles.fastTimeDivider} />
-                <TouchableOpacity style={styles.fastTimeBlock} onPress={canEditEndTime ? onEditEndTime : undefined} disabled={!canEditEndTime}>
-                  <Text style={styles.fastTimeLabel}>ENDS</Text>
-                  <Text style={[styles.fastTimeValue, !isFasting && styles.fastTimeDash]}>{isFasting ? formatTime(endHour, endMinute) : '--:--'}</Text>
-                  <Text style={[styles.fastTimeDate, !isFasting && styles.fastTimeDash]}>{isFasting ? formatDisplayDate(endDay) : '--'}</Text>
-                  {canEditEndTime && (
-                    <View style={styles.fastTimeEditBadge}>
-                      <Text style={styles.fastTimeEditIcon}>{'\u270E'}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
           </View>
         </View>
+
+
+        {/* What to Eat Next */}
+        {suggestedRecipes.length > 0 && slotBudget > 0 && (
+          <View style={[styles.sectionTight, { marginTop: 8 }]}>
+            <Text style={styles.sectionTitleTight}>
+              {isCalOver ? "You've hit your goal \u2014 light options only" : mealContext.label}
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
+              {suggestedRecipes.map((recipe, i) => (
+                <RecipeCard
+                  key={i}
+                  recipe={recipe}
+                  userCountry={userCountry}
+                  onPress={() => setSelectedSuggestedRecipe(recipe)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Just for You Cards — weekly AI insights (analyst + card pipeline) */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
@@ -815,20 +853,6 @@ const TodayTab = ({
           </ScrollView>
         </View>
 
-        {/* Based on Your Pattern */}
-        <View style={[styles.sectionTight, { marginTop: 28 }]}>
-          <Text style={styles.sectionTitleTight}>Based on Your Pattern</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.patternScrollCompact}>
-            {patternCards.map((card, i) => (
-              <TouchableOpacity key={i} style={styles.patternCardLarge} onPress={() => setSelectedArticle(card)}>
-                <Image source={card.image} style={styles.patternImageArea} resizeMode="cover" />
-                <Text style={styles.patternTitleLarge}>{card.title}</Text>
-                <Text style={styles.patternTimeLarge}>{card.time}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
         {/* This Week */}
         <View style={styles.sectionTight}>
           <View style={styles.historyHeader}>
@@ -838,18 +862,19 @@ const TodayTab = ({
             </TouchableOpacity>
           </View>
           <View style={styles.historyCard}>
+            <Text style={styles.historyCardSubtitle}>Days you hit your calorie goal</Text>
             <View style={styles.historyDots}>
               {weekDays.map((day, i) => (
                 <View key={i} style={styles.historyDay}>
                   <View style={[
                     styles.historyDot,
                     {
-                      backgroundColor: fastHistory[i] === null ? colors.cardAlt : fastHistory[i] ? '#059669' : 'transparent',
-                      borderWidth: fastHistory[i] === false ? 2 : 0,
-                      borderColor: fastHistory[i] === false ? colors.border : 'transparent',
+                      backgroundColor: calHistory[i] === null ? colors.cardAlt : calHistory[i] ? '#059669' : 'transparent',
+                      borderWidth: calHistory[i] === false ? 2 : 0,
+                      borderColor: calHistory[i] === false ? colors.border : 'transparent',
                     }
                   ]}>
-                    {fastHistory[i] && fastHistory[i] !== null && <Text style={styles.dotCheck}>{'\u2713'}</Text>}
+                    {calHistory[i] === true && <Text style={styles.dotCheck}>{'\u2713'}</Text>}
                   </View>
                   <Text style={[styles.dayLabel, { color: i === (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1) ? '#059669' : colors.textMuted }]}>{day}</Text>
                 </View>
@@ -868,52 +893,43 @@ const TodayTab = ({
           </View>
           {(() => {
             const now = new Date();
-            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            const weekSessions = sessions.filter(s => s.startTime >= weekAgo.getTime());
-            const hasData = weekSessions.length > 0;
-
-            const avgHours = hasData
-              ? Math.round(weekSessions.reduce((sum, s) => sum + s.durationHours + s.durationMinutes / 60, 0) / weekSessions.length)
-              : 0;
-
-            // Streak — start from yesterday if no fast today yet
-            let streak = 0;
-            const todayStr = now.toDateString();
-            const hasFastToday = sessions.some(s => new Date(s.startTime).toDateString() === todayStr);
-            const startOffset = hasFastToday ? 0 : 1;
-            for (let i = startOffset; i < 365; i++) {
-              const d = new Date(now);
-              d.setDate(d.getDate() - i);
-              const dayStr = d.toDateString();
-              const hasFast = sessions.some(s => new Date(s.startTime).toDateString() === dayStr);
-              if (hasFast) streak++;
-              else break;
-            }
+            const last7 = Array.from({ length: 7 }, (_, i) => {
+              const d = new Date(now); d.setDate(d.getDate() - i); return d.toDateString();
+            });
+            const week7Meals = (recentMeals || []).filter(m => last7.includes(m.date));
+            const daysLogged = new Set(week7Meals.map(m => m.date)).size;
+            const totalCals7 = week7Meals.reduce((s, m) => s + (m.calories || 0), 0);
+            const avgCals = daysLogged > 0 ? Math.round(totalCals7 / daysLogged) : 0;
+            const daysOnTarget = last7.filter(d => {
+              const dc = (recentMeals || []).filter(m => m.date === d).reduce((s, m) => s + (m.calories || 0), 0);
+              if (!dc || !dailyCalorieGoal) return false;
+              const r = dc / dailyCalorieGoal; return r >= 0.7 && r <= 1.15;
+            }).length;
 
             return (
               <View style={styles.statsGrid}>
                 <View style={styles.statCard}>
-                  <Text style={styles.statValue}>{hasData ? `${avgHours}h` : '--'}</Text>
-                  <Text style={styles.statLabel}>Avg fast length</Text>
-                  {hasData && (
+                  <Text style={styles.statValue}>{daysLogged > 0 ? avgCals.toLocaleString() : '--'}</Text>
+                  <Text style={styles.statLabel}>Avg daily cal</Text>
+                  {daysLogged > 0 && dailyCalorieGoal > 0 && (
                     <View style={styles.statBadge}>
-                      <Text style={styles.statBadgeText}>{avgHours >= 16 ? 'Great' : avgHours >= 12 ? 'Good' : 'Building'}</Text>
+                      <Text style={styles.statBadgeText}>{avgCals <= dailyCalorieGoal * 1.1 ? 'On track' : 'High'}</Text>
                     </View>
                   )}
                 </View>
                 <View style={styles.statCard}>
-                  <Text style={styles.statValue}>{hasData ? weekSessions.length : '--'}</Text>
-                  <Text style={styles.statLabel}>Weekly fasts</Text>
-                  {hasData && (
-                    <View style={[styles.statBadge, { backgroundColor: weekSessions.length >= 5 ? '#E8F5E9' : '#FFF3E0' }]}>
-                      <Text style={[styles.statBadgeText, { color: weekSessions.length >= 5 ? '#2E7D32' : '#E65100' }]}>{weekSessions.length >= 5 ? 'Great' : 'Normal'}</Text>
+                  <Text style={styles.statValue}>{daysLogged > 0 ? daysLogged : '--'}</Text>
+                  <Text style={styles.statLabel}>Days logged</Text>
+                  {daysLogged > 0 && (
+                    <View style={[styles.statBadge, { backgroundColor: daysLogged >= 5 ? '#E8F5E9' : '#FFF3E0' }]}>
+                      <Text style={[styles.statBadgeText, { color: daysLogged >= 5 ? '#2E7D32' : '#E65100' }]}>{daysLogged >= 5 ? 'Great' : 'Keep going'}</Text>
                     </View>
                   )}
                 </View>
                 <View style={styles.statCard}>
-                  <Text style={styles.statValue}>{streak > 0 ? streak : '--'}</Text>
-                  <Text style={styles.statLabel}>Day streak</Text>
-                  {streak > 0 && (
+                  <Text style={styles.statValue}>{dailyCalorieGoal ? daysOnTarget : '--'}</Text>
+                  <Text style={styles.statLabel}>Goal days (7d)</Text>
+                  {dailyCalorieGoal > 0 && daysOnTarget > 0 && (
                     <View style={[styles.statBadge, { backgroundColor: '#E8F5E9' }]}>
                       <Text style={[styles.statBadgeText, { color: '#2E7D32' }]}>{'\u{1F525}'}</Text>
                     </View>
@@ -1006,6 +1022,18 @@ const TodayTab = ({
           )}
         </View>
       </Modal>
+
+      {/* Recipe Detail Modal */}
+      <RecipeDetailModal
+        recipe={selectedSuggestedRecipe}
+        visible={selectedSuggestedRecipe !== null}
+        onClose={() => setSelectedSuggestedRecipe(null)}
+        userCountry={userCountry}
+        onLogMeal={(meal) => {
+          setSelectedSuggestedRecipe(null);
+          onLogMeal?.(meal);
+        }}
+      />
 
       {/* Article Modal */}
       <Modal
@@ -1477,6 +1505,86 @@ const makeStyles = (c) => StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: 'rgba(5, 150, 105, 0.08)',
+  },
+  historyCardSubtitle: {
+    fontSize: 12,
+    color: c.textMuted,
+    marginBottom: 12,
+  },
+  emptyMealsCard: {
+    backgroundColor: c.card,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(5, 150, 105, 0.1)',
+    borderStyle: 'dashed',
+  },
+  emptyMealsText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: c.text,
+  },
+  emptyMealsSub: {
+    fontSize: 12,
+    color: c.textMuted,
+  },
+  mealsList: {
+    backgroundColor: c.card,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(5, 150, 105, 0.08)',
+    gap: 4,
+  },
+  mealRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.04)',
+    gap: 10,
+  },
+  mealIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mealName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: c.text,
+  },
+  mealCal: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  recipeCard: {
+    width: 150,
+    minHeight: 140,
+    padding: 14,
+    borderRadius: 16,
+    marginRight: 10,
+    justifyContent: 'space-between',
+  },
+  recipeCalBadge: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  recipeName: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+    flex: 1,
   },
   historyDots: {
     flexDirection: 'row',

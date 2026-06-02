@@ -54,6 +54,8 @@ const SettingsTab = ({
   foodMeasurement, setFoodMeasurement,
   targetWeight, setTargetWeight,
   startingWeight, setStartingWeight,
+  eatingStyle, setEatingStyle,
+  eatingWindow, setEatingWindow,
 }) => {
   const { isDark, colors } = useTheme();
   const [showMakeItYours, setShowMakeItYours] = useState(false);
@@ -267,6 +269,69 @@ const SettingsTab = ({
             <Text style={[styles.makeItYoursHeaderTitle, { color: colors.text }]}>Make it Yours</Text>
           </View>
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
+
+            {/* Eating Style */}
+            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Eating Style</Text>
+              <View style={styles.settingsItemBlock}>
+                <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>How often do you eat?</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Tailors meal suggestions to your actual routine</Text>
+                </View>
+                <View style={styles.settingsMacroStyleControl}>
+                  {[
+                    { value: 'omad',     label: 'OMAD' },
+                    { value: '2x',       label: '2× a day' },
+                    { value: '3x',       label: '3× a day' },
+                    { value: '4x',       label: '4× a day' },
+                    { value: 'flexible', label: 'Flexible' },
+                  ].map(({ value, label }) => (
+                    <TouchableOpacity
+                      key={value}
+                      style={[styles.settingsMacroStyleOption, eatingStyle === value && styles.settingsMacroStyleOptionActive]}
+                      onPress={() => setEatingStyle(value)}
+                    >
+                      <Text style={eatingStyle === value ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {(eatingStyle === 'omad' || eatingStyle === '2x') && (
+                <View style={[styles.settingsItemBlock, { marginTop: 4 }]}>
+                  <View style={styles.settingsItemLeft}>
+                    <Text style={[styles.settingsItemLabel, { color: colors.text }]}>
+                      {eatingStyle === 'omad' ? 'When do you eat?' : 'When are your meals?'}
+                    </Text>
+                    <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>
+                      {eatingStyle === 'omad'
+                        ? 'Suggestions only show during your eating window'
+                        : 'We\'ll split your calorie budget across both meals'}
+                    </Text>
+                  </View>
+                  <View style={styles.settingsMacroStyleControl}>
+                    {[
+                      { value: 'morning', label: 'Morning' },
+                      { value: 'midday',  label: 'Midday' },
+                      { value: 'evening', label: 'Evening' },
+                      { value: 'night',   label: 'Night' },
+                    ].map(({ value, label }) => (
+                      <TouchableOpacity
+                        key={value}
+                        style={[styles.settingsMacroStyleOption, eatingWindow === value && styles.settingsMacroStyleOptionActive]}
+                        onPress={() => setEatingWindow(value)}
+                      >
+                        <Text style={eatingWindow === value ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
 
             {/* Fasting Preferences */}
             <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>

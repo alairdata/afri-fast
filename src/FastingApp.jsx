@@ -259,6 +259,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [carbsGoal, setCarbsGoal] = useState(200);
   const [fatsGoal, setFatsGoal] = useState(65);
   const [macroStyle, setMacroStyle] = useState('balanced');
+  const [eatingStyle, setEatingStyle] = useState('flexible');
+  const [eatingWindow, setEatingWindow] = useState('evening');
   const [hydrationGoal, setHydrationGoal] = useState(6);
   const [foodMeasurement, setFoodMeasurement] = useState('cups');
   const [goalHistory, setGoalHistory] = useState([]);
@@ -691,7 +693,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch profile from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -750,6 +752,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.food_measurement) setFoodMeasurement(data.food_measurement);
         if (data.daily_calorie_goal != null) setDailyCalorieGoal(data.daily_calorie_goal);
         if (data.macro_style) setMacroStyle(data.macro_style);
+        if (data.eating_style) setEatingStyle(data.eating_style);
+        if (data.eating_window) setEatingWindow(data.eating_window);
         if (data.protein_goal != null) setProteinGoal(data.protein_goal);
         if (data.carbs_goal != null) setCarbsGoal(data.carbs_goal);
         if (data.fats_goal != null) setFatsGoal(data.fats_goal);
@@ -1475,6 +1479,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           waterCount={waterCount}
           waterLogs={waterLogs}
           volumeUnit={volumeUnit}
+          eatingStyle={eatingStyle}
+          eatingWindow={eatingWindow}
+          onNavigateToMeals={() => setActiveTab('meals')}
+          onLogMeal={(recipe) => {
+            setRecipeToLog(recipe);
+            setLogMealMethod('recipe');
+            setShowLogMealModal(true);
+          }}
           onNavigateToProgress={() => setActiveTab('progress')}
           onNavigateToHydration={() => {
             setActiveTab('progress');
@@ -1651,6 +1663,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           setTargetWeight={(val) => { setTargetWeight(val); upsertProfile({ target_weight: val }, 'update target_weight'); }}
           startingWeight={startingWeight}
           setStartingWeight={(val) => { setStartingWeight(val); upsertProfile({ starting_weight: val }, 'update starting_weight'); }}
+          eatingStyle={eatingStyle}
+          setEatingStyle={(val) => { setEatingStyle(val); upsertProfile({ eating_style: val }, 'update eating_style'); }}
+          eatingWindow={eatingWindow}
+          setEatingWindow={(val) => { setEatingWindow(val); upsertProfile({ eating_window: val }, 'update eating_window'); }}
           notifyFastStart={notifyFastStart}
           onToggleNotifyFastStart={(val) => { setNotifyFastStart(val); val ? scheduleFastStartReminder() : cancelFastStartReminder(); }}
           notifyFastEnd={notifyFastEnd}

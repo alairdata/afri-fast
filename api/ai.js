@@ -17,7 +17,7 @@ const GOAL_LABELS = {
   liveLonger: 'Live longer',
 };
 
-const ANALYST_PROMPT = `You are a rigorous health data analyst. When given user health data (fasting logs, meal logs, weight logs, water intake, mood/check-ins), do NOT produce surface-level observations. Instead:
+const ANALYST_PROMPT = `You are a rigorous health data analyst. When given user health data (calorie logs, meal logs, weight logs, water intake, mood/check-ins), do NOT produce surface-level observations. Instead:
 
 1. FIND THE REAL STORY
    - What is the data actually saying beneath the obvious trend?
@@ -72,7 +72,7 @@ Rules:
 - Vary the emotional tone across cards — one card can be matter-of-fact, another soft, another a little playful
 - Format the "why" and "action" fields for readability: use \n\n to separate distinct thoughts into paragraphs. Use **bold** to highlight key numbers, dates, or the single most important phrase in a sentence. Keep it natural — do not over-bold. Think of it like how a thoughtful person would write a personal note, not a report.
 - Generate EXACTLY 2 cards total — no more, no less:
-  CARD 1: One consolidated summary card. Pull together ALL the main patterns you observed — fasting consistency, nutrition, hydration, mood, engagement gaps — into a single rich card. The "feeling" is the single most important thing happening for this person right now. The "why" covers all the key evidence across every data type in one flowing narrative (use paragraphs with \n\n). The "action" is the single highest-leverage thing to do. Nothing is lost — it is all here, just not split across multiple cards.
+  CARD 1: One consolidated summary card. Pull together ALL the main patterns you observed — calorie adherence, nutrition, hydration, mood, engagement gaps — into a single rich card. The "feeling" is the single most important thing happening for this person right now. The "why" covers all the key evidence across every data type in one flowing narrative (use paragraphs with \n\n). The "action" is the single highest-leverage thing to do. Nothing is lost — it is all here, just not split across multiple cards.
   CARD 2: MANDATORY goal trajectory card. Always include this, even if weight data is sparse. If there is genuinely no weight data at all, use the trajectory card to talk about behavioural momentum toward their goal instead.
 - Never give more than one thing to do per card
 - Each card must include a "cta" field — a 2-word button label the user taps to read the full insight. The two cards must have DIFFERENT ctas. Draw from: "Find out", "Tell me", "See why", "Dig in", "Show me", "Worth knowing", "Unpack it", "Go deeper", "Makes sense", "Interesting", "Say more", "Explain it", "I'm listening", "Good to know", "Walk me through". Never use "Learn more".
@@ -82,10 +82,10 @@ The FINAL card must always be a goal trajectory card. Same 3-beat structure, but
 - why: use the actual weight data. The target weight is explicitly labelled "CURRENT TARGET WEIGHT" in the profile — use that exact number, never a different one. Name specific dates, specific weights. Use the pre-computed weekly rate already given in the WEIGHT PROGRESS section (the "~X kg/week" figure) — do NOT recalculate it yourself. Remember: each week bucket in the data = exactly 7 calendar days, so two buckets = 14 days, not 14 weeks. Then show two projections:
   1. **At current pace** — how many weeks (and months in brackets) to reach the target at the current rate
   2. **At an improved pace** — only include this if the current rate is low or unsustainable (e.g. less than 0.3 kg/week for weight loss, or barely moving). Show what a realistic but better rate would look like in weeks (and months in brackets). Make the improved pace feel achievable, not punishing.
-  Compare their peak rate vs their current rate and name the exact gap. Beyond weight, you have full discretion to reference any other data that is directly relevant to the trajectory — nutrition patterns, hydration, fasting consistency, mood — if it helps explain why the pace is what it is or what's quietly affecting progress toward the goal. Only include it if it genuinely connects to the trajectory, not just for the sake of it.
+  Compare their peak rate vs their current rate and name the exact gap. Beyond weight, you have full discretion to reference any other data that is directly relevant to the trajectory — nutrition patterns, hydration, calorie adherence, mood — if it helps explain why the pace is what it is or what's quietly affecting progress toward the goal. Only include it if it genuinely connects to the trajectory, not just for the sake of it.
 - action: one specific behaviour change that the data shows would most directly accelerate or protect their progress. Tie it directly to what the data reveals — not generic advice. Always end the action with this exact sentence: "These projections update daily — they shift as your behaviour changes, for better or for worse."
 
-The goal trajectory card is ALWAYS card 2 — never skip it. If there is no weight data, use behavioural trajectory (fasting consistency, calorie adherence, engagement trend) to project whether they are moving toward or away from their goal.
+The goal trajectory card is ALWAYS card 2 — never skip it. If there is no weight data, use behavioural trajectory (calorie adherence, calorie adherence, engagement trend) to project whether they are moving toward or away from their goal.
 
 Each card has an optional fourth field: "takeaway". Use it only when the data supports a specific, concrete forward-looking action worth calling out separately — skip it if there is nothing genuinely useful to add. If you include it:
 - Reference a specific date or date range using the "Tomorrow's date" provided (e.g. "By April 25th..." or "April 23rd–April 27th..."). Never say "tomorrow", "next week", "the coming days", or any other relative time phrase.
@@ -153,7 +153,7 @@ function preprocessData(data) {
   lines.push(`NAME: ${profile.userName || 'User'} | COUNTRY: ${profile.userCountry || 'Not specified'}`);
   lines.push(`MEMBER SINCE: ${joinDateStr}`);
   lines.push(`GOAL: ${goalLabel}`);
-  lines.push(`PLAN: ${profile.selectedPlan || '16:8'} fasting`);
+  lines.push(`EATING STYLE: ${profile.eatingStyle || 'flexible'}${profile.eatingWindow ? ` (${profile.eatingWindow} window)` : ''}`);
   lines.push(`DAILY CALORIE GOAL (current): ${profile.dailyCalorieGoal || 2000} kcal | PROTEIN: ${profile.proteinGoal || '?'}g | CARBS: ${profile.carbsGoal || '?'}g | FATS: ${profile.fatsGoal || '?'}g`);
   lines.push(`WATER GOAL: ${profile.hydrationGoal || 8} ${profile.volumeUnit || 'glasses'}/day`);
   if (profile.startingWeight) {
@@ -176,84 +176,20 @@ function preprocessData(data) {
   }
   lines.push('');
 
-  const completedFastingSessions = fastingSessions || [];
   const completedMeals = recentMeals || [];
   const completedWaterLogs = waterLogs || [];
   const completedCheckIns = checkInHistory || [];
   const allWeightLogs = weightLogs || [];
 
-  // Overall date range across all data types — drives zero-fill so gaps are visible to the AI
+  // Overall date range across all data types
   const overallMaxWeek = Math.min(11, Math.max(
     -1,
     ...[
-      ...completedFastingSessions.map(s => getWeekIndex(s.date || s.startTime)),
       ...completedMeals.map(m => getWeekIndex(m.date)),
       ...completedWaterLogs.map(wl => getWeekIndex(wl.date)),
       ...allWeightLogs.map(wl => getWeekIndex(wl.date)),
     ].filter(w => w >= 0 && w <= 11)
   ));
-
-  // Fasting by week
-  const fastingByWeek = {};
-  completedFastingSessions.forEach(s => {
-    const w = getWeekIndex(s.date || s.startTime);
-    if (w < 0 || w > 11) return;
-    if (!fastingByWeek[w]) fastingByWeek[w] = [];
-    fastingByWeek[w].push(s);
-  });
-
-  if (overallMaxWeek >= 0) {
-    lines.push('FASTING SESSIONS BY WEEK (each bucket = exactly 7 calendar days; week 0 = past 0–6 days, week 1 = past 7–13 days, etc.; weeks with 0 fasts = app not used or fasting skipped that week):');
-    for (let w = 0; w <= overallMaxWeek; w++) {
-      const sessions = fastingByWeek[w] || [];
-      const completed = sessions.filter(s => s.durationHours >= 0 || s.endTime);
-      const label = w === 0 ? 'This week' : w === 1 ? 'Last week' : `${w} weeks ago`;
-      if (completed.length > 0) {
-        const targetH = parseInt((profile.selectedPlan || '16:8').split(':')[0]) || 16;
-        const cutShort = completed.filter(s => s.durationHours < targetH).length;
-        const avgDur = (completed.reduce((sum, s) => sum + (s.durationHours || 0) + (s.durationMinutes || 0) / 60, 0) / completed.length).toFixed(1);
-        lines.push(`  ${label}: ${completed.length} fasts | avg ${avgDur}h${cutShort > 0 ? ` | ${cutShort} ended early` : ''}`);
-        completed.forEach(s => {
-          const startStr = s.startTime ? fmt12h(s.startTime) : '';
-          const endStr = s.endTime ? fmt12h(s.endTime) : '';
-          const dur = ((s.durationHours || 0) + (s.durationMinutes || 0) / 60).toFixed(1);
-          const dateLabel = s.date || new Date(s.startTime).toDateString();
-          lines.push(`    ${dateLabel}${startStr ? ` | started ${startStr}` : ''}${endStr ? ` → ended ${endStr}` : ''} | ${dur}h`);
-        });
-      } else {
-        lines.push(`  ${label}: 0 fasts (app not used or fasting skipped)`);
-      }
-    }
-    lines.push('');
-  }
-
-  // Eating windows — gap between breaking one fast and starting the next
-  const sortedByTime = [...completedFastingSessions]
-    .filter(s => s.startTime && s.endTime)
-    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-
-  if (sortedByTime.length >= 2) {
-    const targetFastH = parseInt((profile.selectedPlan || '16:8').split(':')[0]) || 16;
-    const targetEatingH = 24 - targetFastH;
-    const windows = [];
-    for (let i = 1; i < sortedByTime.length; i++) {
-      const prevEnd = new Date(sortedByTime[i - 1].endTime);
-      const currStart = new Date(sortedByTime[i].startTime);
-      const gapH = (currStart - prevEnd) / (1000 * 60 * 60);
-      if (gapH >= 0 && gapH <= 24) {
-        windows.push({ gapH, breakFastTime: fmt12h(prevEnd), nextFastTime: fmt12h(currStart), date: sortedByTime[i - 1].date || new Date(prevEnd).toDateString() });
-      }
-    }
-    if (windows.length > 0) {
-      const avgWindow = (windows.reduce((s, w) => s + w.gapH, 0) / windows.length).toFixed(1);
-      lines.push(`EATING WINDOWS (time between breaking a fast and starting the next; target for ${profile.selectedPlan || '16:8'} plan: ${targetEatingH}h):`);
-      lines.push(`  Average eating window: ${avgWindow}h (target: ${targetEatingH}h) | ${parseFloat(avgWindow) > targetEatingH ? `⚠ ${(parseFloat(avgWindow) - targetEatingH).toFixed(1)}h over target` : '✓ within target'}`);
-      windows.slice(-14).forEach(w => {
-        lines.push(`  ${w.date}: ate for ${w.gapH.toFixed(1)}h (broke fast ${w.breakFastTime} → next fast ${w.nextFastTime})`);
-      });
-      lines.push('');
-    }
-  }
 
   // Meals by week — divide by 7 so zero-logged days drag the average down (honest engagement signal)
   const mealsByWeek = {};
@@ -358,7 +294,6 @@ function preprocessData(data) {
     sortedCheckIns.forEach(c => {
       const timeStr = c.loggedAt ? ` ${fmt12h(c.loggedAt)}` : '';
       const parts = [`[${c.date}${timeStr}]`];
-      if (c.fastingStatus) parts.push(`fast:${c.fastingStatus}`);
       if (c.hungerLevel != null) parts.push(`hunger:${c.hungerLevel}/10`);
       if (c.feelings?.length) parts.push(`feelings:${c.feelings.join(',')}`);
       if (c.moods?.length) parts.push(`mood:${c.moods.join(',')}`);
@@ -376,7 +311,6 @@ function preprocessData(data) {
     lines.push('MEALS WITH EMOTIONAL & PHYSICAL CONTEXT (most recent first):');
     recentEnriched.forEach(m => {
       const parts = [`[${m.date}] ${m.mealName} (${m.totalCalories} kcal)`];
-      if (m.fastingStatus) parts.push(`fast:${m.fastingStatus}`);
       if (m.hungerLevel) parts.push(`hunger:${m.hungerLevel}`);
       if (m.feelings?.length) parts.push(`feelings:${m.feelings.join(',')}`);
       if (m.moods?.length) parts.push(`mood:${m.moods.join(',')}`);
@@ -411,45 +345,22 @@ async function callClaude(prompt, apiKey, maxTokens = 2048) {
 }
 
 function buildJustForYouPrompt(data) {
-  const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs } = data;
+  const { profile, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs } = data;
 
-  const recentSessions = (fastingSessions || []).slice(0, 14);
   const recentWeight = (weightLogs || []).slice(0, 10);
   const recentCheckIns = (checkInHistory || []).slice(0, 10);
   const recentMealsSlice = (recentMeals || []).slice(0, 20);
   const recentWater = (waterLogs || []).slice(0, 14);
   const recentEnriched = (enrichedMealLogs || []).slice(0, 20);
 
-  // Compute eating windows from consecutive fast sessions
-  const sortedByTime = [...(fastingSessions || [])]
-    .filter(s => s.startTime && s.endTime)
-    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-  const fmt12h = (ts) => {
-    if (!ts) return '';
-    const d = new Date(typeof ts === 'number' ? ts : ts);
-    if (isNaN(d)) return '';
-    const h = d.getHours(), m = d.getMinutes().toString().padStart(2, '0');
-    return `${h % 12 || 12}:${m}${h >= 12 ? 'PM' : 'AM'}`;
-  };
-  const eatingWindows = [];
-  for (let i = 1; i < sortedByTime.length; i++) {
-    const prevEnd = new Date(sortedByTime[i - 1].endTime);
-    const currStart = new Date(sortedByTime[i].startTime);
-    const gapH = (currStart - prevEnd) / (1000 * 60 * 60);
-    if (gapH >= 0 && gapH <= 24) {
-      eatingWindows.push({ date: sortedByTime[i - 1].date, windowHours: parseFloat(gapH.toFixed(1)), breakFastTime: fmt12h(prevEnd), nextFastTime: fmt12h(currStart) });
-    }
-  }
-
-  return `You are a warm, supportive personal health coach inside Afri Fast, an African fasting and nutrition app.
+  return `You are a warm, supportive personal health coach inside Afri Fast, an African wellness and nutrition app focused on calorie deficit and healthy eating.
 
 USER PROFILE:
 - Name: ${profile.userName || 'User'}
 - Country: ${profile.userCountry || 'Not specified'}
 - Member since: ${profile.userJoinDate ? new Date(profile.userJoinDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Unknown'}
-- Fasting plan: ${profile.selectedPlan || '16:8'}
+- Eating style: ${profile.eatingStyle || 'flexible'}${profile.eatingWindow ? ` (${profile.eatingWindow} window)` : ''}
 - Goal: ${profile.goal || 'Not specified'}
-- Health conditions: ${(profile.conditions || []).join(', ') || 'None'}
 - Starting weight: ${profile.startingWeight || 'Not set'} ${profile.weightUnit || 'kg'}
 - Target weight: ${profile.targetWeight || 'Not set'} ${profile.weightUnit || 'kg'}
 - Daily calorie goal: ${profile.dailyCalorieGoal || 2000} kcal
@@ -457,15 +368,13 @@ USER PROFILE:
 - Hydration goal: ${profile.hydrationGoal || 6} ${profile.volumeUnit || 'sachets'}/day
 
 USER DATA:
-- Fasting sessions: ${JSON.stringify(recentSessions)}
-- Eating windows (gap between breaking a fast and starting the next; target for ${profile.selectedPlan || '16:8'}: ${24 - (parseInt((profile.selectedPlan || '16:8').split(':')[0]) || 16)}h): ${JSON.stringify(eatingWindows.slice(-14))}
 - Weight logs: ${JSON.stringify(recentWeight)}
 - Check-ins: ${JSON.stringify(recentCheckIns)}
 - Recent meals: ${JSON.stringify(recentMealsSlice)}
 - Water logs: ${JSON.stringify(recentWater)}
 - Meals with emotional/physical context: ${JSON.stringify(recentEnriched)}
 
-Look at this person's goals vs their actual progress across all areas — fasting consistency, weight progress, nutrition, hydration, energy, mood. Generate actionable insight cards — things they can specifically learn from or act on. These refresh weekly so they must reflect genuine patterns across the past 7 days, not just surface observations.
+Look at this person's goals vs their actual progress across all areas — calorie adherence, weight progress, nutrition quality, hydration, energy, mood. Generate actionable insight cards — things they can specifically learn from or act on. These refresh weekly so they must reflect genuine patterns across the past 7 days, not just surface observations.
 
 Rules:
 - Each card must tie directly to a real pattern or gap you see between their goals and their data

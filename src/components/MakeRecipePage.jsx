@@ -57,7 +57,7 @@ const scaleAmount = (amount, scale) => {
 
 // ── Recipe Detail Popup ──────────────────────────────────────────────────────
 
-const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry }) => {
+export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry }) => {
   const [servings, setServings] = useState(1);
   const [communityPhotos, setCommunityPhotos] = useState([]);
   const [communityCard, setCommunityCard] = useState(null);
@@ -337,6 +337,29 @@ const CATEGORY_META = {
 const getLocalName = (recipe, userCountry) =>
   (userCountry && recipe.localNames?.[userCountry]) || recipe.name;
 
+export const RecipeCard = ({ recipe, onPress, userCountry }) => {
+  const displayName = getLocalName(recipe, userCountry);
+  const toMins = t => { if (!t) return 0; const n = parseInt(t); return isNaN(n) ? 0 : /hr/i.test(t) ? n * 60 : n; };
+  const total = toMins(recipe.prepTime) + toMins(recipe.cookTime);
+  const timeStr = total >= 60 ? `${Math.floor(total / 60)}h ${total % 60 > 0 ? `${total % 60}m` : ''}`.trim() : total > 0 ? `${total} mins` : null;
+  return (
+    <TouchableOpacity style={styles.recipeCard} onPress={onPress}>
+      {recipe.imageUrl ? (
+        <Image source={{ uri: recipe.imageUrl }} style={styles.recipeCardImg} resizeMode="cover" />
+      ) : (
+        <View style={styles.recipeCardImg}>
+          <Text style={styles.recipeCardEmoji}>🍽️</Text>
+        </View>
+      )}
+      <Text style={styles.recipeCardName} numberOfLines={2}>{displayName}</Text>
+      <View style={styles.recipeCardMeta}>
+        <Text style={styles.recipeCardCal}>{recipe.calories} cal</Text>
+        {timeStr && <Text style={styles.recipeCardTime}>{timeStr}</Text>}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
 const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   const [makeRecipeMethod, setMakeRecipeMethod] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -369,11 +392,6 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
         ) : (
           <View style={styles.recipeCardImg}>
             <Text style={styles.recipeCardEmoji}>🍽️</Text>
-          </View>
-        )}
-        {recipe.fastingFriendly && (
-          <View style={styles.recipeCardTag}>
-            <Text style={styles.recipeCardTagText}>Fasting ✓</Text>
           </View>
         )}
         <Text style={styles.recipeCardName} numberOfLines={2}>{displayName}</Text>
