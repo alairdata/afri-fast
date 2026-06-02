@@ -34,7 +34,8 @@ function TypingDots() {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const API_URL = '/api/chat';
+const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
+const API_URL = `${BASE}/api/chat`;
 
 async function callChat(body) {
   const res = await fetch(API_URL, {

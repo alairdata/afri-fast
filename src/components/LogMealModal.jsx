@@ -72,7 +72,8 @@ export const saveCommunityPhotos = async (mealId, photoUrl, detectedFoods, recip
   }
 };
 
-const GEMINI_API_URL = '/api/gemini';
+const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
+const GEMINI_API_URL = `${BASE}/api/gemini`;
 
 async function callGeminiApi(type, data) {
   const response = await fetch(GEMINI_API_URL, {

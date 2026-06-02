@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
 const DAILY_CACHE_KEY = 'claude_daily_insights_v1';
@@ -21,7 +22,8 @@ function lastScheduledSlot() {
   return yest6pm.getTime();
 }
 
-const API_URL = '/api/ai';
+const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
+const API_URL = `${BASE}/api/ai`;
 
 async function callApi(type, data) {
   const response = await fetch(API_URL, {
