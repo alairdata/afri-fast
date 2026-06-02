@@ -195,8 +195,8 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
               >
                 <View style={styles.recentMealLeftClean}>
                   <View style={styles.recentMealIconClean}>
-                    {(meal.photo || meal.localPhoto)
-                      ? <Image source={{ uri: meal.photo || meal.localPhoto }} style={styles.recentMealPhoto} resizeMode="cover" />
+                    {(meal.photo || meal.localPhoto || meal.image_url)
+                      ? <Image source={{ uri: meal.photo || meal.localPhoto || meal.image_url }} style={styles.recentMealPhoto} resizeMode="cover" />
                       : <Text style={{ fontSize: 16 }}>{'\u{1F37D}\uFE0F'}</Text>
                     }
                   </View>
@@ -335,7 +335,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
 
           {viewingMeal && (() => {
             const foods = viewingMeal.name ? viewingMeal.name.split(',').map(f => f.trim()).filter(Boolean) : [];
-            const photo = viewingMeal.photo || viewingMeal.localPhoto;
+            const photo = viewingMeal.photo || viewingMeal.localPhoto || viewingMeal.image_url;
             const cal = viewingMeal.calories || 0;
             const protein = viewingMeal.protein || 0;
             const carbs = viewingMeal.carbs || 0;
