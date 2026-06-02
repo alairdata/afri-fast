@@ -21,13 +21,13 @@ const { width } = Dimensions.get('window');
 const FILTERS = ['Popular', 'Newest', 'My posts', 'Following', 'Saved'];
 
 const CATEGORIES = [
-  { name: 'Meal Wins',    emoji: '🏆', bg: '#059669' },
-  { name: 'Motivation',  emoji: '💪', bg: '#8b5cf6' },
-  { name: 'Recipes',     emoji: '🍲', bg: '#ef4444' },
-  { name: 'Hunger Tips', emoji: '🥗', bg: '#f59e0b' },
-  { name: 'Struggles',   emoji: '😅', bg: '#3b82f6' },
-  { name: 'Science',     emoji: '🔬', bg: '#06b6d4' },
-  { name: 'Confessions', emoji: '🤫', bg: '#ec4899' },
+  { name: 'Meal Wins',    bg: '#059669', image: 'https://images.unsplash.com/photo-1567620905672-aca2d3eea9b3?w=300&h=400&fit=crop' },
+  { name: 'Motivation',  bg: '#8b5cf6', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=300&h=400&fit=crop' },
+  { name: 'Recipes',     bg: '#ef4444', image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&h=400&fit=crop' },
+  { name: 'Hunger Tips', bg: '#f59e0b', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&h=400&fit=crop' },
+  { name: 'Struggles',   bg: '#3b82f6', image: 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=300&h=400&fit=crop' },
+  { name: 'Science',     bg: '#06b6d4', image: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=300&h=400&fit=crop' },
+  { name: 'Confessions', bg: '#ec4899', image: 'https://images.unsplash.com/photo-1519311726-5c537f3c7ab8?w=300&h=400&fit=crop' },
 ];
 
 const AVATAR_COLORS = ['#059669', '#8b5cf6', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#06b6d4', '#f97316'];
@@ -743,7 +743,8 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
           >
             {CATEGORIES.map((cat) => (
               <TouchableOpacity key={cat.name} style={[styles.categoryCard, { backgroundColor: cat.bg }]}>
-                <Text style={styles.categoryCardEmoji}>{cat.emoji}</Text>
+                <Image source={{ uri: cat.image }} style={styles.categoryCardImage} resizeMode="cover" />
+                <View style={styles.categoryCardOverlay} />
                 <Text style={styles.categoryCardText}>{cat.name}</Text>
               </TouchableOpacity>
             ))}
@@ -1370,22 +1371,25 @@ const makeStyles = (c) => StyleSheet.create({
     width: 150,
     height: 180,
     borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingBottom: 14,
-    paddingHorizontal: 10,
     marginRight: 10,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
   },
-  categoryCardEmoji: {
-    fontSize: 38,
+  categoryCardImage: {
     position: 'absolute',
-    top: 24,
+    top: 0, left: 0, right: 0, bottom: 0,
+  },
+  categoryCardOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.38)',
   },
   categoryCardText: {
     color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '800',
+    paddingHorizontal: 12,
+    paddingBottom: 14,
   },
 
   // FAB
