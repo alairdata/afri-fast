@@ -162,10 +162,10 @@ export const AFRICAN_RECIPES = [
       "Gambia"
     ],
     "localNames": {
-      "Ghana": "Oats",
-      "Nigeria": "Oats",
-      "Sierra Leone": "Oats",
-      "Gambia": "Oats"
+      "Ghana": "Banana Oatmeal",
+      "Nigeria": "Banana Oatmeal",
+      "Sierra Leone": "Banana Oatmeal",
+      "Gambia": "Banana Oatmeal"
     },
     "description": "A thick, creamy breakfast porridge naturally sweetened with ripe bananas for a quick energy boost.",
     "calories": 410,
