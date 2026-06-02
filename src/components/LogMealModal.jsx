@@ -549,8 +549,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
   const quickSuggestions = ['Jollof Rice', 'Eba & Soup', 'Plantain & Egg', 'Moi Moi', 'Suya', 'Fried Rice', 'Pepper Soup', 'Akara & Pap'];
 
-  };
-
   const submitWrite = async () => {
     if (!mealInput.trim()) return;
     setWriteError(null);
