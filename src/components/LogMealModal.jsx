@@ -81,7 +81,9 @@ async function callGeminiApi(type, data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type, data }),
   });
-  const result = await response.json();
+  const text = await response.text();
+  let result;
+  try { result = JSON.parse(text); } catch { throw new Error('Server returned an unexpected response. Try again.'); }
   if (!response.ok) throw new Error(result.error || 'Gemini API error');
   return result;
 }
