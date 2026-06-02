@@ -994,7 +994,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
 
           {/* Filter pills */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.allCatsFilterRow}>
-            {['All', 'Following'].map(f => (
+            {['All', 'Following', ...CATEGORY_GROUPS.map(g => g.title)].map(f => (
               <TouchableOpacity
                 key={f}
                 style={[styles.allCatsFilterChip, catFilter === f && styles.allCatsFilterChipActive]}
@@ -1871,10 +1871,11 @@ const makeStyles = (c) => StyleSheet.create({
     gap: 8,
   },
   allCatsFilterChip: {
-    paddingHorizontal: 20,
-    paddingVertical: 9,
-    borderRadius: 50,
-    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: c.cardAlt,
+    marginRight: 8,
   },
   allCatsFilterChipActive: {
     backgroundColor: '#059669',
@@ -1882,7 +1883,7 @@ const makeStyles = (c) => StyleSheet.create({
   allCatsFilterText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
+    color: c.textSecondary,
   },
   allCatsFilterTextActive: {
     color: '#fff',
