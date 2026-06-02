@@ -361,6 +361,9 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
   const [postComments, setPostComments] = useState({});
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [followedPages, setFollowedPages] = useState({});
+  const [followedCategories, setFollowedCategories] = useState({});
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const [catFilter, setCatFilter] = useState('All');
   const [replyingTo, setReplyingTo] = useState(null);
   const [commentFilter, setCommentFilter] = useState('Top');
   const commentInputRef = useRef(null);
@@ -708,7 +711,10 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
           } else if (activeFilter === 'My posts') {
             filtered = filtered.filter(p => !p.isPage && p.name === userName);
           } else if (activeFilter === 'Following') {
-            filtered = filtered.filter(p => p.isPage && followedPages[p.id]);
+            filtered = filtered.filter(p =>
+              (p.isPage && followedPages[p.id]) ||
+              (p.category && followedCategories[p.category])
+            );
           } else if (activeFilter === 'Saved') {
             filtered = filtered.filter(p => p.bookmarked);
           }
@@ -732,7 +738,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
         <View style={styles.categoriesSection}>
           <View style={styles.categoriesHeader}>
             <Text style={styles.categoriesTitle}>Categories</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowAllCategories(true)}>
               <Text style={styles.seeAllLink}>See all &gt;</Text>
             </TouchableOpacity>
           </View>
@@ -968,6 +974,56 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* All Categories Page */}
+      {showAllCategories && (
+        <View style={styles.allCatsPage}>
+          <View style={styles.allCatsHeader}>
+            <TouchableOpacity onPress={() => setShowAllCategories(false)}>
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[styles.allCatsTitle, { color: colors.text }]}>Categories</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          {/* Filter chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.allCatsFilterRow}>
+            {['All', 'Following'].map(f => (
+              <TouchableOpacity
+                key={f}
+                style={[styles.allCatsFilterChip, catFilter === f && styles.allCatsFilterChipActive]}
+                onPress={() => setCatFilter(f)}
+              >
+                <Text style={[styles.allCatsFilterText, catFilter === f && styles.allCatsFilterTextActive]}>{f}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+            {CATEGORIES
+              .filter(cat => catFilter === 'All' || followedCategories[cat.name])
+              .map(cat => (
+                <View key={cat.name} style={styles.allCatRow}>
+                  <Image source={{ uri: cat.image }} style={styles.allCatImage} />
+                  <Text style={[styles.allCatName, { color: colors.text }]}>{cat.name}</Text>
+                  <TouchableOpacity
+                    style={[styles.allCatFollowBtn, followedCategories[cat.name] && styles.allCatFollowingBtn]}
+                    onPress={() => setFollowedCategories(prev => ({ ...prev, [cat.name]: !prev[cat.name] }))}
+                  >
+                    <Text style={[styles.allCatFollowText, followedCategories[cat.name] && styles.allCatFollowingText]}>
+                      {followedCategories[cat.name] ? 'Following' : 'Follow'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            {catFilter === 'Following' && Object.keys(followedCategories).filter(k => followedCategories[k]).length === 0 && (
+              <View style={styles.allCatsEmpty}>
+                <Text style={[styles.allCatsEmptyText, { color: colors.textMuted }]}>You're not following any categories yet</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      )}
     </View>
   );
 }
@@ -1759,5 +1815,100 @@ const makeStyles = (c) => StyleSheet.create({
     backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // All Categories Page
+  allCatsPage: {
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: c.bg,
+    zIndex: 99,
+  },
+  allCatsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: c.border,
+  },
+  allCatsTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  allCatsFilterRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  allCatsFilterChip: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: c.border,
+    backgroundColor: c.card,
+  },
+  allCatsFilterChipActive: {
+    backgroundColor: '#059669',
+    borderColor: '#059669',
+  },
+  allCatsFilterText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: c.textSecondary,
+  },
+  allCatsFilterTextActive: {
+    color: '#fff',
+  },
+  allCatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: c.border,
+    gap: 14,
+  },
+  allCatImage: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: c.border,
+  },
+  allCatName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  allCatFollowBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#059669',
+  },
+  allCatFollowingBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#059669',
+  },
+  allCatFollowText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  allCatFollowingText: {
+    color: '#059669',
+  },
+  allCatsEmpty: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  allCatsEmptyText: {
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
