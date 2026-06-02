@@ -689,25 +689,31 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
         showsVerticalScrollIndicator={false}
       >
         {(() => {
-          const filtered = posts.filter((p) => {
-            if (activeFilter === 'Popular') return true;
-            if (activeFilter === 'Newest') {
-              return p.timestamp === 'Just now' || p.timestamp === 'Today' || (p.timestamp && p.timestamp.includes('h ago'));
-            }
-            if (activeFilter === 'My posts') return !p.isPage && p.name === userName;
-            if (activeFilter === 'Following') return p.isPage;
-            if (activeFilter === 'Saved') return p.bookmarked;
-            return true;
-          });
+          let filtered = [...posts];
+          if (activeFilter === 'Popular') {
+            filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+          } else if (activeFilter === 'Newest') {
+            filtered.sort((a, b) => {
+              const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
+              const bT = b.created_at ? new Date(b.created_at).getTime() : 0;
+              return bT - aT;
+            });
+          } else if (activeFilter === 'My posts') {
+            filtered = filtered.filter(p => !p.isPage && p.name === userName);
+          } else if (activeFilter === 'Following') {
+            filtered = filtered.filter(p => p.isPage && followedPages[p.id]);
+          } else if (activeFilter === 'Saved') {
+            filtered = filtered.filter(p => p.bookmarked);
+          }
           if (filtered.length === 0) {
             return (
               <View style={styles.emptyFilterState}>
                 <Ionicons name={activeFilter === 'Saved' ? 'bookmark-outline' : activeFilter === 'My posts' ? 'person-outline' : 'search-outline'} size={40} color="#D1D5DB" />
                 <Text style={styles.emptyFilterTitle}>
-                  {activeFilter === 'Saved' ? 'No saved whispers yet' : activeFilter === 'My posts' ? 'You haven\'t posted yet' : activeFilter === 'Newest' ? 'No new whispers' : 'Nothing here yet'}
+                  {activeFilter === 'Saved' ? 'No saved whispers yet' : activeFilter === 'My posts' ? "You haven't posted yet" : activeFilter === 'Following' ? "You're not following anyone yet" : activeFilter === 'Newest' ? 'No new whispers' : 'Nothing here yet'}
                 </Text>
                 <Text style={styles.emptyFilterSub}>
-                  {activeFilter === 'Saved' ? 'Bookmark posts to find them here' : activeFilter === 'My posts' ? 'Tap "New post" to share your first whisper' : 'Check back later'}
+                  {activeFilter === 'Saved' ? 'Bookmark posts to find them here' : activeFilter === 'My posts' ? 'Tap "New post" to share your first whisper' : activeFilter === 'Following' ? 'Follow pages to see their posts here' : 'Check back later'}
                 </Text>
               </View>
             );
