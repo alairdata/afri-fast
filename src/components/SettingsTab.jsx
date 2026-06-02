@@ -280,19 +280,22 @@ const SettingsTab = ({
                 </View>
                 <View style={styles.settingsMacroStyleControl}>
                   {[
-                    { value: 'omad',     label: 'OMAD' },
-                    { value: '2x',       label: '2× a day' },
-                    { value: '3x',       label: '3× a day' },
-                    { value: '4x',       label: '4× a day' },
-                    { value: 'flexible', label: 'Flexible' },
-                  ].map(({ value, label }) => (
+                    { value: 'omad',     label: 'OMAD',       desc: 'one meal a day' },
+                    { value: '2x',       label: '2× a day',   desc: 'two meals' },
+                    { value: '3x',       label: '3× a day',   desc: 'breakfast, lunch, dinner' },
+                    { value: '4x',       label: '4× a day',   desc: 'three meals + a snack' },
+                    { value: 'flexible', label: 'Flexible',   desc: 'varies day to day' },
+                  ].map(({ value, label, desc }) => (
                     <TouchableOpacity
                       key={value}
-                      style={[styles.settingsMacroStyleOption, eatingStyle === value && styles.settingsMacroStyleOptionActive]}
+                      style={[styles.settingsMacroStyleOption, styles.settingsEatingStyleOption, eatingStyle === value && styles.settingsMacroStyleOptionActive]}
                       onPress={() => setEatingStyle(value)}
                     >
                       <Text style={eatingStyle === value ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>
                         {label}
+                      </Text>
+                      <Text style={[styles.settingsEatingStyleDesc, eatingStyle === value && styles.settingsEatingStyleDescActive]}>
+                        {desc}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -331,41 +334,6 @@ const SettingsTab = ({
                   </View>
                 </View>
               )}
-            </View>
-
-            {/* Fasting Preferences */}
-            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.settingsSectionTitleRow}>
-                <Text style={[styles.settingsSectionTitle, { marginBottom: 0, color: colors.textSecondary }]}>Fasting Preferences</Text>
-                <TouchableOpacity onPress={onShowFastingQuiz}>
-                  <Text style={styles.takeQuizBtn}>Take a Quiz</Text>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity style={styles.settingsItem} onPress={onShowPlanPage}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Fasting Schedule</Text>
-                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Your default fasting window</Text>
-                </View>
-                <View style={styles.settingsSelectRow}>
-                  <Text style={styles.settingsSelectText}>{selectedPlan || '--'}</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#ccc" />
-                </View>
-              </TouchableOpacity>
-              <View style={styles.settingsItem}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Fasting Reminders</Text>
-                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Get reminded to start/end fast</Text>
-                </View>
-                {renderToggle(notifyFastStart && notifyFastEnd, () => {
-                  const turnOn = !(notifyFastStart && notifyFastEnd);
-                  if (turnOn) {
-                    openTimePicker('fastStart', fastStartReminderTime);
-                  } else {
-                    onToggleNotifyFastStart?.(false);
-                    onToggleNotifyFastEnd?.(false);
-                  }
-                })}
-              </View>
             </View>
 
             {/* Nutrition Goals */}
@@ -1556,6 +1524,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#059669',
     textAlign: 'center',
+  },
+  settingsEatingStyleOption: {
+    minHeight: 52,
+    paddingVertical: 10,
+  },
+  settingsEatingStyleDesc: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 3,
+    lineHeight: 13,
+  },
+  settingsEatingStyleDescActive: {
+    color: '#059669',
+    opacity: 0.8,
   },
   settingsSegment: {
     paddingVertical: 6,
