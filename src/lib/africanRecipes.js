@@ -1,7 +1,7 @@
 export const AFRICAN_RECIPES = [
   {
     "id": 1,
-    "name": "Pepper Soup (Light)",
+    "name": "Awoyo (Tilapia)",
     "category": "Weight Loss Friendly",
     "countries": [
       "Nigeria",
@@ -18,17 +18,17 @@ export const AFRICAN_RECIPES = [
       "Cameroon": "Pepper Soup"
     },
     "description": "A spicy, medicinal clear broth that aids digestion and provides light protein without heavy oils.",
-    "calories": 180,
-    "protein": 22,
-    "carbs": 4,
-    "fats": 6,
+    "calories": 250,
+    "protein": 50,
+    "carbs": 3,
+    "fats": 4,
     "prepTime": "15 min",
     "cookTime": "30 min",
     "servings": 1,
     "yield": "1 bowl",
     "ingredients": [
       {
-        "name": "Fresh Tilapia or Lean Beef",
+        "name": "Fresh Tilapia",
         "amount": "2 medium chunks (approx. 250g)"
       },
       {
@@ -37,7 +37,7 @@ export const AFRICAN_RECIPES = [
       },
       {
         "name": "Scent Leaves or Basil",
-        "amount": "5-7 leaves"
+        "amount": "5–7 leaves"
       },
       {
         "name": "Habanero Pepper (Atarodo)",
@@ -65,15 +65,15 @@ export const AFRICAN_RECIPES = [
       }
     ],
     "instructions": [
-      "Wash the meat or fish thoroughly with salt and lemon.",
+      "Wash the fish thoroughly with salt and lemon.",
       "Steam protein with onions and half a seasoning cube on low heat for 5 minutes.",
       "Add water, pepper soup spice, and crushed pepper.",
-      "Boil until meat is tender (15-20 mins beef, 10 mins fish).",
+      "Boil until fish is tender (10 mins fish).",
       "Add shredded scent leaves and simmer 2 more minutes.",
       "Taste for salt and serve hot."
     ],
     "imageFilename": "pepper-soup-light.jpg",
-  "imageUrl": "https://foodsturvs.ca/wp-content/uploads/2024/01/73_file.png",
+    "imageUrl": "https://foodsturvs.ca/wp-content/uploads/2024/01/73_file.png",
     "fastingFriendly": true
   },
   {
