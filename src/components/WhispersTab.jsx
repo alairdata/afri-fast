@@ -994,7 +994,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
 
           {/* Filter pills */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.allCatsFilterRow}>
-            {['All', 'Following', ...CATEGORY_GROUPS.map(g => g.title)].map(f => (
+            {['All', 'Following'].map(f => (
               <TouchableOpacity
                 key={f}
                 style={[styles.allCatsFilterChip, catFilter === f && styles.allCatsFilterChipActive]}
