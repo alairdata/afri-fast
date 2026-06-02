@@ -3031,6 +3031,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     color: '#999',
+    marginBottom: 10,
   },
   detectPct: {
     fontSize: 12,
