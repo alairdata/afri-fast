@@ -1109,7 +1109,12 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <Text style={styles.foodCardTitle}>MEAL TYPE</Text>
                     </View>
                     <View style={{ flexDirection: 'row', padding: 12, gap: 8 }}>
-                      {['Breakfast', 'Lunch', 'Snack', 'Dinner'].map(type => (
+                      {[
+                        { type: 'Breakfast', icon: 'sunny-outline' },
+                        { type: 'Lunch',     icon: 'partly-sunny-outline' },
+                        { type: 'Snack',     icon: 'nutrition-outline' },
+                        { type: 'Dinner',    icon: 'moon-outline' },
+                      ].map(({ type, icon }) => (
                         <TouchableOpacity
                           key={type}
                           onPress={() => setSelectedMealType(type)}
@@ -1118,13 +1123,15 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             paddingVertical: 10,
                             borderRadius: 10,
                             alignItems: 'center',
+                            gap: 4,
                             backgroundColor: selectedMealType === type ? '#059669' : '#F9FAFB',
                             borderWidth: 1.5,
                             borderColor: selectedMealType === type ? '#059669' : 'transparent',
                           }}
                         >
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>
-                            {type.toUpperCase()}
+                          <Ionicons name={icon} size={16} color={selectedMealType === type ? '#fff' : '#9CA3AF'} />
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>
+                            {type}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -1413,7 +1420,12 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <Text style={styles.foodCardTitle}>MEAL TYPE</Text>
                     </View>
                     <View style={{ flexDirection: 'row', padding: 12, gap: 8 }}>
-                      {['Breakfast', 'Lunch', 'Snack', 'Dinner'].map(type => (
+                      {[
+                        { type: 'Breakfast', icon: 'sunny-outline' },
+                        { type: 'Lunch',     icon: 'partly-sunny-outline' },
+                        { type: 'Snack',     icon: 'nutrition-outline' },
+                        { type: 'Dinner',    icon: 'moon-outline' },
+                      ].map(({ type, icon }) => (
                         <TouchableOpacity
                           key={type}
                           onPress={() => setSelectedMealType(type)}
@@ -1422,13 +1434,15 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             paddingVertical: 10,
                             borderRadius: 10,
                             alignItems: 'center',
+                            gap: 4,
                             backgroundColor: selectedMealType === type ? '#059669' : '#F9FAFB',
                             borderWidth: 1.5,
                             borderColor: selectedMealType === type ? '#059669' : 'transparent',
                           }}
                         >
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>
-                            {type.toUpperCase()}
+                          <Ionicons name={icon} size={16} color={selectedMealType === type ? '#fff' : '#9CA3AF'} />
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>
+                            {type}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -1873,7 +1887,12 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <Text style={styles.foodCardTitle}>MEAL TYPE</Text>
                     </View>
                     <View style={{ flexDirection: 'row', padding: 12, gap: 8 }}>
-                      {['Breakfast', 'Lunch', 'Snack', 'Dinner'].map(type => (
+                      {[
+                        { type: 'Breakfast', icon: 'sunny-outline' },
+                        { type: 'Lunch',     icon: 'partly-sunny-outline' },
+                        { type: 'Snack',     icon: 'nutrition-outline' },
+                        { type: 'Dinner',    icon: 'moon-outline' },
+                      ].map(({ type, icon }) => (
                         <TouchableOpacity
                           key={type}
                           onPress={() => setSelectedMealType(type)}
@@ -1882,13 +1901,15 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             paddingVertical: 10,
                             borderRadius: 10,
                             alignItems: 'center',
+                            gap: 4,
                             backgroundColor: selectedMealType === type ? '#059669' : '#F9FAFB',
                             borderWidth: 1.5,
                             borderColor: selectedMealType === type ? '#059669' : 'transparent',
                           }}
                         >
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>
-                            {type.toUpperCase()}
+                          <Ionicons name={icon} size={16} color={selectedMealType === type ? '#fff' : '#9CA3AF'} />
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>
+                            {type}
                           </Text>
                         </TouchableOpacity>
                       ))}
