@@ -1869,6 +1869,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 8,
+    alignItems: 'center',
   },
   allCatsFilterChip: {
     paddingHorizontal: 18,
