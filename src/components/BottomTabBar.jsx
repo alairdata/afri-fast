@@ -7,14 +7,13 @@ const ALL_TABS = [
   { id: 'today', label: 'Today', icon: 'home-outline', iconActive: 'home' },
   { id: 'meals', label: 'Meals', icon: 'restaurant-outline', iconActive: 'restaurant' },
   { id: 'progress', label: 'Progress', icon: 'bar-chart-outline', iconActive: 'bar-chart' },
-  { id: 'willpower', label: 'Willpower', icon: 'leaf-outline', iconActive: 'leaf' },
   { id: 'whispers', label: 'Whispers', icon: 'chatbubbles-outline', iconActive: 'chatbubbles' },
   { id: 'settings', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
 ];
 
-const BottomTabBar = ({ activeTab, onTabChange, whispersUnlocked = false }) => {
+const BottomTabBar = ({ activeTab, onTabChange }) => {
   const { colors } = useTheme();
-  const tabs = ALL_TABS.filter(t => t.id !== 'whispers' || whispersUnlocked);
+  const tabs = ALL_TABS;
 
   return (
     <View style={[styles.tabBar, { backgroundColor: colors.tabBar }]}>

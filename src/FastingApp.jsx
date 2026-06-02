@@ -43,8 +43,6 @@ import CalorieDetailsPage from './components/CalorieDetailsPage';
 import BMIDetailsPage from './components/BMIDetailsPage';
 import FastingDetailsPage from './components/FastingDetailsPage';
 import WhispersTab from './components/WhispersTab';
-import WillpowerTab from './components/WillpowerTab';
-import { addWillpowerEntry } from './lib/willpower';
 import FastingCalendarPage from './components/FastingCalendarPage';
 import FastingQuizPage from './components/FastingQuizPage';
 import NutritionQuizPage from './components/NutritionQuizPage';
@@ -801,11 +799,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     return () => sub.remove();
   }, []);
 
-  // Fetch total user count for Whispers unlock
-  useEffect(() => {
-    supabase.from('profiles').select('id', { count: 'exact', head: true })
-      .then(({ count }) => { if (count != null) setUserCount(count); });
-  }, []);
 
   // Fetch meals from Supabase
   useEffect(() => {
@@ -1209,8 +1202,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         ? `${hrs}hr${hrs !== 1 ? 's' : ''} ${mins}min${mins !== 1 ? 's' : ''}`
         : `${mins}min${mins !== 1 ? 's' : ''}`;
       showToast(`Yaay! You fasted for ${timeStr} — well done!`);
-      addWillpowerEntry(session?.user?.id, 'fast_complete');
-      setTimeout(() => showToast('🌿 Your willpower tree just grew!'), 2800);
     }
     persistFastEndedState(endTime, selectedPlan || '16:8');
   };
@@ -1570,10 +1561,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           targetWeight={targetWeight}
           startingWeight={startingWeight}
         />
-      )}
-
-      {activeTab === 'willpower' && (
-        <WillpowerTab userId={session?.user?.id} />
       )}
 
       {activeTab === 'whispers' && (
@@ -2209,7 +2196,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       <BottomTabBar
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        whispersUnlocked={userCount >= 25}
       />
 
       {/* === Chat (above everything incl. tab bar) === */}
