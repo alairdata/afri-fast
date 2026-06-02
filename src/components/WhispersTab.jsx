@@ -21,13 +21,13 @@ const { width } = Dimensions.get('window');
 const FILTERS = ['Popular', 'Newest', 'My posts', 'Following', 'Saved'];
 
 const CATEGORIES = [
-  { name: 'Hunger Tips', color: '#059669', bgFrom: '#059669', bgTo: '#34d399' },
-  { name: 'Fasting Wins', color: '#f59e0b', bgFrom: '#f59e0b', bgTo: '#fbbf24' },
-  { name: 'Motivation', color: '#8b5cf6', bgFrom: '#8b5cf6', bgTo: '#a78bfa' },
-  { name: 'Recipes', color: '#ef4444', bgFrom: '#ef4444', bgTo: '#f87171' },
-  { name: 'Struggles', color: '#3b82f6', bgFrom: '#3b82f6', bgTo: '#60a5fa' },
-  { name: 'Science', color: '#06b6d4', bgFrom: '#06b6d4', bgTo: '#22d3ee' },
-  { name: 'Confessions', color: '#ec4899', bgFrom: '#ec4899', bgTo: '#f472b6' },
+  { name: 'Meal Wins',    emoji: '🏆', bg: '#059669' },
+  { name: 'Motivation',  emoji: '💪', bg: '#8b5cf6' },
+  { name: 'Recipes',     emoji: '🍲', bg: '#ef4444' },
+  { name: 'Hunger Tips', emoji: '🥗', bg: '#f59e0b' },
+  { name: 'Struggles',   emoji: '😅', bg: '#3b82f6' },
+  { name: 'Science',     emoji: '🔬', bg: '#06b6d4' },
+  { name: 'Confessions', emoji: '🤫', bg: '#ec4899' },
 ];
 
 const AVATAR_COLORS = ['#059669', '#8b5cf6', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#06b6d4', '#f97316'];
@@ -742,7 +742,8 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
             contentContainerStyle={styles.categoriesScroll}
           >
             {CATEGORIES.map((cat) => (
-              <TouchableOpacity key={cat.name} style={[styles.categoryCard, { backgroundColor: cat.bgFrom }]}>
+              <TouchableOpacity key={cat.name} style={[styles.categoryCard, { backgroundColor: cat.bg }]}>
+                <Text style={styles.categoryCardEmoji}>{cat.emoji}</Text>
                 <Text style={styles.categoryCardText}>{cat.name}</Text>
               </TouchableOpacity>
             ))}
@@ -1366,17 +1367,25 @@ const makeStyles = (c) => StyleSheet.create({
     gap: 10,
   },
   categoryCard: {
-    width: 130,
-    height: 80,
-    borderRadius: 14,
+    width: 150,
+    height: 130,
+    borderRadius: 16,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 14,
+    paddingHorizontal: 10,
     marginRight: 10,
+  },
+  categoryCardEmoji: {
+    fontSize: 38,
+    position: 'absolute',
+    top: 24,
   },
   categoryCardText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
+    textAlign: 'center',
   },
 
   // FAB
