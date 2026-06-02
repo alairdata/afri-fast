@@ -1368,7 +1368,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   categoryCard: {
     width: 150,
-    height: 130,
+    height: 180,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'flex-end',
