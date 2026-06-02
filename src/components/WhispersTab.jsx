@@ -1049,6 +1049,7 @@ const makeStyles = (c) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
+    paddingHorizontal: 16,
   },
   emptyFilterTitle: {
     fontSize: 16,
@@ -1343,6 +1344,7 @@ const makeStyles = (c) => StyleSheet.create({
   categoriesSection: {
     marginTop: 8,
     marginBottom: 8,
+    paddingHorizontal: 16,
   },
   categoriesHeader: {
     flexDirection: 'row',
