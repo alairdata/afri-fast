@@ -2,7 +2,7 @@ export const AFRICAN_RECIPES = [
   {
     "id": 1,
     "name": "Pepper Soup (Light)",
-    "category": "Fasting-Friendly",
+    "category": "Weight Loss Friendly",
     "countries": [
       "Nigeria",
       "Ghana",
@@ -79,7 +79,7 @@ export const AFRICAN_RECIPES = [
   {
     "id": 2,
     "name": "Boiled Yam & Egg Sauce",
-    "category": "Fasting-Friendly",
+    "category": "Weight Loss Friendly",
     "countries": [
       "Nigeria",
       "Ghana",
@@ -154,7 +154,7 @@ export const AFRICAN_RECIPES = [
   {
     "id": 3,
     "name": "Oat & Banana Porridge",
-    "category": "Fasting-Friendly",
+    "category": "Weight Loss Friendly",
     "countries": [
       "Ghana",
       "Nigeria",
@@ -219,7 +219,7 @@ export const AFRICAN_RECIPES = [
   {
     "id": 4,
     "name": "Moi Moi",
-    "category": "Fasting-Friendly",
+    "category": "Weight Loss Friendly",
     "countries": [
       "Nigeria",
       "Ghana (Alele)",
@@ -1706,7 +1706,7 @@ export const AFRICAN_RECIPES = [
   {
     "id": 29,
     "name": "Black Coffee",
-    "category": "Fasting Drinks",
+    "category": "Weight Loss Drinks",
     "countries": [
       "Universal"
     ],
@@ -1741,7 +1741,7 @@ export const AFRICAN_RECIPES = [
   {
     "id": 30,
     "name": "Green Tea",
-    "category": "Fasting Drinks",
+    "category": "Weight Loss Drinks",
     "countries": [
       "Universal"
     ],
@@ -1776,7 +1776,7 @@ export const AFRICAN_RECIPES = [
   {
     "id": 31,
     "name": "Lemon Water",
-    "category": "Fasting Drinks",
+    "category": "Weight Loss Drinks",
     "countries": [
       "Universal"
     ],
@@ -1811,7 +1811,7 @@ export const AFRICAN_RECIPES = [
   {
     "id": 32,
     "name": "Ginger & Lemon Tea",
-    "category": "Fasting Drinks",
+    "category": "Weight Loss Drinks",
     "countries": [
       "Universal"
     ],
@@ -2786,14 +2786,14 @@ export const AFRICAN_RECIPES = [
 ];
 
 export const RECIPE_CATEGORIES = [
-  "Fasting-Friendly",
+  "Weight Loss Friendly",
   "Breakfast",
   "Lunch",
   "Dinner",
   "Snacks",
   "Desserts",
   "Drinks",
-  "Fasting Drinks",
+  "Weight Loss Drinks",
   "Quick & Easy",
   "Low Fat",
   "Low Carb",

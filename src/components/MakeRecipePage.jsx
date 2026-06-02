@@ -320,14 +320,14 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
 // ── Make Recipe Page ─────────────────────────────────────────────────────────
 
 const CATEGORY_META = {
-  'Fasting-Friendly': { emoji: '⚡', subtitle: 'Perfect for breaking your fast' },
+  'Weight Loss Friendly': { emoji: '🎯', subtitle: 'Low calorie, big satisfaction' },
   'Breakfast': { emoji: '🌅', subtitle: 'Start your morning right' },
   'Lunch': { emoji: '☀️', subtitle: 'Midday meals to keep you going' },
   'Dinner': { emoji: '🌙', subtitle: 'Light and satisfying evening meals' },
   'Snacks': { emoji: '🤏', subtitle: 'Healthy bites between meals' },
   'Desserts': { emoji: '🍬', subtitle: 'Sweet treats, African style' },
   'Drinks': { emoji: '🥤', subtitle: 'Refreshing beverages' },
-  'Fasting Drinks': { emoji: '💧', subtitle: 'Zero-calorie drinks for your fast' },
+  'Weight Loss Drinks': { emoji: '💧', subtitle: 'Low-calorie drinks that support your goals' },
   'Quick & Easy': { emoji: '⚡', subtitle: 'Ready in under 15 minutes' },
   'Low Fat': { emoji: '🥗', subtitle: 'Light on fat, big on taste' },
   'Low Carb': { emoji: '💪', subtitle: 'Keep the carbs down' },
