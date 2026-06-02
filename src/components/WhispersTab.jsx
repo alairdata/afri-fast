@@ -21,13 +21,13 @@ const { width } = Dimensions.get('window');
 const FILTERS = ['Popular', 'Newest', 'My posts', 'Following', 'Saved'];
 
 const CATEGORIES = [
-  { name: 'Meal Wins',    bg: '#059669', image: 'https://images.unsplash.com/photo-1567620905672-aca2d3eea9b3?w=300&h=400&fit=crop' },
+  { name: 'Meal Wins',    bg: '#059669', image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=400&fit=crop' },
   { name: 'Motivation',  bg: '#8b5cf6', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=300&h=400&fit=crop' },
   { name: 'Recipes',     bg: '#ef4444', image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&h=400&fit=crop' },
   { name: 'Hunger Tips', bg: '#f59e0b', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&h=400&fit=crop' },
   { name: 'Struggles',   bg: '#3b82f6', image: 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=300&h=400&fit=crop' },
   { name: 'Science',     bg: '#06b6d4', image: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=300&h=400&fit=crop' },
-  { name: 'Confessions', bg: '#ec4899', image: 'https://images.unsplash.com/photo-1519311726-5c537f3c7ab8?w=300&h=400&fit=crop' },
+  { name: 'Confessions', bg: '#ec4899', image: 'https://images.unsplash.com/photo-1541963463532-d38c2168e1f5?w=300&h=400&fit=crop' },
 ];
 
 const AVATAR_COLORS = ['#059669', '#8b5cf6', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#06b6d4', '#f97316'];
