@@ -470,71 +470,18 @@ const SettingsTab = ({
               </View>
             </View>
 
-            {/* Log Settings */}
+            {/* Visual Guide */}
             <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.settingsSectionTitleRow}>
-                <Text style={[styles.settingsSectionTitle, { marginBottom: 0, color: colors.textSecondary }]}>Log Settings</Text>
-                <TouchableOpacity onPress={() => setShowMeasurementGuide(true)}>
-                  <Text style={styles.takeQuizBtn}>Visual Guide</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.settingsItem}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Height</Text>
-                </View>
-                <View style={styles.settingsInputWrapper}>
-                  <TextInput
-                    style={styles.settingsInput}
-                    value={String(height)}
-                    onChangeText={(text) => setHeight(text)}
-                    keyboardType="numeric"
-                    placeholder="0"
-                  />
-                  <View style={styles.settingsSegmentedControl}>
-                    {['cm', 'ft'].map((u) => (
-                      <TouchableOpacity key={u} style={heightUnit === u ? styles.settingsSegmentActive : styles.settingsSegment} onPress={() => setHeightUnit(u)}>
-                        <Text style={heightUnit === u ? styles.settingsSegmentTextActive : styles.settingsSegmentText}>{u}</Text>
-                      </TouchableOpacity>
-                    ))}
+              <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowMeasurementGuide(true)}>
+                <View style={styles.settingsActionLeft}>
+                  <Ionicons name="eye-outline" size={18} color="#374151" />
+                  <View>
+                    <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Measurement Guide</Text>
+                    <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Sachets, bottles, food portions & more</Text>
                   </View>
                 </View>
-              </View>
-              <View style={styles.settingsItem}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Weight Unit</Text>
-                </View>
-                <View style={styles.settingsSegmentedControl}>
-                  {['kg', 'lbs'].map((u) => (
-                    <TouchableOpacity key={u} style={weightUnit === u ? styles.settingsSegmentActive : styles.settingsSegment} onPress={() => setWeightUnit(u)}>
-                      <Text style={weightUnit === u ? styles.settingsSegmentTextActive : styles.settingsSegmentText}>{u}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-              <View style={styles.settingsItem}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Volume Unit</Text>
-                </View>
-                <View style={styles.settingsSegmentedControl}>
-                  {['oz', 'mL', 'sachet', 'bottle'].map((u) => (
-                    <TouchableOpacity key={u} style={volumeUnit === u ? styles.settingsSegmentActive : styles.settingsSegment} onPress={() => setVolumeUnit(u)}>
-                      <Text style={volumeUnit === u ? styles.settingsSegmentTextActive : styles.settingsSegmentText}>{u === 'sachet' ? 'Sachet' : u === 'bottle' ? 'Bottle' : u}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-              <View style={styles.settingsItem}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Food Measurement</Text>
-                </View>
-                <View style={styles.settingsSegmentedControl}>
-                  {['cups', 'tbsp', 'tsp'].map((u) => (
-                    <TouchableOpacity key={u} style={foodMeasurement === u ? styles.settingsSegmentActive : styles.settingsSegment} onPress={() => setFoodMeasurement(u)}>
-                      <Text style={foodMeasurement === u ? styles.settingsSegmentTextActive : styles.settingsSegmentText}>{u.charAt(0).toUpperCase() + u.slice(1)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
+                <Ionicons name="chevron-forward" size={16} color="#ccc" />
+              </TouchableOpacity>
             </View>
 
           </ScrollView>
