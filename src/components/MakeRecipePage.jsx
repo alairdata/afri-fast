@@ -210,6 +210,13 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
               </View>
             )}
 
+            {/* Note */}
+            {recipe.note && (
+              <View style={detail.noteBox}>
+                <Text style={detail.noteText}>📝 {recipe.note}</Text>
+              </View>
+            )}
+
             {/* Community Photos */}
             <View style={detail.section}>
               <Text style={detail.sectionTitle}>How others ate this meal</Text>
@@ -694,6 +701,8 @@ const detail = StyleSheet.create({
   communityAvatar: { marginBottom: -20, zIndex: 1 },
   communityAvatarIcon: { fontSize: 18 },
   communityPhoto: { width: 90, height: 160, borderRadius: 16, backgroundColor: '#E5E7EB' },
+  noteBox: { backgroundColor: '#FFFBEB', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#FDE68A' },
+  noteText: { fontSize: 13, color: '#92400E', lineHeight: 19 },
   communityEmpty: { alignItems: 'center', paddingVertical: 24 },
   communityEmptyIcon: { fontSize: 32 },
   communityEmptyText: { fontSize: 13, color: '#9CA3AF', marginTop: 8, fontWeight: '500' },

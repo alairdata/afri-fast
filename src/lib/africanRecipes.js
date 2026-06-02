@@ -153,7 +153,7 @@ export const AFRICAN_RECIPES = [
   },
   {
     "id": 3,
-    "name": "Oat & Banana Porridge",
+    "name": "Banana Oatmeal",
     "category": "Weight Loss Friendly",
     "countries": [
       "Ghana",
@@ -168,21 +168,21 @@ export const AFRICAN_RECIPES = [
       "Gambia": "Oats"
     },
     "description": "A thick, creamy breakfast porridge naturally sweetened with ripe bananas for a quick energy boost.",
-    "calories": 310,
-    "protein": 8,
-    "carbs": 58,
-    "fats": 5,
+    "calories": 410,
+    "protein": 9,
+    "carbs": 76,
+    "fats": 7,
     "prepTime": "5 min",
     "cookTime": "12 min",
     "servings": 1,
     "yield": "1 bowl",
     "ingredients": [
       {
-        "name": "Rolled or Quick Oats",
-        "amount": "1/2 milk tin"
+        "name": "Rolled or Quick Oats (Uncooked)",
+        "amount": "12 tbsp"
       },
       {
-        "name": "Ripe Banana",
+        "name": "Ripe Banana (Local medium)",
         "amount": "2 fingers"
       },
       {
@@ -196,24 +196,21 @@ export const AFRICAN_RECIPES = [
       {
         "name": "Honey",
         "amount": "1 tsp (optional)"
-      },
-      {
-        "name": "Ground Nutmeg",
-        "amount": "A pinch (optional)"
       }
     ],
     "instructions": [
       "Bring 1.5 cups water to a simmer.",
-      "Add oats and stir immediately to prevent lumps.",
-      "Reduce heat; stir for 3-5 minutes until thick.",
+      "Add 12 tbsp of uncooked oats and stir immediately to prevent lumps.",
+      "Reduce heat; stir for 3–5 minutes until thick.",
       "Mash one banana into a paste.",
       "Stir mashed banana into porridge.",
-      "Adjust thickness with water or milk.",
-      "Bowl and top with sliced banana.",
-      "Drizzle with honey."
+      "Adjust thickness with water or liquid milk (optional).",
+      "Bowl and top with the second sliced banana.",
+      "Drizzle with honey (optional)."
     ],
+    "note": "Adding all optional items (liquid milk and honey) increases the total to 451 kcal (11g protein, 81g carbs, 8g fats).",
     "imageFilename": "oat-banana-porridge.jpg",
-  "imageUrl": "https://www.eatingwell.com/thmb/g-qEJZu0sjFQMEwbIqkJAb6ksCA=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/banana-oatmeal-b38b2229d8a7447094f7eca0cbafb908.jpg",
+    "imageUrl": "https://www.eatingwell.com/thmb/g-qEJZu0sjFQMEwbIqkJAb6ksCA=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/banana-oatmeal-b38b2229d8a7447094f7eca0cbafb908.jpg",
     "fastingFriendly": true
   },
   {
