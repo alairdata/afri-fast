@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../lib/theme';
 import {
   View,
@@ -343,6 +343,13 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
   const setPosts = externalSetPosts || setLocalPosts;
 
   const [activeFilter, setActiveFilter] = useState('Popular');
+  const [popularSnapshot, setPopularSnapshot] = useState(null);
+
+  useEffect(() => {
+    if (activeFilter === 'Popular') {
+      setPopularSnapshot([...posts].sort((a, b) => (b.likes || 0) - (a.likes || 0)));
+    }
+  }, [activeFilter]);
   const [searchText, setSearchText] = useState('');
   const [showNewPost, setShowNewPost] = useState(false);
   const [newPostText, setNewPostText] = useState('');
@@ -689,10 +696,10 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
         showsVerticalScrollIndicator={false}
       >
         {(() => {
-          let filtered = [...posts];
-          if (activeFilter === 'Popular') {
-            filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
-          } else if (activeFilter === 'Newest') {
+          let filtered = activeFilter === 'Popular'
+            ? (popularSnapshot || [...posts].sort((a, b) => (b.likes || 0) - (a.likes || 0)))
+            : [...posts];
+          if (activeFilter === 'Newest') {
             filtered.sort((a, b) => {
               const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
               const bT = b.created_at ? new Date(b.created_at).getTime() : 0;
