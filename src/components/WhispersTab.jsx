@@ -27,7 +27,7 @@ const CATEGORIES = [
   { name: 'Hunger Tips', bg: '#f59e0b', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&h=400&fit=crop' },
   { name: 'Struggles',   bg: '#3b82f6', image: 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=300&h=400&fit=crop' },
   { name: 'Science',     bg: '#06b6d4', image: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=300&h=400&fit=crop' },
-  { name: 'Confessions', bg: '#ec4899', image: 'https://images.unsplash.com/photo-1541963463532-d38c2168e1f5?w=300&h=400&fit=crop' },
+  { name: 'Confessions', bg: '#ec4899', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=400&fit=crop' },
 ];
 
 const CATEGORY_GROUPS = [
