@@ -549,26 +549,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
   const quickSuggestions = ['Jollof Rice', 'Eba & Soup', 'Plantain & Egg', 'Moi Moi', 'Suya', 'Fried Rice', 'Pepper Soup', 'Akara & Pap'];
 
-  const isDuplicateFood = (name, existingFoods) => {
-    const normalize = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const norm = normalize(name);
-    return existingFoods.some(f => normalize(f.name) === norm);
-  };
-
-  const getDuplicateIndices = (foods) => {
-    const normalize = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const seen = {};
-    const dupes = new Set();
-    foods.forEach((f, i) => {
-      const key = normalize(f.name);
-      if (seen[key] !== undefined) {
-        dupes.add(seen[key]);
-        dupes.add(i);
-      } else {
-        seen[key] = i;
-      }
-    });
-    return dupes;
   };
 
   const submitWrite = async () => {
@@ -929,12 +909,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         </TouchableOpacity>
                       </View>
                     </View>
-                    {getDuplicateIndices(detectedFoods).size > 0 && (
-                      <View style={styles.dupeBanner}>
-                        <Ionicons name="warning-outline" size={14} color="#92400e" />
-                        <Text style={styles.dupeBannerText}>Duplicate items found — remove extras so they're not double-counted</Text>
-                      </View>
-                    )}
                     {detectedFoods.map((food, i) => (
                       <View key={i} style={styles.foodRow}>
                         {isFoodEditMode && (
@@ -945,9 +919,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         <View style={{ flex: 1, marginRight: 12 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                             <Text style={styles.foodName}>{food.name}</Text>
-                            {getDuplicateIndices(detectedFoods).has(i) && (
-                              <View style={styles.dupeFoodBadge}><Text style={styles.dupeFoodBadgeText}>duplicate</Text></View>
-                            )}
                           </View>
                           {editingQtyIdx === i ? (
                             <View style={styles.editQtyRow}>
@@ -1254,12 +1225,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         </TouchableOpacity>
                       </View>
                     </View>
-                    {getDuplicateIndices(detectedFoods).size > 0 && (
-                      <View style={styles.dupeBanner}>
-                        <Ionicons name="warning-outline" size={14} color="#92400e" />
-                        <Text style={styles.dupeBannerText}>Duplicate items found — remove extras so they're not double-counted</Text>
-                      </View>
-                    )}
                     {detectedFoods.map((food, i) => (
                       <View key={i} style={styles.foodRow}>
                         {isFoodEditMode && (
@@ -1270,9 +1235,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         <View style={{ flex: 1, marginRight: 12 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                             <Text style={styles.foodName}>{food.name}</Text>
-                            {getDuplicateIndices(detectedFoods).has(i) && (
-                              <View style={styles.dupeFoodBadge}><Text style={styles.dupeFoodBadgeText}>duplicate</Text></View>
-                            )}
                           </View>
                           {editingQtyIdx === i ? (
                             <View style={styles.editQtyRow}>
@@ -1713,12 +1675,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         </TouchableOpacity>
                       </View>
                     </View>
-                    {getDuplicateIndices(detectedFoods).size > 0 && (
-                      <View style={styles.dupeBanner}>
-                        <Ionicons name="warning-outline" size={14} color="#92400e" />
-                        <Text style={styles.dupeBannerText}>Duplicate items found — remove extras so they're not double-counted</Text>
-                      </View>
-                    )}
                     {detectedFoods.map((food, i) => (
                       <View key={i} style={styles.foodRow}>
                         {isFoodEditMode && (
@@ -1729,9 +1685,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         <View style={{ flex: 1, marginRight: 12 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                             <Text style={styles.foodName}>{food.name}</Text>
-                            {getDuplicateIndices(detectedFoods).has(i) && (
-                              <View style={styles.dupeFoodBadge}><Text style={styles.dupeFoodBadgeText}>duplicate</Text></View>
-                            )}
                           </View>
                           {editingQtyIdx === i ? (
                             <View style={styles.editQtyRow}>
