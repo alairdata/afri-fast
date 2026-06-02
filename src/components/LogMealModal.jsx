@@ -9,6 +9,7 @@ import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { uploadMealPhoto, enqueuePendingMealPhoto } from '../lib/mealPhotoUpload';
@@ -92,7 +93,17 @@ async function callGeminiApi(type, data) {
 const analyzeWithGemini = async (photoUri, onProgress, userCountry = '') => {
   try {
     onProgress?.(5);
-    const base64 = await readUriAsBase64(photoUri);
+    // Compress and resize before sending — prevents Vercel 4.5MB body limit errors
+    let uri = photoUri;
+    if (Platform.OS !== 'web') {
+      const compressed = await ImageManipulator.manipulateAsync(
+        photoUri,
+        [{ resize: { width: 900 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      uri = compressed.uri;
+    }
+    const base64 = await readUriAsBase64(uri);
     onProgress?.(15);
 
     // Animate progress while waiting for the server
