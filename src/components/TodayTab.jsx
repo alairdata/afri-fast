@@ -801,9 +801,16 @@ const TodayTab = ({
         {/* Just for You Cards — weekly AI insights (analyst + card pipeline) */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <Text style={[styles.sectionTitleTight, { marginBottom: 0 }]}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
-            {jfyRefreshing && (
+            <Text style={[styles.sectionTitleTight, { marginBottom: 0, flex: 1 }]}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
+            {jfyRefreshing ? (
               <Text style={{ fontSize: 12, color: '#059669', fontWeight: '500' }}>Refreshing...</Text>
+            ) : (
+              <TouchableOpacity
+                onPress={() => fetchInsights(buildPayload(), true)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={{ fontSize: 18, color: '#059669' }}>↻</Text>
+              </TouchableOpacity>
             )}
             {!jfyRefreshing && jfyFreshReady && (
               <View style={{ backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
