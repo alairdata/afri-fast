@@ -9,7 +9,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ProgressTab = ({
   onShowWeightModal, onShowFastingDetails, onShowBMIDetails, onShowCalorieDetails, onShowHydrationDetails,
   fastingSessions = [], recentMeals = [], weightLogs = [], waterLogs = [], checkInHistory = [],
-  height = '', heightUnit = 'cm', volumeUnit = 'oz', targetWeight = null, startingWeight = null,
+  height = '', heightUnit = 'cm', weightUnit = 'kg', volumeUnit = 'oz', targetWeight = null, startingWeight = null,
 }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -257,7 +257,8 @@ const ProgressTab = ({
             const heightNum = parseFloat(height);
             const heightM = heightNum ? (heightUnit === 'ft' ? heightNum * 0.3048 : heightNum / 100) : 0;
             const hasHeight = heightM > 0;
-            const bmi = hasWeight && hasHeight ? (latestWeight.weight / (heightM * heightM)).toFixed(1) : null;
+            const weightKg = hasWeight ? (weightUnit === 'lbs' ? latestWeight.weight * 0.453592 : latestWeight.weight) : 0;
+            const bmi = hasWeight && hasHeight ? (weightKg / (heightM * heightM)).toFixed(1) : null;
             const bmiCategory = bmi ? (bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese') : null;
             const bmiPosition = bmi ? Math.max(0, Math.min(100, ((bmi - 15) / (35 - 15)) * 100)) : 0;
 

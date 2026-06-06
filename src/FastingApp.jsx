@@ -1553,6 +1553,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           fastingSessions={fastingSessions}
           height={height}
           heightUnit={heightUnit}
+          weightUnit={weightUnit}
           volumeUnit={volumeUnit}
           recentMeals={recentMeals}
           weightLogs={weightLogs}
