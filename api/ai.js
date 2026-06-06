@@ -373,7 +373,7 @@ function preprocessData(data) {
   return lines.join('\n');
 }
 
-async function callClaude(prompt, apiKey, maxTokens = 2048) {
+async function callClaude(prompt, apiKey, maxTokens = 1024, model = 'claude-sonnet-4-6') {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -382,7 +382,7 @@ async function callClaude(prompt, apiKey, maxTokens = 2048) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model,
       max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -458,14 +458,14 @@ export default async function handler(req, res) {
       // Stage 1: Analyst — find the real patterns
       const processedData = preprocessData(data);
       const analystPrompt = `${ANALYST_PROMPT}\n\nHEALTH DATA FOR ANALYSIS:\n\n${processedData}`;
-      const analysis = await callClaude(analystPrompt, CLAUDE_KEY);
+      const analysis = await callClaude(analystPrompt, CLAUDE_KEY, 800, 'claude-haiku-4-5-20251001');
 
       // Stage 2: Card generator — turn analysis into human insight cards
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = tomorrow.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}`;
-      const cardText = await callClaude(cardPrompt, CLAUDE_KEY, 2048);
+      const cardText = await callClaude(cardPrompt, CLAUDE_KEY, 1200);
 
       const stripped = cardText.replace(/```json|```/g, '').trim();
       const jsonMatch = stripped.match(/\[[\s\S]*\]/);
@@ -519,7 +519,7 @@ or the word: null`;
     if (type === 'just_for_you') {
       const processedData = preprocessData(data);
       const analystPrompt = `${ANALYST_PROMPT}\n\nHEALTH DATA FOR ANALYSIS:\n\n${processedData}`;
-      const analysis = await callClaude(analystPrompt, CLAUDE_KEY);
+      const analysis = await callClaude(analystPrompt, CLAUDE_KEY, 800, 'claude-haiku-4-5-20251001');
 
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -530,7 +530,7 @@ or the word: null`;
         ? `\n\nGROUND TRUTH (do NOT override these with any other value):\n- User's target weight: ${tw} ${wu}\n- User's starting weight: ${data.profile?.startingWeight ?? 'not set'} ${wu}`
         : '';
       const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}${groundTruth}`;
-      const cardText = await callClaude(cardPrompt, CLAUDE_KEY, 2048);
+      const cardText = await callClaude(cardPrompt, CLAUDE_KEY, 1200);
 
       const stripped = cardText.replace(/```json|```/g, '').trim();
       const jsonMatch = stripped.match(/\[[\s\S]*\]/);
