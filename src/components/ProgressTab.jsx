@@ -322,8 +322,9 @@ const ProgressTab = ({
               const displayCount = progressData.isLongRange ? 12 : 7;
               const displayLogs = uniqueLogs.slice(0, displayCount).reverse();
               const allWeights = displayLogs.map(l => l.weight);
-              const yMax = startingWeight != null ? Math.ceil(startingWeight + 10) : undefined;
-              const yMin = targetWeight != null ? Math.floor(targetWeight - 10) : undefined;
+              const currentWeight = hasData ? latest.weight : null;
+              const yMax = currentWeight != null ? Math.ceil(currentWeight + 5) : undefined;
+              const yMin = targetWeight != null ? Math.floor(targetWeight - 5) : undefined;
               return (
                 <>
                   <View style={{ marginHorizontal: -12, height: 200, overflow: 'hidden', position: 'relative' }}>
