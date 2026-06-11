@@ -384,6 +384,27 @@ const SettingsTab = ({
               </View>
               <View style={styles.settingsItem}>
                 <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Height</Text>
+                </View>
+                <View style={styles.settingsInputWrapper}>
+                  <TextInput
+                    style={styles.settingsInput}
+                    value={height != null ? String(height) : ''}
+                    onChangeText={(text) => {
+                      const val = parseFloat(text);
+                      if (!isNaN(val)) setHeight(val);
+                      else if (text === '') setHeight(null);
+                    }}
+                    keyboardType="numeric"
+                    placeholder="--"
+                  />
+                  <TouchableOpacity onPress={() => setHeightUnit(u => u === 'cm' ? 'ft' : 'cm')}>
+                    <Text style={[styles.settingsInputUnit, { color: '#059669' }]}>{heightUnit}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={styles.settingsItem}>
+                <View style={styles.settingsItemLeft}>
                   <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Daily Calories</Text>
                 </View>
                 <View style={styles.settingsInputWrapper}>
