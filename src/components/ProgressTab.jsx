@@ -444,7 +444,10 @@ const ProgressTab = ({
                             }
                             return '';
                           }),
-                          datasets: [{ data: dailyData.map(d => d.calories) }],
+                          datasets: [
+                            { data: dailyData.map(d => d.calories) },
+                            { data: [500, dailyCalorieGoal + 200], color: () => 'rgba(0,0,0,0)', strokeWidth: 0, withDots: false },
+                          ],
                         }}
                         width={SCREEN_WIDTH + 22}
                         height={190}
