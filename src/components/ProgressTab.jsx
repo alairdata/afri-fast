@@ -63,16 +63,6 @@ const ProgressTab = ({
       if (runStreak > bestStreak) bestStreak = runStreak;
     }
 
-    // Days on target in range — calories within 70–115% of daily goal
-    const daysOnTarget = [...new Set(rangeMeals.map(m => m.date))].filter(date => {
-      const total = rangeMeals.filter(m => m.date === date).reduce((s, m) => s + (m.calories || 0), 0);
-      const ratio = total / dailyCalorieGoal;
-      return ratio >= 0.7 && ratio <= 1.15;
-    }).length;
-
-    // Total unique days logged in range
-    const totalDaysLogged = new Set(rangeMeals.map(m => m.date)).size;
-
     // Weight — filter by date range
     const rangeWeights = (weightLogs || []).filter(w => {
       if (days === 99999) return true;
@@ -94,6 +84,16 @@ const ProgressTab = ({
       const t = m.timestamp || new Date(m.date).getTime();
       return !isNaN(t) && t >= cutoff;
     });
+
+    // Days on target in range — calories within 70–115% of daily goal
+    const daysOnTarget = [...new Set(rangeMeals.map(m => m.date))].filter(date => {
+      const total = rangeMeals.filter(m => m.date === date).reduce((s, m) => s + (m.calories || 0), 0);
+      const ratio = total / dailyCalorieGoal;
+      return ratio >= 0.7 && ratio <= 1.15;
+    }).length;
+
+    // Total unique days logged in range
+    const totalDaysLogged = new Set(rangeMeals.map(m => m.date)).size;
 
     // Convert water to litres
     const toL = (amount, u) => {
