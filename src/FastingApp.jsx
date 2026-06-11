@@ -1757,6 +1757,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           setShowBMIDetails(false);
           setShowWeightModal(true);
         }}
+        weightLogs={weightLogs}
+        height={height}
+        heightUnit={heightUnit}
+        weightUnit={weightUnit}
       />
 
       <FastingDetailsPage

@@ -4,8 +4,25 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platf
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const BMIDetailsPage = ({ show, onClose, onShowWeightModal, progressData }) => {
+const BMIDetailsPage = ({ show, onClose, onShowWeightModal, weightLogs = [], height = '', heightUnit = 'cm', weightUnit = 'kg' }) => {
   if (!show) return null;
+
+  const latestWeight = weightLogs.length > 0
+    ? [...weightLogs].sort((a, b) => new Date(b.date) - new Date(a.date))[0]
+    : null;
+  const heightNum = parseFloat(height);
+  const heightM = heightNum ? (heightUnit === 'ft' ? heightNum * 0.3048 : heightNum / 100) : 0;
+  const weightKg = latestWeight ? (latestWeight.unit === 'lbs' ? latestWeight.weight * 0.453592 : latestWeight.weight) : 0;
+  const bmi = latestWeight && heightM > 0 ? parseFloat((weightKg / (heightM * heightM)).toFixed(1)) : null;
+  const bmiCategory = bmi ? (bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese') : null;
+  const bmiCategoryColor = bmi ? (bmi < 18.5 ? '#3B82F6' : bmi < 25 ? '#10B981' : bmi < 30 ? '#F59E0B' : '#EF4444') : '#10B981';
+  const bmiPosition = bmi ? Math.max(0, Math.min(96, ((bmi - 15) / (35 - 15)) * 100)) : 0;
+  const heightDisplay = heightNum ? `${height} ${heightUnit}` : '--';
+  const weightDisplay = latestWeight ? `${latestWeight.weight} ${latestWeight.unit}` : '--';
+
+  const recentLogs = [...weightLogs].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 8);
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fmtDate = d => { const dt = new Date(d); return isNaN(dt) ? d : `${dt.getDate()} ${MONTHS[dt.getMonth()]}`; };
 
   return (
     <View style={styles.weightPageOverlay}>
@@ -26,17 +43,17 @@ const BMIDetailsPage = ({ show, onClose, onShowWeightModal, progressData }) => {
             <View style={styles.detailCardFull}>
               <View style={styles.bmiDisplayLarge}>
                 <View style={styles.bmiValueContainerLarge}>
-                  <Text style={styles.bmiValueLarge}>22.4</Text>
-                  <Text style={styles.bmiCategoryLarge}>Normal</Text>
+                  <Text style={styles.bmiValueLarge}>{bmi ?? '--'}</Text>
+                  {bmiCategory && <Text style={[styles.bmiCategoryLarge, { color: bmiCategoryColor }]}>{bmiCategory}</Text>}
                 </View>
                 <View style={styles.bmiMetrics}>
                   <View style={styles.bmiMetricItem}>
-                    <Text style={styles.bmiMetricValue}>72 kg</Text>
+                    <Text style={styles.bmiMetricValue}>{weightDisplay}</Text>
                     <Text style={styles.bmiMetricLabel}>Weight</Text>
                   </View>
                   <View style={styles.bmiMetricDivider} />
                   <View style={styles.bmiMetricItem}>
-                    <Text style={styles.bmiMetricValue}>179 cm</Text>
+                    <Text style={styles.bmiMetricValue}>{heightDisplay}</Text>
                     <Text style={styles.bmiMetricLabel}>Height</Text>
                   </View>
                 </View>
@@ -47,7 +64,7 @@ const BMIDetailsPage = ({ show, onClose, onShowWeightModal, progressData }) => {
                   <View style={styles.bmiBarNormalLarge} />
                   <View style={styles.bmiBarOverweightLarge} />
                   <View style={styles.bmiBarObeseLarge} />
-                  <View style={[styles.bmiIndicatorLarge, { left: `${((22.4 - 15) / (35 - 15)) * 100}%` }]} />
+                  {bmi && <View style={[styles.bmiIndicatorLarge, { left: `${bmiPosition}%` }]} />}
                 </View>
                 <View style={styles.bmiScaleNumbers}>
                   <Text style={styles.bmiScaleText}>15</Text>
@@ -63,48 +80,34 @@ const BMIDetailsPage = ({ show, onClose, onShowWeightModal, progressData }) => {
                   <Text style={styles.bmiLabelLarge}>Obese</Text>
                 </View>
               </View>
+              {!bmi && (
+                <Text style={{ marginTop: 12, fontSize: 13, color: '#888', textAlign: 'center' }}>
+                  Log your weight and set your height in Settings to see your BMI.
+                </Text>
+              )}
             </View>
           </View>
 
-          {/* Weight Trend */}
-          <View style={styles.detailSection}>
-            <Text style={styles.detailSectionTitle}>Weight Trend</Text>
-            <View style={styles.detailCardFull}>
-              {/* SVG chart placeholder */}
-              <View style={styles.lineChartPlaceholder}>
-                <View style={styles.lineChartPlaceholderLine} />
-                <View style={[styles.lineChartPlaceholderLine, { backgroundColor: '#8B5CF6', borderStyle: 'dashed' }]} />
-              </View>
-              <View style={styles.xAxisLabelsCompact}>
-                {progressData.weightLabels.map((label, i) => (
-                  <Text key={i} style={[
-                    styles.xAxisLabelSmall,
-                    i === progressData.weightLabels.length - 1 ? { color: '#8B5CF6', fontWeight: '600' } : null,
-                  ]}>{label}</Text>
-                ))}
-              </View>
-              <View style={styles.weightStatsCompact}>
-                <View style={styles.weightStatCompact}>
-                  <Text style={styles.weightStatValueCompact}>{progressData.weightChange}</Text>
-                  <Text style={styles.weightStatLabelCompact}>This period</Text>
-                </View>
-                <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(139, 92, 246, 0.08)' }]}>
-                  <Text style={[styles.weightStatValueCompact, { color: '#8B5CF6' }]}>{progressData.predictedWeight}</Text>
-                  <Text style={styles.weightStatLabelCompact}>Predicted</Text>
-                </View>
-              </View>
-              <View style={styles.chartLegendCompact}>
-                <View style={styles.legendItemSmall}>
-                  <View style={[styles.legendDotSmall, { backgroundColor: '#10B981' }]} />
-                  <Text style={styles.legendTextSmall}>Actual</Text>
-                </View>
-                <View style={styles.legendItemSmall}>
-                  <View style={[styles.legendDotSmall, { backgroundColor: '#8B5CF6', width: 12, height: 2 }]} />
-                  <Text style={styles.legendTextSmall}>Predicted</Text>
-                </View>
+          {/* Weight History */}
+          {recentLogs.length > 0 && (
+            <View style={styles.detailSection}>
+              <Text style={styles.detailSectionTitle}>Weight History</Text>
+              <View style={styles.detailCardFull}>
+                {recentLogs.map((log, i) => {
+                  const prev = recentLogs[i + 1];
+                  const diff = prev ? (log.weight - prev.weight).toFixed(1) : null;
+                  const diffColor = diff === null ? '#888' : parseFloat(diff) < 0 ? '#10B981' : parseFloat(diff) > 0 ? '#EF4444' : '#888';
+                  return (
+                    <View key={i} style={[styles.bmiInfoRow, i === recentLogs.length - 1 && { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]}>
+                      <Text style={[styles.bmiInfoLabel, { color: '#888', fontSize: 12 }]}>{fmtDate(log.date)}</Text>
+                      <Text style={[styles.bmiInfoRange, { fontWeight: '700', fontSize: 15, color: '#1F1F1F' }]}>{log.weight} {log.unit}</Text>
+                      {diff !== null && <Text style={{ fontSize: 12, fontWeight: '600', color: diffColor, marginLeft: 8 }}>{parseFloat(diff) > 0 ? '+' : ''}{diff}</Text>}
+                    </View>
+                  );
+                })}
               </View>
             </View>
-          </View>
+          )}
 
           {/* Weight Actions */}
           <View style={styles.detailSection}>

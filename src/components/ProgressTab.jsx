@@ -252,7 +252,9 @@ const ProgressTab = ({
         <View style={styles.progressSectionCompact}>
           <Text style={styles.progressSectionTitleCompact}>Current BMI</Text>
           {(() => {
-            const latestWeight = (weightLogs || []).length > 0 ? weightLogs[0] : null;
+            const latestWeight = (weightLogs || []).length > 0
+              ? [...weightLogs].sort((a, b) => new Date(b.date) - new Date(a.date))[0]
+              : null;
             const hasWeight = latestWeight !== null;
             const heightNum = parseFloat(height);
             const heightM = heightNum ? (heightUnit === 'ft' ? heightNum * 0.3048 : heightNum / 100) : 0;
