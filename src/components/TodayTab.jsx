@@ -798,7 +798,7 @@ const TodayTab = ({
         )}
 
         {/* Just for You — daily AI coach insight */}
-        <View style={[styles.sectionTight, { marginTop: 28 }]}>
+        <View style={[styles.sectionTight, { marginTop: 36 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Text style={[styles.sectionTitleTight, { marginBottom: 0, flex: 1 }]}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
             {jfyRefreshing ? (
@@ -836,7 +836,7 @@ const TodayTab = ({
         </View>
 
         {/* This Week */}
-        <View style={styles.sectionTight}>
+        <View style={[styles.sectionTight, { marginTop: 36 }]}>
           <View style={styles.historyHeader}>
             <Text style={styles.sectionTitleTightInline}>This Week</Text>
             <TouchableOpacity onPress={onNavigateToProgress}>
