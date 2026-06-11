@@ -1561,6 +1561,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           checkInHistory={checkInHistory}
           targetWeight={targetWeight}
           startingWeight={startingWeight}
+          dailyCalorieGoal={dailyCalorieGoal}
         />
       )}
 

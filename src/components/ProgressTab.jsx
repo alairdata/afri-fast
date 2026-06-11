@@ -10,6 +10,7 @@ const ProgressTab = ({
   onShowWeightModal, onShowFastingDetails, onShowBMIDetails, onShowCalorieDetails, onShowHydrationDetails,
   fastingSessions = [], recentMeals = [], weightLogs = [], waterLogs = [], checkInHistory = [],
   height = '', heightUnit = 'cm', weightUnit = 'kg', volumeUnit = 'oz', targetWeight = null, startingWeight = null,
+  dailyCalorieGoal = 2000,
 }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -37,20 +38,40 @@ const ProgressTab = ({
       return dur > max ? dur : max;
     }, 0);
 
-    // Streak calculation — start from yesterday if no fast today yet
-    let streak = 0;
+    // Calorie tracking streak — days in a row with at least one meal logged
+    const allLoggedDates = new Set((recentMeals || []).map(m => new Date(m.date).toDateString()).filter(Boolean));
     const today = new Date();
     const todayStr = today.toDateString();
-    const hasFastToday = sessions.some(s => new Date(s.startTime).toDateString() === todayStr);
-    const startOffset = hasFastToday ? 0 : 1;
-    for (let i = startOffset; i < Math.min(days + startOffset, 365); i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toDateString();
-      const hasFast = sessions.some(s => new Date(s.startTime).toDateString() === dateStr);
-      if (hasFast) streak++;
+    const hasLoggedToday = allLoggedDates.has(todayStr);
+    const streakStart = hasLoggedToday ? 0 : 1;
+    let streak = 0;
+    for (let i = streakStart; i < 365; i++) {
+      const d = new Date(today); d.setDate(d.getDate() - i);
+      if (allLoggedDates.has(d.toDateString())) streak++;
       else break;
     }
+
+    // Best (longest ever) logging streak
+    const sortedDates = [...allLoggedDates].map(s => new Date(s)).sort((a, b) => a - b);
+    let bestStreak = 0, runStreak = 0;
+    for (let i = 0; i < sortedDates.length; i++) {
+      if (i === 0) { runStreak = 1; }
+      else {
+        const diff = (sortedDates[i] - sortedDates[i - 1]) / (1000 * 60 * 60 * 24);
+        runStreak = diff === 1 ? runStreak + 1 : 1;
+      }
+      if (runStreak > bestStreak) bestStreak = runStreak;
+    }
+
+    // Days on target in range — calories within 70–115% of daily goal
+    const daysOnTarget = [...new Set(rangeMeals.map(m => m.date))].filter(date => {
+      const total = rangeMeals.filter(m => m.date === date).reduce((s, m) => s + (m.calories || 0), 0);
+      const ratio = total / dailyCalorieGoal;
+      return ratio >= 0.7 && ratio <= 1.15;
+    }).length;
+
+    // Total unique days logged in range
+    const totalDaysLogged = new Set(rangeMeals.map(m => m.date)).size;
 
     // Weight — filter by date range
     const rangeWeights = (weightLogs || []).filter(w => {
@@ -140,14 +161,11 @@ const ProgressTab = ({
         const actualHours = s.durationHours + (s.durationMinutes || 0) / 60;
         return sum + Math.min((actualHours / targetHours) * 100, 100);
       }, 0) / totalSessions)}%` : '0%',
-      currentStreak: `${streak} day${streak !== 1 ? 's' : ''}`,
-      longestFast: longestSession > 0 ? `${Math.floor(longestSession)}h` : '0h',
-      avgTrend: totalSessions > 2 ? '\u2191 Improving' : '\u2192 Getting started',
-      rateTrend: totalSessions > 0 ? '\u2191 Active' : '\u2192 Start fasting!',
-      streakTrend: streak >= 3 ? '\u{1F525} Great!' : streak > 0 ? '\u{1F4AA}\u{1F3FF} Keep going!' : 'Start today!',
-      longestTrend: longestSession >= 16 ? '\u2191 Strong' : '\u2192 Building up',
-      totalFastingHours: `${Math.round(totalHours)}h`,
-      fastDaysCompleted: `${totalSessions}/${days <= 365 ? days : totalSessions}`,
+      currentStreak: streak,
+      bestStreak,
+      daysOnTarget,
+      totalDaysLogged,
+      streakTrend: streak >= 7 ? '\ud83d\udd25 On fire!' : streak >= 3 ? '\ud83d\udcaa\ud83c\udfff Keep going!' : streak > 0 ? '\u2197 Building' : 'Start today!',
       // Weight
       rangeWeights,
       weightChange: `${parseFloat(weightChange) >= 0 ? '+' : ''}${weightChange} kg`,
@@ -202,51 +220,33 @@ const ProgressTab = ({
       {Platform.OS === 'web' && <View style={{ height: 117 }} />}
 
       <ScrollView style={styles.progressContentCompact} showsVerticalScrollIndicator={false}>
-        {/* Section 1: Fasting Streaks */}
+        {/* Section 1: Calorie Tracking Streaks */}
         <View style={styles.progressSectionCompact}>
           <View style={styles.progressSectionHeader}>
             <Text style={styles.progressSectionTitleCompact}>{'\u{1F525}'} Streaks</Text>
-            <TouchableOpacity onPress={() => onShowFastingDetails && onShowFastingDetails()}>
-              <Text style={styles.seeAllBtnSmall}>See all</Text>
-            </TouchableOpacity>
           </View>
           <View style={styles.chartCardCompact}>
             <View style={styles.streaksGridFour}>
               <View style={styles.streakItemCompact}>
-                <Text style={styles.streakValueCompact}>{progressData.currentStreak !== '0 days' ? progressData.currentStreak.split(' ')[0] : '--'}</Text>
+                <Text style={styles.streakValueCompact}>{progressData.currentStreak > 0 ? progressData.currentStreak : '--'}</Text>
                 <Text style={styles.streakLabelCompact}>Current streak</Text>
               </View>
               <View style={styles.streakItemCompact}>
-                <Text style={styles.streakValueCompact}>{(fastingSessions || []).length > 0 ? (() => { let max = 0, cur = 0; const days = [...new Set((fastingSessions || []).map(s => new Date(s.startTime).toDateString()))].sort((a, b) => new Date(a) - new Date(b)); for (let i = 0; i < days.length; i++) { if (i === 0) { cur = 1; } else { const diff = (new Date(days[i]) - new Date(days[i-1])) / (1000*60*60*24); cur = diff === 1 ? cur + 1 : 1; } max = Math.max(max, cur); } return max; })() : '--'}</Text>
-                <Text style={styles.streakLabelCompact}>Longest streak</Text>
+                <Text style={styles.streakValueCompact}>{progressData.bestStreak > 0 ? progressData.bestStreak : '--'}</Text>
+                <Text style={styles.streakLabelCompact}>Best streak</Text>
               </View>
               <View style={styles.streakItemCompact}>
-                <Text style={styles.streakValueCompact}>{(fastingSessions || []).length > 0 ? [...new Set((fastingSessions || []).map(s => new Date(s.startTime).toDateString()))].length : '--'}</Text>
-                <Text style={styles.streakLabelCompact}>Total fast days</Text>
+                <Text style={styles.streakValueCompact}>{progressData.daysOnTarget > 0 ? progressData.daysOnTarget : '--'}</Text>
+                <Text style={styles.streakLabelCompact}>Days on target</Text>
               </View>
               <View style={styles.streakItemCompact}>
-                <Text style={styles.streakValueCompact}>{progressData.totalFastingHours !== '0h' ? progressData.totalFastingHours : '--'}</Text>
-                <Text style={styles.streakLabelCompact}>Total fast hours</Text>
+                <Text style={styles.streakValueCompact}>{progressData.totalDaysLogged > 0 ? progressData.totalDaysLogged : '--'}</Text>
+                <Text style={styles.streakLabelCompact}>Days logged</Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Section 2: Two Overview Cards */}
-        <View style={styles.progressSectionCompact}>
-          <View style={styles.twoCardGridCompact}>
-            <View style={styles.overviewTileCompact}>
-              <Text style={styles.overviewValueCompact}>{progressData.avgFastLength !== '0h 0m' ? progressData.avgFastLength : '--'}</Text>
-              <Text style={styles.overviewLabelCompact}>Avg fast length</Text>
-              {progressData.avgFastLength !== '0h 0m' && <Text style={styles.overviewTrendCompact}>{progressData.avgTrend}</Text>}
-            </View>
-            <View style={styles.overviewTileCompact}>
-              <Text style={styles.overviewValueCompact}>{progressData.completionRate !== '0%' ? progressData.completionRate : '--'}</Text>
-              <Text style={styles.overviewLabelCompact}>Completion rate</Text>
-              {progressData.completionRate !== '0%' && <Text style={styles.overviewTrendCompact}>{progressData.rateTrend}</Text>}
-            </View>
-          </View>
-        </View>
 
         {/* Section 3: Current BMI */}
         <View style={styles.progressSectionCompact}>
