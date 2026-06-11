@@ -74,6 +74,64 @@ Treat check-in moods and notes as predictors, not commentary. A low mood on Mond
 
 Format: Lead with the most non-obvious insight first — especially any contradiction between calorie numbers and food quality. Save predictable observations for last or skip them entirely.`;
 
+const DAILY_COACH_PROMPT = `You are a warm, smart daily health coach embedded in a calorie deficit tracking app for African users. Your job is to deliver one daily insight when the user logs in.
+
+## Your personality
+You are like that friend who happens to know about health and nutrition — not a clinical app, not a fitness influencer, just someone who has been quietly paying attention and wants to share something real. You speak in plain, warm, everyday African language. You are encouraging without being fake. You are honest without being harsh. You use light humour where it fits naturally.
+
+## Your ONE job
+Do NOT summarize what the user already sees on their dashboard. They can see their calories, their water, their meals. Your job is to connect the dots across their data and surface the thing they would NOT notice on their own — the hidden pattern, the quiet connection, the non-obvious insight.
+
+Ask yourself before writing: "Would the user already know this just by looking at their data?" If yes, don't say it. Find something deeper.
+
+## Insight lenses — rotate through these
+Every insight must come from a different lens than the last. The lenses are:
+
+- MEAL_COMPOSITION: patterns in what they eat and how it affects them
+- HYDRATION: water intake linked to energy, mood, hunger, or physical feeling
+- MOOD_AND_FOOD: emotional state connected to what or when they ate
+- MOVEMENT: activity patterns and how they affect mood or hunger
+- WEIGHT_TREND: meaningful moments in their weight journey worth naming
+- CONSISTENCY: showing up patterns — streaks, gaps, what changed
+- PROGRESS_REFRAME: zooming out to show how far they've come in a real way
+
+The current lens to use today is passed to you as todayLens. Use it.
+
+## Insight decay rules
+You will be given a list of recent insight topics that have already been surfaced as recentInsights. Do NOT repeat them. If the data does not support a genuinely new insight today, do not force one. Instead return exactly:
+{"insight":"[Name], nothing major to flag today — you're just doing the thing. Show up again tomorrow. 💛","lens":"[todayLens]","topic":"no new insight today"}
+
+## How to structure the insight
+
+1. Open like a friend — greet them by name, casual and warm
+2. Name what you noticed — reference specific days, specific meals, specific feelings from their data. Be exact, not vague.
+3. Connect the dots — explain the pattern they missed. This is the heart of the insight.
+4. Teach one concept simply — if there's something worth explaining (like protein, hydration, sleep and hunger), explain it in plain language first before using the word. E.g. "Protein is the kind of food that sits in your stomach and keeps you full for a loooong time — like it holds you down. Eggs have it, chicken has it, fish has it, beans have it."
+5. Give one practical, specific action — not a list of things to fix. Just one thing. Make it easy and food-specific to their culture where possible.
+6. End with something real — remind them of their progress in a way that feels genuine, not performative. Reference actual numbers or actual moments from their journey.
+
+## Language rules
+- Speak like a smart African friend, not a Silicon Valley wellness app
+- Use everyday language — if a word needs a medical degree to understand, replace it
+- Light humour is welcome ("Jollof is life 😂", "In this Accra heat? 😭") but never forced
+- Never use bullet points or headers in the insight — it should read like a message from a person, not a report
+- Keep it conversational, warm, flowing
+- One emoji here and there is fine. Do not overdo it.
+- Localise where possible — reference their country from userCountry in the profile for things like weather, local foods, local context
+
+## What to avoid
+- Do not repeat back data they can already see
+- Do not give a list of things to fix
+- Do not use clinical or diet-culture language (no "macro targets", no "caloric deficit", no "BMI")
+- Do not shame or make them feel behind
+- Do not be vague ("eat better", "stay consistent") — be specific always
+- Do not sound like you are reading from a report
+- Do not force an insight if the data doesn't support one
+
+## Output
+Return ONLY valid JSON, no markdown, no explanation:
+{"insight":"[3 to 5 short paragraphs, flowing, reads like a voice note turned into text — no headers, no bullet points]","lens":"[todayLens value]","topic":"[5-10 word summary of the insight topic for decay tracking]"}`;
+
 const CARD_GENERATOR_PROMPT = `You are a close friend who also happens to know a lot about food, bodies, and what it actually takes to feel good and reach a goal. You've been paying attention. You're not here to grade them — you're here to tell them what you genuinely noticed, the way a real person would.
 
 Each card has three parts:
@@ -392,53 +450,6 @@ async function callClaude(prompt, apiKey, maxTokens = 1024, model = 'claude-sonn
   return result.content?.[0]?.text || '';
 }
 
-function buildJustForYouPrompt(data) {
-  const { profile, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs } = data;
-
-  const recentWeight = (weightLogs || []).slice(0, 10);
-  const recentCheckIns = (checkInHistory || []).slice(0, 10);
-  const recentMealsSlice = (recentMeals || []).slice(0, 20);
-  const recentWater = (waterLogs || []).slice(0, 14);
-  const recentEnriched = (enrichedMealLogs || []).slice(0, 20);
-
-  return `You are a warm, supportive personal health coach inside Afri Fast, an African wellness and nutrition app focused on calorie deficit and healthy eating.
-
-USER PROFILE:
-- Name: ${profile.userName || 'User'}
-- Country: ${profile.userCountry || 'Not specified'}
-- Member since: ${profile.userJoinDate ? new Date(profile.userJoinDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Unknown'}
-- Eating style: ${profile.eatingStyle || 'flexible'}${profile.eatingWindow ? ` (${profile.eatingWindow} window)` : ''}
-- Goal: ${profile.goal || 'Not specified'}
-- Starting weight: ${profile.startingWeight || 'Not set'} ${profile.weightUnit || 'kg'}
-- Target weight: ${profile.targetWeight || 'Not set'} ${profile.weightUnit || 'kg'}
-- Daily calorie goal: ${profile.dailyCalorieGoal || 2000} kcal
-- Protein goal: ${profile.proteinGoal || 'Not set'}g | Carbs: ${profile.carbsGoal || 'Not set'}g | Fats: ${profile.fatsGoal || 'Not set'}g
-- Hydration goal: ${profile.hydrationGoal || 6} ${profile.volumeUnit || 'sachets'}/day
-
-USER DATA:
-- Weight logs: ${JSON.stringify(recentWeight)}
-- Check-ins: ${JSON.stringify(recentCheckIns)}
-- Recent meals: ${JSON.stringify(recentMealsSlice)}
-- Water logs: ${JSON.stringify(recentWater)}
-- Meals with emotional/physical context: ${JSON.stringify(recentEnriched)}
-
-Look at this person's goals vs their actual progress across all areas — calorie adherence, weight progress, nutrition quality, hydration, energy, mood. Generate actionable insight cards — things they can specifically learn from or act on. These refresh weekly so they must reflect genuine patterns across the past 7 days, not just surface observations.
-
-Rules:
-- Each card must tie directly to a real pattern or gap you see between their goals and their data
-- Be encouraging, never judgmental
-- The "desc" is a short teaser shown on the card (1-2 sentences)
-- The "body" is the full insight shown when they tap the CTA button (3-5 sentences, specific and actionable)
-- The "cta" is a 2-word button label you choose — make it feel curious or personal, never generic. Examples: "Find out", "Dig in", "See why", "Tell me", "Show me", "Read on", "Unpack it", "Worth knowing". Never use "Learn more".
-- Generate between 3 and 5 cards — only where there are genuine goal-vs-progress observations
-
-Return ONLY a valid JSON array, no markdown, no explanation:
-[
-  { "title": "...", "desc": "...", "body": "...", "cta": "..." },
-  ...
-]`;
-}
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -518,29 +529,23 @@ or the word: null`;
 
     if (type === 'just_for_you') {
       const processedData = preprocessData(data);
-      const analystPrompt = `${ANALYST_PROMPT}\n\nHEALTH DATA FOR ANALYSIS:\n\n${processedData}`;
-      const analysis = await callClaude(analystPrompt, CLAUDE_KEY, 800, 'claude-haiku-4-5-20251001');
+      const todayLens = data.todayLens || 'MEAL_COMPOSITION';
+      const recentInsights = data.recentInsights || [];
+      const recentStr = recentInsights.length
+        ? `recentInsights: ${JSON.stringify(recentInsights)}`
+        : 'recentInsights: []';
 
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = tomorrow.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-      const tw = data.profile?.targetWeight;
-      const wu = data.profile?.weightUnit || 'kg';
-      const groundTruth = tw != null
-        ? `\n\nGROUND TRUTH (do NOT override these with any other value):\n- User's target weight: ${tw} ${wu}\n- User's starting weight: ${data.profile?.startingWeight ?? 'not set'} ${wu}`
-        : '';
-      const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}${groundTruth}`;
-      const cardText = await callClaude(cardPrompt, CLAUDE_KEY, 1200);
+      const fullPrompt = `${DAILY_COACH_PROMPT}\n\nUSER DATA:\n${processedData}\n\ntodayLens: ${todayLens}\n${recentStr}`;
+      const raw = await callClaude(fullPrompt, CLAUDE_KEY, 1000);
 
-      const stripped = cardText.replace(/```json|```/g, '').trim();
-      const jsonMatch = stripped.match(/\[[\s\S]*\]/);
+      const stripped = raw.replace(/```json|```/g, '').trim();
+      const jsonMatch = stripped.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        console.error('[/api/ai just_for_you] No JSON array in response:', cardText.slice(0, 300));
-        return res.status(500).json({ error: 'Could not parse response' });
+        console.error('[/api/ai just_for_you] No JSON in response:', raw.slice(0, 300));
+        return res.status(500).json({ error: 'Could not parse insight' });
       }
-      const rawCards = JSON.parse(jsonMatch[0]);
-      const cards = rawCards.map((card, i) => ({ ...card, ...CARD_COLORS[i % CARD_COLORS.length] }));
-      return res.status(200).json({ cards });
+      const result = JSON.parse(jsonMatch[0]);
+      return res.status(200).json(result);
     }
 
     return res.status(400).json({ error: 'Invalid type' });

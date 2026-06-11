@@ -339,11 +339,11 @@ const TodayTab = ({
   const styles = makeStyles(colors);
 
   const [timeSinceFast, setTimeSinceFast] = useState(null);
-  const [justForYouCards, setJustForYouCards] = useState(null);
+  const [justForYouInsight, setJustForYouInsight] = useState(null);
   const [jfyLoading, setJfyLoading] = useState(true);
   const [jfyRefreshing, setJfyRefreshing] = useState(false);
   const [jfyFreshReady, setJfyFreshReady] = useState(false);
-  const [readCards, setReadCards] = useState(new Set());
+  const [jfyExpanded, setJfyExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const buildEnrichedMealLogs = () =>
@@ -394,22 +394,22 @@ const TodayTab = ({
   const fetchInsights = async (payload, forceRefresh = false) => {
     const userId = payload?.profile?.userId;
 
-    // Phase 1 — show cached cards instantly so the screen is never blank
+    // Phase 1 — show cached insight instantly so the screen is never blank
     const cached = await getCachedJustForYou(userId);
-    if (cached?.length) {
-      setJustForYouCards(cached);
+    if (cached?.insight) {
+      setJustForYouInsight(cached.insight);
       setJfyLoading(false);
     }
 
-    // Phase 2 — fetch fresh cards in the background
+    // Phase 2 — fetch fresh insight in the background
     setJfyFreshReady(false);
     setJfyRefreshing(true);
     getJustForYou(payload, forceRefresh)
-      .then(({ cards: freshCards, fromApi }) => {
-        if (!freshCards?.length) return;
-        setJustForYouCards(freshCards);
+      .then(({ insight: freshInsight, fromApi }) => {
+        if (!freshInsight) return;
+        setJustForYouInsight(freshInsight);
         setJfyLoading(false);
-        if (fromApi) { setReadCards(new Set()); setJfyFreshReady(true); }
+        if (fromApi) { setJfyFreshReady(true); setJfyExpanded(false); }
       })
       .catch(() => {})
       .finally(() => setJfyRefreshing(false));
@@ -694,7 +694,6 @@ const TodayTab = ({
   const patternCards = getDailyArticles(5);
 
   const [selectedArticle, setSelectedArticle] = useState(null);
-  const [selectedInsight, setSelectedInsight] = useState(null);
   const [selectedSuggestedRecipe, setSelectedSuggestedRecipe] = useState(null);
 
   return (
@@ -798,9 +797,9 @@ const TodayTab = ({
           </View>
         )}
 
-        {/* Just for You Cards — weekly AI insights (analyst + card pipeline) */}
+        {/* Just for You — daily AI coach insight */}
         <View style={[styles.sectionTight, { marginTop: 28 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Text style={[styles.sectionTitleTight, { marginBottom: 0, flex: 1 }]}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
             {jfyRefreshing ? (
               <Text style={{ fontSize: 12, color: '#059669', fontWeight: '500' }}>Refreshing...</Text>
@@ -814,34 +813,24 @@ const TodayTab = ({
             )}
             {!jfyRefreshing && jfyFreshReady && (
               <View style={{ backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
-                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>New Insights</Text>
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>New</Text>
               </View>
             )}
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
-            {jfyLoading ? (
-              [0, 1, 2].map(i => <JfySkeletonCard key={i} />)
-            ) : (justForYouCards || []).map((card, i) => (
-              <TouchableOpacity
-                key={i}
-                style={[styles.educationCard, { backgroundColor: ['#059669', '#0F766E', '#9333EA', '#1D4ED8', '#B45309'][i % 5] }]}
-                onPress={() => {
-                  const next = new Set([...readCards, i]);
-                  setReadCards(next);
-                  if (next.size >= (justForYouCards || []).length) setJfyFreshReady(false);
-                  setSelectedInsight(card);
-                }}
-                activeOpacity={0.82}
-              >
-                <View style={styles.eduContent}>
-                  <Text style={styles.eduFeeling} numberOfLines={4}>{card.feeling}</Text>
-                  <View style={styles.eduBtn}>
-                    <Text style={styles.eduBtnText}>{card.cta || 'Read on'}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {jfyLoading ? (
+            <JfySkeletonCard />
+          ) : justForYouInsight ? (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => { setJfyExpanded(true); setJfyFreshReady(false); }}
+              style={{ backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border }}
+            >
+              <Text style={{ fontSize: 14.5, lineHeight: 22, color: colors.text }} numberOfLines={4}>
+                {justForYouInsight}
+              </Text>
+              <Text style={{ marginTop: 10, fontSize: 13, fontWeight: '600', color: '#059669' }}>Read more →</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {/* This Week */}
@@ -966,51 +955,33 @@ const TodayTab = ({
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Insight Detail Modal */}
+      {/* Just for You — full insight modal */}
       <Modal
-        visible={selectedInsight !== null}
+        visible={jfyExpanded}
         animationType="slide"
         presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
-        onRequestClose={() => setSelectedInsight(null)}
+        onRequestClose={() => setJfyExpanded(false)}
       >
         <View style={[styles.articleModal, Platform.OS === 'android' && { paddingTop: 44 }]}>
           <View style={styles.articleHeader}>
-            <TouchableOpacity onPress={() => setSelectedInsight(null)} style={styles.articleCloseBtn}>
+            <TouchableOpacity onPress={() => setJfyExpanded(false)} style={styles.articleCloseBtn}>
               <Text style={styles.articleCloseText}>✕</Text>
             </TouchableOpacity>
             <Text style={styles.articleHeaderTitle}>Today's Insight</Text>
             <View style={{ width: 40 }} />
           </View>
-          {selectedInsight && (
-            <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false}>
-              <View style={[styles.insightDetailHeader, { backgroundColor: selectedInsight.color || '#E8F5E9', borderLeftColor: selectedInsight.accent || '#4CAF50' }]}>
-                <Text style={[styles.insightDetailFeeling, { color: selectedInsight.accent || '#059669' }]}>{selectedInsight.feeling}</Text>
-              </View>
-              <View style={styles.insightDetailSection}>
-                <Text style={styles.insightDetailLabel}>WHY THIS IS HAPPENING</Text>
-                <FormattedText text={selectedInsight.why} bodyStyle={styles.insightDetailBody} />
-              </View>
-              <View style={styles.insightDetailSection}>
-                <Text style={styles.insightDetailLabel}>WHAT TO DO</Text>
-                <FormattedText text={selectedInsight.action} bodyStyle={styles.insightDetailBody} />
-              </View>
-              {selectedInsight.takeaway ? (
-                <View style={[styles.insightDetailSection, { borderLeftWidth: 3, borderLeftColor: selectedInsight.accent || '#059669', paddingLeft: 12 }]}>
-                  <Text style={[styles.insightDetailLabel, { color: selectedInsight.accent || '#059669' }]}>TAKEAWAY</Text>
-                  <FormattedText text={selectedInsight.takeaway} bodyStyle={styles.insightDetailBody} />
-                </View>
-              ) : null}
-              {onShowChat && (
-                <TouchableOpacity
-                  style={{ marginHorizontal: 20, marginTop: 24, backgroundColor: '#059669', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}
-                  onPress={() => { setSelectedInsight(null); onShowChat(`I just read this insight: "${selectedInsight?.feeling}" — can you tell me more?`); }}
-                >
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Talk to Coach</Text>
-                </TouchableOpacity>
-              )}
-              <View style={{ height: 40 }} />
-            </ScrollView>
-          )}
+          <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20 }}>
+            <FormattedText text={justForYouInsight || ''} bodyStyle={[styles.insightDetailBody, { fontSize: 15.5, lineHeight: 24 }]} />
+            {onShowChat && (
+              <TouchableOpacity
+                style={{ marginTop: 28, backgroundColor: '#059669', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}
+                onPress={() => { setJfyExpanded(false); onShowChat(`I just read today's insight — can you tell me more?`); }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Talk to Coach</Text>
+              </TouchableOpacity>
+            )}
+            <View style={{ height: 40 }} />
+          </ScrollView>
         </View>
       </Modal>
 
