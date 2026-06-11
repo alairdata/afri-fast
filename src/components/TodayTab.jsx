@@ -823,12 +823,14 @@ const TodayTab = ({
             <TouchableOpacity
               activeOpacity={0.88}
               onPress={() => { setJfyExpanded(true); setJfyFreshReady(false); }}
-              style={{ backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border }}
+              style={{ backgroundColor: '#059669', borderRadius: 16, padding: 16, minHeight: 160, justifyContent: 'space-between' }}
             >
-              <Text style={{ fontSize: 14.5, lineHeight: 22, color: colors.text }} numberOfLines={4}>
+              <Text style={{ fontSize: 15, fontWeight: '700', lineHeight: 22, color: 'rgba(255,255,255,0.92)', flex: 1, marginBottom: 16 }} numberOfLines={4}>
                 {justForYouInsight}
               </Text>
-              <Text style={{ marginTop: 10, fontSize: 13, fontWeight: '600', color: '#059669' }}>Read more →</Text>
+              <View style={styles.eduBtn}>
+                <Text style={styles.eduBtnText}>Read more</Text>
+              </View>
             </TouchableOpacity>
           ) : null}
         </View>
