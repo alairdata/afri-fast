@@ -345,16 +345,23 @@ const getLocalName = (recipe, userCountry) =>
   (userCountry && recipe.localNames?.[userCountry]) || recipe.name;
 
 export const RecipeCard = ({ recipe, onPress, userCountry }) => {
+  const [imgError, setImgError] = useState(false);
   const displayName = getLocalName(recipe, userCountry);
   const toMins = t => { if (!t) return 0; const n = parseInt(t); return isNaN(n) ? 0 : /hr/i.test(t) ? n * 60 : n; };
   const total = toMins(recipe.prepTime) + toMins(recipe.cookTime);
   const timeStr = total >= 60 ? `${Math.floor(total / 60)}h ${total % 60 > 0 ? `${total % 60}m` : ''}`.trim() : total > 0 ? `${total} mins` : null;
+  const showImg = recipe.imageUrl && !imgError;
   return (
     <TouchableOpacity style={styles.recipeCard} onPress={onPress}>
-      {recipe.imageUrl ? (
-        <Image source={{ uri: recipe.imageUrl }} style={styles.recipeCardImg} resizeMode="cover" />
+      {showImg ? (
+        <Image
+          source={{ uri: recipe.imageUrl }}
+          style={styles.recipeCardImg}
+          resizeMode="cover"
+          onError={() => setImgError(true)}
+        />
       ) : (
-        <View style={styles.recipeCardImg}>
+        <View style={[styles.recipeCardImg, { alignItems: 'center', justifyContent: 'center' }]}>
           <Text style={styles.recipeCardEmoji}>🍽️</Text>
         </View>
       )}
@@ -397,7 +404,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
         {recipe.imageUrl ? (
           <Image source={{ uri: recipe.imageUrl }} style={styles.recipeCardImg} resizeMode="cover" />
         ) : (
-          <View style={styles.recipeCardImg}>
+          <View style={[styles.recipeCardImg, { alignItems: 'center', justifyContent: 'center' }]}>
             <Text style={styles.recipeCardEmoji}>🍽️</Text>
           </View>
         )}
