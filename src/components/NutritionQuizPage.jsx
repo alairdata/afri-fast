@@ -475,11 +475,17 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
 
   const handleSaveGoals = () => {
     if (result) {
+      const heightData = answers[3] || { value: heightValue, unit: heightUnit };
+      const savedHeight = heightUnit === 'ft'
+        ? String(Math.round((heightFeet * 30.48) + (heightInches * 2.54)))
+        : String(heightData.value || heightValue);
       onSaveGoals({
         calories: result.calories,
         protein: result.protein,
         carbs: result.carbs,
         fats: result.fats,
+        height: savedHeight,
+        heightUnit: 'cm',
       });
     }
     resetQuiz();

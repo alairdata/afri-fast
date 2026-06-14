@@ -333,7 +333,7 @@ const ProgressTab = ({
                       <LineChart
                         data={{
                           labels: displayLogs.map((l, i, arr) => {
-                            if (arr.length <= 5 || i % Math.ceil(arr.length / 5) === 0 || i === arr.length - 1) {
+                            if (arr.length <= 7 || i % Math.ceil(arr.length / 7) === 0 || i === arr.length - 1) {
                               return progressData.formatLabel(l.date);
                             }
                             return '';
@@ -362,8 +362,11 @@ const ProgressTab = ({
                           labelColor: () => '#888',
                           propsForDots: { r: '0' },
                           propsForBackgroundLines: { stroke: 'transparent' },
-                          fillShadowGradientFromOpacity: 0,
-                          fillShadowGradientToOpacity: 0,
+                          fillShadowGradient: '#059669',
+                          fillShadowGradientFrom: '#059669',
+                          fillShadowGradientTo: '#059669',
+                          fillShadowGradientFromOpacity: 0.3,
+                          fillShadowGradientToOpacity: 0.05,
                           propsForLabels: { fontSize: 9 },
                           paddingRight: 48,
                         }}
@@ -439,7 +442,7 @@ const ProgressTab = ({
                       <LineChart
                         data={{
                           labels: dailyData.map((d, i, arr) => {
-                            if (arr.length <= 5 || i % Math.ceil(arr.length / 5) === 0 || i === arr.length - 1) {
+                            if (arr.length <= 7 || i % Math.ceil(arr.length / 7) === 0 || i === arr.length - 1) {
                               return progressData.formatLabel(d.date);
                             }
                             return '';
@@ -460,8 +463,11 @@ const ProgressTab = ({
                           labelColor: () => '#888',
                           propsForDots: { r: '0' },
                           propsForBackgroundLines: { stroke: 'transparent' },
-                          fillShadowGradientFromOpacity: 0,
-                          fillShadowGradientToOpacity: 0,
+                          fillShadowGradient: '#EF4444',
+                          fillShadowGradientFrom: '#EF4444',
+                          fillShadowGradientTo: '#EF4444',
+                          fillShadowGradientFromOpacity: 0.3,
+                          fillShadowGradientToOpacity: 0.05,
                           propsForLabels: { fontSize: 9 },
                           paddingRight: 48,
                         }}
@@ -529,7 +535,7 @@ const ProgressTab = ({
                       <LineChart
                         data={{
                           labels: uniqueLogs.slice(0, progressData.isLongRange ? 12 : 7).reverse().map((l, i, arr) => {
-                            if (arr.length <= 5 || i % Math.ceil(arr.length / 5) === 0 || i === arr.length - 1) {
+                            if (arr.length <= 7 || i % Math.ceil(arr.length / 7) === 0 || i === arr.length - 1) {
                               return progressData.formatLabel(l.date);
                             }
                             return '';
@@ -550,8 +556,11 @@ const ProgressTab = ({
                           labelColor: () => '#888',
                           propsForDots: { r: '0' },
                           propsForBackgroundLines: { stroke: 'transparent' },
-                          fillShadowGradientFromOpacity: 0,
-                          fillShadowGradientToOpacity: 0,
+                          fillShadowGradient: '#0EA5E9',
+                          fillShadowGradientFrom: '#0EA5E9',
+                          fillShadowGradientTo: '#0EA5E9',
+                          fillShadowGradientFromOpacity: 0.3,
+                          fillShadowGradientToOpacity: 0.05,
                           propsForLabels: { fontSize: 9 },
                           paddingRight: 48,
                         }}

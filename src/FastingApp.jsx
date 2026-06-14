@@ -2256,6 +2256,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           setCarbsGoal(goals.carbs);
           setFatsGoal(goals.fats);
           setMacroStyle(closestMacroStyle(goals.protein, goals.carbs, goals.fats));
+          if (goals.height) {
+            setHeight(goals.height);
+            setHeightUnit(goals.heightUnit || 'cm');
+            upsertProfile({ height: goals.height, height_unit: goals.heightUnit || 'cm' }, 'save height from quiz');
+          }
           setShowNutritionQuiz(false);
           showToast('Nutrition goals saved!');
         }}

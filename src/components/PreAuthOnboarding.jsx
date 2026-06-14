@@ -1,1163 +1,1213 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Platform,
-  Animated,
-  Easing,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView,
+  TextInput, Animated, Platform, useWindowDimensions,
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
-const genderOptions = [
-  { id: 'Woman', label: 'Female', icon: 'F' },
-  { id: 'Man', label: 'Male', icon: 'M' },
-  { id: 'Non-binary', label: 'Non-binary', icon: 'NB' },
-  { id: 'Prefer not to say', label: 'Prefer not to say', icon: '' },
-];
-
-const goalOptions = [
-  { id: 'lose', label: 'Lose weight', subtext: 'Reduce body fat safely' },
-  { id: 'gain', label: 'Gain weight', subtext: 'Build muscle and mass' },
-  { id: 'maintain', label: 'Maintain weight', subtext: "Keep what you've built" },
-  { id: 'gutHealth', label: 'Gut health', subtext: 'Improve digestion' },
-  { id: 'moreEnergy', label: 'More energy', subtext: 'Feel alert and sustained' },
-  { id: 'mentalClarity', label: 'Mental clarity', subtext: 'Focus and reset' },
-  { id: 'liveLonger', label: 'Live longer', subtext: 'Support your long-term health' },
-];
-
-const conditionOptions = [
-  { id: 'Diabetes', label: 'Diabetes' },
-  { id: 'High blood pressure', label: 'Hypertension' },
-  { id: 'PCOS', label: 'PCOS' },
-  { id: 'Ulcer', label: 'Ulcer' },
-  { id: 'Pregnant / breastfeeding', label: 'Pregnant / breastfeeding' },
-  { id: 'None', label: 'None of the above' },
-];
-
-const steps = [
-  {
-    tag: 'Welcome',
-    title: 'What is your\nname?',
-    subtitle: 'Your name helps us make your Afri Fast experience feel personal from day one.',
-  },
-  {
-    tag: 'About you',
-    title: 'A few body\ndetails',
-    subtitle: 'Age, gender, and height help us make the app feel more relevant.',
-  },
-  {
-    tag: 'Your goal',
-    title: 'What do you\nwant to achieve?',
-    subtitle: "We'll build your experience around this.",
-  },
-  {
-    tag: 'Your weight',
-    title: 'Where are you\nstarting from?',
-    subtitle: 'Current weight first. Target weight only if it matters for your goal.',
-  },
-  {
-    tag: 'Health',
-    title: 'Any health\nconditions?',
-    subtitle: "Select all that apply. We'll keep your plan safer and more thoughtful.",
-  },
-];
-
-const createEmptyData = () => ({
-  preferredName: '',
-  gender: '',
-  age: '',
-  height: '',
-  heightUnit: 'cm',
-  goal: '',
-  currentWeight: '',
-  targetWeight: '',
-  weightUnit: 'kg',
-  conditions: [],
-});
-
-const parseNumber = (value) => {
-  const parsed = parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : null;
+// ── Design tokens ──────────────────────────────────────────────────────────────
+const C = {
+  primary:     '#059669',
+  primarySoft: '#ecfdf5',
+  terra:       '#db6a3f',
+  terraSoft:   '#fbeee7',
+  amber:       '#f0a534',
+  ink:         '#16201b',
+  ink700:      '#3a4640',
+  ink500:      '#6c7872',
+  ink400:      '#97a19b',
+  bg:          '#fbfbf7',
+  surface:     '#ffffff',
+  sunken:      '#f4f4ee',
+  line:        '#e9e9e1',
+  line2:       '#deded4',
+  green50:     '#ecfdf5',
 };
 
-export default function PreAuthOnboarding({ initialData, onComplete, onSkip }) {
-  const [stepIndex, setStepIndex] = useState(0);
-  const [data, setData] = useState(() => ({ ...createEmptyData(), ...(initialData || {}) }));
-  const [showSuccess, setShowSuccess] = useState(false);
-  const fillAnim = useRef(new Animated.Value(0)).current;
-  const checkAnim = useRef(new Animated.Value(0)).current;
-  const textAnim = useRef(new Animated.Value(0)).current;
-  const buttonAnim = useRef(new Animated.Value(0)).current;
+const DEFAULT_DATA = {
+  goal: '', struggles: [], name: '', country: '', gender: '', age: 28,
+  heightCm: 170, weightKg: 82, targetKg: 72, unitH: 'cm', unitW: 'kg',
+  pace: 'moderate', activity: '', eatingStyle: '',
+  foodContext: '', cuisines: [], whys: [], accountability: '',
+};
 
-  const step = steps[stepIndex];
-  const progressWidth = `${((stepIndex + 1) / steps.length) * 100}%`;
-  const needsTargetWeight = data.goal === 'lose' || data.goal === 'gain';
-  const displayName = data.preferredName.trim() || 'friend';
-  const isDark = stepIndex === 0;
+const FLOW = [
+  'hook', 'goal', 'struggle', 'name', 'country', 'gender', 'age',
+  'bodyIntro', 'height', 'weight', 'target', 'pace', 'activity',
+  'eating', 'food', 'why', 'accountability', 'building', 'done',
+];
+const FULL_BLEED = new Set(['hook', 'bodyIntro', 'building', 'done']);
+const COUNTED = FLOW.filter(id => !FULL_BLEED.has(id)).length;
+
+// ── Calorie calculator (Mifflin-St Jeor → TDEE) ───────────────────────────────
+function calcPlan(d) {
+  const s = d.gender === 'Male' ? 5 : d.gender === 'Female' ? -161 : -78;
+  const bmr = 10 * d.weightKg + 6.25 * d.heightCm - 5 * d.age + s;
+  const factor = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 }[d.activity] || 1.375;
+  const tdee = bmr * factor;
+  const DEFICIT = { slow: 250, moderate: 500, aggressive: 750 };
+  const deficit = d.targetKg < d.weightKg ? (DEFICIT[d.pace] || 500) : 0;
+  const floor = d.gender === 'Male' ? 1500 : 1200;
+  let target = Math.round((tdee - deficit) / 10) * 10;
+  if (target < floor) target = floor;
+  const gap = d.weightKg - d.targetKg;
+  const RATE = { slow: 0.25, moderate: 0.5, aggressive: 0.75 };
+  const rate = RATE[d.pace] || 0.5;
+  const weeks = d.targetKg < d.weightKg && gap > 0 ? Math.max(1, Math.round(gap / rate)) : 0;
+  const protein = Math.round(d.weightKg * 1.6);
+  const water = Math.max(2, Math.round(d.weightKg * 0.033 * 10) / 10);
+  return { tdee: Math.round(tdee), target, weeks, protein, water, deficit };
+}
+
+// ── Horizontal ruler picker ────────────────────────────────────────────────────
+function RulerPicker({ min, max, value, onChange, unit, accent }) {
+  const GAP = 14;
+  const { width: SW } = useWindowDimensions();
+  const scrollRef = useRef(null);
+  const rangeKey = `${min}-${max}`;
+  const prevRange = useRef(rangeKey);
 
   useEffect(() => {
-    if (!showSuccess) return;
+    const changed = prevRange.current !== rangeKey;
+    prevRange.current = rangeKey;
+    const offset = Math.max(0, (value - min)) * GAP;
+    const delay = changed ? 20 : 80;
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({ x: offset, animated: false });
+    }, delay);
+    return () => clearTimeout(t);
+  }, [rangeKey]); // only re-scroll when range/unit changes
 
-    fillAnim.setValue(0);
-    checkAnim.setValue(0);
-    textAnim.setValue(0);
-    buttonAnim.setValue(0);
+  const handleScrollEnd = useCallback((e) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(x / GAP);
+    const v = Math.max(min, Math.min(max, min + idx));
+    if (v !== value) onChange(v);
+  }, [min, max, value, onChange]);
 
-    Animated.sequence([
-      Animated.timing(fillAnim, {
-        toValue: 1,
-        duration: 1900,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.parallel([
-        Animated.timing(checkAnim, {
-          toValue: 1,
-          duration: 280,
-          useNativeDriver: true,
-        }),
-        Animated.timing(textAnim, {
-          toValue: 1,
-          duration: 360,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.timing(buttonAnim, {
-        toValue: 1,
-        duration: 360,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [showSuccess, fillAnim, checkAnim, textAnim, buttonAnim]);
-
-  const update = (patch) => setData((prev) => ({ ...prev, ...patch }));
-
-  const ageValue = parseNumber(data.age);
-  const heightValue = parseNumber(data.height);
-  const currentWeightValue = parseNumber(data.currentWeight);
-  const targetWeightValue = parseNumber(data.targetWeight);
-
-  const ageError =
-    data.age.trim() === ''
-      ? ''
-      : ageValue === null || ageValue < 18
-        ? 'Afri Fast is currently designed for adults 18+.'
-        : ageValue > 100
-          ? 'Please enter a valid age.'
-          : '';
-
-  const heightError =
-    data.height.trim() === ''
-      ? ''
-      : data.heightUnit === 'cm'
-        ? heightValue === null || heightValue < 120 || heightValue > 230
-          ? 'Please enter a height between 120 cm and 230 cm.'
-          : ''
-        : heightValue === null || heightValue < 4 || heightValue > 8
-          ? 'Please enter a height between 4 ft and 8 ft.'
-          : '';
-
-  const getWeightError = (value, unit) => {
-    if (value === '') return '';
-    const parsed = parseNumber(value);
-    if (parsed === null) return 'Please enter a valid weight.';
-    if (unit === 'kg') {
-      if (parsed < 30) return 'Please enter a weight above 30 kg.';
-      if (parsed > 136) return 'If you are above 300 lb, please use Afri Fast with a doctor’s guidance.';
-      return '';
-    }
-    if (parsed < 66) return 'Please enter a weight above 66 lb.';
-    if (parsed > 300) return 'If you are above 300 lb, please use Afri Fast with a doctor’s guidance.';
-    return '';
-  };
-
-  const currentWeightError = getWeightError(data.currentWeight, data.weightUnit);
-  const targetWeightError = getWeightError(data.targetWeight, data.weightUnit);
-
-  const canContinue = useMemo(() => {
-    if (stepIndex === 0) return Boolean(data.preferredName.trim());
-    if (stepIndex === 1) {
-      return Boolean(data.gender && data.age.trim() && data.height.trim() && !ageError && !heightError);
-    }
-    if (stepIndex === 2) return Boolean(data.goal);
-    if (stepIndex === 3) {
-      return Boolean(
-        data.currentWeight.trim() &&
-        !currentWeightError &&
-        (!needsTargetWeight || (data.targetWeight.trim() && !targetWeightError))
-      );
-    }
-    if (stepIndex === 4) return data.conditions.length > 0;
-    return false;
-  }, [stepIndex, data, needsTargetWeight, ageError, heightError, currentWeightError, targetWeightError]);
-
-  const toggleCondition = (value) => {
-    if (value === 'None') {
-      update({ conditions: ['None'] });
-      return;
-    }
-
-    const next = data.conditions.includes(value)
-      ? data.conditions.filter((item) => item !== value)
-      : [...data.conditions.filter((item) => item !== 'None'), value];
-
-    update({ conditions: next });
-  };
-
-  const goBack = () => {
-    if (stepIndex === 0) return;
-    setStepIndex((prev) => prev - 1);
-  };
-
-  const goNext = () => {
-    if (stepIndex === steps.length - 1) {
-      setShowSuccess(true);
-      return;
-    }
-    setStepIndex((prev) => prev + 1);
-  };
-
-  const finishOnboarding = () => {
-    onComplete({
-      ...data,
-      completedAt: Date.now(),
-      conditions: data.conditions.join(', '),
-    });
-  };
-
-  const renderOptionCard = ({ label, subtext, icon, selected, onPress }) => (
-    <TouchableOpacity
-      key={label}
-      style={[styles.optionCard, selected && styles.optionCardSelected]}
-      onPress={onPress}
-    >
-      <View style={styles.optionLeft}>
-        <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
-          <Text style={[styles.optionIconText, selected && styles.optionIconTextSelected]}>{icon}</Text>
-        </View>
-        <View style={styles.optionTextWrap}>
-          <Text style={styles.optionName}>{label}</Text>
-          {subtext ? <Text style={styles.optionSub}>{subtext}</Text> : null}
-        </View>
-      </View>
-      <View style={[styles.optionCheck, selected && styles.optionCheckSelected]}>
-        {selected ? <Ionicons name="checkmark" size={10} color="#0A0F0D" /> : null}
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderStepContent = () => {
-    if (stepIndex === 0) {
-      return (
-        <View style={styles.nameStage}>
-          <View style={styles.waveIconWrap}>
-            <Text style={styles.waveEmoji}>👋</Text>
-          </View>
-          <View style={styles.nameInputCard}>
-            <Text style={styles.nameLabel}>NAME</Text>
-            <TextInput
-              style={styles.bigInput}
-              value={data.preferredName}
-              onChangeText={(preferredName) => update({ preferredName })}
-              placeholder="Your name"
-              placeholderTextColor="rgba(255,255,255,0.2)"
-              autoCapitalize="words"
-              textAlign="left"
-            />
-          </View>
-          {data.preferredName.trim() ? (
-            <View style={styles.greetBanner}>
-              <Text style={styles.greetEmoji}>👋</Text>
-              <Text style={styles.greetText}>
-                Nice to meet you, <Text style={styles.greetName}>{data.preferredName.trim()}</Text>!
-              </Text>
-              <Text style={styles.greetEmoji}>🤝</Text>
-            </View>
-          ) : null}
-        </View>
-      );
-    }
-
-    if (stepIndex === 1) {
-      return (
-        <View style={styles.mixedStep}>
-          <View style={styles.optionGroup}>
-            <Text style={styles.sectionLabel}>Gender</Text>
-            <View style={styles.optionsColumn}>
-              {genderOptions.map((option) =>
-                renderOptionCard({
-                  label: option.label,
-                  icon: option.icon,
-                  selected: data.gender === option.id,
-                  onPress: () => update({ gender: option.id }),
-                })
-              )}
-            </View>
-          </View>
-
-          <View style={styles.measurementRow}>
-            <View style={styles.measurementBlock}>
-              <Text style={styles.sectionLabel}>Age</Text>
-              <View style={styles.numberRowSmall}>
-                <TextInput
-                  style={styles.smallNumberInput}
-                  value={data.age}
-                  onChangeText={(age) => update({ age })}
-                  placeholder="25"
-                  placeholderTextColor="rgba(0,0,0,0.2)"
-                  keyboardType="numeric"
-                  textAlign="center"
-                />
-                <Text style={styles.smallUnit}>yrs</Text>
-              </View>
-              {ageError ? <Text style={styles.validationText}>{ageError}</Text> : null}
-            </View>
-
-            <View style={styles.measurementBlock}>
-              <Text style={styles.sectionLabel}>Height</Text>
-              <View style={styles.unitToggle}>
-                <TouchableOpacity
-                  style={[styles.unitToggleBtn, data.heightUnit === 'cm' && styles.unitToggleBtnOn]}
-                  onPress={() => update({ heightUnit: 'cm' })}
-                >
-                  <Text style={[styles.unitToggleText, data.heightUnit === 'cm' && styles.unitToggleTextOn]}>cm</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.unitToggleBtn, data.heightUnit === 'ft' && styles.unitToggleBtnOn]}
-                  onPress={() => update({ heightUnit: 'ft' })}
-                >
-                  <Text style={[styles.unitToggleText, data.heightUnit === 'ft' && styles.unitToggleTextOn]}>ft</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.numberRowSmall}>
-                <TextInput
-                  style={styles.smallNumberInput}
-                  value={data.height}
-                  onChangeText={(height) => update({ height })}
-                  placeholder={data.heightUnit === 'cm' ? '165' : '5.6'}
-                  placeholderTextColor="rgba(0,0,0,0.2)"
-                  keyboardType="numeric"
-                  textAlign="center"
-                />
-                <Text style={styles.smallUnit}>{data.heightUnit}</Text>
-              </View>
-              {heightError ? <Text style={styles.validationText}>{heightError}</Text> : null}
-            </View>
-          </View>
-        </View>
-      );
-    }
-
-    if (stepIndex === 2) {
-      return (
-        <View style={styles.optionsColumn}>
-          {goalOptions.map((option) =>
-            renderOptionCard({
-              label: option.label,
-              subtext: option.subtext,
-              icon: '',
-              selected: data.goal === option.id,
-              onPress: () => update({ goal: option.id }),
-            })
-          )}
-        </View>
-      );
-    }
-
-    if (stepIndex === 3) {
-      return (
-        <View style={styles.centerStage}>
-          <View style={styles.unitToggle}>
-            <TouchableOpacity
-              style={[styles.unitToggleBtn, data.weightUnit === 'kg' && styles.unitToggleBtnOn]}
-              onPress={() => update({ weightUnit: 'kg' })}
-            >
-              <Text style={[styles.unitToggleText, data.weightUnit === 'kg' && styles.unitToggleTextOn]}>kg</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.unitToggleBtn, data.weightUnit === 'lbs' && styles.unitToggleBtnOn]}
-              onPress={() => update({ weightUnit: 'lbs' })}
-            >
-              <Text style={[styles.unitToggleText, data.weightUnit === 'lbs' && styles.unitToggleTextOn]}>lbs</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.weightGroup}>
-            <Text style={styles.sectionLabelCenter}>Current weight</Text>
-            <View style={styles.numberRow}>
-              <TextInput
-                style={styles.numberInput}
-                value={data.currentWeight}
-                onChangeText={(currentWeight) => update({ currentWeight })}
-                placeholder="68"
-                placeholderTextColor="rgba(0,0,0,0.2)"
-                keyboardType="numeric"
-                textAlign="center"
-              />
-              <Text style={styles.numberUnit}>{data.weightUnit}</Text>
-            </View>
-            {currentWeightError ? <Text style={styles.validationText}>{currentWeightError}</Text> : null}
-          </View>
-
-          {needsTargetWeight ? (
-            <View style={styles.weightGroup}>
-              <Text style={styles.sectionLabelCenter}>Target weight</Text>
-              <View style={styles.numberRow}>
-                <TextInput
-                  style={styles.numberInput}
-                  value={data.targetWeight}
-                  onChangeText={(targetWeight) => update({ targetWeight })}
-                  placeholder="60"
-                  placeholderTextColor="rgba(0,0,0,0.2)"
-                  keyboardType="numeric"
-                  textAlign="center"
-                />
-                <Text style={styles.numberUnit}>{data.weightUnit}</Text>
-              </View>
-              {targetWeightError ? <Text style={styles.validationText}>{targetWeightError}</Text> : null}
-            </View>
-          ) : null}
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.optionsColumn}>
-        {conditionOptions.map((option) =>
-          renderOptionCard({
-            label: option.label,
-            icon: option.id === 'None' ? '' : option.label.slice(0, 2),
-            selected: data.conditions.includes(option.id),
-            onPress: () => toggleCondition(option.id),
-          })
-        )}
-      </View>
-    );
-  };
-
-  const fillHeight = fillAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
-
-  const checkStyle = {
-    opacity: checkAnim,
-    transform: [
-      {
-        scale: checkAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.8, 1],
-        }),
-      },
-    ],
-  };
-
-  const textStyle = {
-    opacity: textAnim,
-    transform: [
-      {
-        translateY: textAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [12, 0],
-        }),
-      },
-    ],
-  };
-
-  const buttonStyle = {
-    opacity: buttonAnim,
-    transform: [
-      {
-        translateY: buttonAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [8, 0],
-        }),
-      },
-    ],
-  };
+  const count = max - min;
+  const ac = accent || C.primary;
+  const halfW = SW / 2;
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
-      <View style={styles.screenWrap}>
-        <View style={styles.slideBody}>
-          <View style={styles.topRow}>
-            <TouchableOpacity
-              style={[styles.backBtn, isDark && styles.backBtnDark, stepIndex === 0 && styles.backBtnHidden]}
-              onPress={goBack}
-              disabled={stepIndex === 0}
-            >
-              <Ionicons name="chevron-back" size={14} color={isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.4)'} />
-            </TouchableOpacity>
-            {isDark ? (
-              <Text style={styles.navTitle}>{step.tag}</Text>
-            ) : (
-              <Text style={[styles.progressCount]}>{`${stepIndex + 1} of ${steps.length}`}</Text>
-            )}
-            <View style={{ width: 36 }} />
-          </View>
-
-          <View style={[styles.progressBar, isDark && styles.progressBarDark]}>
-            <View style={[styles.progressFillStatic, { width: progressWidth }]} />
-          </View>
-
-          {!isDark && <Text style={styles.questionTag}>{step.tag}</Text>}
-          <Text style={[styles.questionText, isDark && styles.questionTextDark, isDark && styles.questionTextDarkSpaced]}>{step.title}</Text>
-          <Text style={[styles.questionSub, isDark && styles.questionSubDark]}>{step.subtitle}</Text>
-
-          <ScrollView
-            style={styles.contentArea}
-            contentContainerStyle={(stepIndex === 0 || stepIndex === 3) ? styles.contentAreaFull : styles.contentAreaPadded}
-            showsVerticalScrollIndicator={false}
-          >
-            {renderStepContent()}
-          </ScrollView>
+    <View>
+      <View style={{ alignItems: 'center', marginBottom: 8 }}>
+        <Text style={s.rulerVal}>{value}</Text>
+        <Text style={s.rulerUnit}>{unit}</Text>
+      </View>
+      <View style={{ position: 'relative' }}>
+        {/* downward-pointing center indicator */}
+        <View style={[s.rulerCursorWrap, { left: halfW - 1.5 }]}>
+          <View style={[s.rulerArrow, { borderTopColor: ac }]} />
+          <View style={[s.rulerLine, { backgroundColor: ac }]} />
         </View>
-
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.ctaBtn, !canContinue && styles.ctaBtnDisabled]}
-            onPress={goNext}
-            disabled={!canContinue}
-          >
-            <Text style={[styles.ctaText, !canContinue && styles.ctaTextDisabled]}>
-              {stepIndex === steps.length - 1 ? 'See my plan' : 'Continue'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {showSuccess ? (
-          <View style={styles.successOverlay}>
-            <View style={styles.successGlowTop} />
-            <View style={styles.successGlowBottom} />
-            <View style={styles.successPattern}>
-              <View style={styles.successDot} />
-              <View style={styles.successDot} />
-              <View style={styles.successDot} />
-              <View style={styles.successDot} />
-            </View>
-            <Text style={styles.successEyebrow}>Afri Fast</Text>
-            <View style={styles.waterWrap}>
-              <View style={styles.waterCircle}>
-                <Animated.View style={[styles.waterFill, { height: fillHeight }]}>
-                  <View style={styles.wave} />
-                  <View style={styles.waveSoft} />
-                </Animated.View>
-              </View>
-              <Animated.View style={[styles.waterCheck, checkStyle]}>
-                <Ionicons name="checkmark" size={40} color="#FFFFFF" />
-              </Animated.View>
-            </View>
-
-            <Animated.Text style={[styles.successTitle, textStyle]}>
-              {`You're all set,\n${displayName}.`}
-            </Animated.Text>
-            <Animated.Text style={[styles.successBody, textStyle]}>
-              Your Afri Fast setup is ready. Let’s build healthier rhythm, better nourishment, and more intentional fasting.
-            </Animated.Text>
-            <Animated.View style={buttonStyle}>
-              <TouchableOpacity style={styles.successBtn} onPress={finishOnboarding}>
-                <Text style={styles.successBtnText}>Start my Afri Fast</Text>
-              </TouchableOpacity>
-            </Animated.View>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={GAP}
+          decelerationRate="fast"
+          onMomentumScrollEnd={handleScrollEnd}
+          onScrollEndDrag={handleScrollEnd}
+          scrollEventThrottle={16}
+        >
+          <View style={{ flexDirection: 'row', paddingHorizontal: halfW }}>
+            {Array.from({ length: count + 1 }, (_, i) => {
+              const v = min + i;
+              const major = v % 5 === 0;
+              return (
+                <View key={i} style={{ width: GAP, alignItems: 'center', justifyContent: 'flex-end', height: 54 }}>
+                  <View style={{
+                    width: 2, borderRadius: 2,
+                    height: major ? 34 : 18,
+                    backgroundColor: major ? C.ink400 : C.line2,
+                  }} />
+                </View>
+              );
+            })}
           </View>
-        ) : null}
+        </ScrollView>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FCFBF7',
-  },
-  containerDark: {
-    backgroundColor: '#0D0D1C',
-  },
-  bgGlowTop: {
-    position: 'absolute',
-    top: -90,
-    right: -30,
-    width: 220,
-    height: 220,
-    borderRadius: 999,
-    backgroundColor: 'rgba(245, 158, 11, 0.10)',
-  },
-  bgGlowTopDark: {
-    backgroundColor: 'rgba(245, 158, 11, 0.06)',
-  },
-  bgGlowBottom: {
-    position: 'absolute',
-    left: -80,
-    bottom: 100,
-    width: 220,
-    height: 220,
-    borderRadius: 999,
-    backgroundColor: 'rgba(16, 185, 129, 0.10)',
-  },
-  bgGlowBottomDark: {
-    backgroundColor: 'rgba(16, 185, 129, 0.06)',
-  },
-  bgPattern: {
-    position: 'absolute',
-    top: 120,
-    right: 20,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: 44,
-    opacity: 0.22,
-  },
-  bgDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#C97A1B',
-    marginRight: 6,
-    marginBottom: 6,
-  },
-  screenWrap: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    position: 'relative',
-  },
-  slideBody: {
-    flex: 1,
-    paddingTop: 8,
-    paddingHorizontal: 26,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
+// ── Option card ────────────────────────────────────────────────────────────────
+function OptionCard({ icon, title, subtitle, selected, onPress, multi, compact }) {
+  return (
+    <TouchableOpacity
+      style={[s.optCard, selected && s.optCardSel, compact && s.optCardCompact]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      {icon != null && (
+        <View style={[s.optIconWrap, selected && s.optIconWrapSel]}>
+          {icon}
+        </View>
+      )}
+      <View style={s.optText}>
+        <Text style={s.optTitle}>{title}</Text>
+        {subtitle ? <Text style={s.optSub}>{subtitle}</Text> : null}
+      </View>
+      <View style={[s.optSel, selected && s.optSelOn, multi && s.optSelMulti]}>
+        {selected ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ── Chip ───────────────────────────────────────────────────────────────────────
+function Chip({ label, selected, onPress }) {
+  return (
+    <TouchableOpacity style={[s.chip, selected && s.chipSel]} onPress={onPress} activeOpacity={0.8}>
+      <Text style={[s.chipText, selected && s.chipTextSel]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+// ── Buttons ────────────────────────────────────────────────────────────────────
+function PrimaryBtn({ label, onPress, disabled }) {
+  return (
+    <TouchableOpacity
+      style={[s.primaryBtn, disabled && s.primaryBtnDis]}
+      onPress={disabled ? undefined : onPress}
+      activeOpacity={disabled ? 1 : 0.85}
+    >
+      <Text style={[s.primaryBtnTxt, disabled && s.primaryBtnTxtDis]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function TextBtn({ label, onPress }) {
+  return (
+    <TouchableOpacity style={s.textBtn} onPress={onPress} activeOpacity={0.7}>
+      <Text style={s.textBtnTxt}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+// ── Segmented unit toggle ──────────────────────────────────────────────────────
+function Seg({ options, value, onChange }) {
+  return (
+    <View style={s.seg}>
+      {options.map(o => {
+        const v = typeof o === 'string' ? o : o.value;
+        const label = typeof o === 'string' ? o : o.label;
+        const on = v === value;
+        return (
+          <TouchableOpacity key={v} style={[s.segBtn, on && s.segBtnOn]} onPress={() => onChange(v)}>
+            <Text style={[s.segBtnTxt, on && s.segBtnTxtOn]}>{label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+// ── Progress bar + back ────────────────────────────────────────────────────────
+function ProgressTop({ step, total, onBack, showBack }) {
+  const pct = Math.max(0, Math.min(1, step / total));
+  return (
+    <View style={s.progressWrap}>
+      <TouchableOpacity
+        style={[s.backBtn, !showBack && { opacity: 0 }]}
+        onPress={showBack ? onBack : undefined}
+        disabled={!showBack}
+      >
+        <Ionicons name="chevron-back" size={18} color={C.ink700} />
+      </TouchableOpacity>
+      <View style={s.progressTrack}>
+        <View style={[s.progressFill, { width: `${pct * 100}%` }]} />
+      </View>
+      <Text style={s.progressCount}>
+        {step}<Text style={{ opacity: 0.5 }}>/{total}</Text>
+      </Text>
+    </View>
+  );
+}
+
+// ── Screen shell ───────────────────────────────────────────────────────────────
+function ScreenShell({ children, footer, step, total, onBack, showBack, hideProgress }) {
+  return (
+    <View style={s.shell}>
+      {!hideProgress && (
+        <ProgressTop step={step} total={total} onBack={onBack} showBack={showBack} />
+      )}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={s.shellContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {children}
+      </ScrollView>
+      {footer ? <View style={s.footer}>{footer}</View> : null}
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCREENS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function HookScreen({ next }) {
+  return (
+    <View style={[s.shell, { backgroundColor: C.bg }]}>
+      {/* Brand */}
+      <View style={s.hookBrand}>
+        <View style={s.hookLogo}>
+          <Ionicons name="leaf" size={16} color="#fff" />
+        </View>
+        <Text style={s.hookBrandTxt}>
+          Afri<Text style={{ color: C.primary }}>Fast</Text>
+        </Text>
+      </View>
+
+      {/* Hero */}
+      <View style={s.hookHero}>
+        <View style={s.hookHeroCircle} />
+        <View style={s.hookIllo}>
+          <Text style={s.hookIlloEmoji}>🍛</Text>
+          <Text style={s.hookIlloSub}>jollof · fufu · suya · egusi</Text>
+        </View>
+      </View>
+
+      {/* Statement */}
+      <View style={s.hookStatement}>
+        <Text style={s.hookHeadline}>
+          Eat the food you{' '}
+          <Text style={{ color: C.primary }}>love.</Text>
+          {'\n'}Reach the body you want.
+        </Text>
+        <Text style={s.hookSubline}>
+          The first nutrition app that truly knows jollof, fufu and suya — counted the way you actually eat.
+        </Text>
+      </View>
+
+      {/* CTA */}
+      <View style={s.hookCta}>
+        <PrimaryBtn label="Let's start →" onPress={next} />
+        <Text style={s.hookNotice}>Takes about 3 minutes · No card needed</Text>
+      </View>
+    </View>
+  );
+}
+
+function GoalScreen(p) {
+  const { d, set, next } = p;
+  const opts = [
+    { v: 'lose',       t: 'Lose weight',        s: 'Shed kilos at a healthy, steady pace',   icon: 'trending-down-outline' },
+    { v: 'eat',        t: 'Eat better',          s: 'More balance, less guilt',                icon: 'nutrition-outline' },
+    { v: 'consistent', t: 'Stay consistent',     s: 'Build a habit that finally sticks',       icon: 'flame-outline' },
+    { v: 'understand', t: 'Understand my body',  s: 'Learn what my meals really do',           icon: 'search-outline' },
+  ];
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.goal} />}>
+      <Text style={s.eyebrow}>Your goal</Text>
+      <Text style={s.headline}>What brings{'\n'}you here?</Text>
+      <Text style={s.subline}>Pick the one that matters most right now.</Text>
+      <View style={{ marginTop: 16 }}>
+        {opts.map((o, i) => (
+          <View key={o.v} style={i > 0 && { marginTop: 11 }}>
+            <OptionCard
+              icon={<Ionicons name={o.icon} size={24} color={d.goal === o.v ? C.primary : C.ink700} />}
+              title={o.t} subtitle={o.s}
+              selected={d.goal === o.v} onPress={() => set('goal', o.v)}
+            />
+          </View>
+        ))}
+      </View>
+    </ScreenShell>
+  );
+}
+
+function StruggleScreen(p) {
+  const { d, set, next } = p;
+  const opts = [
+    { v: 'forget',     t: 'I forget to track',                 s: 'Life gets busy and logging slips',      icon: 'notifications-off-outline' },
+    { v: 'local',      t: "Don't know local food calories",     s: 'No app counts a wrap of fufu',          icon: 'help-circle-outline' },
+    { v: 'motivation', t: 'I lose motivation',                  s: 'I start strong, then fade',             icon: 'battery-half-outline' },
+    { v: 'eatout',     t: 'I eat out a lot',                    s: 'Buka, mama-put, restaurants',           icon: 'storefront-outline' },
+  ];
+  const list = d.struggles || [];
+  const toggle = (v) => set('struggles', list.includes(v) ? list.filter(x => x !== v) : [...list, v]);
+  return (
+    <ScreenShell {...p} footer={
+      <>
+        <PrimaryBtn label="Continue" onPress={next} disabled={list.length === 0} />
+        <TextBtn label="Skip" onPress={next} />
+      </>
+    }>
+      <Text style={s.headline}>What's tripped{'\n'}you up before?</Text>
+      <Text style={s.subline}>Pick all that ring true — no judgement.</Text>
+      <View style={{ marginTop: 16 }}>
+        {opts.map((o, i) => (
+          <View key={o.v} style={i > 0 && { marginTop: 11 }}>
+            <OptionCard
+              multi
+              icon={<Ionicons name={o.icon} size={24} color={list.includes(o.v) ? C.primary : C.ink700} />}
+              title={o.t} subtitle={o.s}
+              selected={list.includes(o.v)} onPress={() => toggle(o.v)}
+            />
+          </View>
+        ))}
+      </View>
+    </ScreenShell>
+  );
+}
+
+function NameScreen(p) {
+  const { d, set, next } = p;
+  const happy = d.name.trim().length > 0;
+  const first = d.name.trim().split(' ')[0];
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.name.trim()} />}>
+      <Text style={s.eyebrow}>About you · 1 of 4</Text>
+      <Text style={s.headline}>First, what should{'\n'}we call you?</Text>
+      <Text style={s.subline}>We like to keep things personal — like family.</Text>
+      <View style={s.nameInputWrap}>
+        <TextInput
+          style={s.nameInput}
+          value={d.name}
+          onChangeText={(v) => set('name', v)}
+          placeholder="Type your name"
+          placeholderTextColor={C.ink400}
+          autoCapitalize="words"
+          returnKeyType="done"
+          onSubmitEditing={() => d.name.trim() && next()}
+        />
+      </View>
+      <View style={s.nameMascotWrap}>
+        {/* Simple mascot face */}
+        <View style={[s.mascotFace, happy && s.mascotFaceHappy]}>
+          <Text style={{ fontSize: happy ? 36 : 32 }}>{happy ? '😊' : '🙂'}</Text>
+        </View>
+        <View style={[s.nameGreet, { backgroundColor: happy ? C.primarySoft : C.sunken }]}>
+          <Text style={[s.nameGreetTxt, { color: happy ? C.primary : C.ink400 }]}>
+            {happy ? `Lovely to meet you, ${first}!` : "Go on — I'm all ears."}
+          </Text>
+        </View>
+      </View>
+    </ScreenShell>
+  );
+}
+
+function CountryScreen(p) {
+  const { d, set, next } = p;
+  const FLAGS = {
+    Nigeria: '🇳🇬', Ghana: '🇬🇭', Kenya: '🇰🇪', Tanzania: '🇹🇿',
+    Uganda: '🇺🇬', Senegal: '🇸🇳', Cameroon: '🇨🇲', Ethiopia: '🇪🇹', Other: '🌍',
+  };
+  const list = ['Nigeria','Ghana','Kenya','Tanzania','Uganda','Senegal','Cameroon','Ethiopia','Other'];
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.country} />}>
+      <Text style={s.eyebrow}>About you · 2 of 4</Text>
+      <Text style={s.headline}>Where are you{'\n'}cooking from?</Text>
+      <Text style={s.subline}>So we match dishes and portions to your kitchen.</Text>
+      <View style={{ marginTop: 16 }}>
+        {list.map((c, i) => (
+          <View key={c} style={i > 0 && { marginTop: 9 }}>
+            <OptionCard compact
+              icon={<Text style={{ fontSize: 22 }}>{FLAGS[c]}</Text>}
+              title={c} selected={d.country === c} onPress={() => set('country', c)}
+            />
+          </View>
+        ))}
+      </View>
+    </ScreenShell>
+  );
+}
+
+function GenderScreen(p) {
+  const { d, set, next } = p;
+  const opts = [
+    { v: 'Female', t: 'Female',                    icon: 'female-outline' },
+    { v: 'Male',   t: 'Male',                      icon: 'male-outline' },
+    { v: 'Other',  t: 'Other / prefer not to say', icon: 'transgender-outline' },
+  ];
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.gender} />}>
+      <Text style={s.eyebrow}>About you · 3 of 4</Text>
+      <Text style={s.headline}>What's your sex?</Text>
+      <Text style={s.subline}>This sharpens your calorie maths — nothing else.</Text>
+      <View style={{ marginTop: 16 }}>
+        {opts.map((o, i) => (
+          <View key={o.v} style={i > 0 && { marginTop: 11 }}>
+            <OptionCard
+              icon={<Ionicons name={o.icon} size={24} color={d.gender === o.v ? C.primary : C.ink700} />}
+              title={o.t} selected={d.gender === o.v} onPress={() => set('gender', o.v)}
+            />
+          </View>
+        ))}
+      </View>
+    </ScreenShell>
+  );
+}
+
+function AgeScreen(p) {
+  const { d, set, next } = p;
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
+      <Text style={s.eyebrow}>About you · 4 of 4</Text>
+      <Text style={s.headline}>How old{'\n'}are you?</Text>
+      <Text style={s.subline}>Drag the dial to your age.</Text>
+      <View style={{ marginTop: 32, paddingBottom: 30 }}>
+        <RulerPicker min={14} max={90} value={d.age} onChange={(v) => set('age', v)} unit="yrs" />
+      </View>
+    </ScreenShell>
+  );
+}
+
+function BodyIntroScreen({ d, next }) {
+  const first = d.name ? d.name.split(' ')[0] : '';
+  return (
+    <View style={[s.shell, s.centeredScreen, { backgroundColor: C.bg }]}>
+      <Text style={{ fontSize: 64, marginBottom: 18 }}>📐</Text>
+      <Text style={[s.eyebrow, { textAlign: 'center' }]}>
+        Halfway there{first ? `, ${first}` : ''}
+      </Text>
+      <Text style={[s.headline, { textAlign: 'center', marginTop: 8 }]}>Now, a few{'\n'}body basics</Text>
+      <Text style={[s.subline, { textAlign: 'center', maxWidth: 280 }]}>
+        These give us your real calorie target — the science bit. Quick, promise.
+      </Text>
+      <View style={[s.footer, { width: '100%' }]}>
+        <PrimaryBtn label="I'm ready" onPress={next} />
+      </View>
+    </View>
+  );
+}
+
+function HeightScreen(p) {
+  const { d, set, next } = p;
+  const inCm = d.unitH === 'cm';
+  const rulerMin = inCm ? 130 : 48;
+  const rulerMax = inCm ? 220 : 84;
+  const rulerVal = inCm ? Math.round(d.heightCm) : Math.round(d.heightCm / 2.54);
+  const ftDisplay = (() => {
+    const totalIn = Math.round(d.heightCm / 2.54);
+    return `${Math.floor(totalIn / 12)}′ ${totalIn % 12}″ · ${Math.round(d.heightCm)} cm`;
+  })();
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8 }}>
+        <Text style={[s.headline, { flex: 1 }]}>How tall{'\n'}are you?</Text>
+        <Seg
+          options={[{ value: 'cm', label: 'cm' }, { value: 'ft', label: 'ft/in' }]}
+          value={d.unitH}
+          onChange={(v) => set('unitH', v)}
+        />
+      </View>
+      <View style={{ paddingVertical: 32, paddingBottom: 30 }}>
+        <RulerPicker
+          min={rulerMin} max={rulerMax}
+          value={rulerVal}
+          unit={inCm ? 'cm' : 'in'}
+          onChange={(v) => set('heightCm', inCm ? v : Math.round(v * 2.54))}
+        />
+        {!inCm && <Text style={s.rulerCaption}>{ftDisplay}</Text>}
+      </View>
+    </ScreenShell>
+  );
+}
+
+function WeightScreen(p) {
+  const { d, set, next } = p;
+  const inKg = d.unitW === 'kg';
+  const rulerMin = inKg ? 40 : 88;
+  const rulerMax = inKg ? 170 : 375;
+  const rulerVal = inKg ? Math.round(d.weightKg) : Math.round(d.weightKg * 2.2046);
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8 }}>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text style={s.headline}>What's your{'\n'}weight now?</Text>
+          <Text style={s.subline}>Be honest — only you and your plan see this.</Text>
+        </View>
+        <Seg
+          options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]}
+          value={d.unitW}
+          onChange={(v) => set('unitW', v)}
+        />
+      </View>
+      <View style={{ paddingVertical: 32, paddingBottom: 30 }}>
+        <RulerPicker
+          min={rulerMin} max={rulerMax}
+          value={rulerVal}
+          unit={inKg ? 'kg' : 'lb'}
+          onChange={(v) => set('weightKg', inKg ? v : Math.round((v / 2.2046) * 10) / 10)}
+        />
+      </View>
+    </ScreenShell>
+  );
+}
+
+function TargetScreen(p) {
+  const { d, set, next } = p;
+  const inKg = d.unitW === 'kg';
+  const rulerMin = inKg ? 40 : 88;
+  const rulerMax = inKg ? 170 : 375;
+  const rulerVal = inKg ? Math.round(d.targetKg) : Math.round(d.targetKg * 2.2046);
+  const gap = d.weightKg - d.targetKg;
+  const gapAbs = Math.round(Math.abs(gap) * 10) / 10;
+  const gapAbsLb = Math.round(Math.abs(gap) * 2.2046);
+  const gapShown = inKg ? `${gapAbs} kg` : `${gapAbsLb} lb`;
+  const losing = gap > 0.5;
+  const gaining = gap < -0.5;
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
+      <View style={{ marginTop: 8 }}>
+        <Text style={s.headline}>What's your{'\n'}goal weight?</Text>
+        <Text style={s.subline}>Aim for a healthy, reachable number — we'll pace it.</Text>
+      </View>
+      <View style={{ paddingVertical: 32, paddingBottom: 30 }}>
+        <RulerPicker
+          min={rulerMin} max={rulerMax}
+          value={rulerVal}
+          unit={inKg ? 'kg' : 'lb'}
+          accent={C.terra}
+          onChange={(v) => set('targetKg', inKg ? v : Math.round((v / 2.2046) * 10) / 10)}
+        />
+        <View style={{ alignItems: 'center', marginTop: 18 }}>
+          <View style={[s.gapPill, {
+            backgroundColor: losing ? C.terraSoft : gaining ? C.primarySoft : C.sunken,
+          }]}>
+            <Text style={[s.gapPillTxt, {
+              color: losing ? C.terra : gaining ? C.primary : C.ink500,
+            }]}>
+              {losing ? `${gapShown} to lose` : gaining ? `${gapShown} to gain` : 'Maintain your weight'}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </ScreenShell>
+  );
+}
+
+function PaceScreen(p) {
+  const { d, set, next } = p;
+  const gap = Math.max(0, d.weightKg - d.targetKg);
+  const opts = [
+    { v: 'slow',       t: 'Slow & steady',  s: '~0.25 kg a week · easiest to stick with',     rate: 0.25, bars: 1 },
+    { v: 'moderate',   t: 'Balanced',        s: '~0.5 kg a week · our recommendation',          rate: 0.5,  bars: 2 },
+    { v: 'aggressive', t: 'All-in',          s: '~0.75 kg a week · fastest, needs discipline',  rate: 0.75, bars: 3 },
+  ];
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.pace} />}>
+      <Text style={[s.headline, { marginTop: 8 }]}>How fast do you{'\n'}want to go?</Text>
+      <Text style={s.subline}>This sets your daily deficit. Change it whenever life shifts.</Text>
+      <View style={{ marginTop: 16 }}>
+        {opts.map((o, i) => {
+          const on = d.pace === o.v;
+          const wk = gap > 0 ? Math.max(1, Math.round(gap / o.rate)) : 0;
+          return (
+            <TouchableOpacity key={o.v} style={[s.paceCard, on && s.paceCardOn, i > 0 && { marginTop: 11 }]}
+              onPress={() => set('pace', o.v)} activeOpacity={0.8}>
+              <View style={[s.paceIcon, on && s.paceIconOn]}>
+                {[1, 2, 3].map(level => (
+                  <View key={level} style={{
+                    width: 8, borderRadius: 3,
+                    height: 8 + level * 8,
+                    backgroundColor: level <= o.bars ? (on ? C.primary : C.ink700) : C.line2,
+                  }} />
+                ))}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.paceTitle}>{o.t}</Text>
+                <Text style={s.paceSub}>{o.s}</Text>
+                {wk > 0 ? (
+                  <Text style={[s.paceWeeks, { color: on ? C.primary : C.ink400 }]}>
+                    ≈ {wk} weeks to your goal
+                  </Text>
+                ) : null}
+              </View>
+              <View style={[s.optSel, on && s.optSelOn]}>
+                {on ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <View style={s.paceNote}>
+        <Text style={s.paceNoteTxt}>
+          Slower paces protect your energy and muscle. Most people thrive on{' '}
+          <Text style={{ color: C.primary, fontWeight: '700' }}>Balanced</Text>.
+        </Text>
+      </View>
+    </ScreenShell>
+  );
+}
+
+function ActivityScreen(p) {
+  const { d, set, next } = p;
+  const opts = [
+    { v: 'sedentary', t: 'Mostly sitting',        s: 'Desk job, drive everywhere, little walking',     icon: 'laptop-outline' },
+    { v: 'light',     t: 'Lightly active',         s: 'Some walking — to the market, around the office', icon: 'walk-outline' },
+    { v: 'moderate',  t: 'On my feet a lot',        s: 'Trading, errands, carrying loads most days',     icon: 'bicycle-outline' },
+    { v: 'active',    t: 'Very active',             s: 'Hard physical work or training 5–6× a week',     icon: 'barbell-outline' },
+  ];
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.activity} />}>
+      <Text style={[s.headline, { marginTop: 8 }]}>How active{'\n'}is your day?</Text>
+      <Text style={s.subline}>A normal day, not your best one. This sets your burn.</Text>
+      <View style={{ marginTop: 16 }}>
+        {opts.map((o, i) => (
+          <View key={o.v} style={i > 0 && { marginTop: 11 }}>
+            <OptionCard
+              icon={<Ionicons name={o.icon} size={24} color={d.activity === o.v ? C.primary : C.ink700} />}
+              title={o.t} subtitle={o.s}
+              selected={d.activity === o.v} onPress={() => set('activity', o.v)}
+            />
+          </View>
+        ))}
+      </View>
+    </ScreenShell>
+  );
+}
+
+function EatingScreen(p) {
+  const { d, set, next } = p;
+  const opts = [
+    { v: 'omad',  t: 'OMAD',          s: 'One meal a day',         icon: '🍽️' },
+    { v: '2x',    t: 'Twice a day',   s: 'Two solid meals',        icon: '🍽️🍽️' },
+    { v: '3x',    t: 'Three meals',   s: 'Breakfast, lunch, dinner', icon: '☀️🌤️🌙' },
+    { v: '4x',    t: 'Small & often', s: 'Four-ish small meals',   icon: '🕐' },
+    { v: 'flex',  t: 'Flexible',      s: 'It changes day to day',  icon: '↕️' },
+  ];
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.eatingStyle} />}>
+      <Text style={[s.headline, { marginTop: 8 }]}>How do you{'\n'}like to eat?</Text>
+      <Text style={s.subline}>We'll time your reminders around it.</Text>
+      <View style={{ marginTop: 16 }}>
+        {opts.map((o, i) => (
+          <View key={o.v} style={i > 0 && { marginTop: 10 }}>
+            <OptionCard compact
+              icon={<Text style={{ fontSize: 20 }}>{o.icon}</Text>}
+              title={o.t} subtitle={o.s}
+              selected={d.eatingStyle === o.v} onPress={() => set('eatingStyle', o.v)}
+            />
+          </View>
+        ))}
+      </View>
+    </ScreenShell>
+  );
+}
+
+function FoodScreen(p) {
+  const { d, set, next } = p;
+  const where = [
+    { v: 'home', t: 'Mostly home-cooked',        icon: '🏠' },
+    { v: 'out',  t: 'Mostly bought / eating out', icon: '🍴' },
+    { v: 'mix',  t: 'A mix of both',              icon: '🔄' },
+  ];
+  const cuisines = ['Nigerian', 'Ghanaian', 'Kenyan', 'Swahili', 'Ethiopian', 'Senegalese', 'Continental', 'Fast food'];
+  const toggleC = (c) => {
+    const has = d.cuisines.includes(c);
+    set('cuisines', has ? d.cuisines.filter(x => x !== c) : [...d.cuisines, c]);
+  };
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.foodContext} />}>
+      <Text style={[s.headline, { marginTop: 8 }]}>Where does your{'\n'}food come from?</Text>
+      <View style={{ marginTop: 14 }}>
+        {where.map((o, i) => (
+          <View key={o.v} style={i > 0 && { marginTop: 10 }}>
+            <OptionCard compact
+              icon={<Text style={{ fontSize: 22 }}>{o.icon}</Text>}
+              title={o.t} selected={d.foodContext === o.v} onPress={() => set('foodContext', o.v)}
+            />
+          </View>
+        ))}
+      </View>
+      <View style={{ marginTop: 20 }}>
+        <Text style={s.sectionLabel}>
+          Cuisines you eat most{' '}
+          <Text style={{ fontWeight: '500', textTransform: 'none', letterSpacing: 0 }}>· optional</Text>
+        </Text>
+        <View style={s.chipsWrap}>
+          {cuisines.map(c => (
+            <Chip key={c} label={c} selected={d.cuisines.includes(c)} onPress={() => toggleC(c)} />
+          ))}
+        </View>
+      </View>
+    </ScreenShell>
+  );
+}
+
+function WhyScreen(p) {
+  const { d, set, next } = p;
+  const opts = [
+    { v: 'wedding',    t: 'A big event',           s: 'Wedding, shoot, reunion',         icon: '💍' },
+    { v: 'health',     t: 'A health wake-up call',  s: 'I want to get ahead of it',       icon: '❤️' },
+    { v: 'confident',  t: 'To feel confident again', s: 'In my clothes, in my skin',       icon: '✨' },
+    { v: 'doctor',     t: "Doctor's advice",         s: 'Following medical guidance',      icon: '🩺' },
+    { v: 'curious',    t: 'Just curious',            s: 'Seeing what I can do',            icon: '🔍' },
+  ];
+  const list = d.whys || [];
+  const toggle = (v) => set('whys', list.includes(v) ? list.filter(x => x !== v) : [...list, v]);
+  return (
+    <ScreenShell {...p} footer={
+      <>
+        <PrimaryBtn label="Continue" onPress={next} disabled={list.length === 0} />
+        <TextBtn label="Skip" onPress={next} />
+      </>
+    }>
+      <Text style={[s.headline, { marginTop: 8 }]}>What's your{'\n'}deeper why?</Text>
+      <Text style={s.subline}>Pick all that move you — on tough days, we'll remind you.</Text>
+      <View style={{ marginTop: 16 }}>
+        {opts.map((o, i) => (
+          <View key={o.v} style={i > 0 && { marginTop: 10 }}>
+            <OptionCard compact multi
+              icon={<Text style={{ fontSize: 22 }}>{o.icon}</Text>}
+              title={o.t} subtitle={o.s}
+              selected={list.includes(o.v)} onPress={() => toggle(o.v)}
+            />
+          </View>
+        ))}
+      </View>
+    </ScreenShell>
+  );
+}
+
+function AccountabilityScreen(p) {
+  const { d, set, next } = p;
+  const opts = [
+    { v: 'gentle', t: 'Gentle nudges',   s: 'Kind, encouraging check-ins',            icon: 'heart-outline' },
+    { v: 'firm',   t: 'Firm reminders',  s: "Keep me honest — don't let me slack",     icon: 'megaphone-outline' },
+    { v: 'alone',  t: 'Leave me alone',  s: "I'll come to the app myself",             icon: 'moon-outline' },
+  ];
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Lock it in" onPress={next} disabled={!d.accountability} />}>
+      <Text style={[s.headline, { marginTop: 8 }]}>How should we{'\n'}keep you on track?</Text>
+      <Text style={s.subline}>You can change this anytime in settings.</Text>
+      <View style={{ marginTop: 16 }}>
+        {opts.map((o, i) => (
+          <View key={o.v} style={i > 0 && { marginTop: 11 }}>
+            <OptionCard
+              icon={<Ionicons name={o.icon} size={24} color={d.accountability === o.v ? C.primary : C.ink700} />}
+              title={o.t} subtitle={o.s}
+              selected={d.accountability === o.v} onPress={() => set('accountability', o.v)}
+            />
+          </View>
+        ))}
+      </View>
+    </ScreenShell>
+  );
+}
+
+function BuildingScreen({ d, next }) {
+  const spin = useRef(new Animated.Value(0)).current;
+  const msgs = [
+    'Crunching your numbers…',
+    'Calibrating local food portions…',
+    'Setting your daily target…',
+    'Almost ready…',
+  ];
+  const [msgIdx, setMsgIdx] = useState(0);
+  const first = d.name ? d.name.split(' ')[0] : 'your';
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 900, useNativeDriver: true })
+    ).start();
+    const t1 = setInterval(() => setMsgIdx(x => Math.min(x + 1, msgs.length - 1)), 700);
+    const t2 = setTimeout(() => { clearInterval(t1); next(); }, 3100);
+    return () => { clearInterval(t1); clearTimeout(t2); };
+  }, []);
+
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+
+  return (
+    <View style={[s.shell, s.centeredScreen, { backgroundColor: C.bg }]}>
+      <View style={s.buildingSpinnerWrap}>
+        <View style={s.buildingTrack} />
+        <Animated.View style={[s.buildingArc, { transform: [{ rotate }] }]} />
+        <View style={s.buildingLogoWrap}>
+          <Ionicons name="leaf" size={28} color={C.primary} />
+        </View>
+      </View>
+      <Text style={s.buildingTitle}>Building {first}'s plan</Text>
+      <Text key={msgIdx} style={s.buildingMsg}>{msgs[msgIdx]}</Text>
+    </View>
+  );
+}
+
+function DoneScreen({ d, onComplete }) {
+  const plan = calcPlan(d);
+  const first = d.name ? d.name.split(' ')[0] : 'friend';
+
+  const handleFinish = () => {
+    onComplete({
+      preferredName: d.name,
+      gender: d.gender,
+      age: String(d.age),
+      height: String(Math.round(d.heightCm)),
+      heightUnit: 'cm',
+      goal: d.goal,
+      currentWeight: String(Math.round(d.weightKg * 10) / 10),
+      targetWeight: String(Math.round(d.targetKg * 10) / 10),
+      weightUnit: 'kg',
+      conditions: '',
+      completedAt: Date.now(),
+      country: d.country,
+      pace: d.pace,
+      activity: d.activity,
+      eatingStyle: d.eatingStyle,
+      accountability: d.accountability,
+    });
+  };
+
+  return (
+    <ScrollView
+      style={[s.shell, { backgroundColor: C.bg }]}
+      contentContainerStyle={{ paddingHorizontal: 24, paddingTop: Platform.OS === 'ios' ? 64 : 48, paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Check icon */}
+      <View style={{ alignItems: 'center', marginBottom: 18 }}>
+        <View style={s.doneCheck}>
+          <Ionicons name="checkmark" size={38} color="#fff" />
+        </View>
+      </View>
+
+      <View style={{ alignItems: 'center', marginBottom: 22 }}>
+        <Text style={[s.eyebrow, { textAlign: 'center' }]}>You're all set, {first}!</Text>
+        <Text style={[s.headline, { textAlign: 'center', marginTop: 8 }]}>Here's your daily target</Text>
+      </View>
+
+      {/* Calorie hero card */}
+      <View style={s.calCard}>
+        <Text style={s.calLabel}>Eat around</Text>
+        <Text style={s.calNumber}>{plan.target.toLocaleString()}</Text>
+        <Text style={s.calUnit}>calories a day</Text>
+        <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 14 }}>
+          <View style={s.calPill}>
+            <Text style={s.calPillLabel}>Maintenance</Text>
+            <Text style={s.calPillVal}>{plan.tdee.toLocaleString()} kcal</Text>
+          </View>
+          {plan.deficit > 0 ? (
+            <View style={[s.calPill, { backgroundColor: C.terraSoft }]}>
+              <Text style={s.calPillLabel}>Daily deficit</Text>
+              <Text style={[s.calPillVal, { color: C.terra }]}>−{plan.deficit}</Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+
+      {/* Stats grid */}
+      <View style={{ flexDirection: 'row', gap: 11, marginTop: 11 }}>
+        <View style={s.statCard}>
+          <Ionicons name="nutrition-outline" size={24} color={C.ink700} />
+          <View style={{ marginLeft: 10 }}>
+            <Text style={s.statLabel}>Protein / day</Text>
+            <Text style={s.statVal}>{plan.protein} g</Text>
+          </View>
+        </View>
+        <View style={s.statCard}>
+          <Ionicons name="water-outline" size={24} color={C.ink700} />
+          <View style={{ marginLeft: 10 }}>
+            <Text style={s.statLabel}>Water / day</Text>
+            <Text style={s.statVal}>{plan.water} L</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Projection */}
+      {plan.weeks > 0 ? (
+        <View style={s.projCard}>
+          <Ionicons name="trending-down-outline" size={28} color={C.primary} />
+          <Text style={[s.projTxt, { marginLeft: 12 }]}>
+            On track to reach{' '}
+            <Text style={{ color: C.primary, fontWeight: '700' }}>{Math.round(d.targetKg)} kg</Text>
+            {' '}in about{' '}
+            <Text style={{ color: C.primary, fontWeight: '700' }}>{plan.weeks} weeks</Text>
+            {' '}— eating the food you love.
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={{ marginTop: 28 }}>
+        <PrimaryBtn label="Create my account →" onPress={handleFinish} />
+      </View>
+    </ScrollView>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORCHESTRATOR
+// ─────────────────────────────────────────────────────────────────────────────
+export default function PreAuthOnboarding({ initialData, onComplete }) {
+  const [idx, setIdx] = useState(0);
+  const [data, setData] = useState({ ...DEFAULT_DATA, ...(initialData || {}) });
+
+  const set = (k, v) => setData(d => ({ ...d, [k]: v }));
+  const next = () => setIdx(i => Math.min(i + 1, FLOW.length - 1));
+  const back = () => setIdx(i => Math.max(i - 1, 0));
+
+  const screen = FLOW[idx];
+  const isFull = FULL_BLEED.has(screen);
+  const stepNum = FLOW.slice(0, idx + 1).filter(id => !FULL_BLEED.has(id)).length;
+
+  const sharedProps = {
+    d: data, set, next, back,
+    step: stepNum, total: COUNTED,
+    onBack: back, showBack: idx > 0 && !isFull,
+    hideProgress: isFull,
+  };
+
+  switch (screen) {
+    case 'hook':           return <HookScreen next={next} />;
+    case 'goal':           return <GoalScreen {...sharedProps} />;
+    case 'struggle':       return <StruggleScreen {...sharedProps} />;
+    case 'name':           return <NameScreen {...sharedProps} />;
+    case 'country':        return <CountryScreen {...sharedProps} />;
+    case 'gender':         return <GenderScreen {...sharedProps} />;
+    case 'age':            return <AgeScreen {...sharedProps} />;
+    case 'bodyIntro':      return <BodyIntroScreen d={data} next={next} />;
+    case 'height':         return <HeightScreen {...sharedProps} />;
+    case 'weight':         return <WeightScreen {...sharedProps} />;
+    case 'target':         return <TargetScreen {...sharedProps} />;
+    case 'pace':           return <PaceScreen {...sharedProps} />;
+    case 'activity':       return <ActivityScreen {...sharedProps} />;
+    case 'eating':         return <EatingScreen {...sharedProps} />;
+    case 'food':           return <FoodScreen {...sharedProps} />;
+    case 'why':            return <WhyScreen {...sharedProps} />;
+    case 'accountability': return <AccountabilityScreen {...sharedProps} />;
+    case 'building':       return <BuildingScreen d={data} next={next} />;
+    case 'done':           return <DoneScreen d={data} onComplete={onComplete} />;
+    default:               return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STYLES
+// ─────────────────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  shell: { flex: 1, backgroundColor: C.bg },
+  shellContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 24 },
+  centeredScreen: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
+
+  // Progress
+  progressWrap: {
+    paddingTop: Platform.OS === 'ios' ? 52 : 36,
+    paddingHorizontal: 22, paddingBottom: 6,
+    flexDirection: 'row', alignItems: 'center',
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: C.sunken,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 12,
   },
-  backBtnDark: {
-    borderColor: 'rgba(255,255,255,0.12)',
+  progressTrack: {
+    flex: 1, height: 7, borderRadius: 999,
+    backgroundColor: C.sunken, overflow: 'hidden',
   },
-  backBtnHidden: {
-    opacity: 0,
-  },
+  progressFill: { height: '100%', borderRadius: 999, backgroundColor: C.primary },
   progressCount: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: 'rgba(0,0,0,0.35)',
+    fontSize: 12, fontWeight: '700', color: C.ink400,
+    minWidth: 34, textAlign: 'right', marginLeft: 12,
   },
-  progressCountDark: {
-    color: 'rgba(255,255,255,0.35)',
+
+  // Footer
+  footer: { paddingHorizontal: 22, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 36 : 24, backgroundColor: C.bg },
+
+  // Typography
+  eyebrow: {
+    fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase',
+    letterSpacing: 2, color: C.primary, marginBottom: 6,
   },
-  progressBar: {
-    height: 2,
-    borderRadius: 2,
-    backgroundColor: 'rgba(120,113,108,0.16)',
-    overflow: 'hidden',
-    marginBottom: 26,
+  headline: { fontSize: 27, fontWeight: '800', color: C.ink, lineHeight: 33, letterSpacing: -0.5 },
+  subline:  { fontSize: 15, fontWeight: '500', color: C.ink500, lineHeight: 22, marginTop: 8 },
+
+  // Buttons
+  primaryBtn: {
+    width: '100%', height: 56, borderRadius: 999,
+    backgroundColor: C.primary,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: C.primary, shadowOpacity: 0.3, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
-  progressBarDark: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  primaryBtnDis: { backgroundColor: '#cfd6d1', shadowOpacity: 0, elevation: 0 },
+  primaryBtnTxt: { fontSize: 17, fontWeight: '700', color: '#fff', letterSpacing: -0.3 },
+  primaryBtnTxtDis: { color: 'rgba(255,255,255,0.55)' },
+  textBtn: { width: '100%', height: 44, alignItems: 'center', justifyContent: 'center' },
+  textBtnTxt: { fontSize: 15, fontWeight: '600', color: C.ink400 },
+
+  // Segmented control
+  seg: { flexDirection: 'row', backgroundColor: C.sunken, borderRadius: 999, padding: 3 },
+  segBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999 },
+  segBtnOn: {
+    backgroundColor: C.surface,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 }, elevation: 1,
   },
-  progressFillStatic: {
-    height: '100%',
-    backgroundColor: '#0F9D78',
+  segBtnTxt: { fontSize: 13, fontWeight: '700', color: C.ink400 },
+  segBtnTxtOn: { color: C.ink },
+
+  // Option card
+  optCard: {
+    flexDirection: 'row', alignItems: 'center', padding: 15,
+    borderRadius: 16, backgroundColor: C.surface,
+    borderWidth: 1.5, borderColor: C.line,
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 }, elevation: 1,
   },
-  questionTag: {
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 1.8,
-    textTransform: 'uppercase',
-    color: '#0F9D78',
-    marginBottom: 10,
-    textAlign: 'center',
+  optCardSel: { backgroundColor: C.primarySoft, borderColor: C.primary },
+  optCardCompact: { padding: 13 },
+  optIconWrap: {
+    width: 46, height: 46, borderRadius: 13,
+    backgroundColor: C.sunken, alignItems: 'center', justifyContent: 'center',
+    marginRight: 14,
   },
-  questionTagDark: {
-    color: '#2DD4A4',
+  optIconWrapSel: { backgroundColor: '#fff' },
+  optText: { flex: 1 },
+  optTitle: { fontSize: 16, fontWeight: '700', color: C.ink, letterSpacing: -0.2 },
+  optSub: { fontSize: 13, fontWeight: '500', color: C.ink500, marginTop: 2 },
+  optSel: {
+    width: 24, height: 24, borderRadius: 12,
+    borderWidth: 2, borderColor: C.line2,
+    alignItems: 'center', justifyContent: 'center', marginLeft: 10,
   },
-  questionText: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#111111',
-    lineHeight: 34,
-    marginBottom: 7,
-    textAlign: 'center',
+  optSelOn: { backgroundColor: C.primary, borderColor: C.primary },
+  optSelMulti: { borderRadius: 7 },
+
+  // Chip
+  chip: {
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999,
+    backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.line,
   },
-  navTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    flex: 1,
-  },
-  questionTextDark: {
-    color: '#FFFFFF',
-  },
-  questionTextDarkSpaced: {
-    marginTop: 64,
-    fontSize: 32,
-    fontWeight: '700',
-    lineHeight: 40,
-  },
-  questionSub: {
-    fontSize: 12,
-    fontWeight: '300',
-    color: 'rgba(0,0,0,0.42)',
-    lineHeight: 19,
-    marginBottom: 14,
-    textAlign: 'center',
-  },
-  questionSubDark: {
-    color: 'rgba(255,255,255,0.42)',
-  },
-  contentArea: {
-    flex: 1,
-  },
-  contentAreaFull: {
-    flexGrow: 1,
-  },
-  contentAreaPadded: {
-    paddingBottom: 24,
-  },
-  centerStage: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 24,
-  },
-  nameStage: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 0,
-    paddingBottom: 0,
-    gap: 20,
-  },
-  waveIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-  },
-  waveEmoji: {
-    fontSize: 30,
-  },
-  nameInputCard: {
-    width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  nameLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: 'rgba(255,255,255,0.4)',
-    marginBottom: 6,
-  },
-  greetBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5C842',
-    borderRadius: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 18,
-    width: '100%',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  greetEmoji: {
-    fontSize: 18,
-  },
-  greetText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#3B2A00',
-  },
-  greetName: {
-    fontWeight: '800',
-    color: '#3B2A00',
-  },
-  mixedStep: {
-    paddingBottom: 24,
-    gap: 24,
-  },
-  optionGroup: {
-    gap: 10,
-  },
-  measurementRow: {
-    gap: 24,
-  },
-  measurementBlock: {
-    gap: 10,
-    alignItems: 'center',
-    width: '100%',
-  },
+  chipSel: { backgroundColor: C.primary, borderColor: C.primary },
+  chipText: { fontSize: 14, fontWeight: '600', color: C.ink700 },
+  chipTextSel: { color: '#fff' },
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 10 },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: 'rgba(0,0,0,0.42)',
-    textAlign: 'center',
+    fontSize: 12, fontWeight: '700', textTransform: 'uppercase',
+    letterSpacing: 2, color: C.ink400,
   },
-  sectionLabelCenter: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: 'rgba(0,0,0,0.42)',
-    textAlign: 'center',
-    marginBottom: 8,
+
+  // Ruler picker
+  rulerVal: { fontSize: 60, fontWeight: '800', color: C.ink, lineHeight: 70, letterSpacing: -2 },
+  rulerUnit: { fontSize: 20, fontWeight: '700', color: C.ink400, marginTop: 4 },
+  rulerCursorWrap: { position: 'absolute', top: 0, alignItems: 'center', zIndex: 3 },
+  rulerArrow: {
+    width: 0, height: 0,
+    borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8,
+    borderLeftColor: 'transparent', borderRightColor: 'transparent',
   },
-  bigInput: {
-    width: '100%',
-    borderWidth: 0,
-    paddingVertical: 0,
-    fontSize: 22,
-    fontWeight: '400',
-    color: '#FFFFFF',
-    outlineWidth: 0,
-    textAlign: 'left',
+  rulerLine: { width: 3, height: 46, borderRadius: 3 },
+  rulerCaption: { textAlign: 'center', marginTop: 8, fontSize: 14, fontWeight: '600', color: C.ink400 },
+
+  // Hook screen
+  hookBrand: {
+    paddingTop: Platform.OS === 'ios' ? 56 : 40,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
   },
-  unitToggle: {
-    flexDirection: 'row',
-    backgroundColor: '#F0F0F0',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
-    borderRadius: 9,
-    overflow: 'hidden',
-    marginBottom: 18,
+  hookLogo: {
+    width: 30, height: 30, borderRadius: 8, backgroundColor: C.primary,
+    alignItems: 'center', justifyContent: 'center', marginRight: 8,
   },
-  unitToggleBtn: {
-    paddingVertical: 7,
-    paddingHorizontal: 18,
+  hookBrandTxt: { fontSize: 20, fontWeight: '800', color: C.ink, letterSpacing: -0.5 },
+  hookHero: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  hookHeroCircle: {
+    position: 'absolute', width: 280, height: 280, borderRadius: 140,
+    backgroundColor: C.green50, opacity: 0.8,
   },
-  unitToggleBtnOn: {
-    backgroundColor: '#0F9D78',
+  hookIllo: { alignItems: 'center', zIndex: 1 },
+  hookIlloEmoji: { fontSize: 80 },
+  hookIlloSub: { fontSize: 13, color: C.ink400, fontWeight: '600', marginTop: 10, letterSpacing: 0.5 },
+  hookStatement: { paddingHorizontal: 28, paddingBottom: 8, alignItems: 'center' },
+  hookHeadline: {
+    fontSize: 32, fontWeight: '800', color: C.ink, lineHeight: 38,
+    letterSpacing: -0.8, textAlign: 'center', marginBottom: 12,
   },
-  unitToggleText: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: 'rgba(0,0,0,0.4)',
+  hookSubline: { fontSize: 15.5, fontWeight: '500', color: C.ink500, lineHeight: 22, textAlign: 'center' },
+  hookCta: { paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 36 : 24, paddingTop: 16 },
+  hookNotice: { textAlign: 'center', marginTop: 12, fontSize: 13, color: C.ink400, fontWeight: '600' },
+
+  // Name screen
+  nameInputWrap: { marginTop: 30, borderBottomWidth: 2.5, borderBottomColor: C.primary, paddingBottom: 8 },
+  nameInput: { fontSize: 26, fontWeight: '700', color: C.ink, letterSpacing: -0.5 },
+  nameMascotWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 16, paddingTop: 24 },
+  mascotFace: {
+    width: 90, height: 90, borderRadius: 45,
+    backgroundColor: C.sunken, alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
-  unitToggleTextOn: {
-    color: '#0A0F0D',
-    fontWeight: '600',
+  mascotFaceHappy: { backgroundColor: C.primarySoft },
+  nameGreet: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999 },
+  nameGreetTxt: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
+
+  // Target gap pill
+  gapPill: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999 },
+  gapPillTxt: { fontSize: 14.5, fontWeight: '700' },
+
+  // Pace screen
+  paceCard: {
+    flexDirection: 'row', alignItems: 'center', padding: 15,
+    borderRadius: 16, backgroundColor: C.surface,
+    borderWidth: 1.5, borderColor: C.line,
   },
-  numberRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 10,
-    justifyContent: 'center',
-    marginBottom: 12,
+  paceCardOn: { backgroundColor: C.primarySoft, borderColor: C.primary },
+  paceIcon: {
+    width: 46, height: 46, borderRadius: 13, backgroundColor: C.sunken,
+    alignItems: 'flex-end', justifyContent: 'center',
+    flexDirection: 'row', paddingBottom: 6, paddingHorizontal: 6,
+    marginRight: 14,
   },
-  numberRowSmall: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    justifyContent: 'center',
+  paceIconOn: { backgroundColor: '#fff' },
+  paceTitle: { fontSize: 16, fontWeight: '700', color: C.ink, letterSpacing: -0.2 },
+  paceSub: { fontSize: 13, fontWeight: '500', color: C.ink500, marginTop: 2 },
+  paceWeeks: { fontSize: 12, fontWeight: '700', marginTop: 4 },
+  paceNote: { marginTop: 16, padding: 14, backgroundColor: C.green50, borderRadius: 16 },
+  paceNoteTxt: { fontSize: 13, color: C.ink700, fontWeight: '500', lineHeight: 20 },
+
+  // Building screen
+  buildingSpinnerWrap: {
+    width: 96, height: 96, marginBottom: 30,
+    alignItems: 'center', justifyContent: 'center',
   },
-  numberInput: {
-    width: 130,
-    borderWidth: 0,
-    borderBottomWidth: 1.5,
-    borderBottomColor: 'rgba(0,0,0,0.12)',
-    paddingVertical: 6,
-    fontSize: 44,
-    fontWeight: '300',
-    color: '#111111',
-    outlineWidth: 0,
-    textAlign: 'center',
+  buildingTrack: {
+    position: 'absolute', width: 96, height: 96, borderRadius: 48,
+    borderWidth: 5, borderColor: C.green50,
   },
-  smallNumberInput: {
-    width: 110,
-    borderWidth: 0,
-    borderBottomWidth: 1.5,
-    borderBottomColor: 'rgba(0,0,0,0.12)',
-    paddingVertical: 6,
-    fontSize: 32,
-    fontWeight: '300',
-    color: '#111111',
-    outlineWidth: 0,
-    textAlign: 'center',
+  buildingArc: {
+    position: 'absolute', width: 96, height: 96, borderRadius: 48,
+    borderWidth: 5, borderColor: 'transparent', borderTopColor: C.primary,
   },
-  numberUnit: {
-    fontSize: 17,
-    fontWeight: '300',
-    color: 'rgba(0,0,0,0.35)',
-    marginBottom: 6,
+  buildingLogoWrap: { position: 'absolute' },
+  buildingTitle: { fontSize: 22, fontWeight: '800', color: C.ink, letterSpacing: -0.5, textAlign: 'center', marginBottom: 10 },
+  buildingMsg: { fontSize: 15, fontWeight: '500', color: C.ink500, textAlign: 'center' },
+
+  // Done screen
+  doneCheck: {
+    width: 76, height: 76, borderRadius: 38, backgroundColor: C.primary,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: C.primary, shadowOpacity: 0.35, shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
-  smallUnit: {
-    fontSize: 15,
-    fontWeight: '300',
-    color: 'rgba(0,0,0,0.35)',
-    marginBottom: 6,
+  calCard: {
+    backgroundColor: C.surface, borderRadius: 22,
+    borderWidth: 1.5, borderColor: C.line, padding: 26, alignItems: 'center',
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 }, elevation: 2,
   },
-  optionsColumn: {
-    gap: 8,
-    paddingBottom: 24,
+  calLabel: { fontSize: 13, fontWeight: '700', color: C.ink400, textTransform: 'uppercase', letterSpacing: 2 },
+  calNumber: { fontSize: 66, fontWeight: '800', color: C.primary, lineHeight: 74, letterSpacing: -2 },
+  calUnit: { fontSize: 15, fontWeight: '700', color: C.ink700 },
+  calPill: {
+    backgroundColor: C.sunken, borderRadius: 999,
+    paddingHorizontal: 13, paddingVertical: 7, alignItems: 'center',
   },
-  optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)',
-    backgroundColor: '#FBFAF7',
+  calPillLabel: { fontSize: 10.5, fontWeight: '700', color: C.ink400, textTransform: 'uppercase', letterSpacing: 1 },
+  calPillVal: { fontSize: 14, fontWeight: '800', color: C.ink700 },
+  statCard: {
+    flex: 1, backgroundColor: C.surface, borderRadius: 18,
+    borderWidth: 1.5, borderColor: C.line, padding: 14,
+    flexDirection: 'row', alignItems: 'center',
   },
-  optionCardSelected: {
-    borderColor: '#0F9D78',
-    backgroundColor: 'rgba(15,157,120,0.08)',
+  statLabel: { fontSize: 11.5, fontWeight: '700', color: C.ink400 },
+  statVal: { fontSize: 17, fontWeight: '800', color: C.ink, marginTop: 2 },
+  projCard: {
+    marginTop: 11, backgroundColor: C.green50, borderRadius: 18,
+    padding: 16, flexDirection: 'row', alignItems: 'center',
   },
-  optionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    flex: 1,
-  },
-  optionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optionIconSelected: {
-    backgroundColor: 'rgba(15,157,120,0.15)',
-  },
-  optionIconText: {
-    fontSize: 11,
-    color: 'rgba(0,0,0,0.4)',
-    fontWeight: '500',
-  },
-  optionIconTextSelected: {
-    color: '#0F9D78',
-  },
-  optionTextWrap: {
-    flex: 1,
-  },
-  optionName: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#111111',
-  },
-  optionSub: {
-    fontSize: 11,
-    fontWeight: '300',
-    color: 'rgba(0,0,0,0.38)',
-    marginTop: 2,
-  },
-  optionCheck: {
-    width: 19,
-    height: 19,
-    borderRadius: 9.5,
-    borderWidth: 1.5,
-    borderColor: 'rgba(0,0,0,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optionCheckSelected: {
-    backgroundColor: '#0F9D78',
-    borderColor: '#0F9D78',
-  },
-  weightGroup: {
-    alignItems: 'center',
-    marginBottom: 8,
-    width: '100%',
-  },
-  validationText: {
-    marginTop: 4,
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#B45309',
-    textAlign: 'center',
-    maxWidth: 240,
-  },
-  footer: {
-    paddingTop: 12,
-    paddingHorizontal: 26,
-    paddingBottom: 24,
-    backgroundColor: 'transparent',
-  },
-  ctaBtn: {
-    width: '100%',
-    paddingVertical: 16,
-    borderRadius: 15,
-    backgroundColor: '#0F9D78',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#0F9D78',
-    shadowOpacity: Platform.OS === 'web' ? 0.18 : 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-  },
-  ctaBtnDisabled: {
-    backgroundColor: 'rgba(16,185,129,0.16)',
-  },
-  ctaText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#0A0F0D',
-  },
-  ctaTextDisabled: {
-    color: 'rgba(16,185,129,0.32)',
-  },
-  successOverlay: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: '#FCFBF7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-    zIndex: 30,
-  },
-  successGlowTop: {
-    position: 'absolute',
-    top: -80,
-    right: -20,
-    width: 220,
-    height: 220,
-    borderRadius: 999,
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-  },
-  successGlowBottom: {
-    position: 'absolute',
-    left: -70,
-    bottom: 70,
-    width: 220,
-    height: 220,
-    borderRadius: 999,
-    backgroundColor: 'rgba(15, 157, 120, 0.12)',
-  },
-  successPattern: {
-    position: 'absolute',
-    top: 110,
-    left: 28,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: 44,
-    opacity: 0.2,
-  },
-  successDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#C97A1B',
-    marginRight: 6,
-    marginBottom: 6,
-  },
-  successEyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.8,
-    textTransform: 'uppercase',
-    color: '#9A5A00',
-    marginBottom: 18,
-  },
-  waterWrap: {
-    width: 160,
-    height: 160,
-    marginBottom: 32,
-    position: 'relative',
-  },
-  waterCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    borderWidth: 3,
-    borderColor: '#0F9D78',
-    backgroundColor: '#F5EBD6',
-    overflow: 'hidden',
-  },
-  waterFill: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#0F9D78',
-  },
-  wave: {
-    position: 'absolute',
-    top: -14,
-    left: -20,
-    width: 200,
-    height: 28,
-    backgroundColor: '#0F9D78',
-    borderRadius: 999,
-  },
-  waveSoft: {
-    position: 'absolute',
-    top: -10,
-    left: -20,
-    width: 200,
-    height: 22,
-    backgroundColor: 'rgba(15,157,120,0.4)',
-    borderRadius: 999,
-  },
-  waterCheck: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  successTitle: {
-    fontSize: 26,
-    fontWeight: '600',
-    color: '#111111',
-    textAlign: 'center',
-    lineHeight: 31,
-    marginBottom: 10,
-  },
-  successBody: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: 'rgba(63,52,40,0.72)',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 36,
-    maxWidth: 290,
-  },
-  successBtn: {
-    paddingVertical: 16,
-    paddingHorizontal: 44,
-    borderRadius: 15,
-    backgroundColor: '#0F9D78',
-    shadowColor: '#0F9D78',
-    shadowOpacity: Platform.OS === 'web' ? 0.18 : 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-  },
-  successBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
+  projTxt: { flex: 1, fontSize: 14, color: C.ink700, fontWeight: '500', lineHeight: 20 },
 });

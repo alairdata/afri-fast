@@ -355,23 +355,15 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   if (screen === 'onboarding') {
     return (
       <KeyboardAvoidingView style={styles.onboardingContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.onboardingScroll} keyboardShouldPersistTaps="handled">
-          <PreAuthOnboarding
-            initialData={preAuthData}
-            onComplete={async (answers) => {
-              await onSavePreAuthData?.(answers);
-              setName(answers.preferredName || '');
-              setMode('signup');
-              setScreen('auth');
-            }}
-            onSkip={async () => {
-              const skippedData = { ...(preAuthData || {}), skipped: true, completedAt: Date.now() };
-              await onSavePreAuthData?.(skippedData);
-              setMode('signup');
-              setScreen('auth');
-            }}
-          />
-        </ScrollView>
+        <PreAuthOnboarding
+          initialData={preAuthData}
+          onComplete={async (answers) => {
+            await onSavePreAuthData?.(answers);
+            setName(answers.preferredName || '');
+            setMode('signup');
+            setScreen('auth');
+          }}
+        />
       </KeyboardAvoidingView>
     );
   }
