@@ -317,10 +317,6 @@ const CheckInPage = ({
               />
             </SectionCard>
 
-            {/* ── Hunger ───────────────────────────────────────────────── */}
-            <SectionCard title="How hungry are you?" titleStyle={{ fontSize: 17 }}>
-              <HungerSlider value={hungerScore} onChange={setHungerScore} />
-            </SectionCard>
 
             {/* ── Section 5: Fasting Symptoms (show if fasting) ────────── */}
             {isFasting && (
