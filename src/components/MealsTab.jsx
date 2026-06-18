@@ -155,17 +155,17 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
               </View>
               <View style={styles.nutritionDividerClean} />
               <View style={styles.nutritionStatClean}>
-                <Text style={styles.nutritionValueClean}>{dayMeals.reduce((sum, m) => sum + (m.protein || 0), 0)}g</Text>
+                <Text style={styles.nutritionValueClean}>{Math.round(dayMeals.reduce((sum, m) => sum + (m.protein || 0), 0) * 10) / 10}g</Text>
                 <Text style={styles.nutritionLabelClean}>Protein</Text>
               </View>
               <View style={styles.nutritionDividerClean} />
               <View style={styles.nutritionStatClean}>
-                <Text style={styles.nutritionValueClean}>{dayMeals.reduce((sum, m) => sum + (m.carbs || 0), 0)}g</Text>
+                <Text style={styles.nutritionValueClean}>{Math.round(dayMeals.reduce((sum, m) => sum + (m.carbs || 0), 0) * 10) / 10}g</Text>
                 <Text style={styles.nutritionLabelClean}>Carbs</Text>
               </View>
               <View style={styles.nutritionDividerClean} />
               <View style={styles.nutritionStatClean}>
-                <Text style={styles.nutritionValueClean}>{dayMeals.reduce((sum, m) => sum + (m.fats || 0), 0)}g</Text>
+                <Text style={styles.nutritionValueClean}>{Math.round(dayMeals.reduce((sum, m) => sum + (m.fats || 0), 0) * 10) / 10}g</Text>
                 <Text style={styles.nutritionLabelClean}>Fats</Text>
               </View>
             </View>
@@ -337,9 +337,9 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
             const foods = viewingMeal.name ? viewingMeal.name.split(',').map(f => f.trim()).filter(Boolean) : [];
             const photo = viewingMeal.photo || viewingMeal.localPhoto || viewingMeal.image_url;
             const cal = viewingMeal.calories || 0;
-            const protein = viewingMeal.protein || 0;
-            const carbs = viewingMeal.carbs || 0;
-            const fats = viewingMeal.fats || 0;
+            const protein = Math.round((viewingMeal.protein || 0) * 10) / 10;
+            const carbs = Math.round((viewingMeal.carbs || 0) * 10) / 10;
+            const fats = Math.round((viewingMeal.fats || 0) * 10) / 10;
             const h = viewingMeal.time ? parseInt(viewingMeal.time) : new Date().getHours();
             const mealType = h < 12 ? 'Breakfast' : h < 16 ? 'Lunch' : 'Dinner';
             const shareText = [
