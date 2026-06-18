@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, Animated, Platform, useWindowDimensions, Image,
+  TextInput, Animated, Easing, Platform, useWindowDimensions, Image,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
+import Svg, { G, Circle, Ellipse, Path } from 'react-native-svg';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const C = {
@@ -67,24 +67,37 @@ function RulerPicker({ min, max, value, onChange, unit, accent }) {
   const scrollRef = useRef(null);
   const rangeKey = `${min}-${max}`;
   const prevRange = useRef(rangeKey);
+  const [liveVal, setLiveVal] = useState(value);
+
+  // sync liveVal when parent value changes externally
+  useEffect(() => { setLiveVal(value); }, [value]);
 
   useEffect(() => {
     const changed = prevRange.current !== rangeKey;
     prevRange.current = rangeKey;
     const offset = Math.max(0, (value - min)) * GAP;
-    const delay = changed ? 20 : 80;
     const t = setTimeout(() => {
       scrollRef.current?.scrollTo({ x: offset, animated: false });
-    }, delay);
+    }, changed ? 20 : 80);
     return () => clearTimeout(t);
-  }, [rangeKey]); // only re-scroll when range/unit changes
+  }, [rangeKey]);
 
-  const handleScrollEnd = useCallback((e) => {
-    const x = e.nativeEvent.contentOffset.x;
+  const snapVal = useCallback((x) => {
     const idx = Math.round(x / GAP);
-    const v = Math.max(min, Math.min(max, min + idx));
+    return Math.max(min, Math.min(max, min + idx));
+  }, [min, max]);
+
+  // live update while dragging — keeps the readout in sync
+  const handleScroll = useCallback((e) => {
+    setLiveVal(snapVal(e.nativeEvent.contentOffset.x));
+  }, [snapVal]);
+
+  // commit to parent only when scroll settles
+  const handleScrollEnd = useCallback((e) => {
+    const v = snapVal(e.nativeEvent.contentOffset.x);
+    setLiveVal(v);
     if (v !== value) onChange(v);
-  }, [min, max, value, onChange]);
+  }, [snapVal, value, onChange]);
 
   const count = max - min;
   const ac = accent || C.primary;
@@ -92,12 +105,11 @@ function RulerPicker({ min, max, value, onChange, unit, accent }) {
 
   return (
     <View>
-      <View style={{ alignItems: 'center', marginBottom: 8 }}>
-        <Text style={s.rulerVal}>{value}</Text>
+      <View style={{ alignItems: 'center', marginBottom: 12 }}>
+        <Text style={s.rulerVal}>{liveVal}</Text>
         <Text style={s.rulerUnit}>{unit}</Text>
       </View>
       <View style={{ position: 'relative' }}>
-        {/* downward-pointing center indicator */}
         <View style={[s.rulerCursorWrap, { left: halfW - 1.5 }]}>
           <View style={[s.rulerArrow, { borderTopColor: ac }]} />
           <View style={[s.rulerLine, { backgroundColor: ac }]} />
@@ -108,6 +120,7 @@ function RulerPicker({ min, max, value, onChange, unit, accent }) {
           showsHorizontalScrollIndicator={false}
           snapToInterval={GAP}
           decelerationRate="fast"
+          onScroll={handleScroll}
           onMomentumScrollEnd={handleScrollEnd}
           onScrollEndDrag={handleScrollEnd}
           scrollEventThrottle={16}
@@ -116,12 +129,21 @@ function RulerPicker({ min, max, value, onChange, unit, accent }) {
             {Array.from({ length: count + 1 }, (_, i) => {
               const v = min + i;
               const major = v % 5 === 0;
+              const active = v === liveVal;
               return (
-                <View key={i} style={{ width: GAP, alignItems: 'center', justifyContent: 'flex-end', height: 54 }}>
+                <View key={i} style={{ width: GAP, alignItems: 'center', justifyContent: 'flex-end', height: 68 }}>
+                  {major && (
+                    <Text style={{
+                      fontSize: 10, color: active ? ac : C.ink400,
+                      fontWeight: active ? '700' : '400',
+                      marginBottom: 4,
+                    }}>{v}</Text>
+                  )}
                   <View style={{
-                    width: 2, borderRadius: 2,
+                    width: active ? 3 : 2,
+                    borderRadius: 2,
                     height: major ? 34 : 18,
-                    backgroundColor: major ? C.ink400 : C.line2,
+                    backgroundColor: active ? ac : major ? C.ink400 : C.line2,
                   }} />
                 </View>
               );
@@ -228,7 +250,7 @@ function ProgressTop({ step, total, onBack, showBack }) {
 }
 
 // ── Screen shell ───────────────────────────────────────────────────────────────
-function ScreenShell({ children, footer, step, total, onBack, showBack, hideProgress }) {
+function ScreenShell({ children, footer, step, total, onBack, showBack, hideProgress, grow }) {
   return (
     <View style={s.shell}>
       {!hideProgress && (
@@ -236,7 +258,7 @@ function ScreenShell({ children, footer, step, total, onBack, showBack, hideProg
       )}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={s.shellContent}
+        contentContainerStyle={[s.shellContent, grow && { flexGrow: 1 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -251,47 +273,142 @@ function ScreenShell({ children, footer, step, total, onBack, showBack, hideProg
 // SCREENS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function MascotFace({ happy }) {
+export function MascotFace({ happy }) {
   const bob = useRef(new Animated.Value(0)).current;
   const pop = useRef(new Animated.Value(1)).current;
   const prevHappy = useRef(happy);
-  const [eyeRY, setEyeRY] = useState(5);
+  const [eyeOpen, setEyeOpen] = useState(true);
 
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(bob, { toValue: -6, duration: 900, useNativeDriver: true }),
-        Animated.timing(bob, { toValue: 0,  duration: 900, useNativeDriver: true }),
+        Animated.timing(bob, { toValue: -6, duration: 1500, useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 0,  duration: 1500, useNativeDriver: true }),
       ])
     ).start();
   }, []);
 
   useEffect(() => {
-    const blink = () => { setEyeRY(1); setTimeout(() => setEyeRY(5), 150); };
-    blink();
-    const iv = setInterval(blink, 2800 + Math.random() * 1200);
+    const blink = () => {
+      setEyeOpen(false);
+      setTimeout(() => setEyeOpen(true), 140);
+    };
+    const iv = setInterval(blink, 2800 + Math.random() * 1400);
     return () => clearInterval(iv);
   }, []);
 
   useEffect(() => {
     if (happy && !prevHappy.current) {
       Animated.sequence([
-        Animated.timing(pop, { toValue: 1.22, duration: 170, useNativeDriver: true }),
-        Animated.timing(pop, { toValue: 1,    duration: 170, useNativeDriver: true }),
+        Animated.timing(pop, { toValue: 1.18, duration: 160, useNativeDriver: true }),
+        Animated.timing(pop, { toValue: 1,    duration: 160, useNativeDriver: true }),
       ]).start();
     }
     prevHappy.current = happy;
   }, [happy]);
 
+  const AMBER = C.amber;
+  const TERRA = C.terra;
+  const INK   = C.ink;
+  const BG    = C.bg;
+  const GREEN = C.primary;
+
   return (
     <Animated.View style={{ transform: [{ translateY: bob }, { scale: pop }] }}>
-      <Svg width={90} height={90} viewBox="0 0 90 90">
-        <Circle cx="45" cy="45" r="42" fill={happy ? '#d1fae5' : '#f4f4ee'} />
-        <Ellipse cx="32" cy="38" rx="5" ry={eyeRY} fill={happy ? C.primary : C.ink700} />
-        <Ellipse cx="58" cy="38" rx="5" ry={eyeRY} fill={happy ? C.primary : C.ink700} />
+      <Svg width={152} height={160} viewBox="0 0 140 150" fill="none">
+
+        {/* Sparkle — amber left */}
+        <Path
+          d="M20 44l1.8-7 1.8 7 7 1.8-7 1.8-1.8 7-1.8-7-7-1.8 7-1.8Z"
+          fill={AMBER} stroke={AMBER} strokeWidth={1.4} strokeLinejoin="round"
+          opacity={happy ? 1 : 0.55}
+        />
+        {/* Sparkle — green right */}
+        <Path
+          d="M118 54l1.6-6 1.6 6 6 1.6-6 1.6-1.6 6-1.6-6-6-1.6 6-1.6Z"
+          fill={GREEN} stroke={GREEN} strokeWidth={1.3} strokeLinejoin="round"
+          opacity={happy ? 1 : 0.55}
+        />
+
+        {/* Happy doodle marks */}
+        {happy && (
+          <G stroke={TERRA} strokeWidth={2.4} strokeLinecap="round" fill="none">
+            <Path d="M16 78l-6 2M124 80l6 2M30 30l-3-5" />
+          </G>
+        )}
+
+        {/* Drop shadow */}
+        <Ellipse cx="70" cy="140" rx="34" ry="7" fill="rgba(22,32,27,0.07)" />
+
+        {/* Neck */}
+        <Path d="M60 118v12h20v-12" stroke={INK} strokeWidth={3} strokeLinecap="round"
+              fill={BG} />
+
+        {/* Coily afro — 7 overlapping circles */}
+        <G fill={INK}>
+          <Circle cx="70" cy="40" r="20" />
+          <Circle cx="46" cy="50" r="16" />
+          <Circle cx="94" cy="50" r="16" />
+          <Circle cx="34" cy="68" r="13" />
+          <Circle cx="106" cy="68" r="13" />
+          <Circle cx="38" cy="86" r="11" />
+          <Circle cx="102" cy="86" r="11" />
+        </G>
+        {/* Coil sheen */}
+        <G stroke="rgba(255,255,255,0.22)" strokeWidth={2} strokeLinecap="round" fill="none">
+          <Path d="M60 36c4-4 9-4 13 0M40 52c3-3 7-3 10 0M88 52c3-3 7-3 10 0" />
+        </G>
+
+        {/* Face */}
+        <Ellipse cx="70" cy="90" rx="31" ry="31" fill={BG} stroke={INK} strokeWidth={3.2} />
+
+        {/* Hoop earrings */}
+        <Circle cx="40" cy="100" r="4" fill="none" stroke={AMBER} strokeWidth={2.6} />
+        <Circle cx="100" cy="100" r="4" fill="none" stroke={AMBER} strokeWidth={2.6} />
+
+        {/* Eyes */}
+        {!eyeOpen ? (
+          <G stroke={INK} strokeWidth={2.5} strokeLinecap="round" fill="none">
+            <Path d="M56 84q4 3 8 0" />
+            <Path d="M77 84q4 3 8 0" />
+          </G>
+        ) : happy ? (
+          <G stroke={INK} strokeWidth={3} strokeLinecap="round" fill="none">
+            <Path d="M53 86q6-7 12 0" />
+            <Path d="M75 86q6-7 12 0" />
+          </G>
+        ) : (
+          <G>
+            <Circle cx="60" cy="84" r="3.6" fill={INK} />
+            <Circle cx="81" cy="84" r="3.6" fill={INK} />
+            <Circle cx="61.4" cy="82.6" r="1.2" fill="#fff" />
+            <Circle cx="82.4" cy="82.6" r="1.2" fill="#fff" />
+          </G>
+        )}
+
+        {/* Brows */}
+        <Path d={happy ? 'M52 75q6-4 12-1' : 'M53 78q6-3 12 0'}
+              stroke={INK} fill="none" strokeWidth={2.4} strokeLinecap="round" />
+        <Path d={happy ? 'M76 74q6-3 12 1' : 'M75 78q6-3 12 0'}
+              stroke={INK} fill="none" strokeWidth={2.4} strokeLinecap="round" />
+
+        {/* Nose */}
+        <Path d="M70 88q-2 5 2 6" stroke={INK} fill="none" strokeWidth={2.4} strokeLinecap="round" />
+
+        {/* Rosy cheeks */}
+        {happy && (
+          <G>
+            <Circle cx="48" cy="98" r="5.5" fill={TERRA} opacity={0.32} />
+            <Circle cx="92" cy="98" r="5.5" fill={TERRA} opacity={0.32} />
+          </G>
+        )}
+
+        {/* Mouth */}
         {happy
-          ? <Path d="M 30 55 Q 45 68 60 55" stroke={C.primary} strokeWidth={3} fill="none" strokeLinecap="round" />
-          : <Path d="M 33 57 Q 45 57 57 57" stroke={C.ink400}  strokeWidth={3} fill="none" strokeLinecap="round" />
+          ? <Path d="M58 100a13 12 0 0 0 24 0c-8 5-16 5-24 0Z"
+                  fill={TERRA} stroke={INK} strokeWidth={2.4} strokeLinecap="round" />
+          : <Path d="M61 102q9 6 18 0"
+                  stroke={INK} fill="none" strokeWidth={2.8} strokeLinecap="round" />
         }
       </Svg>
     </Animated.View>
@@ -359,61 +476,150 @@ function HookScreen({ next, onLogin }) {
   );
 }
 
+const DEMO_TAGS = [
+  { label: 'Fried Plantain', kcal: 180, top: '22%', right: '6%' },
+  { label: 'Jollof Rice',    kcal: 620, top: '45%', left: '6%'  },
+  { label: 'Fried Chicken',  kcal: 210, top: '66%', right: '6%' },
+];
+
 function DemoScreen(p) {
   const { next } = p;
   const { width: SW } = useWindowDimensions();
   const imgH = SW * 1.35;
+  const [phase, setPhase] = useState('capture');
+  const scanY    = useRef(new Animated.Value(0)).current;
+  const barSlide = useRef(new Animated.Value(-72)).current;
+  const tagFades = useRef(DEMO_TAGS.map(() => new Animated.Value(0))).current;
+
+  const handleShutter = () => {
+    setPhase('scanning');
+    Animated.timing(scanY, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.quad), useNativeDriver: true })
+      .start(() => setPhase('result'));
+  };
+
+  useEffect(() => {
+    if (phase !== 'result') return;
+    Animated.sequence([
+      Animated.spring(barSlide, { toValue: 0, useNativeDriver: true, tension: 90, friction: 11 }),
+      Animated.stagger(180, tagFades.map(f =>
+        Animated.spring(f, { toValue: 1, useNativeDriver: true, tension: 130, friction: 14 })
+      )),
+    ]).start();
+  }, [phase]);
+
+  const scanTranslate = scanY.interpolate({ inputRange: [0, 1], outputRange: [0, imgH - 4] });
 
   return (
     <View style={[s.shell, { backgroundColor: C.bg }]}>
       <ProgressTop {...p} />
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 32 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+
+        {/* Header — swaps after scan */}
         <View style={{ paddingHorizontal: 22, paddingTop: 16, paddingBottom: 18 }}>
           <Text style={s.eyebrow}>SEE IT IN ACTION +</Text>
-          <Text style={[s.headline, { marginTop: 6 }]}>Let's see the magic.</Text>
-          <Text style={[s.subline, { marginTop: 8 }]}>
-            Tap the shutter — point AfriFast at any plate, even jollof, and watch it read the calories.
-          </Text>
+          {phase !== 'result' ? (
+            <>
+              <Text style={[s.headline, { marginTop: 6 }]}>Let's see the magic.</Text>
+              <Text style={[s.subline, { marginTop: 8 }]}>
+                Tap the shutter — point AfriFast at any plate, even jollof, and watch it read the calories.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={[s.headline, { marginTop: 6 }]}>Boom — it knows your plate.</Text>
+              <Text style={[s.subline, { marginTop: 8 }]}>
+                No weighing. No searching. This is how every meal will feel.
+              </Text>
+            </>
+          )}
         </View>
 
-        {/* Camera frame */}
-        <View style={{ marginHorizontal: 16, borderRadius: 20, overflow: 'hidden', height: imgH }}>
-          <Image
-            source={require('../../assets/jollof-demo.jpg')}
-            style={{ width: '100%', height: '100%' }}
-            resizeMode="cover"
-          />
-          {/* Corner brackets */}
-          {[
-            { top: 14, left: 14 },
-            { top: 14, right: 14 },
-            { bottom: 60, left: 14 },
-            { bottom: 60, right: 14 },
-          ].map((pos, i) => (
-            <View key={i} style={[s.demoBracket, pos,
-              i === 1 || i === 3 ? { transform: [{ scaleX: -1 }] } : null,
-              i === 2 || i === 3 ? { transform: [{ scaleY: -1 }] } : null,
-            ]} />
-          ))}
-          {/* Shutter button */}
-          <TouchableOpacity
-            style={s.demoShutter}
-            onPress={next}
-            activeOpacity={0.85}
-          >
-            <View style={s.demoShutterInner} />
+        {/* Frame wrapper — detection bar slides OUTSIDE overflow so it isn't clipped */}
+        <View style={{ marginHorizontal: 16 }}>
+
+          {/* Image + scan + tags (overflow hidden for border radius) */}
+          <View style={{ borderRadius: 20, overflow: 'hidden', height: imgH }}>
+            <Image
+              source={require('../../assets/jollof-demo.jpg')}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="cover"
+            />
+
+            {/* Green sweep */}
+            {phase === 'scanning' && (
+              <Animated.View style={[s.demoScanLine, { transform: [{ translateY: scanTranslate }] }]} />
+            )}
+
+            {/* Food tags — each is dot + pill */}
+            {phase === 'result' && DEMO_TAGS.map((tag, i) => (
+              <Animated.View key={tag.label} style={[s.demoTagRow, {
+                top: tag.top, left: tag.left, right: tag.right,
+                opacity: tagFades[i],
+                transform: [{ scale: tagFades[i].interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }],
+              }]}>
+                {/* Glowing dot — sits outside the pill */}
+                <View style={s.demoTagDotWrap}>
+                  <View style={s.demoTagDotGlow} />
+                  <View style={s.demoTagDot} />
+                </View>
+                {/* White pill */}
+                <View style={s.demoTagPill}>
+                  <Text style={s.demoTagTxt}>{tag.label}</Text>
+                  <Text style={s.demoTagKcal}> {tag.kcal}</Text>
+                </View>
+              </Animated.View>
+            ))}
+
+            {/* Capture — brackets + shutter */}
+            {phase === 'capture' && <>
+              {[
+                { top: 14, left: 14 },
+                { top: 14, right: 14 },
+                { bottom: 60, left: 14 },
+                { bottom: 60, right: 14 },
+              ].map((pos, i) => (
+                <View key={i} style={[s.demoBracket, pos,
+                  i === 1 || i === 3 ? { transform: [{ scaleX: -1 }] } : null,
+                  i === 2 || i === 3 ? { transform: [{ scaleY: -1 }] } : null,
+                ]} />
+              ))}
+              <View style={{ position: 'absolute', bottom: 14, left: 0, right: 0, alignItems: 'center' }}>
+                <TouchableOpacity style={s.demoShutter} onPress={handleShutter} activeOpacity={0.85}>
+                  <View style={s.demoShutterInner} />
+                </TouchableOpacity>
+              </View>
+            </>}
+          </View>
+
+          {/* Detection bar — absolutely overlays the TOP of the image, slides in from above */}
+          {phase === 'result' && (
+            <Animated.View style={[s.demoDetectBar, { transform: [{ translateY: barSlide }] }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="checkmark-circle" size={16} color={C.primary} />
+                <View style={{ marginLeft: 7 }}>
+                  <Text style={s.demoDetectTitle}>Detected · 3 items</Text>
+                  <Text style={s.demoDetectSub}>Tap any tag to adjust portion</Text>
+                </View>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={s.demoKcal}>1010</Text>
+                <Text style={s.demoKcalUnit}>KCAL</Text>
+              </View>
+            </Animated.View>
+          )}
+        </View>
+
+        {/* Skip → Continue */}
+        {phase !== 'result' ? (
+          <TouchableOpacity onPress={next} style={s.demoSkip} activeOpacity={0.7}>
+            <Text style={s.demoSkipTxt}>Skip the demo</Text>
           </TouchableOpacity>
-        </View>
+        ) : (
+          <View style={{ paddingHorizontal: 16, paddingTop: 20 }}>
+            <PrimaryBtn label="That's the magic — continue →" onPress={next} />
+          </View>
+        )}
 
-        {/* Skip */}
-        <TouchableOpacity onPress={next} style={s.demoSkip} activeOpacity={0.7}>
-          <Text style={s.demoSkipTxt}>Skip the demo</Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -532,7 +738,7 @@ function CountryScreen(p) {
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.country} />}>
       <View style={{ marginTop: 32 }}>
         <Text style={s.eyebrow}>About you · 2 of 4</Text>
-        <Text style={s.headline}>Where are you cooking from?</Text>
+        <Text style={s.headline}>Where are you{'\n'}cooking from?</Text>
         <Text style={s.subline}>So we match dishes and portions to your kitchen.</Text>
       </View>
       <View style={{ marginTop: 36 }}>
@@ -580,13 +786,13 @@ function GenderScreen(p) {
 function AgeScreen(p) {
   const { d, set, next } = p;
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
+    <ScreenShell {...p} grow footer={<PrimaryBtn label="Continue" onPress={next} />}>
       <View style={{ marginTop: 32 }}>
         <Text style={s.eyebrow}>About you · 4 of 4</Text>
-        <Text style={s.headline}>How old are you?</Text>
+        <Text style={s.headline}>How old{'\n'}are you?</Text>
         <Text style={s.subline}>Drag the dial to your age.</Text>
       </View>
-      <View style={{ marginTop: 32, paddingBottom: 30 }}>
+      <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 30 }}>
         <RulerPicker min={14} max={90} value={d.age} onChange={(v) => set('age', v)} unit="yrs" />
       </View>
     </ScreenShell>
@@ -623,16 +829,16 @@ function HeightScreen(p) {
     return `${Math.floor(totalIn / 12)}′ ${totalIn % 12}″ · ${Math.round(d.heightCm)} cm`;
   })();
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
+    <ScreenShell {...p} grow footer={<PrimaryBtn label="Continue" onPress={next} />}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8 }}>
-        <Text style={[s.headline, { flex: 1 }]}>How tall are you?</Text>
+        <Text style={[s.headline, { flex: 1 }]}>How tall{'\n'}are you?</Text>
         <Seg
           options={[{ value: 'cm', label: 'cm' }, { value: 'ft', label: 'ft/in' }]}
           value={d.unitH}
           onChange={(v) => set('unitH', v)}
         />
       </View>
-      <View style={{ paddingVertical: 32, paddingBottom: 30 }}>
+      <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 30 }}>
         <RulerPicker
           min={rulerMin} max={rulerMax}
           value={rulerVal}
@@ -651,11 +857,12 @@ function WeightScreen(p) {
   const rulerMin = inKg ? 40 : 88;
   const rulerMax = inKg ? 170 : 375;
   const rulerVal = inKg ? Math.round(d.weightKg) : Math.round(d.weightKg * 2.2046);
+
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
+    <ScreenShell {...p} grow footer={<PrimaryBtn label="Continue" onPress={next} />}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8 }}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={s.headline}>What's your weight now?</Text>
+          <Text style={s.headline}>What's your{'\n'}weight now?</Text>
           <Text style={s.subline}>Be honest — only you and your plan see this.</Text>
         </View>
         <Seg
@@ -664,7 +871,7 @@ function WeightScreen(p) {
           onChange={(v) => set('unitW', v)}
         />
       </View>
-      <View style={{ paddingVertical: 32, paddingBottom: 30 }}>
+      <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 30 }}>
         <RulerPicker
           min={rulerMin} max={rulerMax}
           value={rulerVal}
@@ -689,12 +896,12 @@ function TargetScreen(p) {
   const losing = gap > 0.5;
   const gaining = gap < -0.5;
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
+    <ScreenShell {...p} grow footer={<PrimaryBtn label="Continue" onPress={next} />}>
       <View style={{ marginTop: 8 }}>
-        <Text style={s.headline}>What's your goal weight?</Text>
+        <Text style={s.headline}>What's your{'\n'}goal weight?</Text>
         <Text style={s.subline}>Aim for a healthy, reachable number — we'll pace it.</Text>
       </View>
-      <View style={{ paddingVertical: 32, paddingBottom: 30 }}>
+      <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 30 }}>
         <RulerPicker
           min={rulerMin} max={rulerMax}
           value={rulerVal}
@@ -1005,7 +1212,7 @@ function DoneScreen({ d, onComplete }) {
   return (
     <ScrollView
       style={[s.shell, { backgroundColor: C.bg }]}
-      contentContainerStyle={{ paddingHorizontal: 24, paddingTop: Platform.OS === 'ios' ? 64 : 48, paddingBottom: 40 }}
+      contentContainerStyle={{ paddingHorizontal: 24, paddingTop: Platform.OS === 'ios' ? 100 : 80, paddingBottom: 40, alignItems: 'center' }}
       showsVerticalScrollIndicator={false}
     >
       {/* Check icon */}
@@ -1021,7 +1228,7 @@ function DoneScreen({ d, onComplete }) {
       </View>
 
       {/* Calorie hero card */}
-      <View style={s.calCard}>
+      <View style={[s.calCard, { alignSelf: 'stretch' }]}>
         <Text style={s.calLabel}>Eat around</Text>
         <Text style={s.calNumber}>{plan.target.toLocaleString()}</Text>
         <Text style={s.calUnit}>calories a day</Text>
@@ -1040,16 +1247,16 @@ function DoneScreen({ d, onComplete }) {
       </View>
 
       {/* Stats grid */}
-      <View style={{ flexDirection: 'row', gap: 11, marginTop: 11 }}>
+      <View style={{ flexDirection: 'row', gap: 11, marginTop: 11, alignSelf: 'stretch' }}>
         <View style={s.statCard}>
-          <Ionicons name="nutrition-outline" size={24} color={C.ink700} />
+          <Ionicons name="heart-outline" size={24} color={C.terra} />
           <View style={{ marginLeft: 10 }}>
             <Text style={s.statLabel}>Protein / day</Text>
             <Text style={s.statVal}>{plan.protein} g</Text>
           </View>
         </View>
         <View style={s.statCard}>
-          <Ionicons name="water-outline" size={24} color={C.ink700} />
+          <Ionicons name="water-outline" size={24} color="#3b9edb" />
           <View style={{ marginLeft: 10 }}>
             <Text style={s.statLabel}>Water / day</Text>
             <Text style={s.statVal}>{plan.water} L</Text>
@@ -1059,19 +1266,26 @@ function DoneScreen({ d, onComplete }) {
 
       {/* Projection */}
       {plan.weeks > 0 ? (
-        <View style={s.projCard}>
-          <Ionicons name="trending-down-outline" size={28} color={C.primary} />
-          <Text style={[s.projTxt, { marginLeft: 12 }]}>
+        <View style={[s.projCard, { alignSelf: 'stretch' }]}>
+          <Ionicons name="trending-down-outline" size={26} color={C.primary} />
+          <Text style={[s.projTxt, { marginLeft: 12, flex: 1 }]}>
             On track to reach{' '}
             <Text style={{ color: C.primary, fontWeight: '700' }}>{Math.round(d.targetKg)} kg</Text>
             {' '}in about{' '}
-            <Text style={{ color: C.primary, fontWeight: '700' }}>{plan.weeks} weeks</Text>
+            <Text style={{ color: C.amber, fontWeight: '700' }}>{plan.weeks} weeks</Text>
             {' '}— eating the food you love.
           </Text>
         </View>
       ) : null}
 
-      <View style={{ marginTop: 28 }}>
+      {/* Personalisation tagline */}
+      <Text style={[s.doneTagline, { alignSelf: 'stretch' }]}>
+        Built for your goal to{' '}
+        <Text style={{ fontWeight: '700' }}>{d.goal || 'eat better'}</Text>
+        {d.country ? `, tuned for ${d.country} kitchens.` : '.'}
+      </Text>
+
+      <View style={{ marginTop: 22, marginBottom: 16, alignSelf: 'stretch' }}>
         <PrimaryBtn label="Create my account →" onPress={handleFinish} />
       </View>
     </ScrollView>
@@ -1243,6 +1457,11 @@ const s = StyleSheet.create({
   },
   rulerLine: { width: 3, height: 46, borderRadius: 3 },
   rulerCaption: { textAlign: 'center', marginTop: 8, fontSize: 14, fontWeight: '600', color: C.ink400 },
+  weightBadge: {
+    backgroundColor: C.primarySoft, borderRadius: 24,
+    paddingHorizontal: 18, paddingVertical: 8,
+  },
+  weightBadgeTxt: { fontSize: 15, fontWeight: '700', color: C.primary },
 
   // Hook screen
   hookBrand: {
@@ -1279,7 +1498,6 @@ const s = StyleSheet.create({
     borderTopWidth: 3, borderLeftWidth: 3, borderColor: '#fff', borderRadius: 4,
   },
   demoShutter: {
-    position: 'absolute', bottom: 14, alignSelf: 'center',
     width: 62, height: 62, borderRadius: 31,
     backgroundColor: 'rgba(255,255,255,0.92)',
     alignItems: 'center', justifyContent: 'center',
@@ -1293,6 +1511,56 @@ const s = StyleSheet.create({
   },
   demoSkip: { alignItems: 'center', paddingVertical: 18 },
   demoSkipTxt: { fontSize: 14, fontWeight: '600', color: C.ink400 },
+  demoScanLine: {
+    position: 'absolute', left: 0, right: 0, height: 3,
+    backgroundColor: C.primary, opacity: 0.9,
+    shadowColor: C.primary, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
+  },
+  // Detection bar slides down over top of image
+  demoDetectBar: {
+    position: 'absolute', top: 10, left: 10, right: 10,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.97)',
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 14,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.07)',
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+    zIndex: 10,
+  },
+  demoDetectTitle: { fontSize: 13, fontWeight: '700', color: C.ink },
+  demoDetectSub: { fontSize: 11, fontWeight: '500', color: C.ink400, marginTop: 1 },
+  demoKcal: { fontSize: 22, fontWeight: '800', color: C.primary, lineHeight: 26 },
+  demoKcalUnit: { fontSize: 11, fontWeight: '700', color: C.primary },
+  // Tag row: glowing dot + white pill, positioned absolute on image
+  demoTagRow: {
+    position: 'absolute',
+    flexDirection: 'row', alignItems: 'center',
+  },
+  demoTagDotWrap: {
+    width: 18, height: 18, alignItems: 'center', justifyContent: 'center', marginRight: 5,
+  },
+  demoTagDotGlow: {
+    position: 'absolute', width: 16, height: 16, borderRadius: 8,
+    backgroundColor: C.primary, opacity: 0.3,
+  },
+  demoTagDot: {
+    width: 11, height: 11, borderRadius: 6,
+    backgroundColor: C.primary,
+    borderWidth: 2, borderColor: '#fff',
+    shadowColor: C.primary, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 0 },
+    elevation: 3,
+  },
+  demoTagPill: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 999,
+    shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  demoTagTxt: { fontSize: 13, fontWeight: '600', color: C.ink },
+  demoTagKcal: { fontSize: 13, fontWeight: '700', color: C.primary },
 
   // Name screen
   nameInputWrap: { marginTop: 30, borderBottomWidth: 2.5, borderBottomColor: C.primary, paddingBottom: 8 },
@@ -1381,4 +1649,8 @@ const s = StyleSheet.create({
     padding: 16, flexDirection: 'row', alignItems: 'center',
   },
   projTxt: { flex: 1, fontSize: 14, color: C.ink700, fontWeight: '500', lineHeight: 20 },
+  doneTagline: {
+    textAlign: 'center', marginTop: 18,
+    fontSize: 13.5, color: C.ink500, lineHeight: 20,
+  },
 });

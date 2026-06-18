@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image,
@@ -6,101 +6,13 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { supabase } from '../lib/supabase';
-import PreAuthOnboarding from './PreAuthOnboarding';
+import PreAuthOnboarding, { MascotFace } from './PreAuthOnboarding';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-const DOODLE_SHAPES = [
-  // Bowl body
-  { d: 'M 80 158 Q 170 122 260 158 L 252 182 Q 170 212 88 182 Z', length: 370, delay: 0, strokeWidth: 2.5 },
-  // Steam 1
-  { d: 'M 143 120 C 130 100 150 84 138 64', length: 78, delay: 520, strokeWidth: 2 },
-  // Steam 2
-  { d: 'M 170 117 C 157 97 177 81 165 61', length: 78, delay: 680, strokeWidth: 2 },
-  // Steam 3
-  { d: 'M 197 120 C 184 100 204 84 192 64', length: 78, delay: 840, strokeWidth: 2 },
-  // Leaf top-left
-  { d: 'M 36 50 C 14 72 20 110 48 114 C 76 110 82 72 60 50 C 54 43 42 46 36 50', length: 168, delay: 180, strokeWidth: 2 },
-  // Leaf stem
-  { d: 'M 48 114 L 48 138', length: 24, delay: 348, strokeWidth: 2 },
-  // S-curve right
-  { d: 'M 298 65 C 316 83 298 108 316 126 C 334 144 316 166 298 184', length: 148, delay: 280, strokeWidth: 2 },
-  // Small leaf bottom-right
-  { d: 'M 290 205 C 272 185 280 162 300 169 C 312 174 307 198 290 205', length: 108, delay: 740, strokeWidth: 2 },
-  // Decorative dot cluster top-right
-  { d: 'M 268 38 C 268 34 272 34 272 38 C 272 42 268 42 268 38', length: 14, delay: 950, strokeWidth: 2.5 },
-  { d: 'M 280 28 C 280 24 284 24 284 28 C 284 32 280 32 280 28', length: 14, delay: 1020, strokeWidth: 2.5 },
-  { d: 'M 292 40 C 292 36 296 36 296 40 C 296 44 292 44 292 40', length: 14, delay: 1090, strokeWidth: 2.5 },
-];
-
-function DoodleHero() {
-  const anims = useRef(DOODLE_SHAPES.map(s => new Animated.Value(s.length))).current;
-
-  useEffect(() => {
-    const timeouts = [];
-    const running = [];
-
-    DOODLE_SHAPES.forEach((shape, i) => {
-      const t = setTimeout(() => {
-        const a = Animated.loop(
-          Animated.sequence([
-            Animated.timing(anims[i], {
-              toValue: 0,
-              duration: 1400,
-              easing: Easing.inOut(Easing.quad),
-              useNativeDriver: false,
-            }),
-            Animated.delay(700),
-            Animated.timing(anims[i], {
-              toValue: shape.length,
-              duration: 900,
-              easing: Easing.in(Easing.quad),
-              useNativeDriver: false,
-            }),
-            Animated.delay(500),
-          ])
-        );
-        a.start();
-        running.push(a);
-      }, shape.delay);
-      timeouts.push(t);
-    });
-
-    return () => {
-      timeouts.forEach(clearTimeout);
-      running.forEach(a => a.stop());
-    };
-  }, []);
-
-  return (
-    <View style={doodleStyles.container}>
-      <Svg width="100%" height="100%" viewBox="0 0 340 240" preserveAspectRatio="xMidYMid meet">
-        {DOODLE_SHAPES.map((shape, i) => (
-          <AnimatedPath
-            key={i}
-            d={shape.d}
-            stroke="#0F9D78"
-            strokeWidth={shape.strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-            strokeDasharray={`${shape.length}`}
-            strokeDashoffset={anims[i]}
-          />
-        ))}
-      </Svg>
-    </View>
-  );
-}
-
 const doodleStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F4F1EA',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  container: { flex: 1, backgroundColor: '#F4F1EA', alignItems: 'center', justifyContent: 'center' },
 });
 
 const AUTH_DOODLE_SHAPES = [
@@ -193,6 +105,67 @@ function DoodleAuth() {
 }
 
 
+// ── Create-account screen styles ──────────────────────────────────────────────
+const ca = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fbfbf7' },
+  scroll: { flexGrow: 1, paddingHorizontal: 26, paddingTop: Platform.OS === 'ios' ? 58 : 40, paddingBottom: 40 },
+  closeBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 20,
+  },
+  eyebrow: {
+    textAlign: 'center', fontSize: 12, fontWeight: '700',
+    color: '#059669', letterSpacing: 1.5, marginBottom: 8,
+  },
+  headline: {
+    textAlign: 'center', fontSize: 28, fontWeight: '800',
+    color: '#16201b', marginBottom: 10, letterSpacing: -0.5,
+  },
+  subtitle: {
+    textAlign: 'center', fontSize: 14, color: 'rgba(0,0,0,0.45)',
+    lineHeight: 20, marginBottom: 28,
+  },
+  appleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#111', borderRadius: 14, paddingVertical: 15,
+    gap: 10, marginBottom: 10,
+  },
+  appleTxt: { fontSize: 15, fontWeight: '600', color: '#fff' },
+  googleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#fff', borderRadius: 14, paddingVertical: 15,
+    gap: 10, marginBottom: 4,
+    borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.09)',
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
+  },
+  googleTxt: { fontSize: 15, fontWeight: '600', color: '#111' },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20, gap: 10 },
+  divLine: { flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.09)' },
+  divTxt: { fontSize: 11, fontWeight: '600', color: 'rgba(0,0,0,0.3)', letterSpacing: 0.8 },
+  inputRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#f4f4ee', borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 14,
+    borderWidth: 1.5, borderColor: 'transparent',
+  },
+  inputRowErr: { borderColor: '#EF4444', backgroundColor: '#FFF5F5' },
+  inputIcon: { marginRight: 10 },
+  inputTxt: { flex: 1, fontSize: 15, color: '#16201b' },
+  error: { color: '#EF4444', fontSize: 13, textAlign: 'center', marginTop: 10 },
+  success: { color: '#059669', fontSize: 13, textAlign: 'center', marginTop: 10 },
+  createBtn: {
+    backgroundColor: '#059669', borderRadius: 14, paddingVertical: 16,
+    alignItems: 'center', marginTop: 20,
+  },
+  createTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  terms: {
+    textAlign: 'center', marginTop: 16,
+    fontSize: 12, color: 'rgba(0,0,0,0.35)', lineHeight: 18,
+  },
+});
+
 export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const { width: screenWidth } = useWindowDimensions();
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
@@ -203,7 +176,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [touched, setTouched] = useState({});
-  const [screen, setScreen] = useState(preAuthData?.completedAt ? 'auth' : 'gate'); // 'gate' | 'onboarding' | 'auth'
+  const [screen, setScreen] = useState(preAuthData?.completedAt ? 'auth' : 'onboarding');
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -222,7 +195,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         // No account found — send them to onboarding
         setLoading(false);
         setError('');
-        setScreen('no_account');
+        setScreen('onboarding');
         return;
       }
       setError(error.message);
@@ -262,101 +235,13 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     setLoading(false);
   };
 
-  if (screen === 'gate') {
-    return (
-      <View style={styles.gateContainer}>
-        <View style={styles.gateHeroWrap}>
-          <DoodleHero />
-        </View>
-        <View style={styles.gateInner}>
-          <View style={styles.gateLogoWrap}>
-            <Text style={styles.gateAppName}>Afri Fast</Text>
-            <Text style={styles.gateTagline}>Your African wellness companion</Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.gateCard}
-            onPress={() => { setMode('login'); setScreen('auth'); }}
-            activeOpacity={0.85}
-          >
-            <View style={styles.gateCardIcon}>
-              <Ionicons name="person-outline" size={20} color="#111" />
-            </View>
-            <View style={styles.gateCardText}>
-              <Text style={styles.gateCardTitle}>I already have an account</Text>
-              <Text style={styles.gateCardSub}>Take me straight to log in</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="rgba(0,0,0,0.25)" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.gateCard}
-            onPress={() => setScreen('onboarding')}
-            activeOpacity={0.85}
-          >
-            <View style={styles.gateCardIcon}>
-              <Ionicons name="leaf-outline" size={20} color="#111" />
-            </View>
-            <View style={styles.gateCardText}>
-              <Text style={styles.gateCardTitle}>I'm new here</Text>
-              <Text style={styles.gateCardSub}>Let's set up your profile</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="rgba(0,0,0,0.25)" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  if (screen === 'no_account') {
-    return (
-      <View style={styles.gateContainer}>
-        <View style={styles.gateHeroWrap}>
-          <DoodleHero />
-        </View>
-        <View style={styles.gateInner}>
-          <View style={styles.gateLogoWrap}>
-            <Text style={styles.gateAppName}>No account found</Text>
-            <Text style={styles.gateTagline}>We couldn't find an account for{'\n'}{email}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.gateCard}
-            onPress={() => setScreen('onboarding')}
-            activeOpacity={0.85}
-          >
-            <View style={styles.gateCardIcon}>
-              <Ionicons name="leaf-outline" size={20} color="#111" />
-            </View>
-            <View style={styles.gateCardText}>
-              <Text style={styles.gateCardTitle}>Let's get you set up</Text>
-              <Text style={styles.gateCardSub}>Create your profile and join Afri Fast</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="rgba(0,0,0,0.25)" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.gateCard, { marginTop: 4 }]}
-            onPress={() => { setError(''); setScreen('auth'); }}
-            activeOpacity={0.85}
-          >
-            <View style={styles.gateCardIcon}>
-              <Ionicons name="arrow-back-outline" size={20} color="#111" />
-            </View>
-            <View style={styles.gateCardText}>
-              <Text style={styles.gateCardTitle}>Try a different email</Text>
-              <Text style={styles.gateCardSub}>Go back and try again</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="rgba(0,0,0,0.25)" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
 
   if (screen === 'onboarding') {
     return (
       <KeyboardAvoidingView style={styles.onboardingContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <PreAuthOnboarding
           initialData={preAuthData}
+          onLogin={() => { setMode('login'); setScreen('auth'); }}
           onComplete={async (answers) => {
             await onSavePreAuthData?.(answers);
             setName(answers.preferredName || '');
@@ -368,208 +253,197 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     );
   }
 
-  return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+  // ── Create account screen (post-onboarding signup) ──────────────────────────
+  if (screen === 'auth' && mode === 'signup') {
+    const firstName = name ? name.trim().split(' ')[0] : '';
+    const initial = firstName ? `, ${firstName[0].toLowerCase()}.` : '.';
+    const handleOAuth = async (provider) => {
+      const redirectTo = typeof window !== 'undefined'
+        ? (window.location.hostname === 'localhost' ? 'https://afri-fast.vercel.app' : window.location.origin)
+        : 'https://afri-fast.vercel.app';
+      if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('afri-fast-oauth-pending', '1');
+      const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
+      if (error) setError(error.message);
+    };
+    return (
+      <KeyboardAvoidingView style={ca.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={ca.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {/* Close */}
+          <TouchableOpacity style={ca.closeBtn} onPress={() => setScreen('gate')} activeOpacity={0.7}>
+            <Ionicons name="close" size={22} color="rgba(0,0,0,0.45)" />
+          </TouchableOpacity>
 
-        {/* Back button */}
-        <TouchableOpacity style={styles.authBackBtn} onPress={() => setScreen('gate')} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={20} color="rgba(0,0,0,0.5)" />
+          {/* Mascot */}
+          <View style={{ alignItems: 'center', marginBottom: 12 }}>
+            <MascotFace happy />
+          </View>
+
+          {/* Eyebrow */}
+          <Text style={ca.eyebrow}>LAST STEP +</Text>
+
+          {/* Headline + subtitle */}
+          <Text style={ca.headline}>Save your plan{initial}</Text>
+          <Text style={ca.subtitle}>
+            Make a free account so AfriFast keeps your{'\n'}goal, meals and streak safe.
+          </Text>
+
+          {/* Apple */}
+          <TouchableOpacity style={ca.appleBtn} activeOpacity={0.85} onPress={() => handleOAuth('apple')}>
+            <Ionicons name="logo-apple" size={20} color="#fff" />
+            <Text style={ca.appleTxt}>Continue with Apple</Text>
+          </TouchableOpacity>
+
+          {/* Google */}
+          <TouchableOpacity style={ca.googleBtn} activeOpacity={0.85} onPress={() => handleOAuth('google')}>
+            <Ionicons name="logo-google" size={18} color="#444" />
+            <Text style={ca.googleTxt}>Continue with Google</Text>
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={ca.divider}>
+            <View style={ca.divLine} />
+            <Text style={ca.divTxt}>OR SIGN UP WITH EMAIL</Text>
+            <View style={ca.divLine} />
+          </View>
+
+          {/* Email field */}
+          <View style={[ca.inputRow, touched.email && !email && ca.inputRowErr]}>
+            <Ionicons name="mail-outline" size={18} color="rgba(0,0,0,0.35)" style={ca.inputIcon} />
+            <TextInput
+              style={ca.inputTxt}
+              placeholder="you@email.com"
+              placeholderTextColor="rgba(0,0,0,0.3)"
+              value={email}
+              onChangeText={(v) => { setEmail(v); setTouched(t => ({ ...t, email: true })); }}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
+
+          {/* Password field */}
+          <View style={[ca.inputRow, { marginTop: 10 }, touched.password && !password && ca.inputRowErr]}>
+            <Ionicons name="lock-closed-outline" size={18} color="rgba(0,0,0,0.35)" style={ca.inputIcon} />
+            <TextInput
+              style={ca.inputTxt}
+              placeholder="Create a password"
+              placeholderTextColor="rgba(0,0,0,0.3)"
+              value={password}
+              onChangeText={(v) => { setPassword(v); setTouched(t => ({ ...t, password: true })); }}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={{ paddingLeft: 8 }}>
+              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="rgba(0,0,0,0.3)" />
+            </TouchableOpacity>
+          </View>
+
+          {error ? <Text style={ca.error}>{error}</Text> : null}
+          {message ? <Text style={ca.success}>{message}</Text> : null}
+
+          {/* Create account */}
+          <TouchableOpacity style={[ca.createBtn, loading && { opacity: 0.6 }]} onPress={handleSignUp} disabled={loading} activeOpacity={0.85}>
+            {loading
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={ca.createTxt}>Create account →</Text>
+            }
+          </TouchableOpacity>
+
+          {/* Terms */}
+          <Text style={ca.terms}>
+            By continuing you agree to AfriFast's Terms & Privacy{'\n'}Policy.
+          </Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  const handleOAuthLogin = async (provider) => {
+    const redirectTo = typeof window !== 'undefined'
+      ? (window.location.hostname === 'localhost' ? 'https://afri-fast.vercel.app' : window.location.origin)
+      : 'https://afri-fast.vercel.app';
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('afri-fast-oauth-pending', '1');
+    const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
+    if (error) setError(error.message);
+  };
+
+  return (
+    <KeyboardAvoidingView style={ca.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={ca.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+        <TouchableOpacity style={ca.closeBtn} onPress={() => setScreen('onboarding')} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={22} color="rgba(0,0,0,0.45)" />
         </TouchableOpacity>
 
-        {/* Doodle header */}
-        <View style={styles.authDoodleWrap}>
-          <DoodleAuth />
+        <View style={{ alignItems: 'center', marginBottom: 12 }}>
+          <MascotFace happy={false} />
         </View>
 
-        {/* Title outside card */}
-        <Text style={styles.authTitle}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</Text>
+        <Text style={ca.eyebrow}>WELCOME BACK</Text>
+        <Text style={ca.headline}>Log back in.</Text>
+        <Text style={ca.subtitle}>Pick up right where you left off.</Text>
 
-        {/* Card */}
-        <View style={styles.card}>
+        <TouchableOpacity style={ca.appleBtn} activeOpacity={0.85} onPress={() => handleOAuthLogin('apple')}>
+          <Ionicons name="logo-apple" size={20} color="#fff" />
+          <Text style={ca.appleTxt}>Continue with Apple</Text>
+        </TouchableOpacity>
 
-          {/* Google button */}
-          <TouchableOpacity
-            style={styles.socialBtnGoogle}
-            activeOpacity={0.85}
-            onPress={async () => {
-              const redirectTo = typeof window !== 'undefined'
-                ? (window.location.hostname === 'localhost' ? 'https://afri-fast.vercel.app' : window.location.origin)
-                : 'https://afri-fast.vercel.app';
-              if (typeof sessionStorage !== 'undefined') {
-                sessionStorage.setItem('afri-fast-oauth-pending', '1');
-              }
-              const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: { redirectTo },
-              });
-              if (error) setError(error.message);
-            }}
-          >
-            <Ionicons name="logo-google" size={20} color="#444" />
-            <Text style={styles.socialBtnGoogleText}>Continue with Google</Text>
-          </TouchableOpacity>
+        <TouchableOpacity style={ca.googleBtn} activeOpacity={0.85} onPress={() => handleOAuthLogin('google')}>
+          <Ionicons name="logo-google" size={18} color="#444" />
+          <Text style={ca.googleTxt}>Continue with Google</Text>
+        </TouchableOpacity>
 
-          {/* Apple button */}
-          <TouchableOpacity style={styles.socialBtnApple} activeOpacity={0.85}>
-            <Ionicons name="logo-apple" size={22} color="#fff" />
-            <Text style={styles.socialBtnAppleText}>Continue with Apple</Text>
-          </TouchableOpacity>
-
-          {/* Email toggle */}
-          <TouchableOpacity
-            style={styles.emailToggle}
-            onPress={() => setShowEmailForm(v => !v)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.emailToggleLine} />
-            <Text style={styles.emailToggleText}>
-              {showEmailForm ? 'hide email sign in' : 'or continue with email'}
-            </Text>
-            <View style={styles.emailToggleLine} />
-          </TouchableOpacity>
-
-          {/* Email form — hidden by default */}
-          {showEmailForm && (
-            <View>
-              {mode === 'signup' && (
-                <View style={styles.field}>
-                  <Text style={styles.label}>Full Name</Text>
-                  <TextInput
-                    style={[styles.input, touched.name && !name && styles.inputError]}
-                    placeholder="e.g. Amara Osei"
-                    placeholderTextColor="#9CA3AF"
-                    value={name}
-                    onChangeText={(v) => { setName(v); setTouched(t => ({ ...t, name: true })); }}
-                    autoCapitalize="words"
-                  />
-                </View>
-              )}
-              <View style={styles.field}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  style={[styles.input, touched.email && !email && styles.inputError]}
-                  placeholder="you@example.com"
-                  placeholderTextColor="#9CA3AF"
-                  value={email}
-                  onChangeText={(v) => { setEmail(v); setTouched(t => ({ ...t, email: true })); }}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                />
-              </View>
-              <View style={styles.field}>
-                <Text style={styles.label}>Password</Text>
-                <View style={styles.passwordWrap}>
-                  <TextInput
-                    style={[styles.inputPassword, touched.password && !password && styles.inputError]}
-                    placeholder="••••••••"
-                    placeholderTextColor="#9CA3AF"
-                    value={password}
-                    onChangeText={(v) => { setPassword(v); setTouched(t => ({ ...t, password: true })); }}
-                    secureTextEntry={!showPassword}
-                  />
-                  <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(v => !v)}>
-                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(0,0,0,0.35)" />
-                  </TouchableOpacity>
-                </View>
-                {mode === 'signup' && (
-                  <Text style={[styles.fieldHint, touched.password && password.length > 0 && password.length < 8 && { color: '#EF4444' }]}>
-                    {touched.password && password.length > 0 && password.length < 8
-                      ? `${password.length}/8 characters minimum`
-                      : 'Minimum 8 characters'}
-                  </Text>
-                )}
-              </View>
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-              {message ? <Text style={styles.successMsg}>{message}</Text> : null}
-              <TouchableOpacity
-                style={[styles.btn, loading && styles.btnDisabled]}
-                onPress={mode === 'login' ? handleLogin : handleSignUp}
-                disabled={loading}
-              >
-                {loading
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.btnText}>{mode === 'login' ? 'Log In' : 'Create Account'}</Text>
-                }
-              </TouchableOpacity>
-            </View>
-          )}
+        <View style={ca.divider}>
+          <View style={ca.divLine} />
+          <Text style={ca.divTxt}>OR LOG IN WITH EMAIL</Text>
+          <View style={ca.divLine} />
         </View>
 
-        <Text style={styles.footer}>Eat well. Fast well. Live well. 🌍</Text>
+        <View style={[ca.inputRow, touched.email && !email && ca.inputRowErr]}>
+          <Ionicons name="mail-outline" size={18} color="rgba(0,0,0,0.35)" style={ca.inputIcon} />
+          <TextInput
+            style={ca.inputTxt}
+            placeholder="you@email.com"
+            placeholderTextColor="rgba(0,0,0,0.3)"
+            value={email}
+            onChangeText={(v) => { setEmail(v); setTouched(t => ({ ...t, email: true })); }}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+        </View>
+
+        <View style={[ca.inputRow, { marginTop: 10 }, touched.password && !password && ca.inputRowErr]}>
+          <Ionicons name="lock-closed-outline" size={18} color="rgba(0,0,0,0.35)" style={ca.inputIcon} />
+          <TextInput
+            style={ca.inputTxt}
+            placeholder="Your password"
+            placeholderTextColor="rgba(0,0,0,0.3)"
+            value={password}
+            onChangeText={(v) => { setPassword(v); setTouched(t => ({ ...t, password: true })); }}
+            secureTextEntry={!showPassword}
+          />
+          <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={{ paddingLeft: 8 }}>
+            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="rgba(0,0,0,0.3)" />
+          </TouchableOpacity>
+        </View>
+
+        {error ? <Text style={ca.error}>{error}</Text> : null}
+        {message ? <Text style={ca.success}>{message}</Text> : null}
+
+        <TouchableOpacity style={[ca.createBtn, loading && { opacity: 0.6 }]} onPress={handleLogin} disabled={loading} activeOpacity={0.85}>
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={ca.createTxt}>Log in →</Text>}
+        </TouchableOpacity>
+
+        <Text style={ca.terms}>
+          Don't have an account?{' '}
+          <Text style={{ color: '#059669', fontWeight: '700' }} onPress={() => setScreen('onboarding')}>
+            Start here
+          </Text>
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  // Gate screen
-  gateContainer: { flex: 1, backgroundColor: '#F4F1EA' },
-  gateHeroWrap: {
-    marginHorizontal: 16,
-    height: '58%',
-    position: 'relative',
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
-  gateHeroScroll: { width: '100%', height: '100%' },
-  gateHeroImage: { height: '100%' },
-  gateHeroPill: {
-    position: 'absolute',
-    bottom: 18,
-    left: 18,
-    backgroundColor: 'rgba(0,0,0,0.82)',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    maxWidth: '65%',
-  },
-  gateHeroPillText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 20,
-    fontFamily: 'Inter, sans-serif',
-  },
-  gateHeroDots: {
-    position: 'absolute',
-    bottom: 18,
-    right: 18,
-    flexDirection: 'row',
-    gap: 6,
-  },
-  gateHeroDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-  },
-  gateHeroDotActive: {
-    backgroundColor: '#FFFFFF',
-    width: 18,
-  },
-  gateInner: { flex: 1, justifyContent: 'center', paddingHorizontal: 26, paddingBottom: 40, paddingTop: 20 },
-  gateLogoWrap: { alignItems: 'center', marginBottom: 24 },
-  gateAppName: { fontSize: 26, fontWeight: '700', color: '#0F9D78', marginBottom: 4, fontFamily: 'Inter, sans-serif' },
-  gateTagline: { fontSize: 13, color: 'rgba(0,0,0,0.4)', fontWeight: '300' },
-  gateCard: {
-    flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 16,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#FDFCF8',
-    marginBottom: 12,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
-  },
-  gateCardIcon: {
-    width: 44, height: 44, borderRadius: 12, backgroundColor: '#F3F4F6',
-    alignItems: 'center', justifyContent: 'center', marginRight: 14,
-  },
-  gateCardText: { flex: 1 },
-  gateCardTitle: { fontSize: 15, fontWeight: '600', color: '#111', marginBottom: 2 },
-  gateCardSub: { fontSize: 12, color: 'rgba(0,0,0,0.4)', fontWeight: '300' },
 
   container: { flex: 1, backgroundColor: '#F4F1EA' },
   scroll: { flexGrow: 1, padding: 24, alignItems: 'center', justifyContent: 'center' },
@@ -642,3 +516,4 @@ const styles = StyleSheet.create({
   modeToggleLink: { color: '#0F9D78', fontWeight: '600' },
   footer: { textAlign: 'center', marginTop: 24, color: '#9CA3AF', fontSize: 12 },
 });
+
