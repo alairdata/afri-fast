@@ -122,6 +122,7 @@ const CheckInPage = ({
 
   // ── Section 2: Mood ───────────────────────────────────────────────────────
   const [emotionalMoods, setEmotionalMoods] = useState([]);
+  const [satietyMoods, setSatietyMoods] = useState([]);
 
   // ── Section 4: Hunger & Appetite ─────────────────────────────────────────
   const [hungerScore, setHungerScore] = useState(null);
@@ -176,6 +177,7 @@ const CheckInPage = ({
     if (show && initialData) {
       setWellbeingScore(initialData.wellbeingScore ?? null);
       setEmotionalMoods(initialData.emotionalMoods ?? []);
+      setSatietyMoods(initialData.satietyMoods ?? []);
       setHungerScore(initialData.hungerScore ?? null);
       setHungerTypes(initialData.hungerTypes ?? []);
       setHasCravings(initialData.hasCravings ?? null);
@@ -230,7 +232,7 @@ const CheckInPage = ({
   const handleSave = () => {
     const derivedFastingStatus = isFasting ? '⏳ Currently fasting' : fastBroken ? '🍽️ I broke my fast today' : '❌ I did not fast today';
     const v2 = {
-      wellbeingScore, emotionalMoods,
+      wellbeingScore, emotionalMoods, satietyMoods,
       fastingStatus: derivedFastingStatus,
       hungerScore, hungerTypes, hasCravings, cravingTypes,
       fastingSymptoms, symptomSeverity,
@@ -288,8 +290,8 @@ const CheckInPage = ({
 
           <ScrollView style={ss.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={ss.scrollContent}>
 
-            {/* ── Section 2: Mood ──────────────────────────────────────── */}
-            <SectionCard title="Mood" titleStyle={{ fontSize: 17 }}>
+            {/* ── Overall Mood ─────────────────────────────────────────── */}
+            <SectionCard title="Overall Mood" titleStyle={{ fontSize: 17 }}>
               <Chips
                 options={['😌 Calm','😰 Anxious','😊 Happy','😤 Irritable','🤩 Motivated','😢 Sad','🥹 Grateful','😴 Tired','🧐 Focused','😩 Overwhelmed','😄 Energized','😓 Stressed','😇 Content','😑 Unmotivated','🥺 Hopeful','😞 Lonely','😁 Proud','😖 Frustrated','😶 Numb','😐 Indifferent','😵 Distracted','😬 Restless']}
                 selected={emotionalMoods}
@@ -301,26 +303,24 @@ const CheckInPage = ({
               />
             </SectionCard>
 
-            {/* ── Section 4: Hunger ────────────────────────────────────── */}
+            {/* ── Satiety Mood ─────────────────────────────────────────── */}
+            <SectionCard title="Satiety Mood" titleStyle={{ fontSize: 17 }}>
+              <Chips
+                options={['🍽️ Full','😔 Guilty','😣 Uncomfortable','😞 Bad','🤩 Really good','😁 Proud','✅ On track','⚡ Energized','💧 Refreshed']}
+                selected={satietyMoods}
+                onToggle={v => toggle(v, satietyMoods, setSatietyMoods)}
+                chipStyle={{ backgroundColor: '#F0FDF4', borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: '#F0FDF4', borderColor: '#22C55E', borderWidth: 1.5 }}
+                showCheckmark
+                checkmarkColor="#22C55E"
+                largeEmoji
+              />
+            </SectionCard>
+
+            {/* ── Hunger ───────────────────────────────────────────────── */}
             <SectionCard title="How hungry are you?" titleStyle={{ fontSize: 17 }}>
               <HungerSlider value={hungerScore} onChange={setHungerScore} />
             </SectionCard>
-
-            {/* ── Section 4b: Hunger type (only if score >= 5) ─────────── */}
-            {hungerScore >= 5 && (
-              <SectionCard title="What kind of hunger is it?" titleStyle={{ fontSize: 17 }}>
-                <Chips
-                  options={['🫃 Physical stomach hunger','🧠 Head hunger (craving, not physical)','💔 Emotional hunger','🛋️ Boredom hunger','❓ Not sure']}
-                  selected={hungerTypes}
-                  onToggle={v => toggle(v, hungerTypes, setHungerTypes)}
-                  chipStyle={{ backgroundColor: '#F0FDF4', borderColor: 'transparent' }}
-                  selectedChipStyle={{ backgroundColor: '#F0FDF4', borderColor: '#22C55E', borderWidth: 1.5 }}
-                  showCheckmark
-                  checkmarkColor="#22C55E"
-                  largeEmoji
-                />
-              </SectionCard>
-            )}
 
             {/* ── Section 5: Fasting Symptoms (show if fasting) ────────── */}
             {isFasting && (

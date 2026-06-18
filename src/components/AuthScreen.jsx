@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { supabase } from '../lib/supabase';
-import PreAuthOnboarding, { MascotFace } from './PreAuthOnboarding';
+import PreAuthOnboarding from './PreAuthOnboarding';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -273,9 +273,8 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             <Ionicons name="close" size={22} color="rgba(0,0,0,0.45)" />
           </TouchableOpacity>
 
-          {/* Mascot */}
           <View style={{ alignItems: 'center', marginBottom: 12 }}>
-            <MascotFace happy />
+            <Image source={require('../../assets/icon.png')} style={{ width: 72, height: 72, borderRadius: 18 }} />
           </View>
 
           {/* Eyebrow */}
@@ -374,7 +373,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         </TouchableOpacity>
 
         <View style={{ alignItems: 'center', marginBottom: 12 }}>
-          <MascotFace happy={false} />
+          <Image source={require('../../assets/icon.png')} style={{ width: 72, height: 72, borderRadius: 18 }} />
         </View>
 
         <Text style={ca.eyebrow}>WELCOME BACK</Text>
