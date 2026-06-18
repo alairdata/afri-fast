@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, Animated, Platform, useWindowDimensions,
+  TextInput, Animated, Platform, useWindowDimensions, Image,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const C = {
@@ -32,7 +33,7 @@ const DEFAULT_DATA = {
 };
 
 const FLOW = [
-  'hook', 'goal', 'struggle', 'name', 'country', 'gender', 'age',
+  'hook', 'goal', 'demo', 'struggle', 'name', 'country', 'gender', 'age',
   'bodyIntro', 'height', 'weight', 'target', 'pace', 'activity',
   'eating', 'food', 'why', 'accountability', 'building', 'done',
 ];
@@ -250,7 +251,67 @@ function ScreenShell({ children, footer, step, total, onBack, showBack, hideProg
 // SCREENS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function HookScreen({ next }) {
+function MascotFace({ happy }) {
+  const bob = useRef(new Animated.Value(0)).current;
+  const pop = useRef(new Animated.Value(1)).current;
+  const prevHappy = useRef(happy);
+  const [eyeRY, setEyeRY] = useState(5);
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bob, { toValue: -6, duration: 900, useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 0,  duration: 900, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  useEffect(() => {
+    const blink = () => { setEyeRY(1); setTimeout(() => setEyeRY(5), 150); };
+    blink();
+    const iv = setInterval(blink, 2800 + Math.random() * 1200);
+    return () => clearInterval(iv);
+  }, []);
+
+  useEffect(() => {
+    if (happy && !prevHappy.current) {
+      Animated.sequence([
+        Animated.timing(pop, { toValue: 1.22, duration: 170, useNativeDriver: true }),
+        Animated.timing(pop, { toValue: 1,    duration: 170, useNativeDriver: true }),
+      ]).start();
+    }
+    prevHappy.current = happy;
+  }, [happy]);
+
+  return (
+    <Animated.View style={{ transform: [{ translateY: bob }, { scale: pop }] }}>
+      <Svg width={90} height={90} viewBox="0 0 90 90">
+        <Circle cx="45" cy="45" r="42" fill={happy ? '#d1fae5' : '#f4f4ee'} />
+        <Ellipse cx="32" cy="38" rx="5" ry={eyeRY} fill={happy ? C.primary : C.ink700} />
+        <Ellipse cx="58" cy="38" rx="5" ry={eyeRY} fill={happy ? C.primary : C.ink700} />
+        {happy
+          ? <Path d="M 30 55 Q 45 68 60 55" stroke={C.primary} strokeWidth={3} fill="none" strokeLinecap="round" />
+          : <Path d="M 33 57 Q 45 57 57 57" stroke={C.ink400}  strokeWidth={3} fill="none" strokeLinecap="round" />
+        }
+      </Svg>
+    </Animated.View>
+  );
+}
+
+function HookScreen({ next, onLogin }) {
+  const rock = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(rock, { toValue: 1,  duration: 1800, useNativeDriver: true }),
+        Animated.timing(rock, { toValue: -1, duration: 1800, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  const rotate = rock.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-4deg', '0deg', '4deg'] });
+
   return (
     <View style={[s.shell, { backgroundColor: C.bg }]}>
       {/* Brand */}
@@ -267,7 +328,9 @@ function HookScreen({ next }) {
       <View style={s.hookHero}>
         <View style={s.hookHeroCircle} />
         <View style={s.hookIllo}>
-          <Text style={s.hookIlloEmoji}>🍛</Text>
+          <Animated.View style={{ transform: [{ rotate }] }}>
+            <Text style={s.hookIlloEmoji}>🍛</Text>
+          </Animated.View>
           <Text style={s.hookIlloSub}>jollof · fufu · suya · egusi</Text>
         </View>
       </View>
@@ -276,8 +339,8 @@ function HookScreen({ next }) {
       <View style={s.hookStatement}>
         <Text style={s.hookHeadline}>
           Eat the food you{' '}
-          <Text style={{ color: C.primary }}>love.</Text>
-          {'\n'}Reach the body you want.
+          <Text style={{ color: C.primary }}>love.</Text>{' '}
+          Reach the body you want.
         </Text>
         <Text style={s.hookSubline}>
           The first nutrition app that truly knows jollof, fufu and suya — counted the way you actually eat.
@@ -287,8 +350,71 @@ function HookScreen({ next }) {
       {/* CTA */}
       <View style={s.hookCta}>
         <PrimaryBtn label="Let's start →" onPress={next} />
+        <TouchableOpacity onPress={onLogin} style={s.hookLoginBtn} activeOpacity={0.7}>
+          <Text style={s.hookLoginTxt}>I already have an account</Text>
+        </TouchableOpacity>
         <Text style={s.hookNotice}>Takes about 3 minutes · No card needed</Text>
       </View>
+    </View>
+  );
+}
+
+function DemoScreen(p) {
+  const { next } = p;
+  const { width: SW } = useWindowDimensions();
+  const imgH = SW * 1.35;
+
+  return (
+    <View style={[s.shell, { backgroundColor: C.bg }]}>
+      <ProgressTop {...p} />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={{ paddingHorizontal: 22, paddingTop: 16, paddingBottom: 18 }}>
+          <Text style={s.eyebrow}>SEE IT IN ACTION +</Text>
+          <Text style={[s.headline, { marginTop: 6 }]}>Let's see the magic.</Text>
+          <Text style={[s.subline, { marginTop: 8 }]}>
+            Tap the shutter — point AfriFast at any plate, even jollof, and watch it read the calories.
+          </Text>
+        </View>
+
+        {/* Camera frame */}
+        <View style={{ marginHorizontal: 16, borderRadius: 20, overflow: 'hidden', height: imgH }}>
+          <Image
+            source={require('../../assets/jollof-demo.jpg')}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+          />
+          {/* Corner brackets */}
+          {[
+            { top: 14, left: 14 },
+            { top: 14, right: 14 },
+            { bottom: 60, left: 14 },
+            { bottom: 60, right: 14 },
+          ].map((pos, i) => (
+            <View key={i} style={[s.demoBracket, pos,
+              i === 1 || i === 3 ? { transform: [{ scaleX: -1 }] } : null,
+              i === 2 || i === 3 ? { transform: [{ scaleY: -1 }] } : null,
+            ]} />
+          ))}
+          {/* Shutter button */}
+          <TouchableOpacity
+            style={s.demoShutter}
+            onPress={next}
+            activeOpacity={0.85}
+          >
+            <View style={s.demoShutterInner} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Skip */}
+        <TouchableOpacity onPress={next} style={s.demoSkip} activeOpacity={0.7}>
+          <Text style={s.demoSkipTxt}>Skip the demo</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 }
@@ -303,10 +429,12 @@ function GoalScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.goal} />}>
-      <Text style={s.eyebrow}>Your goal</Text>
-      <Text style={s.headline}>What brings{'\n'}you here?</Text>
-      <Text style={s.subline}>Pick the one that matters most right now.</Text>
-      <View style={{ marginTop: 16 }}>
+      <View style={{ marginTop: 32 }}>
+        <Text style={s.eyebrow}>Your goal</Text>
+        <Text style={s.headline}>What brings you here?</Text>
+        <Text style={s.subline}>Pick the one that matters most right now.</Text>
+      </View>
+      <View style={{ marginTop: 36 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 11 }}>
             <OptionCard
@@ -338,9 +466,11 @@ function StruggleScreen(p) {
         <TextBtn label="Skip" onPress={next} />
       </>
     }>
-      <Text style={s.headline}>What's tripped{'\n'}you up before?</Text>
-      <Text style={s.subline}>Pick all that ring true — no judgement.</Text>
-      <View style={{ marginTop: 16 }}>
+      <View style={{ marginTop: 32 }}>
+        <Text style={s.headline}>What's tripped you up before?</Text>
+        <Text style={s.subline}>Pick all that ring true — no judgement.</Text>
+      </View>
+      <View style={{ marginTop: 36 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 11 }}>
             <OptionCard
@@ -362,9 +492,11 @@ function NameScreen(p) {
   const first = d.name.trim().split(' ')[0];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.name.trim()} />}>
-      <Text style={s.eyebrow}>About you · 1 of 4</Text>
-      <Text style={s.headline}>First, what should{'\n'}we call you?</Text>
-      <Text style={s.subline}>We like to keep things personal — like family.</Text>
+      <View style={{ marginTop: 32 }}>
+        <Text style={s.eyebrow}>About you · 1 of 4</Text>
+        <Text style={s.headline}>First, what should we call you?</Text>
+        <Text style={s.subline}>We like to keep things personal — like family.</Text>
+      </View>
       <View style={s.nameInputWrap}>
         <TextInput
           style={s.nameInput}
@@ -378,11 +510,8 @@ function NameScreen(p) {
         />
       </View>
       <View style={s.nameMascotWrap}>
-        {/* Simple mascot face */}
-        <View style={[s.mascotFace, happy && s.mascotFaceHappy]}>
-          <Text style={{ fontSize: happy ? 36 : 32 }}>{happy ? '😊' : '🙂'}</Text>
-        </View>
-        <View style={[s.nameGreet, { backgroundColor: happy ? C.primarySoft : C.sunken }]}>
+        <MascotFace happy={happy} />
+        <View style={[s.nameGreet, { backgroundColor: happy ? C.primarySoft : C.sunken, marginTop: 14 }]}>
           <Text style={[s.nameGreetTxt, { color: happy ? C.primary : C.ink400 }]}>
             {happy ? `Lovely to meet you, ${first}!` : "Go on — I'm all ears."}
           </Text>
@@ -401,10 +530,12 @@ function CountryScreen(p) {
   const list = ['Nigeria','Ghana','Kenya','Tanzania','Uganda','Senegal','Cameroon','Ethiopia','Other'];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.country} />}>
-      <Text style={s.eyebrow}>About you · 2 of 4</Text>
-      <Text style={s.headline}>Where are you{'\n'}cooking from?</Text>
-      <Text style={s.subline}>So we match dishes and portions to your kitchen.</Text>
-      <View style={{ marginTop: 16 }}>
+      <View style={{ marginTop: 32 }}>
+        <Text style={s.eyebrow}>About you · 2 of 4</Text>
+        <Text style={s.headline}>Where are you cooking from?</Text>
+        <Text style={s.subline}>So we match dishes and portions to your kitchen.</Text>
+      </View>
+      <View style={{ marginTop: 36 }}>
         {list.map((c, i) => (
           <View key={c} style={i > 0 && { marginTop: 9 }}>
             <OptionCard compact
@@ -427,10 +558,12 @@ function GenderScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.gender} />}>
-      <Text style={s.eyebrow}>About you · 3 of 4</Text>
-      <Text style={s.headline}>What's your sex?</Text>
-      <Text style={s.subline}>This sharpens your calorie maths — nothing else.</Text>
-      <View style={{ marginTop: 16 }}>
+      <View style={{ marginTop: 32 }}>
+        <Text style={s.eyebrow}>About you · 3 of 4</Text>
+        <Text style={s.headline}>What's your sex?</Text>
+        <Text style={s.subline}>This sharpens your calorie maths — nothing else.</Text>
+      </View>
+      <View style={{ marginTop: 36 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 11 }}>
             <OptionCard
@@ -448,9 +581,11 @@ function AgeScreen(p) {
   const { d, set, next } = p;
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
-      <Text style={s.eyebrow}>About you · 4 of 4</Text>
-      <Text style={s.headline}>How old{'\n'}are you?</Text>
-      <Text style={s.subline}>Drag the dial to your age.</Text>
+      <View style={{ marginTop: 32 }}>
+        <Text style={s.eyebrow}>About you · 4 of 4</Text>
+        <Text style={s.headline}>How old are you?</Text>
+        <Text style={s.subline}>Drag the dial to your age.</Text>
+      </View>
       <View style={{ marginTop: 32, paddingBottom: 30 }}>
         <RulerPicker min={14} max={90} value={d.age} onChange={(v) => set('age', v)} unit="yrs" />
       </View>
@@ -490,7 +625,7 @@ function HeightScreen(p) {
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8 }}>
-        <Text style={[s.headline, { flex: 1 }]}>How tall{'\n'}are you?</Text>
+        <Text style={[s.headline, { flex: 1 }]}>How tall are you?</Text>
         <Seg
           options={[{ value: 'cm', label: 'cm' }, { value: 'ft', label: 'ft/in' }]}
           value={d.unitH}
@@ -520,7 +655,7 @@ function WeightScreen(p) {
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8 }}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={s.headline}>What's your{'\n'}weight now?</Text>
+          <Text style={s.headline}>What's your weight now?</Text>
           <Text style={s.subline}>Be honest — only you and your plan see this.</Text>
         </View>
         <Seg
@@ -556,7 +691,7 @@ function TargetScreen(p) {
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
       <View style={{ marginTop: 8 }}>
-        <Text style={s.headline}>What's your{'\n'}goal weight?</Text>
+        <Text style={s.headline}>What's your goal weight?</Text>
         <Text style={s.subline}>Aim for a healthy, reachable number — we'll pace it.</Text>
       </View>
       <View style={{ paddingVertical: 32, paddingBottom: 30 }}>
@@ -593,9 +728,11 @@ function PaceScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.pace} />}>
-      <Text style={[s.headline, { marginTop: 8 }]}>How fast do you{'\n'}want to go?</Text>
-      <Text style={s.subline}>This sets your daily deficit. Change it whenever life shifts.</Text>
-      <View style={{ marginTop: 16 }}>
+      <View style={{ marginTop: 32 }}>
+        <Text style={s.headline}>How fast do you want to go?</Text>
+        <Text style={s.subline}>This sets your daily deficit. Change it whenever life shifts.</Text>
+      </View>
+      <View style={{ marginTop: 36 }}>
         {opts.map((o, i) => {
           const on = d.pace === o.v;
           const wk = gap > 0 ? Math.max(1, Math.round(gap / o.rate)) : 0;
@@ -647,9 +784,11 @@ function ActivityScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.activity} />}>
-      <Text style={[s.headline, { marginTop: 8 }]}>How active{'\n'}is your day?</Text>
-      <Text style={s.subline}>A normal day, not your best one. This sets your burn.</Text>
-      <View style={{ marginTop: 16 }}>
+      <View style={{ marginTop: 32 }}>
+        <Text style={s.headline}>How active is your day?</Text>
+        <Text style={s.subline}>A normal day, not your best one. This sets your burn.</Text>
+      </View>
+      <View style={{ marginTop: 36 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 11 }}>
             <OptionCard
@@ -675,9 +814,11 @@ function EatingScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.eatingStyle} />}>
-      <Text style={[s.headline, { marginTop: 8 }]}>How do you{'\n'}like to eat?</Text>
-      <Text style={s.subline}>We'll time your reminders around it.</Text>
-      <View style={{ marginTop: 16 }}>
+      <View style={{ marginTop: 32 }}>
+        <Text style={s.headline}>How do you like to eat?</Text>
+        <Text style={s.subline}>We'll time your reminders around it.</Text>
+      </View>
+      <View style={{ marginTop: 36 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 10 }}>
             <OptionCard compact
@@ -706,8 +847,10 @@ function FoodScreen(p) {
   };
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.foodContext} />}>
-      <Text style={[s.headline, { marginTop: 8 }]}>Where does your{'\n'}food come from?</Text>
-      <View style={{ marginTop: 14 }}>
+      <View style={{ marginTop: 32 }}>
+        <Text style={s.headline}>Where does your food come from?</Text>
+      </View>
+      <View style={{ marginTop: 36 }}>
         {where.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 10 }}>
             <OptionCard compact
@@ -750,9 +893,11 @@ function WhyScreen(p) {
         <TextBtn label="Skip" onPress={next} />
       </>
     }>
-      <Text style={[s.headline, { marginTop: 8 }]}>What's your{'\n'}deeper why?</Text>
-      <Text style={s.subline}>Pick all that move you — on tough days, we'll remind you.</Text>
-      <View style={{ marginTop: 16 }}>
+      <View style={{ marginTop: 32 }}>
+        <Text style={s.headline}>What's your deeper why?</Text>
+        <Text style={s.subline}>Pick all that move you — on tough days, we'll remind you.</Text>
+      </View>
+      <View style={{ marginTop: 36 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 10 }}>
             <OptionCard compact multi
@@ -776,9 +921,11 @@ function AccountabilityScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Lock it in" onPress={next} disabled={!d.accountability} />}>
-      <Text style={[s.headline, { marginTop: 8 }]}>How should we{'\n'}keep you on track?</Text>
-      <Text style={s.subline}>You can change this anytime in settings.</Text>
-      <View style={{ marginTop: 16 }}>
+      <View style={{ marginTop: 32 }}>
+        <Text style={s.headline}>How should we keep you on track?</Text>
+        <Text style={s.subline}>You can change this anytime in settings.</Text>
+      </View>
+      <View style={{ marginTop: 36 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 11 }}>
             <OptionCard
@@ -934,7 +1081,7 @@ function DoneScreen({ d, onComplete }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ORCHESTRATOR
 // ─────────────────────────────────────────────────────────────────────────────
-export default function PreAuthOnboarding({ initialData, onComplete }) {
+export default function PreAuthOnboarding({ initialData, onComplete, onLogin }) {
   const [idx, setIdx] = useState(0);
   const [data, setData] = useState({ ...DEFAULT_DATA, ...(initialData || {}) });
 
@@ -954,8 +1101,9 @@ export default function PreAuthOnboarding({ initialData, onComplete }) {
   };
 
   switch (screen) {
-    case 'hook':           return <HookScreen next={next} />;
+    case 'hook':           return <HookScreen next={next} onLogin={onLogin} />;
     case 'goal':           return <GoalScreen {...sharedProps} />;
+    case 'demo':           return <DemoScreen {...sharedProps} />;
     case 'struggle':       return <StruggleScreen {...sharedProps} />;
     case 'name':           return <NameScreen {...sharedProps} />;
     case 'country':        return <CountryScreen {...sharedProps} />;
@@ -1108,11 +1256,11 @@ const s = StyleSheet.create({
   hookBrandTxt: { fontSize: 20, fontWeight: '800', color: C.ink, letterSpacing: -0.5 },
   hookHero: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   hookHeroCircle: {
-    position: 'absolute', width: 280, height: 280, borderRadius: 140,
+    position: 'absolute', width: 320, height: 320, borderRadius: 160,
     backgroundColor: C.green50, opacity: 0.8,
   },
   hookIllo: { alignItems: 'center', zIndex: 1 },
-  hookIlloEmoji: { fontSize: 80 },
+  hookIlloEmoji: { fontSize: 300 },
   hookIlloSub: { fontSize: 13, color: C.ink400, fontWeight: '600', marginTop: 10, letterSpacing: 0.5 },
   hookStatement: { paddingHorizontal: 28, paddingBottom: 8, alignItems: 'center' },
   hookHeadline: {
@@ -1122,6 +1270,29 @@ const s = StyleSheet.create({
   hookSubline: { fontSize: 15.5, fontWeight: '500', color: C.ink500, lineHeight: 22, textAlign: 'center' },
   hookCta: { paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 36 : 24, paddingTop: 16 },
   hookNotice: { textAlign: 'center', marginTop: 12, fontSize: 13, color: C.ink400, fontWeight: '600' },
+  hookLoginBtn: { alignItems: 'center', marginTop: 18, paddingVertical: 6 },
+  hookLoginTxt: { fontSize: 14, fontWeight: '600', color: C.ink },
+
+  // Demo screen
+  demoBracket: {
+    position: 'absolute', width: 28, height: 28,
+    borderTopWidth: 3, borderLeftWidth: 3, borderColor: '#fff', borderRadius: 4,
+  },
+  demoShutter: {
+    position: 'absolute', bottom: 14, alignSelf: 'center',
+    width: 62, height: 62, borderRadius: 31,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  demoShutterInner: {
+    width: 48, height: 48, borderRadius: 24,
+    borderWidth: 2.5, borderColor: 'rgba(0,0,0,0.15)',
+    backgroundColor: '#fff',
+  },
+  demoSkip: { alignItems: 'center', paddingVertical: 18 },
+  demoSkipTxt: { fontSize: 14, fontWeight: '600', color: C.ink400 },
 
   // Name screen
   nameInputWrap: { marginTop: 30, borderBottomWidth: 2.5, borderBottomColor: C.primary, paddingBottom: 8 },
