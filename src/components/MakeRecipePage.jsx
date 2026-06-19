@@ -433,6 +433,9 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
     if (makeRecipeMethod === 'photo') {
       setMakeRecipeMethod(null);
       launchPhotoRecipe();
+    } else if (makeRecipeMethod === 'gallery') {
+      setMakeRecipeMethod(null);
+      launchGalleryRecipe();
     }
   }, [makeRecipeMethod]);
 
@@ -444,14 +447,16 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
     }
     const picked = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.5 });
     if (picked.canceled || !picked.assets?.[0]) return;
+    await analyseUri(picked.assets[0].uri);
+  };
 
+  const analyseUri = async (uri) => {
     setPhotoPhase('analyzing');
     setPhotoError(null);
     setPhotoIngredients([]);
     setPhotoMatches([]);
-
     try {
-      const base64 = await readUriAsBase64(picked.assets[0].uri);
+      const base64 = await readUriAsBase64(uri);
       const resp = await fetch(`${GEMINI_BASE}/api/gemini`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -459,23 +464,31 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
       });
       const result = await resp.json();
       if (!resp.ok || result.error) throw new Error(result.error || 'Could not analyse photo');
-
       const ingredients = result.ingredients || [];
       setPhotoIngredients(ingredients);
-
       const scored = AFRICAN_RECIPES
         .map(r => ({ r, s: scoreRecipe(r, ingredients) }))
         .filter(({ s }) => s > 0)
         .sort((a, b) => b.s - a.s)
         .slice(0, 8)
         .map(({ r }) => r);
-
       setPhotoMatches(scored.length > 0 ? scored : AFRICAN_RECIPES.filter((_, i) => i < 6));
       setPhotoPhase('results');
     } catch (e) {
       setPhotoError(e.message || 'Something went wrong. Try again.');
       setPhotoPhase('error');
     }
+  };
+
+  const launchGalleryRecipe = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Gallery access needed', 'Please allow gallery access to pick a photo.');
+      return;
+    }
+    const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.5 });
+    if (picked.canceled || !picked.assets?.[0]) return;
+    await analyseUri(picked.assets[0].uri);
   };
 
   const renderRecipeCard = (recipe) => {
@@ -549,6 +562,16 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
               <Text style={styles.actionDesc}>Type or say what you have</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Gallery upload */}
+          <TouchableOpacity style={styles.galleryBtn} onPress={() => setMakeRecipeMethod('gallery')}>
+            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <Path d="M17 8l-5-5-5 5" />
+              <Path d="M12 3v12" />
+            </Svg>
+            <Text style={styles.galleryBtnText}>Upload from gallery</Text>
+          </TouchableOpacity>
 
           {/* Photo analysis states */}
           {photoPhase === 'analyzing' && (
@@ -720,6 +743,15 @@ const styles = StyleSheet.create({
   recipeCardCal: { fontSize: 12, fontWeight: '600', color: '#059669' },
   recipeCardTime: { fontSize: 11, color: '#999' },
   recipeCardAltName: { fontSize: 11, color: '#999', fontStyle: 'italic', marginTop: -2, marginBottom: 2 },
+
+  galleryBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 11,
+    backgroundColor: '#fff', borderRadius: 12,
+    borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.08)',
+    marginBottom: 20,
+  },
+  galleryBtnText: { fontSize: 13, fontWeight: '600', color: '#666' },
 
   photoAnalyzing: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
