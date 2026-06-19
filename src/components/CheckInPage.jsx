@@ -293,7 +293,7 @@ const CheckInPage = ({
             {/* ── Overall Mood ─────────────────────────────────────────── */}
             <SectionCard title="Overall Mood" titleStyle={{ fontSize: 17 }}>
               <Chips
-                options={['😌 Calm','😰 Anxious','😊 Happy','😤 Irritable','🤩 Motivated','😢 Sad','🥹 Grateful','😴 Tired','🧐 Focused','😩 Overwhelmed','😄 Energized','😓 Stressed','😇 Content','😑 Unmotivated','🥺 Hopeful','😞 Lonely','😁 Proud','😖 Frustrated','😶 Numb','😐 Indifferent','😵 Distracted','😬 Restless']}
+                options={['😌 Calm','😰 Anxious','😊 Happy','😤 Irritable','😢 Sad','😴 Tired','😩 Overwhelmed','😄 Energized','😓 Stressed','😇 Content','🥺 Hopeful','😞 Lonely','😁 Proud','😖 Frustrated','😐 Indifferent','😵 Distracted']}
                 selected={emotionalMoods}
                 onToggle={v => toggle(v, emotionalMoods, setEmotionalMoods)}
                 chipStyle={{ backgroundColor: '#FFFBEB', borderColor: 'transparent' }}
@@ -306,7 +306,7 @@ const CheckInPage = ({
             {/* ── Satiety Mood ─────────────────────────────────────────── */}
             <SectionCard title="Satiety Mood" titleStyle={{ fontSize: 17 }}>
               <Chips
-                options={['🍽️ Full','😔 Guilty','😣 Uncomfortable','😞 Bad','🤩 Really good','😁 Proud','✅ On track','⚡ Energized','💧 Refreshed']}
+                options={['🍽️ Full','😔 Guilty','😣 Uncomfortable','😞 Bad','🤩 Really good','😁 Proud','✅ On track','⚡ Energized','💧 Refreshed','💪 Motivated','🥹 Grateful','🧐 Focused','😑 Unmotivated','😶 Numb','😬 Restless']}
                 selected={satietyMoods}
                 onToggle={v => toggle(v, satietyMoods, setSatietyMoods)}
                 chipStyle={{ backgroundColor: '#F0FDF4', borderColor: 'transparent' }}
