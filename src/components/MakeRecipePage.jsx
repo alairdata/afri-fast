@@ -412,6 +412,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   const [photoIngredients, setPhotoIngredients] = useState([]);
   const [photoMatches, setPhotoMatches] = useState([]);
   const [photoError, setPhotoError] = useState(null);
+  const [pendingUris, setPendingUris] = useState([]); // camera multi-shot accumulator
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -439,31 +440,21 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
     }
   }, [makeRecipeMethod]);
 
-  const launchPhotoRecipe = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Camera access needed', 'Please allow camera access to take a photo of your ingredients.');
-      return;
-    }
-    const picked = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.5 });
-    if (picked.canceled || !picked.assets?.[0]) return;
-    await analyseUri(picked.assets[0].uri);
-  };
-
-  const analyseUri = async (uri) => {
+  const analyseUris = async (uris) => {
     setPhotoPhase('analyzing');
     setPhotoError(null);
     setPhotoIngredients([]);
     setPhotoMatches([]);
+    setPendingUris([]);
     try {
-      const base64 = await readUriAsBase64(uri);
+      const images = await Promise.all(uris.map(readUriAsBase64));
       const resp = await fetch(`${GEMINI_BASE}/api/gemini`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'identify_ingredients', data: { base64 } }),
+        body: JSON.stringify({ type: 'identify_ingredients', data: { images } }),
       });
       const result = await resp.json();
-      if (!resp.ok || result.error) throw new Error(result.error || 'Could not analyse photo');
+      if (!resp.ok || result.error) throw new Error(result.error || 'Could not analyse photos');
       const ingredients = result.ingredients || [];
       setPhotoIngredients(ingredients);
       const scored = AFRICAN_RECIPES
@@ -480,15 +471,30 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
     }
   };
 
+  const launchPhotoRecipe = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Camera access needed', 'Please allow camera access to take a photo of your ingredients.');
+      return;
+    }
+    const picked = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.5 });
+    if (picked.canceled || !picked.assets?.[0]) return;
+    setPendingUris(prev => [...prev, picked.assets[0].uri]);
+  };
+
   const launchGalleryRecipe = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Gallery access needed', 'Please allow gallery access to pick a photo.');
+      Alert.alert('Gallery access needed', 'Please allow gallery access to pick photos.');
       return;
     }
-    const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.5 });
-    if (picked.canceled || !picked.assets?.[0]) return;
-    await analyseUri(picked.assets[0].uri);
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.5,
+      allowsMultipleSelection: true,
+    });
+    if (picked.canceled || !picked.assets?.length) return;
+    await analyseUris(picked.assets.map(a => a.uri));
   };
 
   const renderRecipeCard = (recipe) => {
@@ -659,6 +665,31 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
 
           <View style={{ height: 40 }} />
         </ScrollView>
+
+        {/* Camera multi-shot strip */}
+        {pendingUris.length > 0 && (
+          <View style={styles.photoStrip}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoStripScroll}>
+              {pendingUris.map((uri, i) => (
+                <View key={i} style={styles.photoStripItem}>
+                  <Image source={{ uri }} style={styles.photoStripThumb} />
+                  <TouchableOpacity
+                    style={styles.photoStripRemove}
+                    onPress={() => setPendingUris(prev => prev.filter((_, j) => j !== i))}
+                  >
+                    <Ionicons name="close-circle" size={18} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <TouchableOpacity style={styles.photoStripAdd} onPress={launchPhotoRecipe}>
+                <Ionicons name="add" size={28} color="#059669" />
+              </TouchableOpacity>
+            </ScrollView>
+            <TouchableOpacity style={styles.photoStripAnalyse} onPress={() => analyseUris(pendingUris)}>
+              <Text style={styles.photoStripAnalyseText}>Find recipes  →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Recipe Detail Modal */}
@@ -743,6 +774,33 @@ const styles = StyleSheet.create({
   recipeCardCal: { fontSize: 12, fontWeight: '600', color: '#059669' },
   recipeCardTime: { fontSize: 11, color: '#999' },
   recipeCardAltName: { fontSize: 11, color: '#999', fontStyle: 'italic', marginTop: -2, marginBottom: 2 },
+
+  photoStrip: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: '#fff',
+    borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.08)',
+    paddingTop: 12, paddingBottom: Platform.OS === 'web' ? 16 : 28,
+    paddingHorizontal: 16,
+    gap: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 10,
+  },
+  photoStripScroll: { gap: 10, alignItems: 'center' },
+  photoStripItem: { position: 'relative' },
+  photoStripThumb: { width: 64, height: 64, borderRadius: 12, backgroundColor: '#E5E7EB' },
+  photoStripRemove: {
+    position: 'absolute', top: -6, right: -6,
+    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 9,
+  },
+  photoStripAdd: {
+    width: 64, height: 64, borderRadius: 12,
+    borderWidth: 2, borderColor: '#059669', borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  photoStripAnalyse: {
+    backgroundColor: '#059669', borderRadius: 14,
+    paddingVertical: 13, alignItems: 'center',
+  },
+  photoStripAnalyseText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   galleryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

@@ -200,14 +200,17 @@ No explanation, no markdown, no extra text.`,
       return res.json(normalizeFood(parsed, foodName));
     }
 
-    // ── Ingredient identification from photo ─────────────────────────────────
+    // ── Ingredient identification from photo(s) ──────────────────────────────
     if (type === 'identify_ingredients') {
-      const { base64 } = data;
+      const { base64, images } = data;
+      const allImages = images || (base64 ? [base64] : []);
+      if (!allImages.length) return res.status(400).json({ error: 'No images provided' });
+      const photoWord = allImages.length === 1 ? 'this image' : 'these images';
       const text = await callGemini(GEMINI_KEY, [
         {
-          text: `You are a chef's assistant. Look at this image carefully — the user is showing you their fridge, pantry, kitchen counter, or available ingredients.
+          text: `You are a chef's assistant. Look at ${photoWord} carefully — the user is showing you their fridge, pantry, kitchen counter, or available ingredients.
 
-Identify ALL the food items, ingredients, and produce you can see. Be specific but concise.
+Identify ALL the food items, ingredients, and produce you can see across all provided images. Combine findings into one list without duplicates.
 
 Return ONLY a JSON object:
 {
@@ -217,7 +220,7 @@ Return ONLY a JSON object:
 
 Include everything visible — fresh produce, proteins, condiments, spices, oils, grains. Use simple common names (e.g. "chicken" not "poultry"). Return ONLY raw JSON, no markdown, no explanation.`,
         },
-        { inline_data: { mime_type: 'image/jpeg', data: base64 } },
+        ...allImages.map(b => ({ inline_data: { mime_type: 'image/jpeg', data: b } })),
       ]);
       const parsed = extractJson(text);
       if (!parsed) return res.status(500).json({ error: 'Could not analyse image' });
