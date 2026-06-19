@@ -1,6 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image, Modal, SafeAreaView, Platform, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image, Modal, SafeAreaView, Platform, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { supabase } from '../lib/supabase';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
@@ -374,11 +376,42 @@ export const RecipeCard = ({ recipe, onPress, userCountry }) => {
   );
 };
 
+const GEMINI_BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
+
+const readUriAsBase64 = async (uri) => {
+  if (Platform.OS === 'web') {
+    if (uri.startsWith('data:')) return uri.split(',')[1];
+    const blob = await fetch(uri).then(r => r.blob());
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+  return FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+};
+
+const scoreRecipe = (recipe, identifiedIngredients) => {
+  if (!identifiedIngredients.length || !recipe.ingredients?.length) return 0;
+  const lower = identifiedIngredients.map(i => i.toLowerCase());
+  let score = 0;
+  for (const ing of recipe.ingredients) {
+    const words = ing.name.toLowerCase().split(/[\s,/()+]+/).filter(w => w.length > 2);
+    if (lower.some(id => words.some(w => id.includes(w) || w.includes(id)))) score++;
+  }
+  return score;
+};
+
 const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   const [makeRecipeMethod, setMakeRecipeMethod] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
+  const [photoPhase, setPhotoPhase] = useState(null); // null | 'analyzing' | 'results' | 'error'
+  const [photoIngredients, setPhotoIngredients] = useState([]);
+  const [photoMatches, setPhotoMatches] = useState([]);
+  const [photoError, setPhotoError] = useState(null);
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -394,6 +427,55 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   const openRecipe = (recipe) => {
     setSelectedRecipe(recipe);
     setDetailVisible(true);
+  };
+
+  useEffect(() => {
+    if (makeRecipeMethod === 'photo') {
+      setMakeRecipeMethod(null);
+      launchPhotoRecipe();
+    }
+  }, [makeRecipeMethod]);
+
+  const launchPhotoRecipe = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Camera access needed', 'Please allow camera access to take a photo of your ingredients.');
+      return;
+    }
+    const picked = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.5 });
+    if (picked.canceled || !picked.assets?.[0]) return;
+
+    setPhotoPhase('analyzing');
+    setPhotoError(null);
+    setPhotoIngredients([]);
+    setPhotoMatches([]);
+
+    try {
+      const base64 = await readUriAsBase64(picked.assets[0].uri);
+      const resp = await fetch(`${GEMINI_BASE}/api/gemini`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'identify_ingredients', data: { base64 } }),
+      });
+      const result = await resp.json();
+      if (!resp.ok || result.error) throw new Error(result.error || 'Could not analyse photo');
+
+      const ingredients = result.ingredients || [];
+      setPhotoIngredients(ingredients);
+
+      const scored = AFRICAN_RECIPES
+        .map(r => ({ r, s: scoreRecipe(r, ingredients) }))
+        .filter(({ s }) => s > 0)
+        .sort((a, b) => b.s - a.s)
+        .slice(0, 8)
+        .map(({ r }) => r);
+
+      setPhotoMatches(scored.length > 0 ? scored : AFRICAN_RECIPES.filter((_, i) => i < 6));
+      setPhotoPhase('results');
+    } catch (e) {
+      setPhotoError(e.message || 'Something went wrong. Try again.');
+      setPhotoPhase('error');
+    }
   };
 
   const renderRecipeCard = (recipe) => {
@@ -467,6 +549,44 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
               <Text style={styles.actionDesc}>Type or say what you have</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Photo analysis states */}
+          {photoPhase === 'analyzing' && (
+            <View style={styles.photoAnalyzing}>
+              <ActivityIndicator size="small" color="#059669" />
+              <Text style={styles.photoAnalyzingText}>Analysing your ingredients...</Text>
+            </View>
+          )}
+
+          {photoPhase === 'error' && (
+            <View style={styles.photoErrorBox}>
+              <Text style={styles.photoErrorText}>{photoError || 'Could not analyse the photo.'}</Text>
+              <TouchableOpacity onPress={launchPhotoRecipe} style={styles.photoRetryBtn}>
+                <Text style={styles.photoRetryText}>Try again</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {photoPhase === 'results' && photoMatches.length > 0 && (
+            <View style={styles.photoResults}>
+              <View style={styles.photoResultsHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.photoResultsTitle}>Recipes you can make</Text>
+                  {photoIngredients.length > 0 && (
+                    <Text style={styles.photoResultsSub} numberOfLines={1}>
+                      Spotted: {photoIngredients.slice(0, 5).join(', ')}{photoIngredients.length > 5 ? ` +${photoIngredients.length - 5} more` : ''}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity onPress={() => { setPhotoPhase(null); setPhotoMatches([]); }}>
+                  <Ionicons name="close-circle" size={22} color="#ccc" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
+                {photoMatches.map(recipe => renderRecipeCard(recipe))}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Search */}
           <View style={styles.searchBar}>
@@ -600,6 +720,31 @@ const styles = StyleSheet.create({
   recipeCardCal: { fontSize: 12, fontWeight: '600', color: '#059669' },
   recipeCardTime: { fontSize: 11, color: '#999' },
   recipeCardAltName: { fontSize: 11, color: '#999', fontStyle: 'italic', marginTop: -2, marginBottom: 2 },
+
+  photoAnalyzing: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#F0FDF4', borderRadius: 14,
+    padding: 16, marginBottom: 20,
+    borderWidth: 1.5, borderColor: 'rgba(5,150,105,0.15)',
+  },
+  photoAnalyzingText: { fontSize: 14, color: '#059669', fontWeight: '600' },
+
+  photoErrorBox: {
+    backgroundColor: '#FEF2F2', borderRadius: 14,
+    padding: 16, marginBottom: 20,
+    borderWidth: 1.5, borderColor: 'rgba(239,68,68,0.2)',
+    gap: 10,
+  },
+  photoErrorText: { fontSize: 13, color: '#DC2626' },
+  photoRetryBtn: { alignSelf: 'flex-start', backgroundColor: '#DC2626', borderRadius: 10, paddingVertical: 7, paddingHorizontal: 14 },
+  photoRetryText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
+  photoResults: { marginBottom: 28 },
+  photoResultsHeader: {
+    flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8,
+  },
+  photoResultsTitle: { fontSize: 16, fontWeight: '700', color: '#1F1F1F' },
+  photoResultsSub: { fontSize: 12, color: '#888', marginTop: 2 },
 });
 
 const detail = StyleSheet.create({

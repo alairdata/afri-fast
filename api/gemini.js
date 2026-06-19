@@ -200,6 +200,33 @@ No explanation, no markdown, no extra text.`,
       return res.json(normalizeFood(parsed, foodName));
     }
 
+    // ── Ingredient identification from photo ─────────────────────────────────
+    if (type === 'identify_ingredients') {
+      const { base64 } = data;
+      const text = await callGemini(GEMINI_KEY, [
+        {
+          text: `You are a chef's assistant. Look at this image carefully — the user is showing you their fridge, pantry, kitchen counter, or available ingredients.
+
+Identify ALL the food items, ingredients, and produce you can see. Be specific but concise.
+
+Return ONLY a JSON object:
+{
+  "ingredients": ["tomatoes", "eggs", "plantain", "onions", "palm oil", ...],
+  "scene": "brief one-sentence description of what you see"
+}
+
+Include everything visible — fresh produce, proteins, condiments, spices, oils, grains. Use simple common names (e.g. "chicken" not "poultry"). Return ONLY raw JSON, no markdown, no explanation.`,
+        },
+        { inline_data: { mime_type: 'image/jpeg', data: base64 } },
+      ]);
+      const parsed = extractJson(text);
+      if (!parsed) return res.status(500).json({ error: 'Could not analyse image' });
+      return res.json({
+        ingredients: parsed.ingredients || [],
+        scene: parsed.scene || '',
+      });
+    }
+
     return res.status(400).json({ error: 'Invalid type' });
   } catch (e) {
     console.error('[/api/gemini]', type, e);
