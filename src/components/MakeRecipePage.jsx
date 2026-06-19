@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image, Modal, SafeAreaView, Platform, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
@@ -412,7 +413,10 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   const [photoIngredients, setPhotoIngredients] = useState([]);
   const [photoMatches, setPhotoMatches] = useState([]);
   const [photoError, setPhotoError] = useState(null);
-  const [pendingUris, setPendingUris] = useState([]); // camera multi-shot accumulator
+  const [showCamera, setShowCamera] = useState(false);
+  const [pendingUris, setPendingUris] = useState([]);
+  const cameraRef = useRef(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -433,12 +437,49 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   useEffect(() => {
     if (makeRecipeMethod === 'photo') {
       setMakeRecipeMethod(null);
-      launchPhotoRecipe();
+      openCamera();
     } else if (makeRecipeMethod === 'gallery') {
       setMakeRecipeMethod(null);
       launchGalleryRecipe();
     }
   }, [makeRecipeMethod]);
+
+  const openCamera = async () => {
+    if (!cameraPermission?.granted) {
+      const { granted } = await requestCameraPermission();
+      if (!granted) {
+        Alert.alert('Camera access needed', 'Please allow camera access to take photos of your ingredients.');
+        return;
+      }
+    }
+    setPendingUris([]);
+    setShowCamera(true);
+  };
+
+  const takeRecipePhoto = async () => {
+    if (!cameraRef.current) return;
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.5 });
+      setPendingUris(prev => [...prev, photo.uri]);
+    } catch (e) {
+      console.log('Camera error:', e);
+    }
+  };
+
+  const pickGalleryInsideCamera = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Gallery access needed', 'Please allow gallery access to pick photos.');
+      return;
+    }
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.5,
+      allowsMultipleSelection: true,
+    });
+    if (picked.canceled || !picked.assets?.length) return;
+    setPendingUris(prev => [...prev, ...picked.assets.map(a => a.uri)]);
+  };
 
   const analyseUris = async (uris) => {
     setPhotoPhase('analyzing');
@@ -469,17 +510,6 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
       setPhotoError(e.message || 'Something went wrong. Try again.');
       setPhotoPhase('error');
     }
-  };
-
-  const launchPhotoRecipe = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Camera access needed', 'Please allow camera access to take a photo of your ingredients.');
-      return;
-    }
-    const picked = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.5 });
-    if (picked.canceled || !picked.assets?.[0]) return;
-    setPendingUris(prev => [...prev, picked.assets[0].uri]);
   };
 
   const launchGalleryRecipe = async () => {
@@ -665,32 +695,79 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
 
           <View style={{ height: 40 }} />
         </ScrollView>
-
-        {/* Camera multi-shot strip */}
-        {pendingUris.length > 0 && (
-          <View style={styles.photoStrip}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoStripScroll}>
-              {pendingUris.map((uri, i) => (
-                <View key={i} style={styles.photoStripItem}>
-                  <Image source={{ uri }} style={styles.photoStripThumb} />
-                  <TouchableOpacity
-                    style={styles.photoStripRemove}
-                    onPress={() => setPendingUris(prev => prev.filter((_, j) => j !== i))}
-                  >
-                    <Ionicons name="close-circle" size={18} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-              <TouchableOpacity style={styles.photoStripAdd} onPress={launchPhotoRecipe}>
-                <Ionicons name="add" size={28} color="#059669" />
-              </TouchableOpacity>
-            </ScrollView>
-            <TouchableOpacity style={styles.photoStripAnalyse} onPress={() => analyseUris(pendingUris)}>
-              <Text style={styles.photoStripAnalyseText}>Find recipes  →</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
+
+      {/* In-app Camera overlay */}
+      {showCamera && (
+        <View style={styles.cameraOverlay}>
+          {!cameraPermission?.granted ? (
+            <View style={styles.cameraPermission}>
+              <Ionicons name="camera-outline" size={48} color="#D1D5DB" />
+              <Text style={styles.cameraPermissionText}>Camera access is required</Text>
+            </View>
+          ) : (
+            <>
+              <CameraView ref={cameraRef} style={StyleSheet.absoluteFillObject} facing="back" />
+
+              {/* Back button */}
+              <TouchableOpacity style={styles.camBackBtn} onPress={() => { setShowCamera(false); setPendingUris([]); }}>
+                <Ionicons name="chevron-back" size={26} color="#fff" />
+              </TouchableOpacity>
+
+              {/* Hint */}
+              {pendingUris.length === 0 && (
+                <Text style={styles.camHint}>Snap your fridge, pantry or ingredients</Text>
+              )}
+
+              {/* Thumbnail strip — inside camera, above controls */}
+              {pendingUris.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.camStrip}
+                  contentContainerStyle={styles.camStripContent}
+                >
+                  {pendingUris.map((uri, i) => (
+                    <View key={i} style={styles.camThumbWrap}>
+                      <Image source={{ uri }} style={styles.camThumb} />
+                      <TouchableOpacity
+                        style={styles.camThumbRemove}
+                        onPress={() => setPendingUris(prev => prev.filter((_, j) => j !== i))}
+                      >
+                        <Ionicons name="close-circle" size={20} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+
+              {/* Bottom controls */}
+              <View style={styles.camControls}>
+                {/* Gallery picker */}
+                <TouchableOpacity style={styles.camSideBtn} onPress={pickGalleryInsideCamera}>
+                  <Ionicons name="image-outline" size={28} color="#fff" />
+                  {pendingUris.length > 0 && <Text style={styles.camSideBtnLabel}>Add more</Text>}
+                </TouchableOpacity>
+
+                {/* Shutter */}
+                <TouchableOpacity style={styles.camShutter} onPress={takeRecipePhoto}>
+                  <View style={styles.camShutterInner} />
+                </TouchableOpacity>
+
+                {/* Find recipes */}
+                {pendingUris.length > 0 ? (
+                  <TouchableOpacity style={styles.camFindBtn} onPress={() => { setShowCamera(false); analyseUris(pendingUris); }}>
+                    <Text style={styles.camFindBtnText}>Find{'\n'}recipes</Text>
+                    <Ionicons name="arrow-forward" size={16} color="#fff" />
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.camSideBtn} />
+                )}
+              </View>
+            </>
+          )}
+        </View>
+      )}
 
       {/* Recipe Detail Modal */}
       <RecipeDetailModal
@@ -775,32 +852,57 @@ const styles = StyleSheet.create({
   recipeCardTime: { fontSize: 11, color: '#999' },
   recipeCardAltName: { fontSize: 11, color: '#999', fontStyle: 'italic', marginTop: -2, marginBottom: 2 },
 
-  photoStrip: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#fff',
-    borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.08)',
-    paddingTop: 12, paddingBottom: Platform.OS === 'web' ? 16 : 28,
-    paddingHorizontal: 16,
-    gap: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 10,
+  cameraOverlay: {
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    zIndex: 10000, backgroundColor: '#000', overflow: 'hidden',
   },
-  photoStripScroll: { gap: 10, alignItems: 'center' },
-  photoStripItem: { position: 'relative' },
-  photoStripThumb: { width: 64, height: 64, borderRadius: 12, backgroundColor: '#E5E7EB' },
-  photoStripRemove: {
-    position: 'absolute', top: -6, right: -6,
-    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 9,
-  },
-  photoStripAdd: {
-    width: 64, height: 64, borderRadius: 12,
-    borderWidth: 2, borderColor: '#059669', borderStyle: 'dashed',
+  cameraPermission: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  cameraPermissionText: { color: '#9CA3AF', fontSize: 14, textAlign: 'center' },
+  camBackBtn: {
+    position: 'absolute', top: 50, left: 16,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center', justifyContent: 'center',
   },
-  photoStripAnalyse: {
-    backgroundColor: '#059669', borderRadius: 14,
-    paddingVertical: 13, alignItems: 'center',
+  camHint: {
+    position: 'absolute', bottom: 160, alignSelf: 'center',
+    color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '500',
+    backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 6, textAlign: 'center',
   },
-  photoStripAnalyseText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  camStrip: {
+    position: 'absolute', bottom: 148, left: 0, right: 0,
+  },
+  camStripContent: { paddingHorizontal: 16, gap: 10, alignItems: 'flex-end' },
+  camThumbWrap: { position: 'relative' },
+  camThumb: { width: 64, height: 64, borderRadius: 10, borderWidth: 2, borderColor: '#fff' },
+  camThumbRemove: {
+    position: 'absolute', top: -7, right: -7,
+    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10,
+  },
+  camControls: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    height: 130, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 32, paddingBottom: Platform.OS === 'web' ? 20 : 36,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  camSideBtn: {
+    width: 64, alignItems: 'center', justifyContent: 'center', gap: 4,
+  },
+  camSideBtnLabel: { color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '600' },
+  camShutter: {
+    width: 72, height: 72, borderRadius: 36,
+    borderWidth: 4, borderColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  camShutterInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#fff' },
+  camFindBtn: {
+    width: 64, backgroundColor: '#059669', borderRadius: 14,
+    paddingVertical: 10, alignItems: 'center', justifyContent: 'center', gap: 4,
+  },
+  camFindBtnText: { color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center', lineHeight: 14 },
 
   galleryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
