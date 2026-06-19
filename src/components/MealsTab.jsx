@@ -24,13 +24,16 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
   const mealLogStreak = useMemo(() => {
     let s = 0;
     const now = new Date();
-    for (let i = 0; i < 365; i++) {
+    const todayStr = now.toDateString();
+    // Count consecutive days from yesterday backwards
+    for (let i = 1; i < 365; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const dayStr = d.toDateString();
-      if (recentMeals.some(m => m.date === dayStr)) s++;
+      if (recentMeals.some(m => m.date === d.toDateString())) s++;
       else break;
     }
+    // Add today if already logged
+    if (recentMeals.some(m => m.date === todayStr)) s++;
     return s;
   }, [recentMeals]);
 
