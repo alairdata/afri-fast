@@ -599,16 +599,6 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Gallery upload */}
-          <TouchableOpacity style={styles.galleryBtn} onPress={() => setMakeRecipeMethod('gallery')}>
-            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <Path d="M17 8l-5-5-5 5" />
-              <Path d="M12 3v12" />
-            </Svg>
-            <Text style={styles.galleryBtnText}>Upload from gallery</Text>
-          </TouchableOpacity>
-
           {/* Photo analysis states */}
           {photoPhase === 'analyzing' && (
             <View style={styles.photoAnalyzing}>
@@ -620,7 +610,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
           {photoPhase === 'error' && (
             <View style={styles.photoErrorBox}>
               <Text style={styles.photoErrorText}>{photoError || 'Could not analyse the photo.'}</Text>
-              <TouchableOpacity onPress={launchPhotoRecipe} style={styles.photoRetryBtn}>
+              <TouchableOpacity onPress={openCamera} style={styles.photoRetryBtn}>
                 <Text style={styles.photoRetryText}>Try again</Text>
               </TouchableOpacity>
             </View>
@@ -903,15 +893,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10, alignItems: 'center', justifyContent: 'center', gap: 4,
   },
   camFindBtnText: { color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center', lineHeight: 14 },
-
-  galleryBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, paddingVertical: 11,
-    backgroundColor: '#fff', borderRadius: 12,
-    borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.08)',
-    marginBottom: 20,
-  },
-  galleryBtnText: { fontSize: 13, fontWeight: '600', color: '#666' },
 
   photoAnalyzing: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
