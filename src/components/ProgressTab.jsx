@@ -324,7 +324,7 @@ const ProgressTab = ({
               const allWeights = displayLogs.map(l => l.weight);
               const currentWeight = hasData ? latest.weight : null;
               const yMax = currentWeight != null ? Math.ceil(currentWeight + 5) : undefined;
-              const yMin = targetWeight != null ? Math.floor(targetWeight - 5) : undefined;
+              const yMin = targetWeight != null ? Math.floor(targetWeight - 10) : undefined;
               return (
                 <>
                   <View style={{ marginLeft: 0, marginRight: -22, height: 200, overflow: 'hidden', position: 'relative' }}>
@@ -340,8 +340,10 @@ const ProgressTab = ({
                           }),
                           datasets: [
                             { data: allWeights },
+                            ...(yMin != null ? [{ data: [yMin] }] : []),
                           ],
                         }}
+                        fromNumber={yMax}
                         width={SCREEN_WIDTH + 22}
                         height={190}
                         chartConfig={{
