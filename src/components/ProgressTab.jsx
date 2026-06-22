@@ -340,15 +340,6 @@ const ProgressTab = ({
                           }),
                           datasets: [
                             { data: allWeights },
-                            ...(yMin != null || yMax != null ? [{
-                              data: [
-                                yMin != null ? yMin : Math.min(...allWeights),
-                                yMax != null ? yMax : Math.max(...allWeights),
-                              ],
-                              color: () => 'rgba(0,0,0,0)',
-                              strokeWidth: 0,
-                              withDots: false,
-                            }] : []),
                           ],
                         }}
                         width={SCREEN_WIDTH + 22}
@@ -449,7 +440,6 @@ const ProgressTab = ({
                           }),
                           datasets: [
                             { data: dailyData.map(d => d.calories) },
-                            { data: [500, dailyCalorieGoal + 200], color: () => 'rgba(0,0,0,0)', strokeWidth: 0, withDots: false },
                           ],
                         }}
                         width={SCREEN_WIDTH + 22}
@@ -542,7 +532,6 @@ const ProgressTab = ({
                           }),
                           datasets: [
                             { data: chartData },
-                            { data: [2, 12], color: () => 'rgba(0,0,0,0)', strokeWidth: 0, withDots: false },
                           ],
                         }}
                         width={SCREEN_WIDTH + 22}
