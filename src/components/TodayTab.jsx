@@ -238,12 +238,10 @@ const JfySkeletonCard = () => {
 
 const jfySkeletonStyles = StyleSheet.create({
   card: {
-    width: 280,
-    height: 220,
-    borderRadius: 24,
+    borderRadius: 16,
+    minHeight: 160,
     backgroundColor: '#C4C4C4',
-    marginRight: 12,
-    padding: 24,
+    padding: 16,
     justifyContent: 'space-between',
   },
   line1: { height: 14, width: '90%', borderRadius: 7, backgroundColor: 'rgba(255,255,255,0.3)', marginBottom: 8 },
