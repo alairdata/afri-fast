@@ -442,8 +442,10 @@ const ProgressTab = ({
                           }),
                           datasets: [
                             { data: dailyData.map(d => d.calories) },
+                            ...(dailyCalorieGoal > 0 ? [{ data: [Math.round(dailyCalorieGoal * 0.5)] }] : []),
                           ],
                         }}
+                        fromNumber={dailyCalorieGoal > 0 ? dailyCalorieGoal + 500 : undefined}
                         width={SCREEN_WIDTH + 22}
                         height={190}
                         chartConfig={{
