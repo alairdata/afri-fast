@@ -327,7 +327,7 @@ const ProgressTab = ({
               const yMin = targetWeight != null ? Math.floor(targetWeight - 5) : undefined;
               return (
                 <>
-                  <View style={{ marginHorizontal: -12, height: 200, overflow: 'hidden', position: 'relative' }}>
+                  <View style={{ marginLeft: 0, marginRight: -22, height: 200, overflow: 'hidden', position: 'relative' }}>
                     {hasMultiple ? (
                       <>
                       <LineChart
@@ -427,7 +427,7 @@ const ProgressTab = ({
 
               return (
                 <>
-                  <View style={{ marginHorizontal: -12, height: 200, overflow: 'hidden', position: 'relative' }}>
+                  <View style={{ marginLeft: 0, marginRight: -22, height: 200, overflow: 'hidden', position: 'relative' }}>
                     {hasMultiple ? (
                       <>
                       <LineChart
@@ -519,7 +519,7 @@ const ProgressTab = ({
 
               return (
                 <>
-                  <View style={{ marginHorizontal: -12, height: 200, overflow: 'hidden', position: 'relative' }}>
+                  <View style={{ marginLeft: 0, marginRight: -22, height: 200, overflow: 'hidden', position: 'relative' }}>
                     {hasMultipleWater ? (
                       <>
                       <LineChart
