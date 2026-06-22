@@ -1540,7 +1540,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   <Text style={styles.shareCardFoodsTitle}>Detected Foods</Text>
                   {detectedFoods.map((food, i) => (
                     <View key={i} style={styles.shareCardFoodRow}>
-                      <View style={[styles.shareCardFoodDot, { backgroundColor: i === 0 ? '#4ade80' : i === 1 ? '#60a5fa' : i === 2 ? '#f59e0b' : '#a78bfa' }]} />
+                      <View style={[styles.shareCardFoodDot, { backgroundColor: '#1F1F1F' }]} />
                       <Text style={styles.shareCardFoodName} numberOfLines={1}>{food.name}{food.qty ? <Text style={styles.shareCardFoodQty}>  {food.qty}</Text> : null}</Text>
                       <Text style={styles.shareCardFoodCal}>{food.cal} cal</Text>
                     </View>
