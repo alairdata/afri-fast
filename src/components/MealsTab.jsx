@@ -39,6 +39,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
 
   const [mealsActiveSection, setMealsActiveSection] = useState('meals');
   const [showLogMealOptions, setShowLogMealOptions] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [expandedMealId, setExpandedMealId] = useState(null);
   const [deletingMealId, setDeletingMealId] = useState(null);
   const [viewingMeal, setViewingMeal] = useState(null);
@@ -232,7 +233,87 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
         </View>
       </View>
 
+      {/* View all past meals pill */}
+      <View style={{ height: 80, alignItems: 'center', justifyContent: 'center' }}>
+        <TouchableOpacity style={styles.historyPill} onPress={() => setShowHistory(true)}>
+          <Ionicons name="time-outline" size={15} color={colors.accent} />
+          <Text style={styles.historyPillText}>View all past meals</Text>
+        </TouchableOpacity>
+      </View>
+
       </ScrollView>
+
+      {/* Past Meals History */}
+      {showHistory && (
+        <View style={[styles.logMealPage, Platform.OS === 'web' && { position: 'fixed', bottom: 0, overflowY: 'auto' }]}>
+          <View style={styles.logMealPageHeader}>
+            <TouchableOpacity onPress={() => setShowHistory(false)}>
+              <Ionicons name="chevron-back" size={24} color="#1F1F1F" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.logMealPageTitle}>Past Meals</Text>
+          <Text style={styles.logMealPageSub}>Everything you've logged</Text>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            {(() => {
+              // Group meals by date, most recent first
+              const grouped = recentMeals.reduce((acc, meal) => {
+                const d = meal.date || new Date().toDateString();
+                if (!acc[d]) acc[d] = [];
+                acc[d].push(meal);
+                return acc;
+              }, {});
+              const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
+              if (sortedDates.length === 0) return (
+                <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+                  <Text style={{ fontSize: 36 }}>🍽️</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 12 }}>No meals logged yet</Text>
+                </View>
+              );
+              return sortedDates.map(dateStr => {
+                const meals = grouped[dateStr];
+                const totalCal = meals.reduce((s, m) => s + (m.calories || 0), 0);
+                const label = (() => {
+                  const d = new Date(dateStr);
+                  const today = new Date(); today.setHours(0,0,0,0);
+                  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+                  if (d.toDateString() === today.toDateString()) return 'Today';
+                  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+                  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                })();
+                return (
+                  <View key={dateStr} style={styles.historyGroup}>
+                    <View style={styles.historyGroupHeader}>
+                      <Text style={styles.historyGroupDate}>{label}</Text>
+                      <Text style={styles.historyGroupCal}>{totalCal} kcal</Text>
+                    </View>
+                    {meals.map(meal => (
+                      <TouchableOpacity
+                        key={meal.id}
+                        style={styles.historyMealRow}
+                        onPress={() => { setShowHistory(false); onViewMeal && onViewMeal(meal); }}
+                      >
+                        {meal.photo || meal.localPhoto ? (
+                          <Image source={{ uri: meal.localPhoto || meal.photo }} style={styles.historyMealPhoto} />
+                        ) : (
+                          <View style={[styles.historyMealPhoto, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cardAlt }]}>
+                            <Text style={{ fontSize: 20 }}>🍽️</Text>
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.historyMealName} numberOfLines={1}>{meal.name}</Text>
+                          {meal.time && <Text style={styles.historyMealTime}>{meal.time}</Text>}
+                        </View>
+                        <Text style={styles.historyMealCal}>{meal.calories} cal</Text>
+                        <Ionicons name="chevron-forward" size={16} color="#ccc" />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                );
+              });
+            })()}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Log Meal Options - Full Screen overlay (outside ScrollView) */}
       {showLogMealOptions && (
@@ -762,6 +843,30 @@ const makeStyles = (c) => StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
+  historyPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingVertical: 10, paddingHorizontal: 20,
+    borderRadius: 50,
+    borderWidth: 1.5, borderColor: c.accent,
+    backgroundColor: c.card,
+  },
+  historyPillText: { fontSize: 13, fontWeight: '700', color: c.accent },
+  historyGroup: { marginBottom: 24 },
+  historyGroupHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  historyGroupDate: { fontSize: 13, fontWeight: '700', color: c.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  historyGroupCal: { fontSize: 13, fontWeight: '600', color: c.accent },
+  historyMealRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: c.card, borderRadius: 14,
+    padding: 12, marginBottom: 8,
+  },
+  historyMealPhoto: { width: 44, height: 44, borderRadius: 10 },
+  historyMealName: { fontSize: 14, fontWeight: '600', color: c.text },
+  historyMealTime: { fontSize: 12, color: c.textSecondary, marginTop: 2 },
+  historyMealCal: { fontSize: 13, fontWeight: '700', color: c.accent, marginRight: 4 },
   recentMealsTitleClean: {
     fontSize: 15,
     fontWeight: '600',
