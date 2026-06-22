@@ -1534,6 +1534,20 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                 })()}
               </View>
 
+              {/* Detected food items */}
+              {detectedFoods.length > 0 && (
+                <View style={styles.shareCardFoodsList}>
+                  <Text style={styles.shareCardFoodsTitle}>Detected Foods</Text>
+                  {detectedFoods.map((food, i) => (
+                    <View key={i} style={styles.shareCardFoodRow}>
+                      <View style={[styles.shareCardFoodDot, { backgroundColor: i === 0 ? '#4ade80' : i === 1 ? '#60a5fa' : i === 2 ? '#f59e0b' : '#a78bfa' }]} />
+                      <Text style={styles.shareCardFoodName} numberOfLines={1}>{food.name}{food.qty ? <Text style={styles.shareCardFoodQty}>  {food.qty}</Text> : null}</Text>
+                      <Text style={styles.shareCardFoodCal}>{food.cal} cal</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
               {/* Action buttons */}
               <View style={styles.shareCardActions}>
                 <TouchableOpacity style={styles.shareCardShareBtn} onPress={async () => {
@@ -2434,6 +2448,38 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  shareCardFoodsList: {
+    alignSelf: 'stretch',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginTop: 14,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+  },
+  shareCardFoodsTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#9CA3AF',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+  shareCardFoodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.04)',
+    gap: 10,
+  },
+  shareCardFoodDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  shareCardFoodName: { flex: 1, fontSize: 13, fontWeight: '500', color: '#1F1F1F' },
+  shareCardFoodQty: { fontSize: 12, color: '#9CA3AF', fontWeight: '400' },
+  shareCardFoodCal: { fontSize: 13, fontWeight: '700', color: '#059669', minWidth: 52, textAlign: 'right' },
   // Image panel
   shareCardImgPanel: {
     width: '100%',
