@@ -1548,6 +1548,45 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                 </View>
               )}
 
+              {/* Macro distribution */}
+              {(() => {
+                const hasFoods = detectedFoods.length > 0;
+                const p = hasFoods ? detectedFoods.reduce((s, f) => s + (f.protein || 0), 0) : (viewingMeal?.protein || 0);
+                const c = hasFoods ? detectedFoods.reduce((s, f) => s + (f.carbs || 0), 0) : (viewingMeal?.carbs || 0);
+                const fa = hasFoods ? detectedFoods.reduce((s, f) => s + (f.fats || 0), 0) : (viewingMeal?.fats || 0);
+                if (!p && !c && !fa) return null;
+                const total = p + c + fa;
+                const pPct = total > 0 ? Math.round((p / total) * 100) : 0;
+                const cPct = total > 0 ? Math.round((c / total) * 100) : 0;
+                const fPct = total > 0 ? 100 - pPct - cPct : 0;
+                return (
+                  <View style={styles.macroCard}>
+                    <Text style={styles.shareCardFoodsTitle}>Macro Distribution</Text>
+                    {/* Bar */}
+                    <View style={styles.macroBar}>
+                      {pPct > 0 && <View style={[styles.macroBarSeg, { flex: pPct, backgroundColor: '#60a5fa' }]} />}
+                      {cPct > 0 && <View style={[styles.macroBarSeg, { flex: cPct, backgroundColor: '#f59e0b' }]} />}
+                      {fPct > 0 && <View style={[styles.macroBarSeg, { flex: fPct, backgroundColor: '#f87171' }]} />}
+                    </View>
+                    {/* Legend */}
+                    <View style={styles.macroLegend}>
+                      {[
+                        { label: 'Protein', g: p, pct: pPct, color: '#60a5fa' },
+                        { label: 'Carbs',   g: c, pct: cPct, color: '#f59e0b' },
+                        { label: 'Fats',    g: fa, pct: fPct, color: '#f87171' },
+                      ].map(({ label, g, pct, color }) => (
+                        <View key={label} style={styles.macroLegendItem}>
+                          <View style={[styles.macroLegendDot, { backgroundColor: color }]} />
+                          <Text style={styles.macroLegendLabel}>{label}</Text>
+                          <Text style={styles.macroLegendG}>{Math.round(g)}g</Text>
+                          <Text style={[styles.macroLegendPct, { color }]}>{pct}%</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })()}
+
               {/* Action buttons */}
               <View style={styles.shareCardActions}>
                 <TouchableOpacity style={styles.shareCardShareBtn} onPress={async () => {
@@ -2480,6 +2519,34 @@ const styles = StyleSheet.create({
   shareCardFoodName: { flex: 1, fontSize: 13, fontWeight: '500', color: '#1F1F1F' },
   shareCardFoodQty: { fontSize: 12, color: '#9CA3AF', fontWeight: '400' },
   shareCardFoodCal: { fontSize: 13, fontWeight: '700', color: '#059669', minWidth: 52, textAlign: 'right' },
+  macroCard: {
+    alignSelf: 'stretch',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginTop: 14,
+    paddingBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+  },
+  macroBar: {
+    flexDirection: 'row',
+    height: 10,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginHorizontal: 16,
+    marginBottom: 14,
+    gap: 2,
+  },
+  macroBarSeg: { borderRadius: 6 },
+  macroLegend: { flexDirection: 'row', paddingHorizontal: 12, gap: 6 },
+  macroLegendItem: {
+    flex: 1, alignItems: 'center', gap: 4,
+    backgroundColor: '#F9FAFB', borderRadius: 12, paddingVertical: 10,
+  },
+  macroLegendDot: { width: 8, height: 8, borderRadius: 4 },
+  macroLegendLabel: { fontSize: 10, color: '#9CA3AF', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  macroLegendG: { fontSize: 15, fontWeight: '800', color: '#1F1F1F' },
+  macroLegendPct: { fontSize: 11, fontWeight: '700' },
   // Image panel
   shareCardImgPanel: {
     width: '100%',
