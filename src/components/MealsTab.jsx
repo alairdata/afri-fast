@@ -236,8 +236,8 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
       {/* View all past meals pill */}
       <View style={{ height: 80, alignItems: 'center', justifyContent: 'center' }}>
         <TouchableOpacity style={styles.historyPill} onPress={() => setShowHistory(true)}>
-          <Ionicons name="time-outline" size={15} color={colors.accent} />
-          <Text style={styles.historyPillText}>View all past meals</Text>
+          <Ionicons name="time-outline" size={12} color={colors.accent} />
+          <Text style={styles.historyPillText}>View past logs</Text>
         </TouchableOpacity>
       </View>
 
@@ -844,13 +844,13 @@ const makeStyles = (c) => StyleSheet.create({
     elevation: 2,
   },
   historyPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingVertical: 10, paddingHorizontal: 20,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingVertical: 7, paddingHorizontal: 14,
     borderRadius: 50,
-    borderWidth: 1.5, borderColor: c.accent,
+    borderWidth: 1, borderColor: c.accent,
     backgroundColor: c.card,
   },
-  historyPillText: { fontSize: 13, fontWeight: '700', color: c.accent },
+  historyPillText: { fontSize: 11, fontWeight: '600', color: c.accent },
   historyGroup: { marginBottom: 24 },
   historyGroupHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
