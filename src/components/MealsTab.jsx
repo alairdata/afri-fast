@@ -190,10 +190,10 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
               </Text>
             </View>
           )}
-          {recentMeals.filter(m => m.date === selectedMealDate.toDateString()).map((meal) => {
+          {recentMeals.filter(m => m.date === selectedMealDate.toDateString()).map((meal, mi) => {
             return (
               <TouchableOpacity
-                key={meal.id}
+                key={meal.id ?? `meal-${mi}`}
                 style={styles.recentMealItemClean}
                 onPress={() => onViewMeal ? onViewMeal(meal) : setViewingMeal(meal)}
               >
@@ -286,9 +286,9 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
                       <Text style={styles.historyGroupDate}>{label}</Text>
                       <Text style={styles.historyGroupCal}>{totalCal} kcal</Text>
                     </View>
-                    {meals.map(meal => (
+                    {meals.map((meal, mi) => (
                       <TouchableOpacity
-                        key={meal.id}
+                        key={`${dateStr}-${meal.id ?? mi}`}
                         style={styles.historyMealRow}
                         onPress={() => { setShowHistory(false); onViewMeal && onViewMeal(meal); }}
                       >
