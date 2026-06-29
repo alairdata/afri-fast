@@ -115,11 +115,11 @@ If it contains ANY food, return ONLY raw JSON with these fields:
 2. "title": Name the meal the way a local would naturally say it. Lead with the starchy base or carb if one is present. Follow with only the single most prominent accompaniment. Exactly two components joined by "and" or "with". No brackets, parentheses, or commas.
 3. "foods": an array of objects, one per individual food item mentioned. Each object must have:
    - name: full food name as a local would say it
-   - qty: estimated portion — COUNT + SIZE + ITEM for countable (e.g. "2 medium eggs"), SIZE + ITEM for non-countable (e.g. "1 heaped cup of white rice"). No brackets, no metric units.
-   - protein: grams of protein — give the exact value you would provide if asked "how much protein is in [this food] [this portion]?" directly, as a nutrition database would
-   - carbs: grams of carbohydrates — same direct lookup approach
-   - fats: grams of fat — same direct lookup approach
-   - fiber: grams of fiber — same direct lookup approach
+   - qty: if the user gave a precise measurement (e.g. "200g", "150ml", "3oz", "0.5 lbs", "100kg"), preserve it exactly as written and calculate nutrition for that exact amount. Otherwise use COUNT + SIZE + ITEM for countable (e.g. "2 medium eggs") or SIZE + ITEM for non-countable (e.g. "1 heaped cup of white rice"). No brackets.
+   - protein: grams of protein — if a precise weight/volume was given, calculate for that exact amount as a nutrition database would; otherwise give the value you would provide if asked "how much protein is in [this food] [this portion]?" directly
+   - carbs: grams of carbohydrates — same approach
+   - fats: grams of fat — same approach
+   - fiber: grams of fiber — same approach
    - cal: calculate this as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently
 
 What the user wrote: "${mealText}"
@@ -152,11 +152,11 @@ If it IS a food or meal, return ONLY raw JSON with these fields:
 1. "title": Name the meal the way a local would naturally say it. Lead with the starchy base or carb if present. Follow with only the single most prominent accompaniment. Exactly two components joined by "and" or "with". No brackets or commas.
 2. "foods": array of objects, one per food item. Each must have:
    - name: full food name as a local would say it
-   - qty: COUNT + SIZE + ITEM (e.g. "2 medium eggs", "1 large wrap of fufu", "1 heaped cup of rice"). No brackets, no metric units.
-   - protein: grams of protein — give the exact value you would provide if asked "how much protein is in [this food] [this portion]?" directly, as a nutrition database would
-   - carbs: grams of carbohydrates — same direct lookup approach
-   - fats: grams of fat — same direct lookup approach
-   - fiber: grams of fiber — same direct lookup approach
+   - qty: if the user mentioned a precise measurement (e.g. "200g", "150ml", "3oz", "0.5 lbs"), preserve it exactly and calculate nutrition for that exact amount. Otherwise use COUNT + SIZE + ITEM (e.g. "2 medium eggs", "1 large wrap of fufu", "1 heaped cup of rice"). No brackets; only include metric units if the user specified them.
+   - protein: grams of protein — if a precise weight/volume was given, calculate for that exact amount as a nutrition database would; otherwise give the value you would provide if asked "how much protein is in [this food] [this portion]?" directly
+   - carbs: grams of carbohydrates — same approach
+   - fats: grams of fat — same approach
+   - fiber: grams of fiber — same approach
    - cal: calculate this as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently
 
 Return ONLY raw JSON, no markdown, no explanation.`,
@@ -203,8 +203,9 @@ Old portion: "${oldQty}" → calories: ${currentNutrition?.cal ?? 0} kcal, prote
 New portion: "${newQty}"
 
 Rules:
-- If the new portion is the same unit but different quantity (e.g. "1 cup" → "2 cups"), scale the old nutrition proportionally.
-- If the measurement type changed (e.g. "1 cup" → "200g"), use your nutrition knowledge to calculate correct values for the new portion from scratch.
+- If the new portion is a precise weight or volume (e.g. "200g", "150ml", "3oz", "0.5 lbs", "100g"), this is an exact measurement — calculate nutrition for that precise amount directly from your nutrition knowledge, as a food scale reading. Do not scale proportionally from the old portion.
+- If the new portion is the same informal unit but different quantity (e.g. "1 cup" → "2 cups"), scale the old nutrition proportionally.
+- If the unit type changed without a precise weight (e.g. "1 cup" → "1 large bowl"), use your nutrition knowledge to calculate correct values for the new portion from scratch.
 - Always return realistic, non-zero values. A real food portion always has calories and macros.
 - For "name", if the user's new portion text contains a food name (e.g. "1.5 cups of beans"), use that food name. Otherwise keep the original name.
 - Set cal as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently.
