@@ -19,13 +19,13 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const QUESTIONS = [
   {
     id: 1,
-    text: 'What is your primary goal for fasting?',
+    text: 'What is your main reason for tracking calories?',
     multi: false,
     options: [
-      { label: 'Weight / fat loss' },
-      { label: 'Metabolic health (blood sugar, insulin)' },
-      { label: 'Longevity / cellular repair' },
-      { label: 'Simplify eating / reduce decisions' },
+      { label: 'Lose weight / reduce body fat' },
+      { label: 'Improve energy and metabolic health' },
+      { label: 'Build healthier eating habits' },
+      { label: 'Maintain my current weight' },
     ],
   },
   {
@@ -53,13 +53,13 @@ const QUESTIONS = [
   },
   {
     id: 4,
-    text: 'How do you feel about skipping breakfast?',
+    text: 'How would you describe your current eating pattern?',
     multi: false,
     options: [
-      { label: 'Fine \u2014 I rarely eat it anyway' },
-      { label: 'Hard \u2014 I get irritable or dizzy' },
-      { label: 'I eat it out of habit, not hunger' },
-      { label: 'I genuinely enjoy breakfast' },
+      { label: 'I eat 3 regular meals a day' },
+      { label: 'I graze and snack throughout the day' },
+      { label: 'I skip meals often and eat large ones' },
+      { label: 'Irregular \u2014 depends on the day' },
     ],
   },
   {
@@ -69,8 +69,8 @@ const QUESTIONS = [
     options: [
       { label: 'Healthy \u2014 eat when hungry, stop when full' },
       { label: 'Emotional eating tendencies' },
-      { label: 'I often restrict then binge' },
-      { label: 'I eat on autopilot / convenience' },
+      { label: 'I often restrict then overeat' },
+      { label: 'I eat on autopilot / out of convenience' },
     ],
   },
   {
@@ -86,13 +86,13 @@ const QUESTIONS = [
   },
   {
     id: 7,
-    text: 'Do you exercise, and when?',
+    text: 'How active are you on a typical day?',
     multi: false,
     options: [
-      { label: 'Morning, fasted' },
-      { label: 'Morning, fed' },
-      { label: 'Evening' },
-      { label: "I don't exercise regularly" },
+      { label: 'Very active \u2014 exercise 5+ days a week' },
+      { label: 'Moderately active \u2014 3-4 days a week' },
+      { label: 'Lightly active \u2014 1-2 days or just walking' },
+      { label: "Mostly sedentary \u2014 little to no exercise" },
     ],
   },
   {
@@ -119,13 +119,13 @@ const QUESTIONS = [
   },
   {
     id: 10,
-    text: 'Have you tried intermittent fasting before?',
+    text: 'Have you tracked calories before?',
     multi: false,
     options: [
       { label: 'Never tried it' },
       { label: "Tried briefly, didn't stick" },
       { label: 'Done it on and off for months' },
-      { label: 'Consistent practice for 6+ months' },
+      { label: 'I track consistently and know my numbers' },
     ],
   },
 ];
@@ -134,16 +134,14 @@ const QUESTIONS = [
 // Plan display names
 // ---------------------------------------------------------------------------
 const PLAN_NAMES = {
-  '10:14': 'The Gentle Start',
-  '14:10': 'The Easy Window',
-  '15:9': 'The Balanced Fast',
-  '16:8': 'The Classic Fast',
-  '17:7': 'The Autophagy Boost',
-  '18:6': 'The Lean Machine',
-  '19:5': 'The Deep Burn',
-  '21:3': 'The Warrior Fast',
-  '5:2': 'The Weekly Reset',
-  '4:3': 'The Accelerator',
+  '1800': 'The Gentle Start',
+  '1600': 'The Balanced Cut',
+  '1500': 'The Steady Burn',
+  '1400': 'The Active Deficit',
+  '1300': 'The Focused Cut',
+  '1200': 'The Accelerator',
+  '2000': 'The Maintenance Mode',
+  '2200': 'The Active Fueller',
 };
 
 // ---------------------------------------------------------------------------
@@ -153,253 +151,187 @@ function calculateResult(answers) {
   const scores = { Beginner: 0, Regular: 0, Expert: 0, Weekly: 0 };
   const hardFlags = [];
   const softFlags = [];
-  let suggestEarlyWindow = false;
   let softNudgeExercise = false;
   let neverTriedOverride = false;
   let experienceSixPlus = false;
-  let longevityGoal = false;
   let fatLossGoal = false;
-  let autophagyGoal = false;
   let habitEater = false;
-  let breakfastLover = false;
   let firstTimer = false;
 
-  // --- Q1 ---
+  // --- Q1: goal ---
   const q1 = answers[0];
   if (q1 === 0) { scores.Regular += 2; fatLossGoal = true; }
   if (q1 === 1) { scores.Regular += 2; }
-  if (q1 === 2) { scores.Expert += 1; scores.Weekly += 1; longevityGoal = true; autophagyGoal = true; }
-  if (q1 === 3) { scores.Beginner += 2; }
+  if (q1 === 2) { scores.Beginner += 2; }
+  if (q1 === 3) { scores.Weekly += 2; }
 
-  // --- Q2 (multi) ---
+  // --- Q2: conditions (multi) ---
   const q2 = answers[1] || [];
   if (q2.includes(0)) {
-    hardFlags.push('You indicated you have diabetes. Fasting can significantly affect blood sugar levels and may require medication adjustments.');
+    hardFlags.push('You indicated you have diabetes. Aggressive calorie restriction can affect blood sugar. Please consult your doctor before setting a very low calorie target.');
   }
   if (q2.includes(1)) {
-    hardFlags.push('You indicated a history of eating disorders. Restrictive eating patterns may not be appropriate without professional guidance.');
+    hardFlags.push('You indicated a history of eating disorders. Very low calorie targets may not be appropriate — consider working with a professional.');
   }
   if (q2.includes(2)) {
-    softFlags.push('Thyroid conditions can be affected by prolonged fasting. A moderate approach is recommended.');
+    softFlags.push('Thyroid conditions can affect metabolism. A moderate calorie target with regular medical check-ins is recommended.');
   }
   if (q2.includes(3)) {
-    hardFlags.push('Chronic kidney disease requires careful dietary management. Extended fasting may not be safe without medical supervision.');
+    hardFlags.push('Chronic kidney disease requires careful dietary management. Consult your doctor before setting a calorie goal.');
   }
 
-  // --- Q3 ---
+  // --- Q3: lifestyle ---
   const q3 = answers[2];
   if (q3 === 1) { scores.Weekly += 2; }
-  if (q3 === 2) { scores.Beginner += 2; }
+  if (q3 === 2) { scores.Expert += 2; }
 
-  // --- Q4 ---
+  // --- Q4: eating pattern ---
   const q4 = answers[3];
-  if (q4 === 0) { scores.Regular += 2; scores.Expert += 2; }
-  if (q4 === 1) { scores.Beginner += 3; firstTimer = true; }
-  if (q4 === 2) { scores.Beginner += 1; scores.Regular += 1; habitEater = true; }
-  if (q4 === 3) { scores.Beginner += 2; suggestEarlyWindow = true; breakfastLover = true; }
+  if (q4 === 0) { scores.Regular += 2; }
+  if (q4 === 1) { scores.Beginner += 2; habitEater = true; }
+  if (q4 === 2) { scores.Beginner += 1; scores.Regular += 1; }
+  if (q4 === 3) { scores.Beginner += 2; firstTimer = true; }
 
-  // --- Q5 ---
+  // --- Q5: food relationship ---
   const q5 = answers[4];
   if (q5 === 1) {
     scores.Beginner += 1;
-    softFlags.push('Emotional eating tendencies noted. Mindful fasting with flexible windows may work best for you.');
+    softFlags.push('Emotional eating tendencies noted. A gentle, flexible calorie goal will serve you better than a very strict one.');
   }
   if (q5 === 2) {
-    hardFlags.push('Restrict-binge patterns can be worsened by fasting. We strongly recommend working with a mental health professional.');
+    hardFlags.push('Restrict-then-overeat patterns can be worsened by very low targets. We strongly recommend working with a professional.');
   }
   if (q5 === 3) { scores.Regular += 1; }
 
-  // --- Q6 ---
+  // --- Q6: sleep ---
   const q6 = answers[5];
   if (q6 === 0) {
     scores.Beginner += 2;
-    softFlags.push('Low sleep can impair metabolism and hunger hormones. Prioritising sleep will amplify your fasting results.');
+    softFlags.push('Low sleep can impair metabolism and increase hunger hormones. Prioritising sleep will amplify your results.');
   }
   if (q6 === 1) { scores.Beginner += 1; scores.Regular += 1; }
   if (q6 === 3) { scores.Weekly += 2; }
 
-  // --- Q7 ---
+  // --- Q7: activity ---
   const q7 = answers[6];
-  if (q7 === 1) { scores.Beginner += 1; scores.Regular += 1; suggestEarlyWindow = true; }
-  if (q7 === 3) { softNudgeExercise = true; }
+  if (q7 === 0) { scores.Expert += 2; experienceSixPlus = true; }
+  if (q7 === 1) { scores.Regular += 2; }
+  if (q7 === 2) { scores.Regular += 1; }
+  if (q7 === 3) { softNudgeExercise = true; scores.Beginner += 1; }
 
-  // --- Q8 (multi) ---
+  // --- Q8: medications (multi) ---
   const q8 = answers[7] || [];
   if (q8.includes(0)) {
-    hardFlags.push('Blood sugar / insulin medication can cause dangerous lows during fasting. Doctor consultation is essential before starting.');
+    hardFlags.push('Blood sugar / insulin medication requires careful management with calorie changes. Doctor consultation is essential.');
   }
   if (q8.includes(1)) {
     scores.Beginner += 1;
-    softFlags.push('Blood pressure medication may need adjustment with fasting. Monitor closely and consult your doctor.');
+    softFlags.push('Blood pressure medication may be affected by significant dietary changes. Monitor closely and consult your doctor.');
   }
   if (q8.includes(2)) {
-    softFlags.push('Some psychiatric medications require food for absorption. Check with your prescriber before fasting.');
+    softFlags.push('Some psychiatric medications require consistent food intake. Check with your prescriber before making big changes.');
   }
 
-  // --- Q9 ---
+  // --- Q9: stress ---
   const q9 = answers[8];
   if (q9 === 2) {
     scores.Beginner += 1;
-    softFlags.push('High stress raises cortisol, which can counteract fasting benefits. Consider a gentle approach.');
+    softFlags.push('High stress raises cortisol and can trigger cravings. A gentle calorie target with flexibility will be more sustainable.');
   }
   if (q9 === 3) {
     scores.Beginner += 2;
-    softFlags.push('Very high stress levels noted. A gentle fasting window with adequate nutrition is important.');
+    softFlags.push('Very high stress noted. Prioritise adequate nutrition — too low a target can worsen stress response.');
   }
 
-  // --- Q10 ---
+  // --- Q10: tracking experience ---
   const q10 = answers[9];
   if (q10 === 0) { neverTriedOverride = true; firstTimer = true; scores.Beginner += 3; }
   if (q10 === 1) { scores.Beginner += 1; }
   if (q10 === 2) { scores.Regular += 2; }
   if (q10 === 3) { scores.Expert += 2; experienceSixPlus = true; }
 
-  // --- Apply caps from flags ---
+  // --- Apply caps ---
   const hasHardFlagDiabetes = (answers[1] || []).includes(0);
   const hasHardFlagEatingDisorder = (answers[1] || []).includes(1);
-  const hasHardFlagKidney = (answers[1] || []).includes(3);
   const hasHardFlagRestrictBinge = answers[4] === 2;
-  const hasHardFlagInsulinMed = (answers[7] || []).includes(0);
 
-  // Diabetes: cap Beginner only
-  if (hasHardFlagDiabetes) {
-    scores.Regular = 0; scores.Expert = 0; scores.Weekly = 0;
-  }
-  // Eating disorder / restrict-binge: no Expert, no Long, no OMAD
-  if (hasHardFlagEatingDisorder || hasHardFlagRestrictBinge) {
-    scores.Expert = 0;
-  }
-  // Kidney: no Long
-  // Physical labour: cap Regular
-  if (answers[2] === 2) {
-    scores.Expert = 0;
-  }
-  // Emotional eating: cap Regular
-  if (answers[4] === 1) {
-    scores.Expert = 0;
-  }
-  // Sleep < 6: cap Regular
-  if (answers[5] === 0) {
-    scores.Expert = 0;
-  }
-  // Psychiatric meds: cap Regular
-  if ((answers[7] || []).includes(2)) {
-    scores.Expert = 0;
-  }
-  // High/very high stress: cap Regular
-  if (answers[8] === 2 || answers[8] === 3) {
-    scores.Expert = 0;
-  }
-  // Thyroid: cap Regular
-  if ((answers[1] || []).includes(2)) {
-    scores.Expert = 0;
-  }
+  if (hasHardFlagDiabetes) { scores.Expert = 0; scores.Weekly = 0; }
+  if (hasHardFlagEatingDisorder || hasHardFlagRestrictBinge) { scores.Expert = 0; }
+  if (answers[4] === 1) { scores.Expert = 0; }
+  if (answers[5] === 0) { scores.Expert = 0; }
+  if ((answers[7] || []).includes(2)) { scores.Expert = 0; }
+  if (answers[8] === 2 || answers[8] === 3) { scores.Expert = 0; }
+  if ((answers[1] || []).includes(2)) { scores.Expert = 0; }
 
-  // --- Q10 never tried ALWAYS overrides to Beginner ---
   let winningTier;
   if (neverTriedOverride) {
     winningTier = 'Beginner';
   } else {
-    // Find highest tier
     const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-    if (sorted[0][1] === sorted[1][1] && sorted[0][1] > 0) {
-      // Tie → suggest Custom
-      winningTier = 'Custom';
-    } else {
-      winningTier = sorted[0][1] > 0 ? sorted[0][0] : 'Beginner';
-    }
+    winningTier = (sorted[0][1] === sorted[1][1] && sorted[0][1] > 0) ? 'Custom' : (sorted[0][1] > 0 ? sorted[0][0] : 'Beginner');
   }
 
-  // --- Determine specific plan within tier ---
-  let plan = { id: '16:8', fastHours: 16 };
+  let plan = { id: '1600', cal: 1600 };
   let upgradePath = '';
   let reasoning = '';
 
   switch (winningTier) {
     case 'Beginner': {
       if (firstTimer || neverTriedOverride) {
-        plan = { id: '10:14', fastHours: 10 };
-        reasoning = 'Since you\'re new to fasting, we\'re starting you with a gentle 10:14 window. This means 10 hours of fasting and 14 hours to eat \u2014 an easy transition.';
-        upgradePath = 'After 2-3 weeks of consistency, try upgrading to 14:10.';
-      } else if (habitEater || breakfastLover) {
-        plan = { id: '14:10', fastHours: 14 };
-        reasoning = 'A 14:10 plan gives you a comfortable eating window while introducing the benefits of fasting. Perfect for easing in.';
-        upgradePath = 'After 4 weeks, consider moving to 15:9 for more benefits.';
+        plan = { id: '1800', cal: 1800 };
+        reasoning = "Since you're new to calorie tracking, we're starting you with a gentle 1,800 cal/day target. It creates a moderate deficit without feeling restrictive.";
+        upgradePath = 'After 3-4 weeks of consistency, you can tighten to 1,600 if you want faster results.';
+      } else if (habitEater) {
+        plan = { id: '1600', cal: 1600 };
+        reasoning = "A 1,600 cal/day target works well for your eating pattern — enough structure to create change without feeling deprived.";
+        upgradePath = 'After 4 weeks, consider dropping to 1,500 for a stronger deficit.';
       } else {
-        plan = { id: '14:10', fastHours: 14 };
-        reasoning = 'Based on your profile, a moderate 14:10 fasting window is the best place to start. It\'s manageable and effective.';
-        upgradePath = 'After 4 weeks of consistency, upgrade to 15:9.';
+        plan = { id: '1600', cal: 1600 };
+        reasoning = 'Based on your profile, 1,600 cal/day is a solid starting point — meaningful progress without overwhelming change.';
+        upgradePath = 'After 4 weeks of consistency, try 1,500 for more impact.';
       }
       if (hasHardFlagDiabetes) {
-        plan = { id: '10:14', fastHours: 10 };
-        reasoning = 'Given your diabetes, we recommend the gentlest fasting window \u2014 10:14. This minimises blood sugar risk while still offering benefits.';
-        upgradePath = 'Only increase fasting hours with your doctor\'s approval.';
+        plan = { id: '1800', cal: 1800 };
+        reasoning = 'Given your condition, we recommend a conservative 1,800 cal/day target and suggest working with your healthcare provider.';
+        upgradePath = "Only reduce further with your doctor's guidance.";
       }
       break;
     }
     case 'Regular': {
-      if (autophagyGoal) {
-        plan = { id: '17:7', fastHours: 17 };
-        reasoning = 'Your interest in cellular repair pairs well with a 17:7 window. The extended fast promotes autophagy more effectively.';
-        upgradePath = 'After 4 weeks, try 18:6 for deeper autophagy benefits.';
-      } else if (fatLossGoal && experienceSixPlus) {
-        plan = { id: '18:6', fastHours: 18 };
-        reasoning = 'With your experience and fat loss goals, 18:6 hits the sweet spot \u2014 long enough for significant metabolic benefits.';
-        upgradePath = 'After 4 weeks, you could try 19:5 if comfortable.';
+      if (fatLossGoal && experienceSixPlus) {
+        plan = { id: '1400', cal: 1400 };
+        reasoning = 'With your tracking experience and fat loss goals, 1,400 cal/day hits the sweet spot — meaningful deficit with room for nutritious African meals.';
+        upgradePath = 'After 4 weeks, assess your progress and adjust if needed.';
       } else {
-        plan = { id: '16:8', fastHours: 16 };
-        reasoning = 'The classic 16:8 is the gold standard of intermittent fasting. It\'s flexible, well-researched, and effective for your goals.';
-        upgradePath = 'After 4 weeks, consider moving to 18:6 for enhanced results.';
+        plan = { id: '1500', cal: 1500 };
+        reasoning = 'A 1,500 cal/day target is well-researched and effective for consistent weight loss. It works well with your lifestyle.';
+        upgradePath = 'After 4 weeks, consider 1,400 if you want to accelerate results.';
       }
       break;
     }
     case 'Expert': {
-      if (longevityGoal) {
-        plan = { id: '21:3', fastHours: 21 };
-        reasoning = 'Your longevity focus and experience make 21:3 a powerful choice. Deep fasting promotes maximum cellular repair.';
-        upgradePath = 'After 4 weeks, you could explore 22:2 or alternate-day protocols.';
-      } else {
-        plan = { id: '21:3', fastHours: 21 };
-        reasoning = 'Your fasting experience qualifies you for an advanced 21:3 window. This maximises fat-burning and autophagy.';
-        upgradePath = 'After 4 weeks, consider 22:2 or cycling with 23:1 days.';
-      }
+      plan = { id: '1300', cal: 1300 };
+      reasoning = 'Your activity level and tracking experience make a 1,300 cal/day target achievable. This creates a strong deficit while fuelling your active lifestyle.';
+      upgradePath = 'Monitor energy levels closely — increase to 1,400 on high-activity days if needed.';
       break;
     }
     case 'Weekly': {
-      if (fatLossGoal) {
-        plan = { id: '4:3', fastHours: 24 };
-        reasoning = 'A 4:3 weekly schedule (eating normally 4 days, reduced calories 3 days) is aggressive but effective for fat loss with irregular schedules.';
-        upgradePath = 'After 4 weeks, consider cycling with 6:1 for maintenance.';
-      } else {
-        plan = { id: '5:2', fastHours: 24 };
-        reasoning = 'The 5:2 plan (eat normally 5 days, reduced calories 2 days) works great with your schedule. It offers flexibility without daily fasting.';
-        upgradePath = 'After 4 weeks, you can try 4:3 for accelerated results.';
-      }
+      plan = { id: '1600', cal: 1600 };
+      reasoning = 'Given your irregular schedule, a flexible 1,600 cal/day target gives you breathing room to adjust day by day without feeling locked in.';
+      upgradePath = 'After 4 weeks, tighten to 1,500 once the habit feels natural.';
       break;
     }
     case 'Custom':
     default: {
-      plan = { id: '16:8', fastHours: 16 };
-      reasoning = 'Your answers suggest you could benefit from a customised plan. We recommend starting with 16:8 and adjusting based on how you feel.';
-      upgradePath = 'Explore our PLUS plans for a fully tailored fasting schedule.';
+      plan = { id: '1600', cal: 1600 };
+      reasoning = "Your profile is well-balanced. We recommend starting at 1,600 cal/day and adjusting based on your weekly progress.";
+      upgradePath = 'Explore our PLUS plans to set a fully personalised calorie target.';
       break;
     }
   }
 
-  // Long fast eligibility
-  if (experienceSixPlus && hardFlags.length === 0 && longevityGoal && winningTier === 'Expert') {
-    // Eligible but we still recommend 21:3 as default; mention Long as option
-    upgradePath += ' You may also explore 24+ hour fasts under medical guidance.';
-  }
-
-  // Early window note
-  if (suggestEarlyWindow) {
-    reasoning += ' Consider an early eating window (e.g. 7am-3pm) so you can enjoy breakfast.';
-  }
-
-  // Exercise nudge
   if (softNudgeExercise) {
-    softFlags.push('Adding even light exercise (walking 20-30 min) can significantly boost your fasting results.');
+    softFlags.push('Adding even light exercise (walking 20-30 min daily) significantly boosts your calorie deficit without changing your food target.');
   }
 
   return {
@@ -582,12 +514,9 @@ const FastingQuizPage = ({ show, onClose, onSelectPlan }) => {
             contentContainerStyle={s.resultContent}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={s.resultSuper}>Your perfect plan</Text>
-            <Text style={s.resultPlanId}>{result.plan.id}</Text>
+            <Text style={s.resultSuper}>Your calorie goal</Text>
+            <Text style={s.resultPlanId}>{Number(result.plan.cal).toLocaleString()} cal/day</Text>
             <Text style={s.resultPlanName}>{planName}</Text>
-            <Text style={s.resultTierLabel}>
-              {result.tier === 'Custom' ? 'Custom Plan' : `${result.tier} Tier`}
-            </Text>
 
             <View style={s.resultReasonCard}>
               <Text style={s.resultReasonTitle}>Why this fits you</Text>
@@ -936,7 +865,7 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   resultPlanId: {
-    fontSize: 56,
+    fontSize: 40,
     fontWeight: '800',
     color: '#1F1F1F',
     marginBottom: 4,

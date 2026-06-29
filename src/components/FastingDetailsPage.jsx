@@ -11,51 +11,7 @@ const RANGE_DAYS = {
   'All time': null,
 };
 
-const HUNGER_LABELS = [
-  '😊 Not hungry',
-  '🤔 Slightly hungry',
-  '😋 Hungry',
-  '🥴 Very hungry',
-  '😫 Extreme hunger',
-];
-
-const formatHoursMinutes = (value) => {
-  if (!value || value <= 0) return '0h 0m';
-  const hours = Math.floor(value);
-  const minutes = Math.round((value - hours) * 60);
-  return `${hours}h ${minutes}m`;
-};
-
-const toDate = (value) => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
 const clampPct = (value) => Math.max(0, Math.min(100, value));
-
-const getTargetHours = (session) => parseInt((session.plan || '16:8').split(':')[0], 10) || 16;
-
-const getActualHours = (session) => (session.durationHours || 0) + ((session.durationMinutes || 0) / 60);
-
-const isCompletedSession = (session) => getActualHours(session) >= getTargetHours(session);
-
-const formatDetailDate = (value) => {
-  const date = toDate(value);
-  if (!date) return '--';
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-  });
-};
-
-const getRangeSessions = (sessions, range) => {
-  const days = RANGE_DAYS[range];
-  const now = Date.now();
-  const cutoff = days ? now - days * 24 * 60 * 60 * 1000 : null;
-
-  return (sessions || []).filter((session) => !cutoff || session.startTime >= cutoff);
-};
 
 const labelForScore = (value, positiveHigh = 'Great') => {
   if (value <= 0) return '--';
@@ -64,75 +20,46 @@ const labelForScore = (value, positiveHigh = 'Great') => {
   return 'Needs support';
 };
 
-function FastTotalsPage({ show, onClose, fastingSessions = [], onDeleteFastSession }) {
+// Groups recentMeals by date string → { date: { cal, count, timestamp } }
+function buildMealsByDate(recentMeals, cutoff) {
+  const map = {};
+  (recentMeals || []).forEach((meal) => {
+    const d = new Date(meal.date);
+    if (Number.isNaN(d.getTime())) return;
+    if (cutoff && d.getTime() < cutoff) return;
+    const key = meal.date;
+    if (!map[key]) map[key] = { cal: 0, count: 0, timestamp: d.getTime() };
+    map[key].cal += meal.calories || 0;
+    map[key].count += 1;
+  });
+  return map;
+}
+
+// ─── Log History sub-page ────────────────────────────────────────────────────
+function LogHistoryPage({ show, onClose, recentMeals = [], dailyCalorieGoal = 2000 }) {
   const [range, setRange] = useState('30 days');
   const [searchQuery, setSearchQuery] = useState('');
 
   const data = useMemo(() => {
-    const sessions = getRangeSessions(fastingSessions, range);
+    const days = RANGE_DAYS[range];
+    const now = Date.now();
+    const cutoff = days ? now - days * 24 * 60 * 60 * 1000 : null;
+    const mealsByDate = buildMealsByDate(recentMeals, cutoff);
+
+    const allDays = Object.entries(mealsByDate).map(([date, info]) => ({ date, ...info }));
+
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    const filteredSessions = normalizedQuery
-      ? sessions.filter((session) => {
-          const date = toDate(session.startTime);
-          if (!date) return false;
+    const filtered = normalizedQuery
+      ? allDays.filter(({ date }) => date.toLowerCase().includes(normalizedQuery))
+      : allDays;
 
-          const searchParts = [
-            date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }),
-            date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-            date.toLocaleDateString('en-CA'),
-            session.date || '',
-          ].join(' ').toLowerCase();
+    const onGoal = filtered.filter((d) => d.cal <= dailyCalorieGoal).length;
+    const overGoal = filtered.filter((d) => d.cal > dailyCalorieGoal).length;
 
-          return searchParts.includes(normalizedQuery);
-        })
-      : sessions;
-    const completed = filteredSessions.filter(isCompletedSession);
-    const started = filteredSessions.filter((session) => !isCompletedSession(session));
+    const sorted = filtered.sort((a, b) => b.timestamp - a.timestamp);
 
-    const grouped = filteredSessions.reduce((acc, session) => {
-      const date = toDate(session.startTime);
-      if (!date) return acc;
-
-      const key = date.toDateString();
-      if (!acc[key]) {
-        acc[key] = {
-          key,
-          timestamp: date.getTime(),
-          label: formatDetailDate(session.startTime),
-          completed: 0,
-          started: 0,
-          sessions: [],
-        };
-      }
-
-      if (isCompletedSession(session)) acc[key].completed += 1;
-      else acc[key].started += 1;
-
-      acc[key].sessions.push({
-        ...session,
-        actualHours: getActualHours(session),
-        completed: isCompletedSession(session),
-      });
-
-      return acc;
-    }, {});
-
-    return {
-      hasSessions: filteredSessions.length > 0,
-      completedCount: completed.length,
-      startedCount: started.length,
-      startedAvgLength: started.length
-        ? formatHoursMinutes(started.reduce((sum, session) => sum + getActualHours(session), 0) / started.length)
-        : '--',
-      totalMatches: filteredSessions.length,
-      dayBreakdown: Object.values(grouped)
-        .map((day) => ({
-          ...day,
-          sessions: day.sessions.sort((a, b) => (b.startTime || 0) - (a.startTime || 0)),
-        }))
-        .sort((a, b) => b.timestamp - a.timestamp),
-    };
-  }, [fastingSessions, range, searchQuery]);
+    return { hasDays: filtered.length > 0, onGoal, overGoal, totalMatches: filtered.length, days: sorted };
+  }, [recentMeals, range, searchQuery, dailyCalorieGoal]);
 
   if (!show) return null;
 
@@ -143,7 +70,7 @@ function FastTotalsPage({ show, onClose, fastingSessions = [], onDeleteFastSessi
           <TouchableOpacity style={styles.backBtn} onPress={onClose}>
             <Ionicons name="chevron-back" size={24} color="#059669" />
           </TouchableOpacity>
-          <Text style={styles.pageTitle}>Fast Totals</Text>
+          <Text style={styles.pageTitle}>Log History</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -164,7 +91,7 @@ function FastTotalsPage({ show, onClose, fastingSessions = [], onDeleteFastSessi
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search by date e.g. Apr 3"
+            placeholder="Search by date e.g. Mon Jun 30"
             placeholderTextColor="#9CA3AF"
             style={styles.searchInput}
           />
@@ -172,21 +99,20 @@ function FastTotalsPage({ show, onClose, fastingSessions = [], onDeleteFastSessi
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Fast Summary</Text>
+            <Text style={styles.sectionTitle}>Summary</Text>
             <Text style={styles.sectionHelperLeft}>
-              {searchQuery.trim() ? `${data.totalMatches} matching fast${data.totalMatches === 1 ? '' : 's'}` : 'Showing all fasts in this range'}
+              {searchQuery.trim() ? `${data.totalMatches} matching day${data.totalMatches === 1 ? '' : 's'}` : 'Showing all logged days in this range'}
             </Text>
             <View style={styles.grid}>
               <View style={[styles.card, styles.summaryCardGreen]}>
-                <Text style={styles.cardValue}>{data.hasSessions ? data.completedCount : '--'}</Text>
-                <Text style={styles.cardLabel}>Completed fasts</Text>
-                <Text style={styles.cardMeta}>Reached or beat your target</Text>
+                <Text style={styles.cardValue}>{data.hasDays ? data.onGoal : '--'}</Text>
+                <Text style={styles.cardLabel}>Days on goal</Text>
+                <Text style={styles.cardMeta}>At or under your calorie target</Text>
               </View>
               <View style={[styles.card, styles.summaryCardWarm, styles.gridLastItem]}>
-                <Text style={styles.cardValue}>{data.hasSessions ? data.startedCount : '--'}</Text>
-                <Text style={styles.cardLabel}>Started fasts</Text>
-                <Text style={styles.cardMeta}>Ended before your target</Text>
-                <Text style={styles.cardSubMeta}>Avg length: {data.hasSessions ? data.startedAvgLength : '--'}</Text>
+                <Text style={styles.cardValue}>{data.hasDays ? data.overGoal : '--'}</Text>
+                <Text style={styles.cardLabel}>Days over goal</Text>
+                <Text style={styles.cardMeta}>Exceeded your calorie target</Text>
               </View>
             </View>
           </View>
@@ -194,67 +120,31 @@ function FastTotalsPage({ show, onClose, fastingSessions = [], onDeleteFastSessi
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Day by Day</Text>
             <View style={styles.fullCard}>
-              {data.dayBreakdown.length === 0 ? (
-                <Text style={styles.emptyText}>Your fast activity for this range will appear here.</Text>
+              {data.days.length === 0 ? (
+                <Text style={styles.emptyText}>Your meal history for this range will appear here.</Text>
               ) : (
-                data.dayBreakdown.map((day, index) => (
-                  <View
-                    key={day.key}
-                    style={[styles.dayRow, index === data.dayBreakdown.length - 1 && styles.dayRowLast]}
-                  >
-                    <View style={styles.dayHeader}>
-                      <View style={styles.dayInfo}>
-                        <Text style={styles.dayTitle}>{day.label}</Text>
-                        <Text style={styles.daySubtext}>
-                          {day.completed + day.started} fast{day.completed + day.started === 1 ? '' : 's'} logged
-                        </Text>
-                      </View>
-
-                      <View style={styles.dayCounts}>
-                        <View style={[styles.dayCountChip, styles.dayCountChipGreen]}>
-                          <Text style={styles.dayCountValue}>{day.completed}</Text>
-                          <Text style={styles.dayCountLabel}>Completed</Text>
+                data.days.map((day, index) => {
+                  const onGoal = day.cal <= dailyCalorieGoal;
+                  return (
+                    <View
+                      key={day.date}
+                      style={[styles.dayRow, index === data.days.length - 1 && styles.dayRowLast]}
+                    >
+                      <View style={styles.dayHeader}>
+                        <View style={styles.dayInfo}>
+                          <Text style={styles.dayTitle}>{day.date}</Text>
+                          <Text style={styles.daySubtext}>{day.count} meal{day.count === 1 ? '' : 's'} logged</Text>
                         </View>
-                        <View style={[styles.dayCountChip, styles.dayCountChipWarm]}>
-                          <Text style={styles.dayCountValue}>{day.started}</Text>
-                          <Text style={styles.dayCountLabel}>Started</Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    <View style={styles.sessionList}>
-                      {day.sessions.map((session) => (
-                        <View key={session.id} style={styles.sessionRow}>
-                          <View style={styles.sessionInfo}>
-                            <View style={styles.sessionTopLine}>
-                              <Text style={styles.sessionTime}>
-                                {toDate(session.startTime)?.toLocaleTimeString('en-US', {
-                                  hour: 'numeric',
-                                  minute: '2-digit',
-                                }) || '--'}
-                              </Text>
-                              <View style={styles.sessionActions}>
-                                <View style={[styles.sessionStatusChip, session.completed ? styles.sessionStatusChipGreen : styles.sessionStatusChipWarm]}>
-                                  <Text style={styles.sessionStatusText}>{session.completed ? 'Completed' : 'Started'}</Text>
-                                </View>
-                                <TouchableOpacity
-                                  style={styles.deleteBtn}
-                                  onPress={() => onDeleteFastSession?.(session)}
-                                >
-                                  <Ionicons name="trash-outline" size={16} color="#DC2626" />
-                                  <Text style={styles.deleteBtnText}>Delete</Text>
-                                </TouchableOpacity>
-                              </View>
-                            </View>
-                            <Text style={styles.sessionMeta}>
-                              {formatHoursMinutes(session.actualHours)} • {session.plan || '16:8'} plan
-                            </Text>
+                        <View style={styles.dayCounts}>
+                          <View style={[styles.dayCountChip, onGoal ? styles.dayCountChipGreen : styles.dayCountChipWarm]}>
+                            <Text style={styles.dayCountValue}>{day.cal.toLocaleString()}</Text>
+                            <Text style={styles.dayCountLabel}>{onGoal ? 'On goal ✓' : 'Over goal'}</Text>
                           </View>
                         </View>
-                      ))}
+                      </View>
                     </View>
-                  </View>
-                ))
+                  );
+                })
               )}
             </View>
           </View>
@@ -264,14 +154,13 @@ function FastTotalsPage({ show, onClose, fastingSessions = [], onDeleteFastSessi
   );
 }
 
-export default function FastingDetailsPage({ show, onClose, fastingSessions = [], checkInHistory = [], onDeleteFastSession }) {
+// ─── Main Progress Details page ───────────────────────────────────────────────
+export default function FastingDetailsPage({ show, onClose, recentMeals = [], checkInHistory = [], dailyCalorieGoal = 2000, onDeleteFastSession }) {
   const [progressRange, setProgressRange] = useState('7 days');
-  const [showFastTotalsPage, setShowFastTotalsPage] = useState(false);
+  const [showLogHistory, setShowLogHistory] = useState(false);
 
   useEffect(() => {
-    if (!show) {
-      setShowFastTotalsPage(false);
-    }
+    if (!show) setShowLogHistory(false);
   }, [show]);
 
   const progressData = useMemo(() => {
@@ -280,117 +169,123 @@ export default function FastingDetailsPage({ show, onClose, fastingSessions = []
     const cutoff = days ? now - days * 24 * 60 * 60 * 1000 : null;
     const previousCutoff = days ? cutoff - days * 24 * 60 * 60 * 1000 : null;
 
-    const sessions = (fastingSessions || []).filter((session) => !cutoff || session.startTime >= cutoff);
-    const previousSessions = (fastingSessions || []).filter((session) => previousCutoff && session.startTime >= previousCutoff && session.startTime < cutoff);
+    const mealsByDate = buildMealsByDate(recentMeals, cutoff);
+    const prevMealsByDate = {};
+    (recentMeals || []).forEach((meal) => {
+      const t = new Date(meal.date).getTime();
+      if (!previousCutoff || t < previousCutoff || (cutoff && t >= cutoff)) return;
+      if (!prevMealsByDate[meal.date]) prevMealsByDate[meal.date] = { cal: 0 };
+      prevMealsByDate[meal.date].cal += meal.calories || 0;
+    });
 
-    const sessionHours = sessions.map(getActualHours);
-    const totalHours = sessionHours.reduce((sum, value) => sum + value, 0);
-    const avgHours = sessions.length ? totalHours / sessions.length : 0;
-    const longestHours = sessionHours.length ? Math.max(...sessionHours) : 0;
-    const completionRate = sessions.length
-      ? sessions.reduce((sum, session) => {
-          const targetHours = getTargetHours(session);
-          const actualHours = getActualHours(session);
-          return sum + Math.min((actualHours / targetHours) * 100, 100);
-        }, 0) / sessions.length
-      : 0;
+    const dayArr = Object.values(mealsByDate);
+    const daysLogged = dayArr.length;
+    const totalCal = dayArr.reduce((s, d) => s + d.cal, 0);
+    const avgDailyCalories = daysLogged > 0 ? Math.round(totalCal / daysLogged) : 0;
+    const goalHitDays = dayArr.filter((d) => d.cal <= dailyCalorieGoal).length;
+    const goalHitRate = daysLogged > 0 ? `${Math.round((goalHitDays / daysLogged) * 100)}%` : '--';
 
-    const previousAvgHours = previousSessions.length
-      ? previousSessions.reduce((sum, session) => sum + getActualHours(session), 0) / previousSessions.length
-      : 0;
-    const trendDelta = previousAvgHours > 0 ? ((avgHours - previousAvgHours) / previousAvgHours) * 100 : 0;
-    const periodTrend = sessions.length === 0 ? 'Getting started' : trendDelta > 5 ? 'Improving' : trendDelta < -5 ? 'Needs attention' : 'Steady';
+    // Longest consecutive streak of days with meals logged
+    let longestStreak = 0;
+    let currentStreak = 0;
+    const today = new Date();
+    const totalDaysToCheck = days || 365;
+    for (let offset = 0; offset < totalDaysToCheck; offset++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - offset);
+      if (mealsByDate[d.toDateString()]) {
+        currentStreak++;
+        if (currentStreak > longestStreak) longestStreak = currentStreak;
+      } else {
+        currentStreak = 0;
+      }
+    }
 
+    // Trend vs previous period
+    const prevArr = Object.values(prevMealsByDate);
+    const prevAvgCal = prevArr.length > 0 ? prevArr.reduce((s, d) => s + d.cal, 0) / prevArr.length : 0;
+    const trendDelta = prevAvgCal > 0 ? ((avgDailyCalories - prevAvgCal) / prevAvgCal) * 100 : 0;
+    const periodTrend = daysLogged === 0 ? 'Getting started' : Math.abs(trendDelta) <= 5 ? 'Steady' : trendDelta < -5 ? 'Improving' : 'Needs attention';
+
+    // Best/worst day for tracking
     const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const weekdayStats = weekdayNames.map((weekday, index) => ({
+    const weekdayStats = weekdayNames.map((weekday, idx) => ({
       weekday,
-      count: sessions.filter((session) => new Date(session.startTime).getDay() === index).length,
+      count: dayArr.filter((d) => new Date(d.timestamp).getDay() === idx).length,
     }));
     const bestDay = weekdayStats.reduce((best, item) => (item.count > best.count ? item : best), { weekday: '--', count: 0 });
-    const skippedDay = weekdayStats.reduce((worst, item) => (item.count < worst.count ? item : worst), { weekday: '--', count: Number.POSITIVE_INFINITY });
+    const worstDay = weekdayStats.reduce((worst, item) => (item.count < worst.count ? item : worst), { weekday: '--', count: Infinity });
+
+    // Bar chart — calories per day/period
+    const maxCal = Math.max(dailyCalorieGoal * 1.5, ...dayArr.map((d) => d.cal), 1);
 
     const createBars = () => {
       if (progressRange === '7 days') {
         const values = [];
+        const colors = [];
         const labels = [];
-        for (let offset = days - 1; offset >= 0; offset -= 1) {
-          const date = new Date();
-          date.setDate(date.getDate() - offset);
-          const matching = sessions.filter((session) => new Date(session.startTime).toDateString() === date.toDateString());
-          const max = matching.reduce((best, session) => Math.max(best, getActualHours(session)), 0);
-          values.push(Math.round(max * 10) / 10);
-          labels.push(date.toLocaleDateString('en-US', { weekday: 'narrow' }));
+        for (let offset = 6; offset >= 0; offset--) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - offset);
+          const dayData = mealsByDate[d.toDateString()];
+          const cal = dayData ? dayData.cal : 0;
+          values.push(cal);
+          colors.push(cal === 0 ? '#E5E7EB' : cal <= dailyCalorieGoal ? '#10B981' : '#F59E0B');
+          labels.push(d.toLocaleDateString('en-US', { weekday: 'narrow' }));
         }
-        return { values, labels };
+        return { values, colors, labels };
       }
-
       const bucketCount = progressRange === '30 days' ? 5 : 6;
-      const empty = {
-        values: Array.from({ length: bucketCount }).map(() => 0),
-        labels: Array.from({ length: bucketCount }).map((_, index) => (progressRange === '30 days' ? `W${index + 1}` : `P${index + 1}`)),
-      };
-
-      if (!sessions.length) return empty;
-
-      const minTime = Math.min(...sessions.map((session) => session.startTime));
-      const maxTime = Math.max(...sessions.map((session) => session.startTime));
+      const emptyValues = Array.from({ length: bucketCount }, () => 0);
+      const emptyLabels = Array.from({ length: bucketCount }, (_, i) => progressRange === '30 days' ? `W${i + 1}` : `P${i + 1}`);
+      if (!dayArr.length) return { values: emptyValues, colors: emptyValues.map(() => '#E5E7EB'), labels: emptyLabels };
+      const minTime = Math.min(...dayArr.map((d) => d.timestamp));
+      const maxTime = Math.max(...dayArr.map((d) => d.timestamp));
       const span = Math.max(maxTime - minTime, 1);
-      const buckets = empty.values.map(() => []);
-
-      sessions.forEach((session) => {
-        const ratio = (session.startTime - minTime) / span;
-        const bucketIndex = Math.min(bucketCount - 1, Math.floor(ratio * bucketCount));
-        buckets[bucketIndex].push(getActualHours(session));
+      const buckets = emptyValues.map(() => []);
+      dayArr.forEach((d) => {
+        const ratio = (d.timestamp - minTime) / span;
+        const bi = Math.min(bucketCount - 1, Math.floor(ratio * bucketCount));
+        buckets[bi].push(d.cal);
       });
-
+      const values = buckets.map((b) => (b.length ? Math.round(b.reduce((s, v) => s + v, 0) / b.length) : 0));
       return {
-        values: buckets.map((bucket) => (bucket.length ? Math.round((bucket.reduce((sum, value) => sum + value, 0) / bucket.length) * 10) / 10 : 0)),
-        labels: empty.labels,
+        values,
+        colors: values.map((v) => v === 0 ? '#E5E7EB' : v <= dailyCalorieGoal ? '#10B981' : '#F59E0B'),
+        labels: emptyLabels,
       };
     };
 
     const bars = createBars();
 
+    // Wellness from check-ins
     const checkIns = (checkInHistory || []).filter((entry) => {
-      const date = toDate(entry.timestamp || entry.date);
-      return date && (!cutoff || date.getTime() >= cutoff);
+      const d = new Date(entry.timestamp || entry.date);
+      return !Number.isNaN(d.getTime()) && (!cutoff || d.getTime() >= cutoff);
     });
 
-    const symptomTallies = {
-      lowEnergy: 0,
-      brainFog: 0,
-      cravings: 0,
-      noSymptoms: 0,
-    };
-
-    const negativeMoodCount = checkIns.filter((entry) =>
-      (entry.moods || []).some((mood) =>
-        mood.includes('Irritable') || mood.includes('Anxious') || mood.includes('Low mood') || mood.includes('Stressed')
-      )
+    const symptomTallies = { lowEnergy: 0, brainFog: 0, cravings: 0, noSymptoms: 0 };
+    const negativeMoodCount = checkIns.filter((e) =>
+      (e.moods || []).some((m) => m.includes('Irritable') || m.includes('Anxious') || m.includes('Low mood') || m.includes('Stressed'))
     ).length;
 
     checkIns.forEach((entry) => {
-      const symptoms = entry.symptoms || [];
-      if (symptoms.some((symptom) => symptom.includes('Low energy'))) symptomTallies.lowEnergy += 1;
-      if (symptoms.some((symptom) => symptom.includes('Brain fog') || symptom.includes('Trouble concentrating'))) symptomTallies.brainFog += 1;
-      if (symptoms.some((symptom) => symptom.includes('Cravings'))) symptomTallies.cravings += 1;
-      if (symptoms.some((symptom) => symptom.includes('Everything feels fine'))) symptomTallies.noSymptoms += 1;
+      const s = entry.symptoms || [];
+      if (s.some((x) => x.includes('Low energy'))) symptomTallies.lowEnergy++;
+      if (s.some((x) => x.includes('Brain fog') || x.includes('Trouble concentrating'))) symptomTallies.brainFog++;
+      if (s.some((x) => x.includes('Cravings'))) symptomTallies.cravings++;
+      if (s.some((x) => x.includes('Everything feels fine'))) symptomTallies.noSymptoms++;
     });
 
-    const symptomTotal = Object.values(symptomTallies).reduce((sum, value) => sum + value, 0);
-    const lowEnergyPct = symptomTotal ? Math.round((symptomTallies.lowEnergy / symptomTotal) * 100) : 0;
-    const brainFogPct = symptomTotal ? Math.round((symptomTallies.brainFog / symptomTotal) * 100) : 0;
-    const cravingsPct = symptomTotal ? Math.round((symptomTallies.cravings / symptomTotal) * 100) : 0;
-    const noSymptomsPct = symptomTotal ? Math.round((symptomTallies.noSymptoms / symptomTotal) * 100) : 0;
-
+    const symptomTotal = Object.values(symptomTallies).reduce((s, v) => s + v, 0);
     const energyScore = checkIns.length ? clampPct(100 - Math.round((symptomTallies.lowEnergy / checkIns.length) * 100)) : 0;
     const focusScore = checkIns.length ? clampPct(100 - Math.round((symptomTallies.brainFog / checkIns.length) * 100)) : 0;
     const moodScore = checkIns.length ? clampPct(100 - Math.round((negativeMoodCount / checkIns.length) * 100)) : 0;
 
     const hungerCounts = {};
-    checkIns.forEach((entry) => {
-      if (!entry.hungerLevel) return;
-      hungerCounts[entry.hungerLevel] = (hungerCounts[entry.hungerLevel] || 0) + 1;
+    checkIns.forEach((e) => {
+      if (!e.hungerLevel) return;
+      hungerCounts[e.hungerLevel] = (hungerCounts[e.hungerLevel] || 0) + 1;
     });
     const avgHungerLevel = Object.keys(hungerCounts).length
       ? Object.entries(hungerCounts).sort((a, b) => b[1] - a[1])[0][0].replace(/^[^\s]+\s/, '')
@@ -405,23 +300,25 @@ export default function FastingDetailsPage({ show, onClose, fastingSessions = []
 
     const commonSymptom = topSymptom && topSymptom[1] > 0 ? topSymptom[0] : '--';
     const symptomInsight = checkIns.length === 0
-      ? 'Check-ins will unlock symptom patterns here.'
+      ? 'Check-ins will unlock wellbeing patterns here.'
       : commonSymptom === 'No symptoms'
-        ? 'Most of your check-ins report feeling fine during your fasts.'
+        ? 'Most of your check-ins report feeling good on your tracked days.'
         : `${commonSymptom} is the pattern showing up most often in your check-ins right now.`;
 
     return {
-      avgFastLength: formatHoursMinutes(avgHours),
-      completionRate: `${Math.round(completionRate)}%`,
-      longestFast: longestHours > 0 ? `${Math.floor(longestHours)}h` : '--',
-      totalFasts: sessions.length,
-      fastingBars: bars.values,
-      fastingAvg: Math.round(avgHours * 10) / 10,
+      avgDailyCalories: avgDailyCalories > 0 ? `${avgDailyCalories.toLocaleString()} cal` : '--',
+      goalHitRate,
+      longestStreak: longestStreak > 0 ? `${longestStreak}d` : '--',
+      daysLogged,
+      calorieBars: bars.values,
+      barColors: bars.colors,
+      calorieAvg: avgDailyCalories,
+      calorieMaxCal: maxCal,
       barLabels: bars.labels,
-      weekVsLastWeek: previousSessions.length ? `${trendDelta >= 0 ? '+' : ''}${Math.round(trendDelta)}%` : '--',
+      weekVsLastWeek: prevArr.length ? `${trendDelta >= 0 ? '+' : ''}${Math.round(trendDelta)}%` : '--',
       periodTrend,
-      bestDayForFasting: bestDay.count > 0 ? bestDay.weekday : '--',
-      mostSkippedDay: skippedDay.count !== Number.POSITIVE_INFINITY ? skippedDay.weekday : '--',
+      bestDayForTracking: bestDay.count > 0 ? bestDay.weekday : '--',
+      mostMissedDay: worstDay.count !== Infinity ? worstDay.weekday : '--',
       energyScore,
       focusScore,
       moodScore,
@@ -430,25 +327,25 @@ export default function FastingDetailsPage({ show, onClose, fastingSessions = []
       moodLabel: labelForScore(moodScore, 'Steady'),
       avgHungerLevel,
       commonSymptom,
-      lowEnergyPct,
-      brainFogPct,
-      cravingsPct,
-      noSymptomsPct,
+      lowEnergyPct: symptomTotal ? Math.round((symptomTallies.lowEnergy / symptomTotal) * 100) : 0,
+      brainFogPct: symptomTotal ? Math.round((symptomTallies.brainFog / symptomTotal) * 100) : 0,
+      cravingsPct: symptomTotal ? Math.round((symptomTallies.cravings / symptomTotal) * 100) : 0,
+      noSymptomsPct: symptomTotal ? Math.round((symptomTallies.noSymptoms / symptomTotal) * 100) : 0,
       symptomInsight,
-      hasSessions: sessions.length > 0,
+      hasDays: daysLogged > 0,
       hasCheckIns: checkIns.length > 0,
     };
-  }, [progressRange, fastingSessions, checkInHistory]);
+  }, [progressRange, recentMeals, dailyCalorieGoal, checkInHistory]);
 
   if (!show) return null;
 
-  if (showFastTotalsPage) {
+  if (showLogHistory) {
     return (
-      <FastTotalsPage
-        show={showFastTotalsPage}
-        onClose={() => setShowFastTotalsPage(false)}
-        fastingSessions={fastingSessions}
-        onDeleteFastSession={onDeleteFastSession}
+      <LogHistoryPage
+        show={showLogHistory}
+        onClose={() => setShowLogHistory(false)}
+        recentMeals={recentMeals}
+        dailyCalorieGoal={dailyCalorieGoal}
       />
     );
   }
@@ -460,7 +357,7 @@ export default function FastingDetailsPage({ show, onClose, fastingSessions = []
           <TouchableOpacity style={styles.backBtn} onPress={onClose}>
             <Ionicons name="chevron-back" size={24} color="#059669" />
           </TouchableOpacity>
-          <Text style={styles.pageTitle}>Fasting Details</Text>
+          <Text style={styles.pageTitle}>Progress Details</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -478,50 +375,50 @@ export default function FastingDetailsPage({ show, onClose, fastingSessions = []
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Fasting Overview</Text>
+            <Text style={styles.sectionTitle}>Calorie Overview</Text>
             <View style={styles.grid}>
               <View style={styles.card}>
-                <Text style={styles.cardValue}>{progressData.hasSessions ? progressData.avgFastLength : '--'}</Text>
-                <Text style={styles.cardLabel}>Avg fasting length</Text>
+                <Text style={styles.cardValue}>{progressData.hasDays ? progressData.avgDailyCalories : '--'}</Text>
+                <Text style={styles.cardLabel}>Avg daily calories</Text>
               </View>
               <View style={[styles.card, styles.gridLastItem]}>
-                <Text style={styles.cardValue}>{progressData.hasSessions ? progressData.completionRate : '--'}</Text>
-                <Text style={styles.cardLabel}>Avg fast completion</Text>
+                <Text style={styles.cardValue}>{progressData.hasDays ? progressData.goalHitRate : '--'}</Text>
+                <Text style={styles.cardLabel}>Days on goal</Text>
               </View>
             </View>
             <View style={styles.grid}>
               <View style={styles.card}>
-                <Text style={styles.cardValue}>{progressData.hasSessions ? progressData.longestFast : '--'}</Text>
-                <Text style={styles.cardLabel}>Longest fast</Text>
+                <Text style={styles.cardValue}>{progressData.hasDays ? progressData.longestStreak : '--'}</Text>
+                <Text style={styles.cardLabel}>Best streak</Text>
               </View>
               <TouchableOpacity
                 style={[styles.card, styles.pressableCard, styles.gridLastItem]}
-                onPress={() => setShowFastTotalsPage(true)}
+                onPress={() => setShowLogHistory(true)}
               >
                 <View style={styles.cardTopRow}>
-                  <Text style={styles.cardValue}>{progressData.hasSessions ? progressData.totalFasts : '--'}</Text>
+                  <Text style={styles.cardValue}>{progressData.hasDays ? progressData.daysLogged : '--'}</Text>
                   <Ionicons name="chevron-forward" size={18} color="#059669" />
                 </View>
-                <Text style={styles.cardLabel}>Total fasts</Text>
-                <Text style={styles.cardMeta}>See completed vs started</Text>
+                <Text style={styles.cardLabel}>Days logged</Text>
+                <Text style={styles.cardMeta}>See on goal vs over goal</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Fasting Consistency</Text>
+            <Text style={styles.sectionTitle}>Calorie Consistency</Text>
             <View style={styles.fullCard}>
               <View style={styles.chartWrap}>
                 <View style={styles.barChart}>
-                  {progressData.fastingBars.map((value, index) => (
+                  {progressData.calorieBars.map((value, index) => (
                     <View key={`${progressData.barLabels[index]}-${index}`} style={styles.barGroup}>
                       <View style={styles.barContainer}>
                         <View
                           style={[
                             styles.bar,
                             {
-                              height: `${(value / 24) * 100}%`,
-                              backgroundColor: value === 0 ? '#E5E7EB' : '#8B5CF6',
+                              height: `${progressData.calorieMaxCal > 0 ? (value / progressData.calorieMaxCal) * 100 : 0}%`,
+                              backgroundColor: progressData.barColors[index],
                             },
                           ]}
                         />
@@ -530,21 +427,21 @@ export default function FastingDetailsPage({ show, onClose, fastingSessions = []
                     </View>
                   ))}
                 </View>
-                <View style={[styles.avgLine, { bottom: `${(progressData.fastingAvg / 24) * 100}%` }]} />
+                <View style={[styles.avgLine, { bottom: `${progressData.calorieMaxCal > 0 ? (progressData.calorieAvg / progressData.calorieMaxCal) * 100 : 0}%` }]} />
               </View>
 
               <View style={styles.legendRow}>
                 <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#8B5CF6' }]} />
-                  <Text style={styles.legendText}>Completed</Text>
+                  <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+                  <Text style={styles.legendText}>On goal</Text>
                 </View>
                 <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#E5E7EB' }]} />
-                  <Text style={styles.legendText}>Missed</Text>
+                  <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
+                  <Text style={styles.legendText}>Over goal</Text>
                 </View>
                 <View style={styles.legendItem}>
                   <View style={styles.legendLine} />
-                  <Text style={styles.legendText}>Avg ({progressData.fastingAvg || 0}h)</Text>
+                  <Text style={styles.legendText}>Avg ({progressData.calorieAvg > 0 ? `${progressData.calorieAvg.toLocaleString()}` : '0'} cal)</Text>
                 </View>
               </View>
 
@@ -559,12 +456,12 @@ export default function FastingDetailsPage({ show, onClose, fastingSessions = []
                 <Text style={styles.metricValue}>{progressData.periodTrend}</Text>
               </View>
               <View style={styles.metricRow}>
-                <Text style={styles.metricLabel}>Best day for fasting</Text>
-                <Text style={styles.metricValue}>{progressData.bestDayForFasting}</Text>
+                <Text style={styles.metricLabel}>Best day for tracking</Text>
+                <Text style={styles.metricValue}>{progressData.bestDayForTracking}</Text>
               </View>
               <View style={[styles.metricRow, styles.metricRowLast]}>
-                <Text style={styles.metricLabel}>Most skipped day</Text>
-                <Text style={styles.metricValueMuted}>{progressData.mostSkippedDay}</Text>
+                <Text style={styles.metricLabel}>Most missed day</Text>
+                <Text style={styles.metricValueMuted}>{progressData.mostMissedDay}</Text>
               </View>
             </View>
           </View>
@@ -573,7 +470,7 @@ export default function FastingDetailsPage({ show, onClose, fastingSessions = []
             <Text style={styles.sectionTitle}>How Your Body Responds</Text>
             <View style={styles.fullCard}>
               <View style={styles.responseItem}>
-                <Text style={styles.responseLabel}>Energy during fasts</Text>
+                <Text style={styles.responseLabel}>Energy levels</Text>
                 <View style={styles.responseBar}>
                   <View style={[styles.responseFill, { width: `${progressData.energyScore}%`, backgroundColor: '#10B981' }]} />
                 </View>
@@ -625,26 +522,18 @@ export default function FastingDetailsPage({ show, onClose, fastingSessions = []
                   </View>
                 </View>
                 <View style={styles.donutLegend}>
-                  <View style={styles.donutLegendItem}>
-                    <View style={[styles.donutLegendDot, { backgroundColor: '#EF4444' }]} />
-                    <Text style={styles.donutLegendText}>Low energy</Text>
-                    <Text style={styles.donutLegendPct}>{progressData.hasCheckIns ? `${progressData.lowEnergyPct}%` : '--'}</Text>
-                  </View>
-                  <View style={styles.donutLegendItem}>
-                    <View style={[styles.donutLegendDot, { backgroundColor: '#F59E0B' }]} />
-                    <Text style={styles.donutLegendText}>Brain fog</Text>
-                    <Text style={styles.donutLegendPct}>{progressData.hasCheckIns ? `${progressData.brainFogPct}%` : '--'}</Text>
-                  </View>
-                  <View style={styles.donutLegendItem}>
-                    <View style={[styles.donutLegendDot, { backgroundColor: '#8B5CF6' }]} />
-                    <Text style={styles.donutLegendText}>Cravings</Text>
-                    <Text style={styles.donutLegendPct}>{progressData.hasCheckIns ? `${progressData.cravingsPct}%` : '--'}</Text>
-                  </View>
-                  <View style={styles.donutLegendItem}>
-                    <View style={[styles.donutLegendDot, { backgroundColor: '#10B981' }]} />
-                    <Text style={styles.donutLegendText}>No symptoms</Text>
-                    <Text style={styles.donutLegendPct}>{progressData.hasCheckIns ? `${progressData.noSymptomsPct}%` : '--'}</Text>
-                  </View>
+                  {[
+                    { label: 'Low energy', pct: progressData.lowEnergyPct, color: '#EF4444' },
+                    { label: 'Brain fog',  pct: progressData.brainFogPct,  color: '#F59E0B' },
+                    { label: 'Cravings',   pct: progressData.cravingsPct,  color: '#8B5CF6' },
+                    { label: 'No symptoms',pct: progressData.noSymptomsPct,color: '#10B981' },
+                  ].map(({ label, pct, color }) => (
+                    <View key={label} style={styles.donutLegendItem}>
+                      <View style={[styles.donutLegendDot, { backgroundColor: color }]} />
+                      <Text style={styles.donutLegendText}>{label}</Text>
+                      <Text style={styles.donutLegendPct}>{progressData.hasCheckIns ? `${pct}%` : '--'}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
               <View style={styles.insightBox}>
@@ -662,538 +551,98 @@ export default function FastingDetailsPage({ show, onClose, fastingSessions = []
 const styles = StyleSheet.create({
   pageOverlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#F8FAFC',
     zIndex: 10000,
   },
-  page: {
-    width: '100%',
-    maxWidth: 430,
-    alignSelf: 'center',
-    height: SCREEN_HEIGHT,
-    flex: 1,
-  },
+  page: { width: '100%', maxWidth: 430, alignSelf: 'center', height: SCREEN_HEIGHT, flex: 1 },
   pageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 16, paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)',
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(5,150,105,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pageTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F1F1F',
-  },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(5,150,105,0.08)', alignItems: 'center', justifyContent: 'center' },
+  pageTitle: { fontSize: 18, fontWeight: '700', color: '#1F1F1F' },
   rangeRow: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
+    flexDirection: 'row', paddingVertical: 12, paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)',
   },
-  rangeBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.04)',
-    alignItems: 'center',
-    marginHorizontal: 3,
-  },
-  rangeBtnActive: {
-    backgroundColor: '#059669',
-  },
-  rangeBtnText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#666666',
-  },
-  rangeBtnTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
+  rangeBtn: { flex: 1, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.04)', alignItems: 'center', marginHorizontal: 3 },
+  rangeBtnActive: { backgroundColor: '#059669' },
+  rangeBtnText: { fontSize: 12, fontWeight: '500', color: '#666666' },
+  rangeBtnTextActive: { color: '#FFFFFF', fontWeight: '600' },
   searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(5,150,105,0.08)',
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1F1F1F',
-    paddingVertical: 0,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  section: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F1F1F',
-    marginBottom: 10,
-  },
-  sectionHelperLeft: {
-    marginTop: -2,
-    marginBottom: 10,
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#6B7280',
-  },
-  grid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  gridLastItem: {
-    marginRight: 0,
-  },
-  card: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(5,150,105,0.08)',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  pressableCard: {
-    alignItems: 'stretch',
-  },
-  summaryCardGreen: {
-    backgroundColor: '#F0FDF4',
-    borderColor: 'rgba(5,150,105,0.16)',
-  },
-  summaryCardWarm: {
-    backgroundColor: '#FFF7ED',
-    borderColor: 'rgba(245,158,11,0.18)',
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  cardValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F1F1F',
-  },
-  cardValueSmall: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F1F1F',
-    textAlign: 'center',
-  },
-  cardLabel: {
-    fontSize: 11,
-    color: '#666666',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  cardMeta: {
-    marginTop: 6,
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  cardEmoji: {
-    fontSize: 24,
-    marginBottom: 6,
-  },
-  fullCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(5,150,105,0.08)',
-  },
-  chartWrap: {
-    position: 'relative',
-  },
-  barChart: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    height: 140,
-    paddingHorizontal: 4,
-  },
-  barGroup: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  barContainer: {
-    width: '100%',
-    height: 120,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  bar: {
-    width: '70%',
-    maxWidth: 30,
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6,
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
-  },
-  barLabel: {
-    fontSize: 9,
-    color: '#999999',
-    marginTop: 8,
-  },
-  avgLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 2,
-    borderTopWidth: 2,
-    borderTopColor: '#F59E0B',
-    borderStyle: 'dashed',
-  },
-  legendRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 12,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  legendLine: {
-    width: 12,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: '#F59E0B',
-  },
-  legendText: {
-    fontSize: 11,
-    color: '#666666',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    marginVertical: 14,
-  },
-  metricRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 12,
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-  },
-  metricRowLast: {
-    borderBottomWidth: 0,
-    marginBottom: 0,
-    paddingBottom: 0,
-  },
-  metricLabel: {
-    fontSize: 13,
-    color: '#4B5563',
-  },
-  metricValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1F1F1F',
-  },
-  metricValuePositive: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  metricValueMuted: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#9CA3AF',
-  },
-  responseItem: {
-    marginBottom: 16,
-  },
-  responseLabel: {
-    fontSize: 13,
-    color: '#374151',
-    marginBottom: 6,
-  },
-  responseBar: {
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: '#E5E7EB',
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  responseFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  responseValue: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1F1F1F',
-  },
-  donutWrap: {
-    flexDirection: 'row',
-    gap: 20,
-  },
-  donut: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  donutInner: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  donutValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F1F1F',
-  },
-  donutLabel: {
-    fontSize: 10,
-    color: '#6B7280',
-  },
-  donutLegend: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: 10,
-  },
-  donutLegendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  donutLegendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  donutLegendText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#4B5563',
-  },
-  donutLegendPct: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1F1F1F',
-  },
-  insightBox: {
-    marginTop: 16,
-    borderRadius: 12,
-    backgroundColor: 'rgba(5,150,105,0.06)',
-    padding: 12,
-  },
-  insightText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#065F46',
-  },
-  insightNote: {
-    marginTop: 12,
-    fontSize: 11,
-    lineHeight: 17,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  sectionHelper: {
-    marginTop: 8,
-    fontSize: 11,
-    lineHeight: 17,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  emptyText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  dayHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  dayRow: {
-    flexDirection: 'column',
-    paddingBottom: 14,
-    marginBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
-  },
-  dayRowLast: {
-    paddingBottom: 0,
-    marginBottom: 0,
-    borderBottomWidth: 0,
-  },
-  dayInfo: {
-    flex: 1,
-    minWidth: 0,
-    paddingRight: 10,
-  },
-  dayTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F1F1F',
-  },
-  daySubtext: {
-    marginTop: 4,
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  dayCounts: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 0,
-    marginTop: 0,
-  },
-  dayCountChip: {
-    minWidth: 72,
-    borderRadius: 14,
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    marginLeft: 6,
-  },
-  dayCountChipGreen: {
-    backgroundColor: '#ECFDF5',
-  },
-  dayCountChipWarm: {
-    backgroundColor: '#FFF7ED',
-  },
-  dayCountValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1F1F1F',
-  },
-  dayCountLabel: {
-    marginTop: 2,
-    fontSize: 11,
-    color: '#6B7280',
-  },
-  sessionList: {
-    marginTop: 16,
-    gap: 10,
-  },
-  sessionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 16,
-    backgroundColor: '#F9FAFB',
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(5,150,105,0.06)',
-  },
-  sessionInfo: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  sessionTopLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  sessionActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexShrink: 0,
-  },
-  sessionTime: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1F1F1F',
-  },
-  sessionMeta: {
-    marginTop: 2,
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  sessionStatusChip: {
-    borderRadius: 999,
-    paddingVertical: 5,
-    paddingHorizontal: 9,
-  },
-  sessionStatusChipGreen: {
-    backgroundColor: '#DCFCE7',
-  },
-  sessionStatusChipWarm: {
-    backgroundColor: '#FFEDD5',
-  },
-  sessionStatusText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  deleteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 9,
-    paddingHorizontal: 11,
-    borderRadius: 12,
-    backgroundColor: '#FFF5F5',
-    borderWidth: 1,
-    borderColor: 'rgba(220,38,38,0.10)',
-  },
-  deleteBtnText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#DC2626',
-  },
-  cardSubMeta: {
-    marginTop: 10,
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#7C2D12',
-    textAlign: 'center',
-  },
+    flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 12, marginBottom: 4,
+    paddingHorizontal: 14, paddingVertical: 12, borderRadius: 14,
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(5,150,105,0.08)', gap: 8,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: '#1F1F1F', paddingVertical: 0 },
+  content: { flex: 1, padding: 20 },
+  section: { marginBottom: 16 },
+  sectionTitle: { fontSize: 14, fontWeight: '600', color: '#1F1F1F', marginBottom: 10 },
+  sectionHelperLeft: { marginTop: -2, marginBottom: 10, fontSize: 11, lineHeight: 16, color: '#6B7280' },
+  grid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  gridLastItem: { marginRight: 0 },
+  card: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(5,150,105,0.08)', alignItems: 'center', marginRight: 10 },
+  pressableCard: { alignItems: 'stretch' },
+  summaryCardGreen: { backgroundColor: '#F0FDF4', borderColor: 'rgba(5,150,105,0.16)' },
+  summaryCardWarm: { backgroundColor: '#FFF7ED', borderColor: 'rgba(245,158,11,0.18)' },
+  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
+  cardValue: { fontSize: 20, fontWeight: '700', color: '#1F1F1F' },
+  cardValueSmall: { fontSize: 18, fontWeight: '700', color: '#1F1F1F', textAlign: 'center' },
+  cardLabel: { fontSize: 11, color: '#666666', marginTop: 4, textAlign: 'center' },
+  cardMeta: { marginTop: 6, fontSize: 11, lineHeight: 16, color: '#6B7280', textAlign: 'center' },
+  cardEmoji: { fontSize: 24, marginBottom: 6 },
+  fullCard: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(5,150,105,0.08)' },
+  chartWrap: { position: 'relative' },
+  barChart: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 140, paddingHorizontal: 4 },
+  barGroup: { flex: 1, alignItems: 'center' },
+  barContainer: { width: '100%', height: 120, alignItems: 'center', justifyContent: 'flex-end' },
+  bar: { width: '70%', maxWidth: 30, borderTopLeftRadius: 6, borderTopRightRadius: 6, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 },
+  barLabel: { fontSize: 9, color: '#999999', marginTop: 8 },
+  avgLine: { position: 'absolute', left: 0, right: 0, height: 2, borderTopWidth: 2, borderTopColor: '#F59E0B', borderStyle: 'dashed' },
+  legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendLine: { width: 12, height: 2, borderRadius: 1, backgroundColor: '#F59E0B' },
+  legendText: { fontSize: 11, color: '#666666' },
+  divider: { height: 1, backgroundColor: 'rgba(0,0,0,0.06)', marginVertical: 14 },
+  metricRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  metricRowLast: { borderBottomWidth: 0, marginBottom: 0, paddingBottom: 0 },
+  metricLabel: { fontSize: 13, color: '#4B5563' },
+  metricValue: { fontSize: 13, fontWeight: '600', color: '#1F1F1F' },
+  metricValuePositive: { fontSize: 13, fontWeight: '700', color: '#059669' },
+  metricValueMuted: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
+  responseItem: { marginBottom: 16 },
+  responseLabel: { fontSize: 13, color: '#374151', marginBottom: 6 },
+  responseBar: { height: 10, borderRadius: 999, backgroundColor: '#E5E7EB', overflow: 'hidden', marginBottom: 6 },
+  responseFill: { height: '100%', borderRadius: 999 },
+  responseValue: { fontSize: 12, fontWeight: '600', color: '#1F1F1F' },
+  donutWrap: { flexDirection: 'row', gap: 20 },
+  donut: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  donutInner: { width: 74, height: 74, borderRadius: 37, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  donutValue: { fontSize: 18, fontWeight: '700', color: '#1F1F1F' },
+  donutLabel: { fontSize: 10, color: '#6B7280' },
+  donutLegend: { flex: 1, justifyContent: 'center', gap: 10 },
+  donutLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  donutLegendDot: { width: 10, height: 10, borderRadius: 5 },
+  donutLegendText: { flex: 1, fontSize: 12, color: '#4B5563' },
+  donutLegendPct: { fontSize: 12, fontWeight: '600', color: '#1F1F1F' },
+  insightBox: { marginTop: 16, borderRadius: 12, backgroundColor: 'rgba(5,150,105,0.06)', padding: 12 },
+  insightText: { fontSize: 12, lineHeight: 18, color: '#065F46' },
+  insightNote: { marginTop: 12, fontSize: 11, lineHeight: 17, color: '#6B7280', textAlign: 'center' },
+  sectionHelper: { marginTop: 8, fontSize: 11, lineHeight: 17, color: '#6B7280', textAlign: 'center' },
+  emptyText: { fontSize: 13, lineHeight: 20, color: '#6B7280', textAlign: 'center' },
+  dayHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  dayRow: { flexDirection: 'column', paddingBottom: 14, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' },
+  dayRowLast: { paddingBottom: 0, marginBottom: 0, borderBottomWidth: 0 },
+  dayInfo: { flex: 1, minWidth: 0, paddingRight: 10 },
+  dayTitle: { fontSize: 14, fontWeight: '600', color: '#1F1F1F' },
+  daySubtext: { marginTop: 4, fontSize: 12, color: '#6B7280' },
+  dayCounts: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
+  dayCountChip: { minWidth: 90, borderRadius: 14, paddingVertical: 9, paddingHorizontal: 10, alignItems: 'center', marginLeft: 6 },
+  dayCountChipGreen: { backgroundColor: '#ECFDF5' },
+  dayCountChipWarm: { backgroundColor: '#FFF7ED' },
+  dayCountValue: { fontSize: 16, fontWeight: '700', color: '#1F1F1F' },
+  dayCountLabel: { marginTop: 2, fontSize: 11, color: '#6B7280' },
 });

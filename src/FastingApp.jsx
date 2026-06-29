@@ -1562,11 +1562,12 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           targetWeight={targetWeight}
           startingWeight={startingWeight}
           dailyCalorieGoal={dailyCalorieGoal}
+          hydrationGoal={hydrationGoal}
         />
       )}
 
       {activeTab === 'whispers' && (
-        <WhispersTab userName={userName} profileImage={profileImage} whisperPosts={whisperPosts} setWhisperPosts={setWhisperPosts} userId={session?.user?.id} />
+        <WhispersTab userName={userName} profileImage={profileImage} whisperPosts={whisperPosts} setWhisperPosts={setWhisperPosts} userId={session?.user?.id} userEmail={session?.user?.email} />
       )}
 
       {activeTab === 'settings' && (
@@ -1701,24 +1702,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       <PlanSelectionPage
         show={showPlanPage}
         onClose={() => setShowPlanPage(false)}
-        selectedPlan={selectedPlan}
-        isFasting={isFasting}
+        dailyCalorieGoal={dailyCalorieGoal}
         onSelectPlan={(plan) => {
-          setSelectedPlan(plan.id);
-          recordGoalChange({ selectedPlan: plan.id });
-          upsertProfile({ selected_plan: plan.id }, 'save selected_plan');
-          const newPlanHours = parseInt(plan.id.split(':')[0]) || 16;
-          if (notifyFastEnd) {
-            if (isFasting && fastStartTime) {
-              // Reschedule fast-end and break-fast reminder with new plan duration
-              scheduleFastEndNotification(fastStartTime, newPlanHours);
-              scheduleBreakFastReminder(fastStartTime, newPlanHours);
-            } else if (!isFasting && lastFastEndTime) {
-              // Reschedule eating window close with new plan's eating window
-              cancelEatingWindowReminder();
-              scheduleEatingWindowCloseReminder(lastFastEndTime, newPlanHours);
-            }
-          }
+          setDailyCalorieGoal(plan.cal);
+          upsertProfile({ daily_calorie_goal: plan.cal }, 'save calorie goal');
         }}
       />
 
@@ -1766,9 +1753,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       <FastingDetailsPage
         show={showFastingDetails}
         onClose={() => setShowFastingDetails(false)}
-        fastingSessions={fastingSessions}
+        recentMeals={recentMeals}
         checkInHistory={checkInHistory}
-        onDeleteFastSession={handleDeleteFastSession}
+        dailyCalorieGoal={dailyCalorieGoal}
       />
 
       {/* === Modals === */}
