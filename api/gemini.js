@@ -27,14 +27,21 @@ function extractJson(text) {
 }
 
 function normalizeFood(f, fallback = 'Unknown food') {
+  const protein = Number(f.protein) || 0;
+  const carbs = Number(f.carbs) || 0;
+  const fats = Number(f.fats) || 0;
+  const fiber = Number(f.fiber) || 0;
+  const macroCal = Math.round(protein * 4 + carbs * 4 + fats * 9);
+  // Derive cal from macros for consistency; fall back to model's cal only if macros are all zero
+  const cal = macroCal > 0 ? macroCal : (Number(f.cal) || 0);
   return {
     name: f.name || fallback,
     qty: f.qty || '1 serving',
-    cal: Number(f.cal) || 0,
-    protein: Number(f.protein) || 0,
-    carbs: Number(f.carbs) || 0,
-    fats: Number(f.fats) || 0,
-    fiber: Number(f.fiber) || 0,
+    cal,
+    protein,
+    carbs,
+    fats,
+    fiber,
   };
 }
 
@@ -70,11 +77,11 @@ If it IS food, return a JSON object with three fields:
 3. "foods": an array of objects, one per distinct food item on the plate. Each object must have:
    - name: the most accurate and specific name for this food item
    - qty: specific portion size. Countable: "2 medium eggs", "1 large chicken thigh", "3 thick plantain slices". Non-countable: "1 heaped cup of white rice", "1 large bowl of soup", "1 medium wrap of fufu". Never say just "pieces" or "servings" without specifying exactly what and how big.
-   - cal: estimated calories as a number
-   - protein: protein in grams as a number
-   - carbs: carbohydrates in grams as a number
-   - fats: fat in grams as a number
-   - fiber: fiber in grams as a number
+   - protein: grams of protein — give the exact value you would provide if asked "how much protein is in [this food] [this portion]?" directly, as a nutrition database would
+   - carbs: grams of carbohydrates — same direct lookup approach
+   - fats: grams of fat — same direct lookup approach
+   - fiber: grams of fiber — same direct lookup approach
+   - cal: calculate this as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently
 
 Return ONLY a valid JSON object — no explanation, no markdown, no code blocks.`,
         },
@@ -109,7 +116,11 @@ If it contains ANY food, return ONLY raw JSON with these fields:
 3. "foods": an array of objects, one per individual food item mentioned. Each object must have:
    - name: full food name as a local would say it
    - qty: estimated portion — COUNT + SIZE + ITEM for countable (e.g. "2 medium eggs"), SIZE + ITEM for non-countable (e.g. "1 heaped cup of white rice"). No brackets, no metric units.
-   - cal, protein, carbs, fats, fiber: numbers
+   - protein: grams of protein — give the exact value you would provide if asked "how much protein is in [this food] [this portion]?" directly, as a nutrition database would
+   - carbs: grams of carbohydrates — same direct lookup approach
+   - fats: grams of fat — same direct lookup approach
+   - fiber: grams of fiber — same direct lookup approach
+   - cal: calculate this as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently
 
 What the user wrote: "${mealText}"
 
@@ -142,7 +153,11 @@ If it IS a food or meal, return ONLY raw JSON with these fields:
 2. "foods": array of objects, one per food item. Each must have:
    - name: full food name as a local would say it
    - qty: COUNT + SIZE + ITEM (e.g. "2 medium eggs", "1 large wrap of fufu", "1 heaped cup of rice"). No brackets, no metric units.
-   - cal, protein, carbs, fats, fiber: numbers
+   - protein: grams of protein — give the exact value you would provide if asked "how much protein is in [this food] [this portion]?" directly, as a nutrition database would
+   - carbs: grams of carbohydrates — same direct lookup approach
+   - fats: grams of fat — same direct lookup approach
+   - fiber: grams of fiber — same direct lookup approach
+   - cal: calculate this as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently
 
 Return ONLY raw JSON, no markdown, no explanation.`,
         },
@@ -165,11 +180,11 @@ Return ONLY raw JSON, no markdown, no explanation.`,
 Return ONLY a raw JSON object with these fields:
 - name: the proper food name
 - qty: typical single serving size (e.g. "1 medium egg", "1 cup of rice") — be specific, no brackets or metric units
-- cal: calories as a number
-- protein: protein in grams as a number
-- carbs: carbohydrates in grams as a number
-- fats: fat in grams as a number
-- fiber: fiber in grams as a number
+- protein: grams of protein — exact value as a nutrition database would give for this food and portion
+- carbs: grams of carbohydrates — same
+- fats: grams of fat — same
+- fiber: grams of fiber — same
+- cal: calculate as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently
 No explanation, no markdown, just raw JSON.`,
       }]);
       const parsed = extractJson(text);
@@ -190,8 +205,9 @@ New portion: "${newQty}"
 Rules:
 - If the new portion is the same unit but different quantity (e.g. "1 cup" → "2 cups"), scale the old nutrition proportionally.
 - If the measurement type changed (e.g. "1 cup" → "200g"), use your nutrition knowledge to calculate correct values for the new portion from scratch.
-- Always return realistic, non-zero calorie values. A real food portion always has calories.
+- Always return realistic, non-zero values. A real food portion always has calories and macros.
 - For "name", if the user's new portion text contains a food name (e.g. "1.5 cups of beans"), use that food name. Otherwise keep the original name.
+- Set cal as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently.
 - Return ONLY a raw JSON object: {"name": "food name", "qty": "new portion text", "cal": 0, "protein": 0, "carbs": 0, "fats": 0, "fiber": 0}
 No explanation, no markdown, no extra text.`,
       }]);
