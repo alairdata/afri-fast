@@ -1708,7 +1708,7 @@ export const AFRICAN_RECIPES = [
       "Universal"
     ],
     "localNames": {},
-    "description": "Zero-calorie hot black coffee to maintain a fasting state.",
+    "description": "Zero-calorie hot black coffee to curb appetite and boost metabolism.",
     "calories": 5,
     "protein": 0,
     "carbs": 0,
@@ -1743,7 +1743,7 @@ export const AFRICAN_RECIPES = [
       "Universal"
     ],
     "localNames": {},
-    "description": "A light, antioxidant-rich tea that supports fasting.",
+    "description": "A light, antioxidant-rich tea that supports fat burning and metabolism.",
     "calories": 2,
     "protein": 0,
     "carbs": 0,
@@ -1778,7 +1778,7 @@ export const AFRICAN_RECIPES = [
       "Universal"
     ],
     "localNames": {},
-    "description": "A hydrating, low-calorie drink that supports digestion while fasting.",
+    "description": "A hydrating, low-calorie drink that supports digestion and curbs cravings.",
     "calories": 10,
     "protein": 0,
     "carbs": 1,
@@ -1813,7 +1813,7 @@ export const AFRICAN_RECIPES = [
       "Universal"
     ],
     "localNames": {},
-    "description": "A warming, anti-inflammatory brew perfect for breaking the overnight fast gently.",
+    "description": "A warming, anti-inflammatory brew that aids digestion and supports weight loss.",
     "calories": 15,
     "protein": 0,
     "carbs": 2,
