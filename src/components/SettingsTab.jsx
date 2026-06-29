@@ -527,7 +527,7 @@ const SettingsTab = ({
 
         <View style={styles.settingsItem}>
           <View style={styles.settingsItemLeft}>
-            <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Fast Start Reminder</Text>
+            <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Morning Weigh-In Reminder</Text>
             {notifyFastStart && fastStartReminderTime && (
               <TouchableOpacity onPress={() => openTimePicker('fastStart', fastStartReminderTime)}>
                 <Text style={styles.settingsItemSub}>{fmt12(fastStartReminderTime.hour, fastStartReminderTime.minute)} · tap to change</Text>
@@ -542,7 +542,7 @@ const SettingsTab = ({
 
         <View style={styles.settingsItem}>
           <View style={styles.settingsItemLeft}>
-            <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Break-Fast Reminder</Text>
+            <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Evening Calorie Check</Text>
             {notifyFastEnd && fastEndReminderTime && (
               <TouchableOpacity onPress={() => openTimePicker('fastEnd', fastEndReminderTime)}>
                 <Text style={styles.settingsItemSub}>{fmt12(fastEndReminderTime.hour, fastEndReminderTime.minute)} · tap to change</Text>
@@ -976,7 +976,7 @@ const SettingsTab = ({
         <View style={styles.tpOverlay}>
           <View style={styles.tpCard}>
             <Text style={styles.tpTitle}>
-              {timePicker.type === 'fastStart' ? 'Fast Start Reminder' : timePicker.type === 'fastEnd' ? 'Break-Fast Reminder' : 'Meal Logging Reminder'}
+              {timePicker.type === 'fastStart' ? 'Morning Weigh-In Reminder' : timePicker.type === 'fastEnd' ? 'Evening Calorie Check' : 'Meal Logging Reminder'}
             </Text>
             <Text style={styles.tpSubtitle}>
               {timePicker.type === 'fastStart' ? 'What time should we remind you to start fasting?' : timePicker.type === 'fastEnd' ? 'What time should we remind you to break your fast?' : 'What time should we remind you to log your meals?'}
@@ -1048,8 +1048,8 @@ const SettingsTab = ({
               <View style={styles.msOptionHeader}>
                 <Text style={styles.msOptionIcon}>🔥</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.msOptionTitle}>Fasting Streak</Text>
-                  <Text style={styles.msOptionDesc}>Complete your fasting plan every day for a streak.</Text>
+                  <Text style={styles.msOptionTitle}>Goal Streak</Text>
+                  <Text style={styles.msOptionDesc}>Hit your calorie goal every day to build a streak.</Text>
                 </View>
                 <View style={[styles.msCheckBox, milestoneDraft.streak && styles.msCheckBoxActive]}>
                   {milestoneDraft.streak && <Ionicons name="checkmark" size={14} color="#fff" />}

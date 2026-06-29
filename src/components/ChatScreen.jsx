@@ -52,9 +52,9 @@ async function callChat(body) {
 const SUGGESTIONS = [
   'Why am I always hungry?',
   'Am I meeting my goals?',
-  'Best foods to break my fast?',
+  'Best foods for fat loss?',
   'How is my progress?',
-  'Tips for longer fasts',
+  'How to manage cravings?',
 ];
 
 const ChatScreen = ({
@@ -167,8 +167,8 @@ const ChatScreen = ({
 
     } else if (messages.length === 0) {
       const greeting = userName
-        ? `Hi ${userName}! I'm AfriFast Assistant, your personal health coach. I have access to all your data — your fasting history, meals, weight, and hydration. Ask me anything!`
-        : `Hi! I'm AfriFast Assistant, your personal health coach. I have access to all your data — ask me anything about your progress, goals, or how to improve!`;
+        ? `Hi ${userName}! I'm your personal weight loss coach. I have access to all your data — your meals, calories, weight, and hydration. Ask me anything!`
+        : `Hi! I'm your personal weight loss coach. I have access to all your data — ask me anything about your progress, goals, or how to improve!`;
       setMessages([{ role: 'assistant', content: greeting }]);
     }
   }, [show, openingContext]);
@@ -220,7 +220,7 @@ const ChatScreen = ({
               <Text style={{ fontSize: 22 }}>🤖</Text>
             </View>
             <View>
-              <Text style={styles.chatHeaderTitle}>AfriFast Assistant</Text>
+              <Text style={styles.chatHeaderTitle}>Your Weight Loss Coach</Text>
               <Text style={styles.chatHeaderStatus}>
                 {isTyping ? 'Typing...' : 'Online • Knows your data'}
               </Text>

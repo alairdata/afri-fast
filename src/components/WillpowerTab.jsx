@@ -28,7 +28,7 @@ const SAVAGE_MESSAGES = [
   "No one saw that battle. But your tree knows.",
   "One more brick. The wall is getting taller.",
   "Did you feel that? That's your willpower flexing.",
-  "You're not just fasting. You're building an identity.",
+  "You're not just losing weight. You're building an identity.",
   "Soft people give in. You just proved which kind you are.",
   "The garden of grit just grew.",
 ];

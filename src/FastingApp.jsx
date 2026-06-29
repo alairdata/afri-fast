@@ -1675,9 +1675,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       <FastingCalendarPage
         show={showCalendar}
         onClose={() => setShowCalendar(false)}
-        fastingSessions={fastingSessions}
-        isFasting={isFasting}
-        selectedPlan={selectedPlan}
+        recentMeals={recentMeals}
+        dailyCalorieGoal={dailyCalorieGoal}
         checkInHistory={checkInHistory}
         onShowCheckInPage={openCheckInPage}
         volumeUnit={volumeUnit}

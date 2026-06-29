@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../lib/theme';
+import { supabase } from '../lib/supabase';
 import {
   View,
   Text,
@@ -58,8 +59,8 @@ const SAMPLE_POSTS = [
     avatarColor: '#8b5cf6',
     name: 'Amara_fit',
     timestamp: '2h ago',
-    text: 'Hour 18 and the hunger just... disappeared? Is this what they mean by the other side?',
-    category: 'Fasting Wins',
+    text: 'Week 3 of calorie tracking and my cravings have genuinely reduced. Is this what they mean by the other side?',
+    category: 'Weight Loss Wins',
     likes: 0,
     comments: 0,
     liked: false,
@@ -74,7 +75,7 @@ const SAMPLE_POSTS = [
     pageInitial: 'W',
     followable: true,
     timestamp: '4h ago',
-    text: 'What food kills your hunger the fastest during a fast?',
+    text: 'What high-protein African foods keep you full the longest?',
     image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&h=400&fit=crop',
     category: 'Hunger Tips',
     likes: 0,
@@ -86,9 +87,9 @@ const SAMPLE_POSTS = [
     id: '3',
     initial: 'F',
     avatarColor: '#f59e0b',
-    name: 'FastingFela',
+    name: 'FitFela',
     timestamp: '5h ago',
-    text: 'Day 3 of 16:8 and I already feel lighter. Not just physically but mentally too.',
+    text: 'Day 3 of logging meals and I already feel more in control. Not just physically but mentally too.',
     category: 'Motivation',
     likes: 0,
     comments: 0,
@@ -99,12 +100,12 @@ const SAMPLE_POSTS = [
   {
     id: '4',
     isPage: true,
-    pageName: 'Fasting Stress',
+    pageName: 'Weight Loss Mindset',
     pageAvatar: '#ef4444',
-    pageInitial: 'F',
+    pageInitial: 'W',
     followable: true,
     timestamp: 'Today',
-    text: 'Does fasting make you more emotional or is it just me?',
+    text: 'Does calorie tracking make you more mindful of your emotions around food?',
     image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600&h=400&fit=crop',
     category: 'Struggles',
     likes: 0,
@@ -118,8 +119,8 @@ const SAMPLE_POSTS = [
     avatarColor: '#3b82f6',
     name: 'KemiCleans',
     timestamp: '6h ago',
-    text: 'Anyone else get super productive during their fasting window? I just cleaned my entire house.',
-    category: 'Fasting Wins',
+    text: 'Anyone else get super productive once they started eating at a deficit? I have so much more energy.',
+    category: 'Weight Loss Wins',
     likes: 0,
     comments: 0,
     liked: false,
@@ -134,7 +135,7 @@ const SAMPLE_POSTS = [
     pageInitial: 'H',
     followable: true,
     timestamp: '8h ago',
-    text: 'What is your go-to meal to break your fast?',
+    text: 'What is your go-to low-calorie meal when you are craving something heavy?',
     image: 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=600&h=400&fit=crop',
     category: 'Recipes',
     likes: 0,
@@ -160,9 +161,9 @@ const SAMPLE_POSTS = [
     id: '8',
     initial: 'N',
     avatarColor: '#059669',
-    name: 'NaijaFaster',
+    name: 'NaijaHealthy',
     timestamp: '1d ago',
-    text: 'Drinking warm lemon water during my fasting window has been a game changer. Kills the cravings instantly.',
+    text: 'Drinking warm lemon water before meals has been a game changer for my appetite. Kills the cravings instantly.',
     category: 'Hunger Tips',
     likes: 0,
     comments: 0,
@@ -174,16 +175,16 @@ const SAMPLE_POSTS = [
     id: '9',
     isPage: true,
     isPoll: true,
-    pageName: 'Fasting Mindset',
+    pageName: 'Weight Loss Mindset',
     pageAvatar: '#0ea5e9',
-    pageInitial: 'F',
+    pageInitial: 'W',
     followable: true,
     timestamp: '',
-    text: 'Signs your body needs a break from fasting: Which one hits you first?',
+    text: 'What is the biggest barrier to staying on your calorie goal?',
     pollOptions: [
-      { label: 'Constant headaches', votes: 0 },
-      { label: 'Extreme irritability', votes: 0 },
-      { label: 'Can\'t sleep properly', votes: 0 },
+      { label: 'Social events and celebrations', votes: 0 },
+      { label: 'Stress and emotional eating', votes: 0 },
+      { label: 'Cravings after 9pm', votes: 0 },
       { label: 'Other, I\'ll share in the comments', votes: 0 },
     ],
     category: 'Science',
@@ -200,7 +201,7 @@ const SAMPLE_POSTS = [
     pageInitial: 'W',
     followable: true,
     timestamp: '',
-    text: 'Have you ever gained weight while fasting? What went wrong?',
+    text: 'Have you ever gained weight despite tracking calories? What went wrong?',
     image: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&h=400&fit=crop',
     category: 'Struggles',
     likes: 0,
@@ -214,8 +215,8 @@ const SAMPLE_POSTS = [
     avatarColor: '#ec4899',
     name: 'DamiLaja',
     timestamp: '3h ago',
-    text: 'My skin has been glowing since I started 18:6. My coworkers keep asking what cream I use lol.',
-    category: 'Fasting Wins',
+    text: 'My skin has been glowing since I started eating more vegetables and protein. My coworkers keep asking what cream I use lol.',
+    category: 'Weight Loss Wins',
     likes: 0,
     comments: 0,
     liked: false,
@@ -228,7 +229,7 @@ const SAMPLE_POSTS = [
     avatarColor: '#f59e0b',
     name: 'TundeRuns',
     timestamp: '5h ago',
-    text: 'Is it okay to exercise during a fast? I ran 5k this morning at hour 14 and felt amazing but my friend said it\'s dangerous.',
+    text: 'Is it better to exercise fasted or after eating? I ran 5k this morning before breakfast and felt amazing but my friend said it burns muscle.',
     category: 'Science',
     likes: 0,
     comments: 0,
@@ -239,12 +240,12 @@ const SAMPLE_POSTS = [
   {
     id: '13',
     isPage: true,
-    pageName: 'Fasting Science',
+    pageName: 'Nutrition Science',
     pageAvatar: '#3b82f6',
-    pageInitial: 'S',
+    pageInitial: 'N',
     followable: true,
     timestamp: '',
-    text: 'What happens to your body after 24 hours without food?',
+    text: 'What actually happens to your body in a 500-calorie deficit every day?',
     image: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=600&h=400&fit=crop',
     category: 'Science',
     likes: 0,
@@ -258,7 +259,7 @@ const SAMPLE_POSTS = [
     avatarColor: '#ef4444',
     name: 'BukolaEats',
     timestamp: '8h ago',
-    text: 'Confession: I broke my fast at hour 11 because someone brought suya to the office. I have zero willpower.',
+    text: 'Confession: I went 400 cal over my goal because someone brought suya to the office. I have zero willpower.',
     category: 'Struggles',
     likes: 0,
     comments: 0,
@@ -288,7 +289,7 @@ const SAMPLE_POSTS = [
     pageInitial: 'A',
     followable: true,
     timestamp: '',
-    text: 'What African dish keeps you full the longest after breaking your fast?',
+    text: 'What African dish keeps you full the longest without breaking your calorie goal?',
     image: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=600&h=400&fit=crop',
     category: 'Recipes',
     likes: 0,
@@ -302,7 +303,7 @@ const SAMPLE_POSTS = [
     avatarColor: '#8b5cf6',
     name: 'YemiGlow',
     timestamp: '12h ago',
-    text: 'Started fasting for spiritual reasons during Ramadan. Now I do it for health too. Best decision ever.',
+    text: 'Started eating mindfully during Ramadan. Now I track calories year-round for health too. Best decision ever.',
     category: 'Motivation',
     likes: 0,
     comments: 0,
@@ -316,8 +317,8 @@ const SAMPLE_POSTS = [
     avatarColor: '#3b82f6',
     name: 'ChiChi_fit',
     timestamp: '14h ago',
-    text: 'Anyone else feel like their brain works 10x better when fasting? I wrote an entire proposal in 2 hours today.',
-    category: 'Fasting Wins',
+    text: 'Anyone else feel like their brain works 10x better when eating clean? I wrote an entire proposal in 2 hours today.',
+    category: 'Weight Loss Wins',
     likes: 0,
     comments: 0,
     liked: false,
@@ -328,9 +329,9 @@ const SAMPLE_POSTS = [
     id: '19',
     initial: 'E',
     avatarColor: '#ec4899',
-    name: 'EkaFasts',
+    name: 'EkaFitness',
     timestamp: '1d ago',
-    text: 'My mum thinks I\'m starving myself. How do you explain intermittent fasting to African parents? Asking for a friend (me).',
+    text: 'My mum thinks I\'m starving myself. How do you explain calorie tracking to African parents? Asking for a friend (me).',
     category: 'Struggles',
     likes: 0,
     comments: 0,
@@ -340,13 +341,52 @@ const SAMPLE_POSTS = [
   },
 ];
 
-export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPosts: externalSetPosts, userName = 'You', profileImage = null, userId = '' }) {
+const ADMIN_EMAIL = 'sounfilteredai@gmail.com';
+
+export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPosts: externalSetPosts, userName = 'You', profileImage = null, userId = '', userEmail = '' }) {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
   const [localPosts, setLocalPosts] = useState(SAMPLE_POSTS);
-  const posts = externalPosts && externalPosts.length > 0 ? externalPosts : localPosts;
+  const userPosts = externalPosts && externalPosts.length > 0 ? externalPosts : localPosts;
   const setPosts = externalSetPosts || setLocalPosts;
+  const [dbPagePosts, setDbPagePosts] = useState([]);
+
+  useEffect(() => {
+    supabase
+      .from('whispers_posts')
+      .select('*')
+      .eq('is_page', true)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data, error }) => {
+        if (error) { console.log('[WhispersTab] fetch error:', error.message); return; }
+        if (!data?.length) return;
+        setDbPagePosts(data.map(p => ({
+          id: p.id,
+          isPage: true,
+          pageName: p.page_name,
+          pageAvatar: p.page_avatar,
+          pageInitial: p.page_initial,
+          followable: true,
+          timestamp: new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          text: p.text,
+          image: p.image_url || undefined,
+          isPoll: p.is_poll || false,
+          pollOptions: p.poll_options ? p.poll_options.map(o => o.text) : undefined,
+          likes: p.likes || 0,
+          comments: p.comments || 0,
+          liked: false,
+          bookmarked: false,
+        })));
+      });
+  }, []);
+
+  // Merge DB page posts with user/sample posts, DB posts on top
+  const posts = [
+    ...dbPagePosts,
+    ...userPosts.filter(p => !dbPagePosts.find(db => db.id === p.id)),
+  ];
 
   const [activeFilter, setActiveFilter] = useState('Popular');
   const [popularSnapshot, setPopularSnapshot] = useState(null);
@@ -356,6 +396,10 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
       setPopularSnapshot([...posts].sort((a, b) => (b.likes || 0) - (a.likes || 0)));
     }
   }, [activeFilter]);
+  const isAdmin = userEmail === ADMIN_EMAIL;
+  const [postAsPage, setPostAsPage] = useState(false);
+  const [selectedAdminPage, setSelectedAdminPage] = useState(null);
+
   const [searchText, setSearchText] = useState('');
   const [showNewPost, setShowNewPost] = useState(false);
   const [newPostText, setNewPostText] = useState('');
@@ -402,21 +446,51 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
   const handleNewPost = () => {
     if (!newPostText.trim()) return;
     const postId = Date.now().toString();
-    const newPost = {
-      id: postId,
-      avatarImage: profileImage,
-      isPage: false,
-      timestamp: 'Just now',
-      text: newPostText.trim(),
-      category: newPostCategory || 'Motivation',
-      likes: 0,
-      comments: 0,
-      liked: false,
-      bookmarked: false,
-    };
-    setPosts([newPost, ...posts]);
+
+    if (isAdmin && postAsPage && selectedAdminPage) {
+      const pagePost = {
+        id: postId,
+        isPage: true,
+        pageName: selectedAdminPage.name,
+        pageAvatar: selectedAdminPage.color,
+        pageInitial: selectedAdminPage.initial,
+        followable: true,
+        timestamp: 'Just now',
+        text: newPostText.trim(),
+        likes: 0,
+        comments: 0,
+        liked: false,
+        bookmarked: false,
+      };
+      setPosts([pagePost, ...posts]);
+      supabase.from('whispers_posts').insert({
+        id: postId,
+        is_page: true,
+        page_name: selectedAdminPage.name,
+        page_avatar: selectedAdminPage.color,
+        page_initial: selectedAdminPage.initial,
+        text: newPostText.trim(),
+      }).then(({ error }) => { if (error) console.log('[Admin post error]', error.message); });
+    } else {
+      const newPost = {
+        id: postId,
+        avatarImage: profileImage,
+        isPage: false,
+        timestamp: 'Just now',
+        text: newPostText.trim(),
+        category: newPostCategory || 'Motivation',
+        likes: 0,
+        comments: 0,
+        liked: false,
+        bookmarked: false,
+      };
+      setPosts([newPost, ...posts]);
+    }
+
     setNewPostText('');
     setNewPostCategory('');
+    setPostAsPage(false);
+    setSelectedAdminPage(null);
     setShowNewPost(false);
   };
 
@@ -770,7 +844,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
       {/* Floating new post button */}
       <View style={styles.fab}>
         <TouchableOpacity style={styles.fabInner} onPress={() => setShowNewPost(true)}>
-          <Ionicons name="create-outline" size={20} color="#fff" />
+          <Ionicons name="create-outline" size={16} color="#fff" />
           <Text style={styles.fabText}>New post</Text>
         </TouchableOpacity>
       </View>
@@ -792,13 +866,48 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
             </TouchableOpacity>
           </View>
 
+          {/* Admin: Post as Page toggle */}
+          {isAdmin && (
+            <View style={styles.adminBar}>
+              <TouchableOpacity
+                style={[styles.adminToggle, postAsPage && styles.adminToggleActive]}
+                onPress={() => { setPostAsPage(v => !v); setSelectedAdminPage(null); }}
+              >
+                <Ionicons name={postAsPage ? 'shield' : 'shield-outline'} size={14} color={postAsPage ? '#fff' : '#059669'} />
+                <Text style={[styles.adminToggleTxt, postAsPage && { color: '#fff' }]}>Post as Page</Text>
+              </TouchableOpacity>
+              {postAsPage && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}>
+                  {PAGES.map(p => (
+                    <TouchableOpacity
+                      key={p.name}
+                      style={[styles.pageChip, selectedAdminPage?.name === p.name && { borderColor: p.color, backgroundColor: p.color + '18' }]}
+                      onPress={() => setSelectedAdminPage(p)}
+                    >
+                      <View style={[styles.pageChipDot, { backgroundColor: p.color }]}>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{p.initial}</Text>
+                      </View>
+                      <Text style={[styles.pageChipTxt, selectedAdminPage?.name === p.name && { color: p.color, fontWeight: '700' }]}>{p.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          )}
+
           {/* Compose area */}
           <View style={styles.newPostCompose}>
             {/* Avatar + input */}
             <View style={styles.newPostRow}>
+              {isAdmin && postAsPage && selectedAdminPage ? (
+                <View style={[styles.newPostAvatar, { backgroundColor: selectedAdminPage.color }]}>
+                  <Text style={styles.newPostAvatarText}>{selectedAdminPage.initial}</Text>
+                </View>
+              ) : (
               <View style={[styles.newPostAvatar, { backgroundColor: getUserColor(userId || userName) }]}>
                 <Text style={styles.newPostAvatarText}>{getUserIcon(userId || userName)}</Text>
               </View>
+              )}
               <View style={styles.newPostInputArea}>
                 {/* Category chip */}
                 <TouchableOpacity
@@ -1488,9 +1597,9 @@ const makeStyles = (c) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#059669',
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    borderRadius: 28,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 20,
     shadowColor: '#059669',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -1499,9 +1608,9 @@ const makeStyles = (c) => StyleSheet.create({
   },
   fabText: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
-    marginLeft: 8,
+    marginLeft: 6,
   },
 
   // Modal

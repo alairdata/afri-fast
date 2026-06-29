@@ -318,75 +318,20 @@ const CheckInPage = ({
             </SectionCard>
 
 
-            {/* ── Section 5: Fasting Symptoms (show if fasting) ────────── */}
-            {isFasting && (
-              <SectionCard title="Fasting Symptoms" titleStyle={{ fontSize: 17 }}>
-                <Chips
-                  options={['🤕 Headache','😵 Dizziness','🤢 Nausea','😴 Fatigue','🦵 Muscle weakness','😣 Stomach cramping','🫃 Bloating','💓 Heart palpitations','🥶 Feeling cold','👄 Dry mouth','🌫️ Brain fog','🤔 Difficulty concentrating','😶 Forgetfulness','🐢 Slow thinking','😤 Irritability','🎭 Mood swings','😰 Anxiety','😑 Low motivation','✨ Mental clarity','🪶 Feeling light','🎯 Improved focus','🏅 Sense of control','✅ No symptoms']}
-                  selected={fastingSymptoms}
-                  onToggle={v => toggle(v, fastingSymptoms, setFastingSymptoms)}
-                  chipStyle={{ backgroundColor: '#FAF5FF', borderColor: 'transparent' }}
-                  selectedChipStyle={{ backgroundColor: '#FAF5FF', borderColor: '#9333EA', borderWidth: 1.5 }}
-                  showCheckmark
-                  checkmarkColor="#9333EA"
-                  largeEmoji
-                />
-              </SectionCard>
-            )}
+            {/* ── Section 5: Physical symptoms ──────────────────────────── */}
+            <SectionCard title="Physical symptoms today" titleStyle={{ fontSize: 17 }}>
+              <Chips
+                options={['🤕 Headache','😵 Dizziness','🤢 Nausea','😴 Fatigue','🦵 Muscle weakness','😣 Stomach cramping','🫃 Bloating','💓 Heart palpitations','🥶 Feeling cold','👄 Dry mouth','🌫️ Brain fog','🤔 Difficulty concentrating','😶 Forgetfulness','🐢 Slow thinking','😤 Irritability','🎭 Mood swings','😰 Anxiety','😑 Low motivation','✨ Mental clarity','🪶 Feeling light','🎯 Improved focus','🏅 Sense of control','✅ No symptoms']}
+                selected={fastingSymptoms}
+                onToggle={v => toggle(v, fastingSymptoms, setFastingSymptoms)}
+                chipStyle={{ backgroundColor: '#FAF5FF', borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: '#FAF5FF', borderColor: '#9333EA', borderWidth: 1.5 }}
+                showCheckmark
+                checkmarkColor="#9333EA"
+                largeEmoji
+              />
+            </SectionCard>
 
-            {/* ── Section 6: Breaking the Fast (show if fast broken) ────── */}
-            {fastBroken && (<>
-              <SectionCard title="What time did you break your fast?" titleStyle={{ fontSize: 17 }}>
-                <TextInput
-                  style={[ss.timeInput, { marginTop: 4 }]}
-                  placeholder="e.g. 12:30 PM"
-                  placeholderTextColor="#9CA3AF"
-                  value={fastBreakTime}
-                  onChangeText={setFastBreakTime}
-                />
-              </SectionCard>
-              <SectionCard title="How did you break your fast?" titleStyle={{ fontSize: 17 }}>
-                <Chips
-                  options={['💧 Water / plain fluids','☕ Coffee or tea (no additives)','🧋 Coffee or tea (with milk/sugar)','🍎 Fresh fruit','🥤 Smoothie or juice','🥗 Light snack','🍛 Small meal','🍽️ Full meal','📦 Processed/packaged food','🍔 I overate']}
-                  selected={fastBreakFoods}
-                  onToggle={v => toggle(v, fastBreakFoods, setFastBreakFoods)}
-                  chipStyle={{ backgroundColor: '#FFF7ED', borderColor: 'transparent' }}
-                  selectedChipStyle={{ backgroundColor: '#FFF7ED', borderColor: '#F97316', borderWidth: 1.5 }}
-                  showCheckmark checkmarkColor="#F97316" largeEmoji
-                />
-              </SectionCard>
-              <SectionCard title="How intentional was your fast-breaking?" titleStyle={{ fontSize: 17 }}>
-                <Chips
-                  options={['🎯 Very intentional — I planned it','🤔 Somewhat intentional','⚡ Impulsive — I gave in to a craving','🙈 I had no choice (social/work situation)']}
-                  selected={fastBreakIntentionality}
-                  onToggle={setFastBreakIntentionality}
-                  singleSelect
-                  chipStyle={{ backgroundColor: '#FFF7ED', borderColor: 'transparent' }}
-                  selectedChipStyle={{ backgroundColor: '#FFF7ED', borderColor: '#F97316', borderWidth: 1.5 }}
-                  showCheckmark checkmarkColor="#F97316" largeEmoji
-                />
-              </SectionCard>
-              <SectionCard title="How do you feel physically after eating?" titleStyle={{ fontSize: 17 }}>
-                <Chips
-                  options={['⚡ Energized','🌟 Satisfied','😐 Neutral','🫃 Bloated','🤢 Nauseous','🐢 Sluggish','🪣 Overfull','🍽️ Still hungry','💔 Guilty','😞 Regretful']}
-                  selected={physicalAfterEating}
-                  onToggle={v => toggle(v, physicalAfterEating, setPhysicalAfterEating)}
-                  chipStyle={{ backgroundColor: '#FFF7ED', borderColor: 'transparent' }}
-                  selectedChipStyle={{ backgroundColor: '#FFF7ED', borderColor: '#F97316', borderWidth: 1.5 }}
-                  showCheckmark checkmarkColor="#F97316" largeEmoji
-                />
-              </SectionCard>
-              <SectionCard title="How do you feel emotionally after eating?" titleStyle={{ fontSize: 17 }}>
-                <Chips
-                  options={['🏆 Proud','😐 Neutral','😞 Disappointed','😌 Relieved','💔 Guilty','🌟 Happy','🤷 Indifferent']}
-                  selected={emotionalAfterEating}
-                  onToggle={v => toggle(v, emotionalAfterEating, setEmotionalAfterEating)}
-                  chipStyle={{ backgroundColor: '#FFF7ED', borderColor: 'transparent' }}
-                  selectedChipStyle={{ backgroundColor: '#FFF7ED', borderColor: '#F97316', borderWidth: 1.5 }}
-                  showCheckmark checkmarkColor="#F97316" largeEmoji
-                />
-              </SectionCard>
-            </>)}
 
             {/* ── Context ───────────────────────────────────────────────── */}
             <SectionCard title="Where are you right now?" titleStyle={{ fontSize: 17 }}>
@@ -424,30 +369,28 @@ const CheckInPage = ({
             </SectionCard>
 
             {/* ── Daily Goal Check ──────────────────────────────────────── */}
-            {(isFasting || fastBroken) && (<>
-              <SectionCard title="Did you meet your fasting goal today?" titleStyle={{ fontSize: 17 }}>
-                <Chips
-                  options={['✅ Yes, fully','⚠️ Partially — I fell short of my target window','❌ No — I didn\'t fast today','📅 Goal not set for today']}
-                  selected={fastingGoalMet}
-                  onToggle={setFastingGoalMet}
-                  singleSelect
-                  chipStyle={{ backgroundColor: '#F0FDFA', borderColor: 'transparent' }}
-                  selectedChipStyle={{ backgroundColor: '#F0FDFA', borderColor: '#0D9488', borderWidth: 1.5 }}
-                  showCheckmark checkmarkColor="#0D9488" largeEmoji
-                />
-              </SectionCard>
-              <SectionCard title="How confident are you about tomorrow's fast?" titleStyle={{ fontSize: 17 }}>
-                <Chips
-                  options={['💪 Very confident','🙂 Somewhat confident','🤔 Uncertain','❌ Not planning to fast']}
-                  selected={tomorrowConfidence}
-                  onToggle={setTomorrowConfidence}
-                  singleSelect
-                  chipStyle={{ backgroundColor: '#F0FDFA', borderColor: 'transparent' }}
-                  selectedChipStyle={{ backgroundColor: '#F0FDFA', borderColor: '#0D9488', borderWidth: 1.5 }}
-                  showCheckmark checkmarkColor="#0D9488" largeEmoji
-                />
-              </SectionCard>
-            </>)}
+            <SectionCard title="Did you hit your calorie goal today?" titleStyle={{ fontSize: 17 }}>
+              <Chips
+                options={['✅ Yes, stayed on target','⚠️ Partially — went a little over','❌ No — went over my goal','📅 No goal set for today']}
+                selected={fastingGoalMet}
+                onToggle={setFastingGoalMet}
+                singleSelect
+                chipStyle={{ backgroundColor: '#F0FDFA', borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: '#F0FDFA', borderColor: '#0D9488', borderWidth: 1.5 }}
+                showCheckmark checkmarkColor="#0D9488" largeEmoji
+              />
+            </SectionCard>
+            <SectionCard title="How confident are you about tomorrow?" titleStyle={{ fontSize: 17 }}>
+              <Chips
+                options={['💪 Very confident','🙂 Somewhat confident','🤔 Uncertain','😔 I need more support']}
+                selected={tomorrowConfidence}
+                onToggle={setTomorrowConfidence}
+                singleSelect
+                chipStyle={{ backgroundColor: '#F0FDFA', borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: '#F0FDFA', borderColor: '#0D9488', borderWidth: 1.5 }}
+                showCheckmark checkmarkColor="#0D9488" largeEmoji
+              />
+            </SectionCard>
 
             {/* ── Water ────────────────────────────────────────────────── */}
             <View style={ss.section}>
@@ -527,7 +470,7 @@ const CheckInPage = ({
                   <TextInput
                     multiline
                     style={ss.notesInput}
-                    placeholder={(noteEntries || []).length > 0 ? 'Add another note...' : 'Add notes about your fast, hunger, energy, or anything unusual today.'}
+                    placeholder={(noteEntries || []).length > 0 ? 'Add another note...' : 'Add notes about your meals, hunger, energy, or anything unusual today.'}
                     placeholderTextColor="#999"
                     value={newNoteText}
                     onChangeText={setNewNoteText}

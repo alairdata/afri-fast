@@ -47,18 +47,10 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
   const reviewFade = useRef(new Animated.Value(1)).current;
 
   const handleLogButtonPress = () => {
-    if (isFasting) {
-      onMealLogBlocked?.();
-      return;
-    }
     setShowLogMealOptions(true);
   };
 
   const handleLogMethod = (method) => {
-    if (isFasting) {
-      onMealLogBlocked?.();
-      return;
-    }
     onLogMeal && onLogMeal(method);
     setShowLogMealOptions(false);
   };
@@ -131,16 +123,14 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
 
         {/* Log Meal Button */}
         <TouchableOpacity
-          style={[styles.logMealBtnIntegrated, isFasting && styles.logMealBtnDisabled]}
+          style={styles.logMealBtnIntegrated}
           onPress={handleLogButtonPress}
-          activeOpacity={isFasting ? 1 : 0.8}
+          activeOpacity={0.8}
         >
-          {!isFasting && (
-            <View style={styles.logMealBtnIconWrapper}>
-              <Text style={styles.logMealBtnIcon}>+</Text>
-            </View>
-          )}
-          <Text style={styles.logMealBtnText}>{isFasting ? 'End fast to log meals' : 'Log Meal'}</Text>
+          <View style={styles.logMealBtnIconWrapper}>
+            <Text style={styles.logMealBtnIcon}>+</Text>
+          </View>
+          <Text style={styles.logMealBtnText}>Log Meal</Text>
         </TouchableOpacity>
       </View>
 

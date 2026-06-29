@@ -13,103 +13,14 @@ export const requestNotificationPermissions = async () => {
   return status === 'granted';
 };
 
-// ─── Fast End (session-specific — fires when the current fast is complete) ───
-export const scheduleFastEndNotification = async (fastStartTimestamp, planHours) => {
-  await Notifications.cancelScheduledNotificationAsync('fast-end').catch(() => {});
-  const endTime = new Date(fastStartTimestamp + planHours * 60 * 60 * 1000);
-  if (endTime <= new Date()) return;
+// ─── Daily Weigh-In Reminder ───
+export const scheduleWeighInReminder = async (hour = 7, minute = 0) => {
+  await Notifications.cancelScheduledNotificationAsync('weigh-in-daily').catch(() => {});
   await Notifications.scheduleNotificationAsync({
-    identifier: 'fast-end',
+    identifier: 'weigh-in-daily',
     content: {
-      title: 'Fast complete! 🎉',
-      body: `You've hit ${planHours} hours. Break your fast mindfully.`,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: endTime,
-    },
-  });
-};
-
-// ─── Milestones ───
-const MILESTONES = [
-  { hours: 12, title: '12 hours down 💪', body: 'Your body is in fat-burning mode. Keep going!' },
-  { hours: 16, title: '16 hours! You\'re on fire 🔥', body: 'This is where the magic happens. Autophagy may have kicked in.' },
-  { hours: 24, title: '24 hours fasted 🏆', body: 'A full day! Deep cellular repair is happening right now.' },
-];
-
-export const scheduleMilestoneNotifications = async (fastStartTimestamp, planHours) => {
-  for (const m of MILESTONES) {
-    const id = `milestone-${m.hours}h`;
-    await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
-    if (m.hours >= planHours) continue;
-    const triggerTime = new Date(fastStartTimestamp + m.hours * 60 * 60 * 1000);
-    if (triggerTime <= new Date()) continue;
-    await Notifications.scheduleNotificationAsync({
-      identifier: id,
-      content: { title: m.title, body: m.body },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: triggerTime,
-      },
-    });
-  }
-};
-
-export const cancelFastingNotifications = async () => {
-  const ids = ['fast-end', 'milestone-12h', 'milestone-16h', 'milestone-24h', 'break-fast-reminder'];
-  await Promise.all(ids.map(id => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})));
-};
-
-// ─── Break Fast Reminder (30 min before fast ends) ───
-export const scheduleBreakFastReminder = async (fastStartTimestamp, planHours) => {
-  await Notifications.cancelScheduledNotificationAsync('break-fast-reminder').catch(() => {});
-  const reminderTime = new Date(fastStartTimestamp + planHours * 3600000 - 30 * 60000);
-  if (reminderTime <= new Date()) return;
-  await Notifications.scheduleNotificationAsync({
-    identifier: 'break-fast-reminder',
-    content: {
-      title: 'Breaking your fast in 30 mins 🍽️',
-      body: "Almost time — get ready to break your fast mindfully.",
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: reminderTime,
-    },
-  });
-};
-
-// ─── Eating Window Close Reminder (30 min before eating window closes) ───
-export const scheduleEatingWindowCloseReminder = async (fastEndTimestamp, planHours) => {
-  await Notifications.cancelScheduledNotificationAsync('eating-window-close').catch(() => {});
-  const eatingWindowHours = 24 - planHours;
-  const reminderTime = new Date(fastEndTimestamp + eatingWindowHours * 3600000 - 30 * 60000);
-  if (reminderTime <= new Date()) return;
-  await Notifications.scheduleNotificationAsync({
-    identifier: 'eating-window-close',
-    content: {
-      title: 'Eating window closing in 30 mins 🌙',
-      body: 'Wrap up your last meal — your fast starts soon.',
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: reminderTime,
-    },
-  });
-};
-
-export const cancelEatingWindowReminder = async () => {
-  await Notifications.cancelScheduledNotificationAsync('eating-window-close').catch(() => {});
-};
-
-// ─── Daily Fast Start Reminder ───
-export const scheduleFastStartReminder = async (hour = 20, minute = 0) => {
-  await Notifications.cancelScheduledNotificationAsync('fast-start-daily').catch(() => {});
-  await Notifications.scheduleNotificationAsync({
-    identifier: 'fast-start-daily',
-    content: {
-      title: 'Time to start your fast 🌙',
-      body: 'Tap to begin your fasting window for tonight.',
+      title: 'Time to weigh in 📊',
+      body: 'Log your weight first thing this morning for the most accurate reading.',
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -119,18 +30,18 @@ export const scheduleFastStartReminder = async (hour = 20, minute = 0) => {
   });
 };
 
-export const cancelFastStartReminder = async () => {
-  await Notifications.cancelScheduledNotificationAsync('fast-start-daily').catch(() => {});
+export const cancelWeighInReminder = async () => {
+  await Notifications.cancelScheduledNotificationAsync('weigh-in-daily').catch(() => {});
 };
 
-// ─── Daily Fast End / Break-fast Reminder ───
-export const scheduleFastEndReminderDaily = async (hour = 12, minute = 0) => {
-  await Notifications.cancelScheduledNotificationAsync('fast-end-daily').catch(() => {});
+// ─── Calorie Check Reminder (evening) ───
+export const scheduleCalorieCheckReminder = async (hour = 20, minute = 0) => {
+  await Notifications.cancelScheduledNotificationAsync('calorie-check-daily').catch(() => {});
   await Notifications.scheduleNotificationAsync({
-    identifier: 'fast-end-daily',
+    identifier: 'calorie-check-daily',
     content: {
-      title: 'Ready to break your fast? 🍽️',
-      body: 'Your eating window is open. Break your fast mindfully.',
+      title: 'How are your calories today? 🍽️',
+      body: "Check your calorie total and log any meals you haven't tracked yet.",
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -140,8 +51,19 @@ export const scheduleFastEndReminderDaily = async (hour = 12, minute = 0) => {
   });
 };
 
-export const cancelFastEndReminderDaily = async () => {
-  await Notifications.cancelScheduledNotificationAsync('fast-end-daily').catch(() => {});
+export const cancelCalorieCheckReminder = async () => {
+  await Notifications.cancelScheduledNotificationAsync('calorie-check-daily').catch(() => {});
+};
+
+// ─── Goal Streak Celebration (fires immediately on milestone) ───
+export const fireStreakCelebration = async (streakDays) => {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: `${streakDays}-day streak! 🔥`,
+      body: `You've hit your calorie goal ${streakDays} days in a row. Keep it up!`,
+    },
+    trigger: null,
+  });
 };
 
 // ─── Meal Log Reminder ───
@@ -176,7 +98,7 @@ export const schedulePredictionNotification = async (prediction) => {
   await Notifications.scheduleNotificationAsync({
     identifier: 'prediction-daily',
     content: {
-      title: 'Afri Fast sees something coming',
+      title: 'AfriFast has a tip for you',
       body: prediction.text,
       data: { type: 'prediction', cardIndex: prediction.cardIndex ?? 0 },
     },
@@ -194,3 +116,15 @@ export const fireCelebrationNotification = async (title, body) => {
     trigger: null,
   });
 };
+
+// ─── Legacy stubs (kept for backward compatibility, do nothing) ───
+export const scheduleFastEndNotification = async () => {};
+export const scheduleMilestoneNotifications = async () => {};
+export const cancelFastingNotifications = async () => {};
+export const scheduleBreakFastReminder = async () => {};
+export const scheduleEatingWindowCloseReminder = async () => {};
+export const cancelEatingWindowReminder = async () => {};
+export const scheduleFastStartReminder = async (hour = 7) => scheduleWeighInReminder(hour);
+export const cancelFastStartReminder = async () => cancelWeighInReminder();
+export const scheduleFastEndReminderDaily = async (hour = 20) => scheduleCalorieCheckReminder(hour);
+export const cancelFastEndReminderDaily = async () => cancelCalorieCheckReminder();
