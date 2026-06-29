@@ -2,29 +2,24 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform, Keyboard } from 'react-native';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CELL_SIZE = Math.floor((SCREEN_WIDTH - 40 - 24) / 7);
 
-const buildDateOptions = () => {
-  const opts = [];
-  const today = new Date();
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    opts.push({
-      label: i === 0 ? 'Today' : i === 1 ? 'Yesterday' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-      date: d,
-      dateStr: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    });
-  }
-  return opts;
-};
+const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAY_LABELS = ['S','M','T','W','T','F','S'];
+const LOG_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const toDateStr = (d) =>
+  `${LOG_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 
 const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, setWeightUnit, onWeightSaved, onWeightDeleted }) => {
   const [newWeight, setNewWeight] = useState('');
-  const [selectedDateIdx, setSelectedDateIdx] = useState(0);
+  const today = new Date();
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [calendarMonth, setCalendarMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [showCalendar, setShowCalendar] = useState(false);
   const [weightStatsRange, setWeightStatsRange] = useState('7 days');
   const [showWeightStatsDropdown, setShowWeightStatsDropdown] = useState(false);
-  const dateOptions = buildDateOptions();
 
   const convertWeight = (weight, fromUnit, toUnit) => {
     if (fromUnit === toUnit) return weight;
@@ -36,8 +31,7 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
   const saveWeight = () => {
     if (!newWeight) return;
     Keyboard.dismiss();
-    const chosen = dateOptions[selectedDateIdx];
-    const newLog = { date: chosen.dateStr, timestamp: chosen.date.getTime(), weight: parseFloat(newWeight), unit: weightUnit };
+    const newLog = { date: toDateStr(selectedDate), timestamp: selectedDate.getTime(), weight: parseFloat(newWeight), unit: weightUnit };
     setWeightLogs([newLog, ...weightLogs]);
     onWeightSaved && onWeightSaved(newLog);
     setNewWeight('');
@@ -49,38 +43,94 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
     onWeightDeleted && onWeightDeleted(log);
   };
 
+  // Calendar grid
+  const year = calendarMonth.getFullYear();
+  const month = calendarMonth.getMonth();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const calCells = [...Array(firstWeekday).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  while (calCells.length % 7 !== 0) calCells.push(null);
+
+  const todayD = today.getDate();
+  const todayM = today.getMonth();
+  const todayY = today.getFullYear();
+
+  const isToday = selectedDate.getDate() === todayD && selectedDate.getMonth() === todayM && selectedDate.getFullYear() === todayY;
+  const yesterday = new Date(today); yesterday.setDate(todayD - 1);
+  const isYesterday = selectedDate.toDateString() === yesterday.toDateString();
+  const selectedLabel = isToday ? 'Today' : isYesterday ? 'Yesterday'
+    : selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
   if (!show) return null;
 
   return (
     <View style={styles.weightPageOverlay}>
       <View style={styles.weightPage}>
+
         {/* Header */}
         <View style={styles.weightPageHeader}>
           <TouchableOpacity style={styles.weightBackBtn} onPress={onClose}>
             <Ionicons name="chevron-back" size={24} color="#059669" />
           </TouchableOpacity>
           <Text style={styles.weightPageTitle}>Weight Log</Text>
-          <View style={{ width: 40 }} />
+          <TouchableOpacity
+            style={[styles.calendarIconBtn, showCalendar && styles.calendarIconBtnActive]}
+            onPress={() => setShowCalendar(v => !v)}
+          >
+            <Ionicons name={showCalendar ? 'calendar' : 'calendar-outline'} size={20} color={showCalendar ? '#fff' : '#059669'} />
+          </TouchableOpacity>
         </View>
 
-        {/* Date navigator right under header */}
-        <View style={styles.dateNavRow}>
-          <TouchableOpacity
-            style={[styles.dateNavArrow, selectedDateIdx >= dateOptions.length - 1 && styles.dateNavArrowDisabled]}
-            onPress={() => setSelectedDateIdx(i => Math.min(i + 1, dateOptions.length - 1))}
-            disabled={selectedDateIdx >= dateOptions.length - 1}
-          >
-            <Ionicons name="chevron-back" size={20} color={selectedDateIdx >= dateOptions.length - 1 ? '#ccc' : '#059669'} />
-          </TouchableOpacity>
-          <Text style={styles.dateNavLabel}>{dateOptions[selectedDateIdx].label}</Text>
-          <TouchableOpacity
-            style={[styles.dateNavArrow, selectedDateIdx === 0 && styles.dateNavArrowDisabled]}
-            onPress={() => setSelectedDateIdx(i => Math.max(i - 1, 0))}
-            disabled={selectedDateIdx === 0}
-          >
-            <Ionicons name="chevron-forward" size={20} color={selectedDateIdx === 0 ? '#ccc' : '#059669'} />
-          </TouchableOpacity>
+        {/* Always-visible date strip */}
+        <View style={styles.selectedStrip}>
+          <Ionicons name="scale-outline" size={12} color="#059669" />
+          <Text style={styles.selectedStripText}>
+            Logging for: <Text style={styles.selectedStripDate}>{selectedLabel}</Text>
+          </Text>
         </View>
+
+        {/* Calendar overlay */}
+        {showCalendar && (
+          <>
+            <TouchableOpacity style={styles.calendarBackdrop} activeOpacity={1} onPress={() => setShowCalendar(false)} />
+            <View style={styles.calendarCard}>
+              <View style={styles.calMonthRow}>
+                <TouchableOpacity onPress={() => setCalendarMonth(new Date(year, month - 1, 1))}>
+                  <Ionicons name="chevron-back" size={18} color="#059669" />
+                </TouchableOpacity>
+                <Text style={styles.calMonthLabel}>{FULL_MONTHS[month]} {year}</Text>
+                <TouchableOpacity onPress={() => setCalendarMonth(new Date(year, month + 1, 1))}>
+                  <Ionicons name="chevron-forward" size={18} color="#059669" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.calDayLabels}>
+                {DAY_LABELS.map((d, i) => (
+                  <View key={i} style={{ width: CELL_SIZE, alignItems: 'center' }}>
+                    <Text style={styles.calDayLabelText}>{d}</Text>
+                  </View>
+                ))}
+              </View>
+              <View style={styles.calGrid}>
+                {calCells.map((day, i) => {
+                  if (!day) return <View key={i} style={{ width: CELL_SIZE, height: CELL_SIZE }} />;
+                  const isSelected = day === selectedDate.getDate() && month === selectedDate.getMonth() && year === selectedDate.getFullYear();
+                  const isTodayCell = day === todayD && month === todayM && year === todayY;
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      style={[styles.calCell, { width: CELL_SIZE, height: CELL_SIZE }, isSelected && styles.calCellSelected, !isSelected && isTodayCell && styles.calCellToday]}
+                      onPress={() => { setSelectedDate(new Date(year, month, day)); setShowCalendar(false); }}
+                    >
+                      <Text style={[styles.calCellText, isSelected && styles.calCellTextSelected, !isSelected && isTodayCell && styles.calCellTextToday]}>
+                        {day}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </>
+        )}
 
         <ScrollView style={styles.weightPageContent} showsVerticalScrollIndicator={false}>
           {/* Compact Weight Input Section */}
@@ -179,7 +229,7 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
                       <Text style={styles.weightStatCardLabel}>Total change</Text>
                     </View>
                     <View style={styles.weightStatCard}>
-                      <Text style={styles.weightStatIcon}>{'\u2696\uFE0F'}</Text>
+                      <Text style={styles.weightStatIcon}>{'⚖️'}</Text>
                       <Text style={styles.weightStatCardValue}>{rangeLogs.length > 0 ? `${avgWeight.toFixed(1)} ${unit}` : '--'}</Text>
                       <Text style={styles.weightStatCardLabel}>Avg weight</Text>
                     </View>
@@ -368,31 +418,103 @@ const styles = StyleSheet.create({
     color: '#059669',
     marginRight: 2,
   },
-  dateNavRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.04)',
-  },
-  dateNavArrow: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+  calendarIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: 'rgba(5,150,105,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dateNavArrowDisabled: {
-    backgroundColor: 'rgba(0,0,0,0.04)',
+  calendarIconBtnActive: {
+    backgroundColor: '#059669',
   },
-  dateNavLabel: {
-    fontSize: 15,
-    fontWeight: '600',
+  selectedStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(5,150,105,0.04)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(5,150,105,0.08)',
+  },
+  selectedStripText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  selectedStripDate: {
+    fontWeight: '700',
+    color: '#059669',
+  },
+  calendarBackdrop: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    zIndex: 199,
+  },
+  calendarCard: {
+    position: 'absolute',
+    top: 109,
+    left: 16,
+    right: 16,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
+    zIndex: 200,
+  },
+  calMonthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  calMonthLabel: {
+    fontSize: 14,
+    fontWeight: '700',
     color: '#1F1F1F',
+  },
+  calDayLabels: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  calDayLabelText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#aaa',
+    textAlign: 'center',
+  },
+  calGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  calCell: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  calCellSelected: {
+    backgroundColor: '#059669',
+  },
+  calCellToday: {
+    borderWidth: 1,
+    borderColor: '#059669',
+  },
+  calCellText: {
+    fontSize: 13,
+    color: '#333',
+  },
+  calCellTextSelected: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  calCellTextToday: {
+    color: '#059669',
+    fontWeight: '700',
   },
   saveWeightBtnCompact: {
     width: '100%',

@@ -1,19 +1,31 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
+import { Rect } from 'react-native-svg';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   const [calorieRange, setCalorieRange] = useState('7 days');
+  const [proteinTooltip, setProteinTooltip] = useState(null);
+  const [carbsTooltip, setCarbsTooltip] = useState(null);
+  const [fatsTooltip, setFatsTooltip] = useState(null);
+
+  useEffect(() => { if (!proteinTooltip) return; const t = setTimeout(() => setProteinTooltip(null), 2000); return () => clearTimeout(t); }, [proteinTooltip]);
+  useEffect(() => { if (!carbsTooltip) return; const t = setTimeout(() => setCarbsTooltip(null), 2000); return () => clearTimeout(t); }, [carbsTooltip]);
+  useEffect(() => { if (!fatsTooltip) return; const t = setTimeout(() => setFatsTooltip(null), 2000); return () => clearTimeout(t); }, [fatsTooltip]);
 
   if (!show) return null;
 
   const meals = recentMeals || [];
   const days = calorieRange === '7 days' ? 7 : calorieRange === '30 days' ? 30 : calorieRange === '90 days' ? 90 : 99999;
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  const rangeMeals = meals.filter(m => m.date && new Date(m.date).getTime() >= cutoff);
+  const rangeMeals = meals.filter(m => {
+    if (days === 99999) return true;
+    const t = m.timestamp || new Date(m.date).getTime();
+    return !isNaN(t) && t >= cutoff;
+  });
   const byDate = {};
   rangeMeals.forEach(m => {
     if (!byDate[m.date]) byDate[m.date] = { calories: 0, protein: 0, carbs: 0, fats: 0 };
@@ -36,34 +48,61 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   const lowest = dailyVals.length > 0 ? Math.min(...dailyVals) : 0;
   const totalMacro = totals.protein + totals.carbs + totals.fats;
   const pct = (val) => totalMacro > 0 ? Math.round((val / totalMacro) * 100) : 0;
-  const dailyData = Object.entries(byDate).map(([date, d]) => ({ date, ...d })).reverse();
+  const dailyData = Object.entries(byDate)
+    .map(([date, d]) => ({ date, ...d }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
   const hasMultiple = dailyData.length >= 2;
-  const chartLabels = dailyData.map(d => { const dt = new Date(d.date); return isNaN(dt.getTime()) ? '' : `${dt.getDate()}/${dt.getMonth() + 1}`; });
+  const chartLabels = dailyData.map(d => {
+    if (calorieRange !== '7 days') return '';
+    const dt = new Date(d.date);
+    return isNaN(dt.getTime()) ? '' : `${dt.getDate()}/${dt.getMonth() + 1}`;
+  });
 
-  const makeMacroChart = (dataPoints, color, suffix) => (
-    <LineChart
-      data={{ labels: chartLabels, datasets: [{ data: dataPoints.length > 0 ? dataPoints : [0] }] }}
-      width={SCREEN_WIDTH - 72}
-      height={160}
-      yAxisSuffix={suffix}
-      chartConfig={{
-        backgroundColor: '#fff', backgroundGradientFrom: '#fff', backgroundGradientTo: '#fff',
-        decimalPlaces: 0,
-        color: (opacity = 1) => color.replace('1)', `${opacity})`),
-        labelColor: () => '#888',
-        propsForDots: { r: '4', strokeWidth: '2', stroke: color.replace('1)', '1)'), fill: '#fff' },
-        propsForBackgroundLines: { strokeDasharray: '', stroke: 'rgba(0,0,0,0.04)' },
-        fillShadowGradientFrom: color.replace('1)', '1)'),
-        fillShadowGradientTo: '#fff',
-        fillShadowGradientFromOpacity: 0.1,
-        fillShadowGradientToOpacity: 0,
-      }}
-      bezier
-      style={{ borderRadius: 12 }}
-      withInnerLines={true}
-      withOuterLines={false}
-      fromZero={false}
-    />
+  const makeMacroChart = (dataPoints, rgbaColor, hexColor, tooltip, setTooltip) => (
+    <View style={{ marginHorizontal: -12, height: 190, overflow: 'hidden', position: 'relative' }}>
+      <LineChart
+        data={{
+          labels: chartLabels,
+          datasets: [
+            { data: dataPoints.length > 0 ? dataPoints : [0] },
+            { data: [0] },
+          ],
+        }}
+        width={SCREEN_WIDTH - 16}
+        height={190}
+        chartConfig={{
+          backgroundColor: '#fff',
+          backgroundGradientFrom: '#fff',
+          backgroundGradientTo: '#fff',
+          decimalPlaces: 0,
+          color: (opacity = 1) => rgbaColor.replace('1)', `${opacity})`),
+          labelColor: () => '#888',
+          propsForDots: { r: '0' },
+          propsForBackgroundLines: { stroke: 'transparent' },
+          fillShadowGradientFrom: hexColor,
+          fillShadowGradientTo: hexColor,
+          fillShadowGradientFromOpacity: 0.3,
+          fillShadowGradientToOpacity: 0.05,
+          propsForLabels: { fontSize: 9 },
+          paddingRight: 48,
+        }}
+        renderDotContent={({ x, y }) => (
+          <Rect key={`${x}-${y}`} x={x - 3} y={y - 3} width={6} height={6} fill={hexColor} rx={1} />
+        )}
+        onDataPointClick={({ value, x, y }) => setTooltip(t => t?.x === x && t?.y === y ? null : { value, x, y })}
+        bezier
+        style={{ borderRadius: 12, marginLeft: -54 }}
+        withInnerLines={false}
+        withOuterLines={false}
+        fromZero={false}
+        withHorizontalLabels={false}
+      />
+      {tooltip && (
+        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(tooltip.x - 30, SCREEN_WIDTH - 120)), top: tooltip.y - 12 }]} pointerEvents="none">
+          <Text style={styles.chartTooltipText}>{tooltip.value}g</Text>
+        </View>
+      )}
+    </View>
   );
 
   return (
@@ -103,22 +142,22 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
             <Text style={styles.detailSectionTitle}>Calorie Statistics</Text>
             <View style={styles.calorieStatsGridCompact}>
               <View style={styles.calorieStatCardCompact}>
-                <Text style={styles.calorieStatCardIconSmall}>{'\u{1F525}'}</Text>
+                <Ionicons name="flame-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
                 <Text style={styles.calorieStatCardValueSmall}>{hasData ? avg(totals.calories).toLocaleString() : '--'}</Text>
                 <Text style={styles.calorieStatCardLabelSmall}>Avg daily</Text>
               </View>
               <View style={styles.calorieStatCardCompact}>
-                <Text style={styles.calorieStatCardIconSmall}>{'\u{1F4CA}'}</Text>
+                <Ionicons name="bar-chart-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
                 <Text style={styles.calorieStatCardValueSmall}>{hasData ? (totals.calories >= 1000 ? `${(totals.calories / 1000).toFixed(1)}k` : totals.calories) : '--'}</Text>
                 <Text style={styles.calorieStatCardLabelSmall}>Total cal</Text>
               </View>
               <View style={styles.calorieStatCardCompact}>
-                <Text style={styles.calorieStatCardIconSmall}>{'\u{1F4C8}'}</Text>
+                <Ionicons name="trending-up-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
                 <Text style={styles.calorieStatCardValueSmall}>{hasData ? highest.toLocaleString() : '--'}</Text>
                 <Text style={styles.calorieStatCardLabelSmall}>Highest</Text>
               </View>
               <View style={styles.calorieStatCardCompact}>
-                <Text style={styles.calorieStatCardIconSmall}>{'\u{1F4C9}'}</Text>
+                <Ionicons name="trending-down-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
                 <Text style={styles.calorieStatCardValueSmall}>{hasData ? lowest.toLocaleString() : '--'}</Text>
                 <Text style={styles.calorieStatCardLabelSmall}>Lowest</Text>
               </View>
@@ -127,12 +166,14 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
 
           {/* Protein Intake Trend */}
           <View style={styles.detailSection}>
-            <Text style={styles.detailSectionTitle}>{'\u{1F969}'} Protein Intake</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <Ionicons name="barbell-outline" size={14} color="#1F1F1F" />
+              <Text style={styles.detailSectionTitleNoMargin}>Protein Intake</Text>
+            </View>
             <View style={styles.chartCardCompact}>
-              <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}>
-                {hasMultiple ? makeMacroChart(dailyData.map(d => d.protein || 0), 'rgba(239, 68, 68, 1)', 'g')
-                  : <Text style={styles.chartPlaceholderText}>{hasData ? `${avg(totals.protein)}g avg` : 'No data'}</Text>}
-              </View>
+              {hasMultiple ? makeMacroChart(dailyData.map(d => d.protein || 0), 'rgba(239, 68, 68, 1)', '#EF4444', proteinTooltip, setProteinTooltip)
+                : <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasData ? `${avg(totals.protein)}g avg` : 'No data'}</Text></View>}
+
               <View style={styles.macroStatsRowCompact}>
                 <View style={styles.macroStatItemCompact}>
                   <Text style={styles.macroStatValueSmall}>{hasData ? `${avg(totals.protein)}g` : '--'}</Text>
@@ -152,12 +193,14 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
 
           {/* Carbs Intake Trend */}
           <View style={styles.detailSection}>
-            <Text style={styles.detailSectionTitle}>{'\u{1F35E}'} Carbohydrate Intake</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <Ionicons name="restaurant-outline" size={14} color="#1F1F1F" />
+              <Text style={styles.detailSectionTitleNoMargin}>Carbohydrate Intake</Text>
+            </View>
             <View style={styles.chartCardCompact}>
-              <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}>
-                {hasMultiple ? makeMacroChart(dailyData.map(d => d.carbs || 0), 'rgba(245, 158, 11, 1)', 'g')
-                  : <Text style={styles.chartPlaceholderText}>{hasData ? `${avg(totals.carbs)}g avg` : 'No data'}</Text>}
-              </View>
+              {hasMultiple ? makeMacroChart(dailyData.map(d => d.carbs || 0), 'rgba(245, 158, 11, 1)', '#F59E0B', carbsTooltip, setCarbsTooltip)
+                : <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasData ? `${avg(totals.carbs)}g avg` : 'No data'}</Text></View>}
+
               <View style={styles.macroStatsRowCompact}>
                 <View style={styles.macroStatItemCompact}>
                   <Text style={styles.macroStatValueSmall}>{hasData ? `${avg(totals.carbs)}g` : '--'}</Text>
@@ -177,12 +220,14 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
 
           {/* Fats Intake Trend */}
           <View style={styles.detailSection}>
-            <Text style={styles.detailSectionTitle}>{'\u{1F951}'} Fat Intake</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <Ionicons name="water-outline" size={14} color="#1F1F1F" />
+              <Text style={styles.detailSectionTitleNoMargin}>Fat Intake</Text>
+            </View>
             <View style={styles.chartCardCompact}>
-              <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}>
-                {hasMultiple ? makeMacroChart(dailyData.map(d => d.fats || 0), 'rgba(139, 92, 246, 1)', 'g')
-                  : <Text style={styles.chartPlaceholderText}>{hasData ? `${avg(totals.fats)}g avg` : 'No data'}</Text>}
-              </View>
+              {hasMultiple ? makeMacroChart(dailyData.map(d => d.fats || 0), 'rgba(139, 92, 246, 1)', '#8B5CF6', fatsTooltip, setFatsTooltip)
+                : <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasData ? `${avg(totals.fats)}g avg` : 'No data'}</Text></View>}
+
               <View style={styles.macroStatsRowCompact}>
                 <View style={styles.macroStatItemCompact}>
                   <Text style={styles.macroStatValueSmall}>{hasData ? `${avg(totals.fats)}g` : '--'}</Text>
@@ -202,7 +247,10 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
 
           {/* Fiber Intake Trend */}
           <View style={styles.detailSection}>
-            <Text style={styles.detailSectionTitle}>{'\u{1F96C}'} Fiber Intake</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <Ionicons name="leaf-outline" size={14} color="#1F1F1F" />
+              <Text style={styles.detailSectionTitleNoMargin}>Fiber Intake</Text>
+            </View>
             <View style={styles.chartCardCompact}>
               <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}>
                 <Text style={styles.chartPlaceholderText}>No fiber data</Text>
@@ -341,6 +389,11 @@ const styles = StyleSheet.create({
     color: '#1F1F1F',
     marginBottom: 10,
   },
+  detailSectionTitleNoMargin: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F1F1F',
+  },
   calorieStatsGridCompact: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -459,6 +512,19 @@ const styles = StyleSheet.create({
     color: '#bbb',
     textAlign: 'center',
     marginTop: 4,
+  },
+  chartTooltip: {
+    position: 'absolute',
+    backgroundColor: '#1F1F1F',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    zIndex: 10,
+  },
+  chartTooltipText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
 

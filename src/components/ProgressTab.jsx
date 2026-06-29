@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
 import { useTheme } from '../lib/theme';
 import { LineChart } from 'react-native-chart-kit';
@@ -10,7 +11,7 @@ const ProgressTab = ({
   onShowWeightModal, onShowFastingDetails, onShowBMIDetails, onShowCalorieDetails, onShowHydrationDetails,
   fastingSessions = [], recentMeals = [], weightLogs = [], waterLogs = [], checkInHistory = [],
   height = '', heightUnit = 'cm', weightUnit = 'kg', volumeUnit = 'oz', targetWeight = null, startingWeight = null,
-  dailyCalorieGoal = 2000,
+  dailyCalorieGoal = 2000, hydrationGoal = 0,
 }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -19,6 +20,10 @@ const ProgressTab = ({
   const [weightTooltip, setWeightTooltip] = useState(null);
   const [calTooltip, setCalTooltip] = useState(null);
   const [waterTooltip, setWaterTooltip] = useState(null);
+
+  useEffect(() => { if (!weightTooltip) return; const t = setTimeout(() => setWeightTooltip(null), 2000); return () => clearTimeout(t); }, [weightTooltip]);
+  useEffect(() => { if (!calTooltip) return; const t = setTimeout(() => setCalTooltip(null), 2000); return () => clearTimeout(t); }, [calTooltip]);
+  useEffect(() => { if (!waterTooltip) return; const t = setTimeout(() => setWaterTooltip(null), 2000); return () => clearTimeout(t); }, [waterTooltip]);
 
   const getProgressData = () => {
     const now = Date.now();
@@ -38,20 +43,40 @@ const ProgressTab = ({
       return dur > max ? dur : max;
     }, 0);
 
-    // Calorie tracking streak — days in a row with at least one meal logged
-    const allLoggedDates = new Set((recentMeals || []).map(m => new Date(m.date).toDateString()).filter(Boolean));
+    // Filter all data sources by date range first
+    const rangeMeals = (recentMeals || []).filter(m => {
+      if (days === 99999) return true;
+      const t = m.timestamp || new Date(m.date).getTime();
+      return !isNaN(t) && t >= cutoff;
+    });
+
+    const rangeWeights = (weightLogs || []).filter(w => {
+      if (days === 99999) return true;
+      const t = w.timestamp || new Date(w.date).getTime();
+      return !isNaN(t) && t >= cutoff;
+    });
+    const weightChange = rangeWeights.length >= 2 ? (rangeWeights[0].weight - rangeWeights[rangeWeights.length - 1].weight).toFixed(1) : '0';
+
+    const rangeWater = (waterLogs || []).filter(w => {
+      if (days === 99999) return true;
+      const t = w.timestamp || new Date(w.date).getTime();
+      return !isNaN(t) && t >= cutoff;
+    });
+
+    // Calorie tracking streak — within selected range
+    const allLoggedDates = new Set(rangeMeals.map(m => new Date(m.date).toDateString()).filter(Boolean));
     const today = new Date();
     const todayStr = today.toDateString();
     const hasLoggedToday = allLoggedDates.has(todayStr);
     const streakStart = hasLoggedToday ? 0 : 1;
     let streak = 0;
-    for (let i = streakStart; i < 365; i++) {
+    for (let i = streakStart; i < days + 1; i++) {
       const d = new Date(today); d.setDate(d.getDate() - i);
       if (allLoggedDates.has(d.toDateString())) streak++;
       else break;
     }
 
-    // Best (longest ever) logging streak
+    // Best logging streak within range
     const sortedDates = [...allLoggedDates].map(s => new Date(s)).sort((a, b) => a - b);
     let bestStreak = 0, runStreak = 0;
     for (let i = 0; i < sortedDates.length; i++) {
@@ -62,28 +87,6 @@ const ProgressTab = ({
       }
       if (runStreak > bestStreak) bestStreak = runStreak;
     }
-
-    // Weight — filter by date range
-    const rangeWeights = (weightLogs || []).filter(w => {
-      if (days === 99999) return true;
-      const t = w.timestamp || new Date(w.date).getTime();
-      return !isNaN(t) && t >= cutoff;
-    });
-    const weightChange = rangeWeights.length >= 2 ? (rangeWeights[0].weight - rangeWeights[rangeWeights.length - 1].weight).toFixed(1) : '0';
-
-    // Water — filter by date range
-    const rangeWater = (waterLogs || []).filter(w => {
-      if (days === 99999) return true;
-      const t = w.timestamp || new Date(w.date).getTime();
-      return !isNaN(t) && t >= cutoff;
-    });
-
-    // Meals — filter by date range
-    const rangeMeals = (recentMeals || []).filter(m => {
-      if (days === 99999) return true;
-      const t = m.timestamp || new Date(m.date).getTime();
-      return !isNaN(t) && t >= cutoff;
-    });
 
     // Days on target in range — calories within 70–115% of daily goal
     const daysOnTarget = [...new Set(rangeMeals.map(m => m.date))].filter(date => {
@@ -223,7 +226,10 @@ const ProgressTab = ({
         {/* Section 1: Calorie Tracking Streaks */}
         <View style={styles.progressSectionCompact}>
           <View style={styles.progressSectionHeader}>
-            <Text style={styles.progressSectionTitleCompact}>{'\u{1F525}'} Streaks</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="flame-outline" size={14} color="#1F1F1F" />
+              <Text style={styles.progressSectionTitleCompact}>Streaks</Text>
+            </View>
           </View>
           <View style={styles.chartCardCompact}>
             <View style={styles.streaksGridFour}>
@@ -252,8 +258,8 @@ const ProgressTab = ({
         <View style={styles.progressSectionCompact}>
           <Text style={styles.progressSectionTitleCompact}>Current BMI</Text>
           {(() => {
-            const latestWeight = (weightLogs || []).length > 0
-              ? [...weightLogs].sort((a, b) => new Date(b.date) - new Date(a.date))[0]
+            const latestWeight = progressData.rangeWeights.length > 0
+              ? [...progressData.rangeWeights].sort((a, b) => new Date(b.date) - new Date(a.date))[0]
               : null;
             const hasWeight = latestWeight !== null;
             const heightNum = parseFloat(height);
@@ -364,7 +370,7 @@ const ProgressTab = ({
                           paddingRight: 48,
                         }}
                         renderDotContent={({ x, y, index, indexData }) => (
-                          <Rect key={index} x={x - 3} y={y - 3} width={6} height={6} fill="#059669" rx={1} />
+                          <Rect key={`${x}-${y}`} x={x - 3} y={y - 3} width={6} height={6} fill="#059669" rx={1} />
                         )}
                         onDataPointClick={({ value, x, y }) => setWeightTooltip(t => t?.x === x && t?.y === y ? null : { value, x, y })}
                         bezier
@@ -415,7 +421,10 @@ const ProgressTab = ({
         {/* Section 5: Calorie Intake */}
         <View style={styles.progressSectionCompact}>
           <View style={styles.progressSectionHeader}>
-            <Text style={styles.progressSectionTitleCompact}>{'\u{1F525}'} Calorie Intake</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="flame-outline" size={14} color="#1F1F1F" />
+              <Text style={styles.progressSectionTitleCompact}>Calorie Intake</Text>
+            </View>
             <TouchableOpacity onPress={() => onShowCalorieDetails && onShowCalorieDetails()}>
               <Text style={styles.seeAllBtnSmall}>See all</Text>
             </TouchableOpacity>
@@ -434,11 +443,9 @@ const ProgressTab = ({
                       <>
                       <LineChart
                         data={{
-                          labels: dailyData.map((d, i, arr) => {
-                            if (arr.length <= 7 || i % Math.ceil(arr.length / 7) === 0 || i === arr.length - 1) {
-                              return progressData.formatLabel(d.date);
-                            }
-                            return '';
+                          labels: dailyData.map((d) => {
+                            if (progressData.days > 7) return '';
+                            return progressData.formatLabel(d.date);
                           }),
                           datasets: [
                             { data: dailyData.map(d => d.calories) },
@@ -466,7 +473,7 @@ const ProgressTab = ({
                           paddingRight: 48,
                         }}
                         renderDotContent={({ x, y, index }) => (
-                          <Rect key={index} x={x - 3} y={y - 3} width={6} height={6} fill="#EF4444" rx={1} />
+                          <Rect key={`${x}-${y}`} x={x - 3} y={y - 3} width={6} height={6} fill="#EF4444" rx={1} />
                         )}
                         onDataPointClick={({ value, x, y }) => setCalTooltip(t => t?.x === x && t?.y === y ? null : { value, x, y })}
                         bezier
@@ -509,7 +516,10 @@ const ProgressTab = ({
         {/* Section 6: Water Intake Trends */}
         <View style={styles.progressSectionCompact}>
           <View style={styles.progressSectionHeader}>
-            <Text style={styles.progressSectionTitleCompact}>{'\u{1F4A7}'} Hydration</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="water-outline" size={14} color="#1F1F1F" />
+              <Text style={styles.progressSectionTitleCompact}>Hydration</Text>
+            </View>
             <TouchableOpacity onPress={() => onShowHydrationDetails && onShowHydrationDetails()}>
               <Text style={styles.seeAllBtnSmall}>See all</Text>
             </TouchableOpacity>
@@ -520,6 +530,14 @@ const ProgressTab = ({
               const hasWaterData = uniqueLogs.length > 0;
               const hasMultipleWater = uniqueLogs.length >= 2;
               const chartData = progressData.waterChartData;
+              const goalL = hydrationGoal > 0
+                ? volumeUnit === 'mL' ? hydrationGoal / 1000
+                : volumeUnit === 'oz' ? (hydrationGoal * 29.574) / 1000
+                : volumeUnit === 'sachet' ? hydrationGoal * 0.5
+                : volumeUnit === 'bottle' ? hydrationGoal * 0.75
+                : hydrationGoal
+                : 0;
+              const waterYMax = goalL > 0 ? Math.round((goalL + 2) * 10) / 10 : undefined;
 
               return (
                 <>
@@ -536,8 +554,10 @@ const ProgressTab = ({
                           }),
                           datasets: [
                             { data: chartData },
+                            { data: [0] },
                           ],
                         }}
+                        fromNumber={waterYMax}
                         width={SCREEN_WIDTH + 22}
                         height={190}
                         chartConfig={{
@@ -558,7 +578,7 @@ const ProgressTab = ({
                           paddingRight: 48,
                         }}
                         renderDotContent={({ x, y, index }) => (
-                          <Rect key={index} x={x - 3} y={y - 3} width={6} height={6} fill="#0EA5E9" rx={1} />
+                          <Rect key={`${x}-${y}`} x={x - 3} y={y - 3} width={6} height={6} fill="#0EA5E9" rx={1} />
                         )}
                         onDataPointClick={({ value, x, y }) => setWaterTooltip(t => t?.x === x && t?.y === y ? null : { value, x, y })}
                         bezier

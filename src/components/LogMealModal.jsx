@@ -295,6 +295,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const shareCardRef = useRef(null);
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [capturedPhotoSize, setCapturedPhotoSize] = useState(null);
+  const [previewPhotos, setPreviewPhotos] = useState([]);
   const [scanPhase, setScanPhase] = useState('camera');
   const [selectedMealType, setSelectedMealType] = useState(() => {
     const h = new Date().getHours();
@@ -478,6 +479,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const resetScan = () => {
     setCapturedPhoto(null);
     setCapturedPhotoSize(null);
+    setPreviewPhotos([]);
     setScanPhase('camera');
     setScanProgress(0);
     setScanError(null);
@@ -486,17 +488,13 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     if (scanProgressRef.current) clearInterval(scanProgressRef.current);
   };
 
-  const takePhoto = async () => {
-    if (!cameraRef.current) return;
+  const runAnalysis = async (primaryUri) => {
+    setScanPhase('results');
+    setDetectedFoods([]);
+    setScanProgress(0);
+    setScanError(null);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.4 });
-      setCapturedPhoto(photo.uri);
-      if (photo.width && photo.height) setCapturedPhotoSize({ width: photo.width, height: photo.height });
-      setScanPhase('results');
-      setDetectedFoods([]);
-      setScanProgress(0);
-      setScanError(null);
-      const results = await analyzeWithGemini(photo.uri, setScanProgress, userCountry);
+      const results = await analyzeWithGemini(primaryUri, setScanProgress, userCountry);
       setScanProgress(100);
       if (results?.error) {
         setScanError("Couldn't reach the server. Check your connection and try again.");
@@ -512,10 +510,29 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         setDetectedFoods((results?.foods || []).map((f, i) => ({ ...f, id: i })));
       }, 300);
     } catch (e) {
-      console.log('Camera error:', e);
+      console.log('Analysis error:', e);
       if (scanProgressRef.current) clearInterval(scanProgressRef.current);
       setScanError("Couldn't reach the server. Check your connection and try again.");
     }
+  };
+
+  const takePhoto = async () => {
+    if (!cameraRef.current) return;
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.4 });
+      setCapturedPhoto(photo.uri);
+      if (photo.width && photo.height) setCapturedPhotoSize({ width: photo.width, height: photo.height });
+      setScanPhase('preview');
+    } catch (e) {
+      console.log('Camera error:', e);
+      setScanError("Couldn't take the photo. Try again.");
+    }
+  };
+
+  const addAnotherPhoto = () => {
+    if (capturedPhoto) setPreviewPhotos(prev => [...prev, capturedPhoto]);
+    setCapturedPhoto(null);
+    setScanPhase('camera');
   };
 
   const pickFromGallery = async () => {
@@ -524,30 +541,15 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.4,
+      allowsMultipleSelection: true,
     });
     if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
-    setCapturedPhoto(asset.uri);
-    if (asset.width && asset.height) setCapturedPhotoSize({ width: asset.width, height: asset.height });
-    setScanPhase('results');
-    setDetectedFoods([]);
-    setScanProgress(0);
-    setScanError(null);
-    const results = await analyzeWithGemini(asset.uri, setScanProgress, userCountry);
-    setScanProgress(100);
-    if (results?.error) {
-      setScanError("Couldn't reach the server. Check your connection and try again.");
-      return;
-    }
-    if (results?.notFood) {
-      setScanError(`No food detected — ${results.identified}. Try a clearer photo.`);
-      return;
-    }
-    setScanFromScreen(results?.fromScreen || false);
-    setMealTitle(results?.title || null);
-    setTimeout(() => {
-      setDetectedFoods((results?.foods || []).map((f, i) => ({ ...f, id: i })));
-    }, 300);
+    const assets = result.assets;
+    const primary = assets[0];
+    setCapturedPhoto(primary.uri);
+    if (primary.width && primary.height) setCapturedPhotoSize({ width: primary.width, height: primary.height });
+    if (assets.length > 1) setPreviewPhotos(prev => [...prev, ...assets.slice(1).map(a => a.uri)]);
+    setScanPhase('preview');
   };
 
   const resetWrite = () => {
@@ -2023,6 +2025,53 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         </View>
       )}
 
+      {/* Photo Preview screen */}
+      {logMealMethod === 'scan' && scanPhase === 'preview' && capturedPhoto && (
+        <View style={styles.previewScreen}>
+          {/* Back */}
+          <TouchableOpacity style={styles.previewBackBtn} onPress={() => { setCapturedPhoto(null); setScanPhase('camera'); }}>
+            <Ionicons name="chevron-back" size={26} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Photo fills screen */}
+          <Image source={{ uri: capturedPhoto }} style={styles.previewImage} resizeMode="cover" />
+
+          {/* Dark gradient bottom bar */}
+          <View style={styles.previewBottomBar}>
+            {/* Previously added thumbnails */}
+            {previewPhotos.length > 0 && (
+              <View style={styles.previewThumbnailRow}>
+                {previewPhotos.map((uri, i) => (
+                  <Image key={i} source={{ uri }} style={styles.previewThumb} />
+                ))}
+                <View style={styles.previewThumbCountBadge}>
+                  <Text style={styles.previewThumbCountText}>{previewPhotos.length + 1}</Text>
+                  <Text style={{ color: '#fff', fontSize: 9 }}>photos</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Action buttons */}
+            <View style={styles.previewActions}>
+              <TouchableOpacity style={styles.previewRetakeBtn} onPress={() => { setCapturedPhoto(null); setPreviewPhotos([]); setScanPhase('camera'); }}>
+                <Ionicons name="refresh-outline" size={18} color="#fff" />
+                <Text style={styles.previewRetakeTxt}>Retake</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.previewAddBtn} onPress={addAnotherPhoto}>
+                <Ionicons name="add-circle-outline" size={18} color="#fff" />
+                <Text style={styles.previewAddTxt}>Add another</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.previewNextBtn} onPress={() => runAnalysis(capturedPhoto)}>
+                <Text style={styles.previewNextTxt}>Next</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
     </KeyboardAvoidingView>
   );
 };
@@ -2259,6 +2308,113 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.4)',
+  },
+  // Photo preview
+  previewScreen: {
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: '#000',
+    zIndex: 10001,
+  },
+  previewBackBtn: {
+    position: 'absolute',
+    top: 50,
+    left: 16,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewImage: {
+    flex: 1,
+    width: '100%',
+  },
+  previewBottomBar: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    paddingBottom: 44,
+    paddingTop: 24,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    gap: 16,
+  },
+  previewThumbnailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  previewThumb: {
+    width: 52,
+    height: 52,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  previewThumbCountBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewThumbCountText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  previewActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  previewRetakeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  previewRetakeTxt: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  previewAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  previewAddTxt: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  previewNextBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    backgroundColor: '#059669',
+  },
+  previewNextTxt: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   // Analyzing (unused)
   analyzingOverlay: {
