@@ -1015,7 +1015,19 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                   selectTextOnFocus
                                   onBlur={() => {
                                     const val = parseInt(editCalInputValue);
-                                    if (!isNaN(val)) setDetectedFoods(prev => prev.map((f, idx) => idx === i ? { ...f, cal: Math.max(0, val) } : f));
+                                    if (!isNaN(val) && val >= 0) {
+                                      setDetectedFoods(prev => prev.map((f, idx) => {
+                                        if (idx !== i) return f;
+                                        const ratio = f.cal > 0 ? val / f.cal : 0;
+                                        return {
+                                          ...f,
+                                          cal: val,
+                                          protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein,
+                                          carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs,
+                                          fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats,
+                                        };
+                                      }));
+                                    }
                                     setEditingCalIdx(null);
                                   }}
                                 />
@@ -1323,7 +1335,19 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                   selectTextOnFocus
                                   onBlur={() => {
                                     const val = parseInt(editCalInputValue);
-                                    if (!isNaN(val)) setDetectedFoods(prev => prev.map((f, idx) => idx === i ? { ...f, cal: Math.max(0, val) } : f));
+                                    if (!isNaN(val) && val >= 0) {
+                                      setDetectedFoods(prev => prev.map((f, idx) => {
+                                        if (idx !== i) return f;
+                                        const ratio = f.cal > 0 ? val / f.cal : 0;
+                                        return {
+                                          ...f,
+                                          cal: val,
+                                          protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein,
+                                          carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs,
+                                          fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats,
+                                        };
+                                      }));
+                                    }
                                     setEditingCalIdx(null);
                                   }}
                                 />
@@ -1829,7 +1853,19 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                   selectTextOnFocus
                                   onBlur={() => {
                                     const val = parseInt(editCalInputValue);
-                                    if (!isNaN(val)) setDetectedFoods(prev => prev.map((f, idx) => idx === i ? { ...f, cal: Math.max(0, val) } : f));
+                                    if (!isNaN(val) && val >= 0) {
+                                      setDetectedFoods(prev => prev.map((f, idx) => {
+                                        if (idx !== i) return f;
+                                        const ratio = f.cal > 0 ? val / f.cal : 0;
+                                        return {
+                                          ...f,
+                                          cal: val,
+                                          protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein,
+                                          carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs,
+                                          fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats,
+                                        };
+                                      }));
+                                    }
                                     setEditingCalIdx(null);
                                   }}
                                 />
