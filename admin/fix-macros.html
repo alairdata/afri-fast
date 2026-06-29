@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AfriFast Admin — Fix Meal Macros</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+    /* Gate */
+    #gate { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 16px; }
+    #gate .logo { font-size: 32px; font-weight: 800; color: #059669; }
+    #gate .sub  { font-size: 14px; color: #64748b; }
+    #gate input { width: 280px; padding: 12px 16px; border-radius: 10px; border: 1.5px solid #1e293b; background: #1e293b; color: #e2e8f0; font-size: 15px; outline: none; text-align: center; letter-spacing: 2px; }
+    #gate input:focus { border-color: #059669; }
+    #gate button { width: 280px; padding: 12px; border-radius: 10px; border: none; background: #059669; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+    #gate button:hover { background: #047857; }
+    #gate .err { font-size: 13px; color: #ef4444; }
+
+    /* Panel */
+    #panel { display: none; max-width: 1100px; margin: 0 auto; padding: 32px 20px 80px; }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .topbar .logo { font-size: 22px; font-weight: 800; color: #059669; }
+    .topbar .badge { font-size: 11px; background: #1e293b; color: #94a3b8; padding: 4px 10px; border-radius: 20px; }
+
+    /* Stats bar */
+    .stats-bar { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat-card { background: #1e293b; border-radius: 12px; padding: 16px 20px; flex: 1; min-width: 140px; }
+    .stat-card .label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .stat-card .value { font-size: 24px; font-weight: 800; color: #e2e8f0; }
+
+    /* Controls */
+    .controls { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+    .btn { padding: 10px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.15s; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #059669; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #047857; }
+    .btn-orange { background: #ea580c; color: #fff; }
+    .btn-orange:hover:not(:disabled) { background: #c2410c; }
+    .btn-ghost { background: #1e293b; color: #94a3b8; }
+    .btn-ghost:hover:not(:disabled) { background: #334155; color: #e2e8f0; }
+    .concurrency-label { font-size: 13px; color: #64748b; }
+    .concurrency-label input { width: 50px; padding: 4px 8px; border-radius: 6px; border: 1.5px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 13px; text-align: center; }
+
+    /* Progress */
+    .progress-wrap { margin-bottom: 20px; display: none; }
+    .progress-track { background: #1e293b; border-radius: 99px; height: 8px; overflow: hidden; margin-bottom: 8px; }
+    .progress-fill { height: 100%; background: #059669; border-radius: 99px; transition: width 0.3s; }
+    .progress-label { font-size: 13px; color: #64748b; }
+
+    /* Log */
+    .log { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #64748b; max-height: 100px; overflow-y: auto; margin-bottom: 20px; display: none; font-family: monospace; }
+    .log .ok   { color: #22c55e; }
+    .log .warn { color: #f59e0b; }
+    .log .err  { color: #ef4444; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid #1e293b; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #1e293b; padding: 10px 14px; text-align: left; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; white-space: nowrap; }
+    td { padding: 10px 14px; border-top: 1px solid #1e293b; vertical-align: middle; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .meal-name { font-weight: 600; color: #e2e8f0; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .meal-date { font-size: 11px; color: #475569; margin-top: 2px; }
+    .user-id { font-size: 11px; color: #475569; font-family: monospace; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .macro-old { color: #94a3b8; }
+    .macro-new { color: #34d399; font-weight: 700; }
+    .macro-same { color: #64748b; }
+    .cal-big { font-size: 15px; font-weight: 800; }
+    .arrow { color: #64748b; margin: 0 4px; }
+
+    .status-badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .s-pending  { background: #1e293b; color: #64748b; }
+    .s-analyzing { background: #1c3150; color: #60a5fa; }
+    .s-changed  { background: #14532d; color: #86efac; }
+    .s-same     { background: #1e293b; color: #64748b; }
+    .s-error    { background: #450a0a; color: #fca5a5; }
+    .s-fixed    { background: #1e3a29; color: #4ade80; }
+
+    .fix-btn { padding: 5px 12px; border-radius: 7px; border: none; font-size: 12px; font-weight: 700; cursor: pointer; background: #059669; color: #fff; }
+    .fix-btn:hover { background: #047857; }
+    .fix-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .foods-preview { font-size: 11px; color: #475569; margin-top: 4px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .empty { text-align: center; padding: 40px; color: #475569; }
+
+    .filter-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .filter-bar input { padding: 8px 12px; border-radius: 8px; border: 1.5px solid #334155; background: #1e293b; color: #e2e8f0; font-size: 13px; outline: none; }
+    .filter-bar input:focus { border-color: #059669; }
+    .filter-bar select { padding: 8px 12px; border-radius: 8px; border: 1.5px solid #334155; background: #1e293b; color: #e2e8f0; font-size: 13px; outline: none; }
+  </style>
+</head>
+<body>
+
+<!-- ── Gate ─────────────────────────────────────────────────────────────────── -->
+<div id="gate">
+  <div class="logo">AfriFast</div>
+  <div class="sub">Meal Macro Fix Tool</div>
+  <input type="password" id="pin" placeholder="Admin password" onkeydown="if(event.key==='Enter')login()" autofocus />
+  <button onclick="login()">Enter</button>
+  <div class="err" id="gateErr"></div>
+</div>
+
+<!-- ── Panel ─────────────────────────────────────────────────────────────────── -->
+<div id="panel">
+  <div class="topbar">
+    <div class="logo">AfriFast — Macro Fix</div>
+    <div class="badge">Admin Tool</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-card"><div class="label">Total Meals</div><div class="value" id="statTotal">—</div></div>
+    <div class="stat-card"><div class="label">Analyzed</div><div class="value" id="statAnalyzed">0</div></div>
+    <div class="stat-card"><div class="label">Changed</div><div class="value" id="statChanged" style="color:#34d399">0</div></div>
+    <div class="stat-card"><div class="label">Fixed</div><div class="value" id="statFixed" style="color:#059669">0</div></div>
+    <div class="stat-card"><div class="label">Errors</div><div class="value" id="statErrors" style="color:#ef4444">0</div></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="btn btn-primary" id="analyzeBtn" onclick="startAnalysis()">▶ Analyze All Meals</button>
+    <button class="btn btn-orange" id="fixAllBtn" onclick="fixAll()" disabled>⚡ Fix All Changed</button>
+    <button class="btn btn-ghost" onclick="loadMeals()">↻ Reload</button>
+    <span class="concurrency-label">Batch size: <input type="number" id="batchSize" value="3" min="1" max="10" /></span>
+    <span class="concurrency-label" style="margin-left:8px">Delay (ms): <input type="number" id="batchDelay" value="800" min="200" max="5000" step="100" /></span>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-label" id="progressLabel">0 / 0</div>
+  </div>
+
+  <!-- Log -->
+  <div class="log" id="log"></div>
+
+  <!-- Filter -->
+  <div class="filter-bar">
+    <input type="text" id="filterText" placeholder="Filter by meal name…" oninput="renderTable()" />
+    <select id="filterStatus" onchange="renderTable()">
+      <option value="">All statuses</option>
+      <option value="pending">Pending</option>
+      <option value="changed">Changed</option>
+      <option value="same">Same</option>
+      <option value="error">Error</option>
+      <option value="fixed">Fixed</option>
+    </select>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Meal</th>
+          <th>User</th>
+          <th>Date</th>
+          <th>Old Cal</th>
+          <th>New Cal</th>
+          <th>Old P / C / F</th>
+          <th>New P / C / F</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const { createClient } = supabase;
+const sb = createClient(
+  'https://exvbplhajnvuhanykumm.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4dmJwbGhham52dWhhbnlrdW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwODY2NTEsImV4cCI6MjA5MDY2MjY1MX0.L-D_1nnehcjcQZ52XEl0rhKOoUm7HmOMC4_wGIwQETE'
+);
+
+const ADMIN_PASSWORD = 'AFRIFAST@ADMIN2026';
+const GEMINI_API = 'https://afri-fast.vercel.app/api/gemini';
+
+// ── State ────────────────────────────────────────────────────────────────────
+let meals = [];           // raw DB rows
+let results = [];         // { meal, status, newCal, newProtein, newCarbs, newFats, newFoods, error }
+let analyzing = false;
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+function login() {
+  const val = document.getElementById('pin').value;
+  if (val === ADMIN_PASSWORD) {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('panel').style.display = 'block';
+    loadMeals();
+  } else {
+    document.getElementById('gateErr').textContent = 'Incorrect password.';
+  }
+}
+
+// ── Load meals ───────────────────────────────────────────────────────────────
+async function loadMeals() {
+  meals = [];
+  results = [];
+  logLine('Fetching meals from Supabase…');
+
+  let page = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data, error } = await sb
+      .from('meals')
+      .select('id, user_id, name, calories, protein, carbs, fats, date, logged_at, foods, detected_name')
+      .order('logged_at', { ascending: false })
+      .range(page * PAGE, (page + 1) * PAGE - 1);
+    if (error) { logLine('Error fetching meals: ' + error.message, 'err'); break; }
+    if (!data || data.length === 0) break;
+    meals.push(...data);
+    if (data.length < PAGE) break;
+    page++;
+  }
+
+  results = meals.map(m => ({ meal: m, status: 'pending', newCal: null, newProtein: null, newCarbs: null, newFats: null, newFoods: null, error: null }));
+
+  document.getElementById('statTotal').textContent = meals.length;
+  document.getElementById('statAnalyzed').textContent = '0';
+  document.getElementById('statChanged').textContent = '0';
+  document.getElementById('statFixed').textContent = '0';
+  document.getElementById('statErrors').textContent = '0';
+
+  logLine(`Loaded ${meals.length} meals.`, 'ok');
+  renderTable();
+}
+
+// ── Build text description for Gemini ────────────────────────────────────────
+function buildMealText(meal) {
+  const foods = Array.isArray(meal.foods) ? meal.foods : [];
+  if (foods.length > 0) {
+    // Reconstruct "food1_name (food1_qty), food2_name (food2_qty)"
+    return foods.map(f => {
+      const name = f.name || f.food || 'unknown';
+      const qty  = f.qty  || f.quantity || '';
+      return qty ? `${name} (${qty})` : name;
+    }).join(', ');
+  }
+  // Fall back to detected_name or meal name
+  return meal.detected_name || meal.name || 'unknown meal';
+}
+
+// ── Call Gemini ───────────────────────────────────────────────────────────────
+async function analyzeWithGemini(mealText) {
+  const res = await fetch(GEMINI_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'analyze_text', data: { mealText } }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  if (!json || json.notFood) throw new Error('Gemini returned notFood or null');
+  if (!json.foods || json.foods.length === 0) throw new Error('No foods in response');
+  return json;
+}
+
+// ── Sum food array into meal totals ──────────────────────────────────────────
+function sumFoods(foods) {
+  return foods.reduce((acc, f) => ({
+    cal:     acc.cal     + (Number(f.cal)     || 0),
+    protein: acc.protein + (Number(f.protein) || 0),
+    carbs:   acc.carbs   + (Number(f.carbs)   || 0),
+    fats:    acc.fats    + (Number(f.fats)     || 0),
+  }), { cal: 0, protein: 0, carbs: 0, fats: 0 });
+}
+
+// ── Check if values changed meaningfully (>= 1 cal or 0.5g macro) ─────────────
+function hasChanged(r) {
+  if (r.newCal === null) return false;
+  const m = r.meal;
+  return (
+    Math.abs((r.newCal     || 0) - (m.calories || 0)) >= 1  ||
+    Math.abs((r.newProtein || 0) - (m.protein  || 0)) >= 0.5 ||
+    Math.abs((r.newCarbs   || 0) - (m.carbs    || 0)) >= 0.5 ||
+    Math.abs((r.newFats    || 0) - (m.fats     || 0)) >= 0.5
+  );
+}
+
+// ── Analyze a single result entry ────────────────────────────────────────────
+async function analyzeOne(entry) {
+  entry.status = 'analyzing';
+  renderRow(entry);
+
+  try {
+    const mealText = buildMealText(entry.meal);
+    const geminiResult = await analyzeWithGemini(mealText);
+    const totals = sumFoods(geminiResult.foods);
+
+    entry.newCal     = Math.round(totals.cal);
+    entry.newProtein = Math.round(totals.protein * 10) / 10;
+    entry.newCarbs   = Math.round(totals.carbs   * 10) / 10;
+    entry.newFats    = Math.round(totals.fats     * 10) / 10;
+    entry.newFoods   = geminiResult.foods;
+    entry.status     = hasChanged(entry) ? 'changed' : 'same';
+  } catch (e) {
+    entry.status = 'error';
+    entry.error  = e.message;
+  }
+
+  renderRow(entry);
+}
+
+// ── Start full analysis ───────────────────────────────────────────────────────
+async function startAnalysis() {
+  if (analyzing) return;
+  analyzing = true;
+
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('fixAllBtn').disabled  = true;
+
+  const progressWrap = document.getElementById('progressWrap');
+  progressWrap.style.display = 'block';
+  document.getElementById('log').style.display = 'block';
+
+  const pending = results.filter(r => r.status === 'pending' || r.status === 'error');
+  const batchSize  = Math.max(1, parseInt(document.getElementById('batchSize').value)  || 3);
+  const batchDelay = Math.max(0, parseInt(document.getElementById('batchDelay').value) || 800);
+
+  let done = 0;
+  const total = pending.length;
+
+  for (let i = 0; i < pending.length; i += batchSize) {
+    const batch = pending.slice(i, i + batchSize);
+    await Promise.all(batch.map(e => analyzeOne(e)));
+    done += batch.length;
+
+    updateStats();
+    document.getElementById('progressFill').style.width  = `${Math.round(done / total * 100)}%`;
+    document.getElementById('progressLabel').textContent = `${done} / ${total}`;
+    logLine(`Analyzed ${done} / ${total}…`);
+
+    if (i + batchSize < pending.length) await sleep(batchDelay);
+  }
+
+  analyzing = false;
+  document.getElementById('analyzeBtn').disabled = false;
+  document.getElementById('fixAllBtn').disabled  = results.filter(r => r.status === 'changed').length === 0;
+  logLine('Analysis complete.', 'ok');
+}
+
+// ── Fix a single entry ────────────────────────────────────────────────────────
+async function fixOne(entry) {
+  if (entry.status !== 'changed') return;
+  try {
+    const { error } = await sb.from('meals').update({
+      calories: entry.newCal,
+      protein:  entry.newProtein,
+      carbs:    entry.newCarbs,
+      fats:     entry.newFats,
+      foods:    entry.newFoods,
+    }).eq('id', entry.meal.id);
+    if (error) throw new Error(error.message);
+    entry.status = 'fixed';
+    logLine(`Fixed meal "${entry.meal.name}" (id ${entry.meal.id})`, 'ok');
+  } catch (e) {
+    entry.error = e.message;
+    logLine(`Failed to fix meal ${entry.meal.id}: ${e.message}`, 'err');
+  }
+  renderRow(entry);
+  updateStats();
+}
+
+// ── Fix all changed ───────────────────────────────────────────────────────────
+async function fixAll() {
+  const changed = results.filter(r => r.status === 'changed');
+  document.getElementById('fixAllBtn').disabled = true;
+  logLine(`Fixing ${changed.length} meals…`);
+  for (const entry of changed) {
+    await fixOne(entry);
+    await sleep(100);
+  }
+  logLine('All fixed.', 'ok');
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('statAnalyzed').textContent = results.filter(r => r.status !== 'pending').length;
+  document.getElementById('statChanged').textContent  = results.filter(r => r.status === 'changed').length;
+  document.getElementById('statFixed').textContent    = results.filter(r => r.status === 'fixed').length;
+  document.getElementById('statErrors').textContent   = results.filter(r => r.status === 'error').length;
+}
+
+function statusBadge(status) {
+  const map = { pending: ['s-pending','Pending'], analyzing: ['s-analyzing','Analyzing…'], changed: ['s-changed','Changed'], same: ['s-same','No change'], error: ['s-error','Error'], fixed: ['s-fixed','Fixed ✓'] };
+  const [cls, label] = map[status] || ['s-pending', status];
+  return `<span class="status-badge ${cls}">${label}</span>`;
+}
+
+function renderRow(entry) {
+  const el = document.getElementById('row-' + entry.meal.id);
+  if (!el) return;
+  el.innerHTML = buildRowHTML(entry);
+}
+
+function buildRowHTML(entry) {
+  const m = entry.meal;
+  const foods = Array.isArray(m.foods) ? m.foods : [];
+  const foodPreview = foods.map(f => f.name || '').filter(Boolean).join(', ');
+
+  const oldCal = Math.round(m.calories || 0);
+  const oldP   = (m.protein || 0).toFixed(1);
+  const oldC   = (m.carbs   || 0).toFixed(1);
+  const oldF   = (m.fats    || 0).toFixed(1);
+
+  let newCalHTML  = '—';
+  let newPCFHTML  = '—';
+  let actionHTML  = '';
+
+  if (entry.status === 'analyzing') {
+    newCalHTML = '<span style="color:#60a5fa">…</span>';
+    newPCFHTML = '<span style="color:#60a5fa">…</span>';
+  } else if (entry.status === 'error') {
+    newCalHTML = `<span style="color:#ef4444;font-size:11px">${entry.error || 'Error'}</span>`;
+    actionHTML = `<button class="fix-btn" style="background:#1e293b;color:#94a3b8" onclick="reanalyzeOne('${m.id}')">Retry</button>`;
+  } else if (entry.newCal !== null) {
+    const changed = hasChanged(entry);
+    const calClass  = changed ? 'macro-new' : 'macro-same';
+    const newP  = (entry.newProtein || 0).toFixed(1);
+    const newC  = (entry.newCarbs   || 0).toFixed(1);
+    const newF  = (entry.newFats    || 0).toFixed(1);
+    newCalHTML  = `<span class="${calClass} cal-big">${entry.newCal}</span>`;
+    newPCFHTML  = `<span class="${calClass}">${newP} / ${newC} / ${newF}</span>`;
+
+    if (entry.status === 'changed') {
+      actionHTML = `<button class="fix-btn" onclick="fixOneById('${m.id}')">Fix</button>`;
+    } else if (entry.status === 'fixed') {
+      actionHTML = '<span style="color:#4ade80;font-size:12px">✓ Saved</span>';
+    }
+  }
+
+  const dateStr = m.date ? m.date.split('T')[0] : (m.logged_at ? m.logged_at.split('T')[0] : '—');
+
+  return `
+    <td>
+      <div class="meal-name" title="${escHtml(m.name || '')}">${escHtml(m.name || '(no name)')}</div>
+      ${foodPreview ? `<div class="foods-preview" title="${escHtml(foodPreview)}">${escHtml(foodPreview)}</div>` : ''}
+    </td>
+    <td><div class="user-id" title="${m.user_id}">${m.user_id}</div></td>
+    <td style="white-space:nowrap;color:#64748b;font-size:12px">${dateStr}</td>
+    <td><span class="macro-old cal-big">${oldCal}</span></td>
+    <td>${newCalHTML}</td>
+    <td><span class="macro-old">${oldP} / ${oldC} / ${oldF}</span></td>
+    <td>${newPCFHTML}</td>
+    <td>${statusBadge(entry.status)}</td>
+    <td>${actionHTML}</td>
+  `;
+}
+
+function renderTable() {
+  const filterText   = (document.getElementById('filterText')?.value   || '').toLowerCase();
+  const filterStatus = document.getElementById('filterStatus')?.value  || '';
+
+  const filtered = results.filter(r => {
+    const nameMatch   = !filterText   || (r.meal.name || '').toLowerCase().includes(filterText);
+    const statusMatch = !filterStatus || r.status === filterStatus;
+    return nameMatch && statusMatch;
+  });
+
+  const tbody = document.getElementById('tbody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="empty">No meals match the filter.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(entry =>
+    `<tr id="row-${entry.meal.id}">${buildRowHTML(entry)}</tr>`
+  ).join('');
+}
+
+// ── Public helpers called from inline handlers ───────────────────────────────
+window.fixOneById = async (id) => {
+  const entry = results.find(r => r.meal.id === id);
+  if (entry) await fixOne(entry);
+};
+
+window.reanalyzeOne = async (id) => {
+  const entry = results.find(r => r.meal.id === id);
+  if (!entry) return;
+  entry.status = 'pending';
+  renderRow(entry);
+  await analyzeOne(entry);
+  updateStats();
+  document.getElementById('fixAllBtn').disabled = results.filter(r => r.status === 'changed').length === 0;
+};
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let logBuffer = [];
+function logLine(msg, cls = '') {
+  const logEl = document.getElementById('log');
+  logBuffer.push(`<div class="${cls}">${escHtml(msg)}</div>`);
+  if (logBuffer.length > 50) logBuffer.shift();
+  logEl.innerHTML = logBuffer.join('');
+  logEl.scrollTop = logEl.scrollHeight;
+}
+</script>
+</body>
+</html>
