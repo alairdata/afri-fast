@@ -128,8 +128,8 @@
     <button class="btn btn-primary" id="analyzeBtn" onclick="startAnalysis()">▶ Analyze All Meals</button>
     <button class="btn btn-orange" id="fixAllBtn" onclick="fixAll()" disabled>⚡ Fix All Changed</button>
     <button class="btn btn-ghost" onclick="loadMeals()">↻ Reload</button>
-    <span class="concurrency-label">Batch size: <input type="number" id="batchSize" value="3" min="1" max="10" /></span>
-    <span class="concurrency-label" style="margin-left:8px">Delay (ms): <input type="number" id="batchDelay" value="800" min="200" max="5000" step="100" /></span>
+    <span class="concurrency-label">Meals at once: <input type="number" id="batchSize" value="1" min="1" max="5" /></span>
+    <span class="concurrency-label" style="margin-left:8px">Delay between meals (ms): <input type="number" id="batchDelay" value="1200" min="500" max="10000" step="100" /></span>
   </div>
 
   <!-- Progress -->
@@ -235,36 +235,46 @@ async function loadMeals() {
   renderTable();
 }
 
-// ── Build text description for Gemini ────────────────────────────────────────
-function buildMealText(meal) {
-  const foods = Array.isArray(meal.foods) ? meal.foods : [];
-  if (foods.length > 0) {
-    // Reconstruct "food1_name (food1_qty), food2_name (food2_qty)"
-    return foods.map(f => {
-      const name = f.name || f.food || 'unknown';
-      const qty  = f.qty  || f.quantity || '';
-      return qty ? `${name} (${qty})` : name;
-    }).join(', ');
-  }
-  // Fall back to detected_name or meal name
-  return meal.detected_name || meal.name || 'unknown meal';
-}
-
-// ── Call Gemini ───────────────────────────────────────────────────────────────
-async function analyzeWithGemini(mealText) {
+// ── Call Gemini analyze_text for a SINGLE food item + quantity ────────────────
+// Sending one item at a time is far more accurate than the whole meal at once.
+async function analyzeFoodItem(name, qty) {
+  // Build a natural description Gemini handles best
+  const desc = qty ? `${qty} ${name}` : name;
   const res = await fetch(GEMINI_API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'analyze_text', data: { mealText } }),
+    body: JSON.stringify({ type: 'analyze_text', data: { mealText: desc } }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
-  if (!json || json.notFood) throw new Error('Gemini returned notFood or null');
-  if (!json.foods || json.foods.length === 0) throw new Error('No foods in response');
-  return json;
+  if (!json || json.notFood || !json.foods || json.foods.length === 0) {
+    throw new Error(`No result for "${desc}"`);
+  }
+  // If Gemini split it into multiple sub-items, sum them all
+  return json.foods.reduce((acc, f) => ({
+    cal:     acc.cal     + (Number(f.cal)     || 0),
+    protein: acc.protein + (Number(f.protein) || 0),
+    carbs:   acc.carbs   + (Number(f.carbs)   || 0),
+    fats:    acc.fats    + (Number(f.fats)     || 0),
+    fiber:   acc.fiber   + (Number(f.fiber)    || 0),
+  }), { cal: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 });
 }
 
-// ── Sum food array into meal totals ──────────────────────────────────────────
+// ── Fall back: analyze whole meal name when no foods array stored ─────────────
+async function analyzeMealName(meal) {
+  const text = meal.detected_name || meal.name || 'unknown meal';
+  const res = await fetch(GEMINI_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'analyze_text', data: { mealText: text } }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  if (!json || json.notFood || !json.foods || json.foods.length === 0) throw new Error('No result');
+  return { foods: json.foods, totals: sumFoods(json.foods) };
+}
+
+// ── Sum a foods array ─────────────────────────────────────────────────────────
 function sumFoods(foods) {
   return foods.reduce((acc, f) => ({
     cal:     acc.cal     + (Number(f.cal)     || 0),
@@ -274,34 +284,72 @@ function sumFoods(foods) {
   }), { cal: 0, protein: 0, carbs: 0, fats: 0 });
 }
 
-// ── Check if values changed meaningfully (>= 1 cal or 0.5g macro) ─────────────
+// ── Check if values changed meaningfully ─────────────────────────────────────
 function hasChanged(r) {
   if (r.newCal === null) return false;
   const m = r.meal;
   return (
-    Math.abs((r.newCal     || 0) - (m.calories || 0)) >= 1  ||
+    Math.abs((r.newCal     || 0) - (m.calories || 0)) >= 1   ||
     Math.abs((r.newProtein || 0) - (m.protein  || 0)) >= 0.5 ||
     Math.abs((r.newCarbs   || 0) - (m.carbs    || 0)) >= 0.5 ||
     Math.abs((r.newFats    || 0) - (m.fats     || 0)) >= 0.5
   );
 }
 
-// ── Analyze a single result entry ────────────────────────────────────────────
+// ── Analyze a single meal entry — one food item at a time ────────────────────
 async function analyzeOne(entry) {
   entry.status = 'analyzing';
   renderRow(entry);
 
-  try {
-    const mealText = buildMealText(entry.meal);
-    const geminiResult = await analyzeWithGemini(mealText);
-    const totals = sumFoods(geminiResult.foods);
+  const ITEM_DELAY = 400; // ms between individual food lookups
 
-    entry.newCal     = Math.round(totals.cal);
-    entry.newProtein = Math.round(totals.protein * 10) / 10;
-    entry.newCarbs   = Math.round(totals.carbs   * 10) / 10;
-    entry.newFats    = Math.round(totals.fats     * 10) / 10;
-    entry.newFoods   = geminiResult.foods;
-    entry.status     = hasChanged(entry) ? 'changed' : 'same';
+  try {
+    const storedFoods = Array.isArray(entry.meal.foods) ? entry.meal.foods : [];
+
+    if (storedFoods.length === 0) {
+      // No foods array saved — fall back to whole-meal re-analysis
+      const { foods, totals } = await analyzeMealName(entry.meal);
+      entry.newFoods   = foods;
+      entry.newCal     = Math.round(totals.cal);
+      entry.newProtein = Math.round(totals.protein * 10) / 10;
+      entry.newCarbs   = Math.round(totals.carbs   * 10) / 10;
+      entry.newFats    = Math.round(totals.fats     * 10) / 10;
+    } else {
+      // Look up each food item individually — much more accurate
+      const correctedFoods = [];
+      for (let i = 0; i < storedFoods.length; i++) {
+        const f = storedFoods[i];
+        const name = f.name || f.food || 'unknown food';
+        const qty  = f.qty  || f.quantity || '';
+        try {
+          const macros = await analyzeFoodItem(name, qty);
+          correctedFoods.push({
+            name,
+            qty: qty || '1 serving',
+            cal:     Math.round(macros.cal),
+            protein: Math.round(macros.protein * 10) / 10,
+            carbs:   Math.round(macros.carbs   * 10) / 10,
+            fats:    Math.round(macros.fats     * 10) / 10,
+            fiber:   Math.round(macros.fiber    * 10) / 10,
+          });
+          logLine(`  ✓ ${name} (${qty || 'typical'}) → ${Math.round(macros.cal)} cal`);
+        } catch (e) {
+          // Keep the original values for this item rather than dropping it
+          logLine(`  ⚠ ${name}: ${e.message} — keeping original`, 'warn');
+          correctedFoods.push(f);
+        }
+        if (i < storedFoods.length - 1) await sleep(ITEM_DELAY);
+      }
+
+      const totals = sumFoods(correctedFoods);
+      entry.newFoods   = correctedFoods;
+      entry.newCal     = Math.round(totals.cal);
+      entry.newProtein = Math.round(totals.protein * 10) / 10;
+      entry.newCarbs   = Math.round(totals.carbs   * 10) / 10;
+      entry.newFats    = Math.round(totals.fats     * 10) / 10;
+    }
+
+    entry.status = hasChanged(entry) ? 'changed' : 'same';
   } catch (e) {
     entry.status = 'error';
     entry.error  = e.message;
