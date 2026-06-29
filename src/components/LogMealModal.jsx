@@ -311,6 +311,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const [updatingQtyIdx, setUpdatingQtyIdx] = useState(null);
   const [editingCalIdx, setEditingCalIdx] = useState(null);
   const [editCalInputValue, setEditCalInputValue] = useState('');
+  const editCalInputRef = useRef('');
   const [mealInput, setMealInput] = useState('');
   const [detectedFoods, setDetectedFoods] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -999,7 +1000,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         </View>
                         {editingQtyIdx !== i && (
                           <View style={styles.qtyControl}>
-                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => idx === i ? { ...f, cal: Math.max(0, f.cal - 25) } : f))}>
+                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = Math.max(0, f.cal - 25); const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats }; }))}>
                               <Text style={styles.qtyBtnText}>−</Text>
                             </TouchableOpacity>
                             <View style={{ alignItems: 'center', minWidth: 50 }}>
@@ -1009,12 +1010,12 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                 <TextInput
                                   style={styles.calInlineInput}
                                   value={editCalInputValue}
-                                  onChangeText={setEditCalInputValue}
+                                  onChangeText={(text) => { setEditCalInputValue(text); editCalInputRef.current = text; }}
                                   keyboardType="numeric"
                                   autoFocus
                                   selectTextOnFocus
                                   onBlur={() => {
-                                    const val = parseInt(editCalInputValue);
+                                    const val = parseInt(editCalInputRef.current);
                                     if (!isNaN(val) && val >= 0) {
                                       setDetectedFoods(prev => prev.map((f, idx) => {
                                         if (idx !== i) return f;
@@ -1034,14 +1035,14 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                               ) : (
                                 <TouchableOpacity
                                   disabled={!isFoodEditMode}
-                                  onPress={() => { setEditingCalIdx(i); setEditCalInputValue(String(food.cal)); }}
+                                  onPress={() => { setEditingCalIdx(i); setEditCalInputValue(String(food.cal)); editCalInputRef.current = String(food.cal); }}
                                 >
                                   <Text style={[styles.foodCal, isFoodEditMode && { textDecorationLine: 'underline', color: '#059669' }]}>{food.cal}</Text>
                                 </TouchableOpacity>
                               )}
                               <Text style={styles.foodCalLabel}>CAL</Text>
                             </View>
-                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => idx === i ? { ...f, cal: f.cal + 25 } : f))}>
+                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = f.cal + 25; const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats }; }))}>
                               <Text style={styles.qtyBtnText}>+</Text>
                             </TouchableOpacity>
                           </View>
@@ -1319,7 +1320,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         </View>
                         {editingQtyIdx !== i && (
                           <View style={styles.qtyControl}>
-                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => idx === i ? { ...f, cal: Math.max(0, f.cal - 25) } : f))}>
+                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = Math.max(0, f.cal - 25); const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats }; }))}>
                               <Text style={styles.qtyBtnText}>−</Text>
                             </TouchableOpacity>
                             <View style={{ alignItems: 'center', minWidth: 50 }}>
@@ -1329,12 +1330,12 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                 <TextInput
                                   style={styles.calInlineInput}
                                   value={editCalInputValue}
-                                  onChangeText={setEditCalInputValue}
+                                  onChangeText={(text) => { setEditCalInputValue(text); editCalInputRef.current = text; }}
                                   keyboardType="numeric"
                                   autoFocus
                                   selectTextOnFocus
                                   onBlur={() => {
-                                    const val = parseInt(editCalInputValue);
+                                    const val = parseInt(editCalInputRef.current);
                                     if (!isNaN(val) && val >= 0) {
                                       setDetectedFoods(prev => prev.map((f, idx) => {
                                         if (idx !== i) return f;
@@ -1354,14 +1355,14 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                               ) : (
                                 <TouchableOpacity
                                   disabled={!isFoodEditMode}
-                                  onPress={() => { setEditingCalIdx(i); setEditCalInputValue(String(food.cal)); }}
+                                  onPress={() => { setEditingCalIdx(i); setEditCalInputValue(String(food.cal)); editCalInputRef.current = String(food.cal); }}
                                 >
                                   <Text style={[styles.foodCal, isFoodEditMode && { textDecorationLine: 'underline', color: '#059669' }]}>{food.cal}</Text>
                                 </TouchableOpacity>
                               )}
                               <Text style={styles.foodCalLabel}>CAL</Text>
                             </View>
-                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => idx === i ? { ...f, cal: f.cal + 25 } : f))}>
+                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = f.cal + 25; const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats }; }))}>
                               <Text style={styles.qtyBtnText}>+</Text>
                             </TouchableOpacity>
                           </View>
@@ -1837,7 +1838,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         </View>
                         {editingQtyIdx !== i && (
                           <View style={styles.qtyControl}>
-                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => idx === i ? { ...f, cal: Math.max(0, f.cal - 25) } : f))}>
+                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = Math.max(0, f.cal - 25); const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats }; }))}>
                               <Text style={styles.qtyBtnText}>−</Text>
                             </TouchableOpacity>
                             <View style={{ alignItems: 'center', minWidth: 50 }}>
@@ -1847,12 +1848,12 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                 <TextInput
                                   style={styles.calInlineInput}
                                   value={editCalInputValue}
-                                  onChangeText={setEditCalInputValue}
+                                  onChangeText={(text) => { setEditCalInputValue(text); editCalInputRef.current = text; }}
                                   keyboardType="numeric"
                                   autoFocus
                                   selectTextOnFocus
                                   onBlur={() => {
-                                    const val = parseInt(editCalInputValue);
+                                    const val = parseInt(editCalInputRef.current);
                                     if (!isNaN(val) && val >= 0) {
                                       setDetectedFoods(prev => prev.map((f, idx) => {
                                         if (idx !== i) return f;
@@ -1872,14 +1873,14 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                               ) : (
                                 <TouchableOpacity
                                   disabled={!isFoodEditMode}
-                                  onPress={() => { setEditingCalIdx(i); setEditCalInputValue(String(food.cal)); }}
+                                  onPress={() => { setEditingCalIdx(i); setEditCalInputValue(String(food.cal)); editCalInputRef.current = String(food.cal); }}
                                 >
                                   <Text style={[styles.foodCal, isFoodEditMode && { textDecorationLine: 'underline', color: '#059669' }]}>{food.cal}</Text>
                                 </TouchableOpacity>
                               )}
                               <Text style={styles.foodCalLabel}>CAL</Text>
                             </View>
-                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => idx === i ? { ...f, cal: f.cal + 25 } : f))}>
+                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = f.cal + 25; const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats }; }))}>
                               <Text style={styles.qtyBtnText}>+</Text>
                             </TouchableOpacity>
                           </View>
