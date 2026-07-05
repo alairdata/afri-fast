@@ -1,15 +1,88 @@
 const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
 
-async function callGemini(apiKey, parts) {
+// ── Shared system instructions ───────────────────────────────────────────────
+
+const NUTRITION_SYSTEM =
+  'You are an expert nutritionist and visual analysis AI specializing in African cuisine. ' +
+  'Accurately identify dishes, estimate realistic portions, and calculate macro structures. ' +
+  'cal must always equal (protein × 4) + (carbs × 4) + (fats × 9) — never guess it independently. ' +
+  'For portions: use COUNT + SIZE + ITEM for countable foods (e.g. "2 medium eggs", "1 large chicken thigh") ' +
+  'and SIZE + ITEM for non-countable foods (e.g. "1 heaped cup of white rice", "1 medium wrap of fufu"). ' +
+  'For meal titles: lead with the starchy base or carb, then the single most prominent accompaniment, ' +
+  'joined by "and" or "with". No brackets, parentheses, or commas.';
+
+const INGREDIENT_SYSTEM =
+  "You are a chef's assistant specializing in identifying food ingredients from photos of fridges, pantries, and kitchen counters.";
+
+// ── Response schemas ─────────────────────────────────────────────────────────
+
+const FOOD_ITEM = {
+  type: 'OBJECT',
+  properties: {
+    name:    { type: 'STRING', description: 'Specific local name of the food item.' },
+    qty:     { type: 'STRING', description: 'Portion size with descriptive unit.' },
+    protein: { type: 'NUMBER', description: 'Grams of protein.' },
+    carbs:   { type: 'NUMBER', description: 'Grams of carbohydrates.' },
+    fats:    { type: 'NUMBER', description: 'Grams of fat.' },
+    fiber:   { type: 'NUMBER', description: 'Grams of fiber.' },
+    cal:     { type: 'NUMBER', description: 'Calories: (protein*4)+(carbs*4)+(fats*9).' },
+  },
+  required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'cal'],
+};
+
+const MEAL_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    isFood:             { type: 'BOOLEAN', description: 'True if the input contains edible food.' },
+    whatIsItIfNotFood:  { type: 'STRING',  description: 'If isFood is false, briefly describe what it actually is.' },
+    fromScreen:         { type: 'BOOLEAN', description: 'True if image is a photo of a digital screen.' },
+    title:              { type: 'STRING',  description: 'Primary meal name.' },
+    correctedInput:     { type: 'STRING',  description: 'Clean short summary of what the user described (text input only).' },
+    foods:              { type: 'ARRAY', items: FOOD_ITEM },
+  },
+  required: ['isFood', 'fromScreen', 'title', 'foods'],
+};
+
+const SINGLE_FOOD_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    name:    { type: 'STRING' },
+    qty:     { type: 'STRING' },
+    protein: { type: 'NUMBER' },
+    carbs:   { type: 'NUMBER' },
+    fats:    { type: 'NUMBER' },
+    fiber:   { type: 'NUMBER' },
+    cal:     { type: 'NUMBER' },
+  },
+  required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'cal'],
+};
+
+const INGREDIENTS_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    ingredients: { type: 'ARRAY', items: { type: 'STRING' } },
+    scene:       { type: 'STRING' },
+  },
+  required: ['ingredients', 'scene'],
+};
+
+// ── Core fetch helper ────────────────────────────────────────────────────────
+
+async function callGemini(apiKey, parts, { systemInstruction, schema } = {}) {
   for (const model of GEMINI_MODELS) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const body = {
+      contents: [{ parts }],
+      generationConfig: {
+        temperature: 0.1,
+        ...(schema ? { responseMimeType: 'application/json', responseSchema: schema } : {}),
+      },
+      ...(systemInstruction ? { systemInstruction: { parts: [{ text: systemInstruction }] } } : {}),
+    };
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: { temperature: 0.1 },
-      }),
+      body: JSON.stringify(body),
     });
     if (response.status === 503) continue;
     const data = await response.json();
@@ -19,31 +92,26 @@ async function callGemini(apiKey, parts) {
   throw new Error('All Gemini models unavailable');
 }
 
-function extractJson(text) {
+function parseJson(text) {
   if (!text) return null;
-  const match = text.match(/[{[][^]*[}\]]/);
-  if (!match) return null;
-  try { return JSON.parse(match[0]); } catch { return null; }
+  try { return JSON.parse(text); } catch {
+    const match = text.match(/[{[][^]*[}\]]/);
+    if (!match) return null;
+    try { return JSON.parse(match[0]); } catch { return null; }
+  }
 }
 
 function normalizeFood(f, fallback = 'Unknown food') {
   const protein = Number(f.protein) || 0;
-  const carbs = Number(f.carbs) || 0;
-  const fats = Number(f.fats) || 0;
-  const fiber = Number(f.fiber) || 0;
+  const carbs   = Number(f.carbs)   || 0;
+  const fats    = Number(f.fats)    || 0;
+  const fiber   = Number(f.fiber)   || 0;
   const macroCal = Math.round(protein * 4 + carbs * 4 + fats * 9);
-  // Derive cal from macros for consistency; fall back to model's cal only if macros are all zero
   const cal = macroCal > 0 ? macroCal : (Number(f.cal) || 0);
-  return {
-    name: f.name || fallback,
-    qty: f.qty || '1 serving',
-    cal,
-    protein,
-    carbs,
-    fats,
-    fiber,
-  };
+  return { name: f.name || fallback, qty: f.qty || '1 serving', cal, protein, carbs, fats, fiber };
 }
+
+// ── Route handler ────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -63,35 +131,13 @@ export default async function handler(req, res) {
     if (type === 'scan_photo') {
       const { base64, userCountry } = data;
       const text = await callGemini(GEMINI_KEY, [
-        {
-          text: `You are a food recognition expert for an African health and nutrition app.
-
-Your job is to identify food accurately. Do not over-assume or oversimplify — look carefully at the actual contents of the plate before naming anything. Use the most specific and accurate name for what you see.
-
-IMPORTANT: First check if this image actually contains food. If it does NOT contain food, respond with exactly:
-NOT_FOOD: [what you see in the image]
-
-If it IS food, return a JSON object with three fields:
-1. "fromScreen": true if the image appears to be from a screen or digital device (screen glare, pixel patterns, flat lighting, UI elements, watermarks) — otherwise false.
-2. "title": Name the meal as it is most commonly called. Lead with the starchy base or carb if present, then the single most prominent accompaniment. Exactly two components joined by "and" or "with". No brackets, parentheses, or commas.
-3. "foods": an array of objects, one per distinct food item on the plate. Each object must have:
-   - name: the most accurate and specific name for this food item
-   - qty: specific portion size. Countable: "2 medium eggs", "1 large chicken thigh", "3 thick plantain slices". Non-countable: "1 heaped cup of white rice", "1 large bowl of soup", "1 medium wrap of fufu". Never say just "pieces" or "servings" without specifying exactly what and how big.
-   - protein: grams of protein — give the exact value you would provide if asked "how much protein is in [this food] [this portion]?" directly, as a nutrition database would
-   - carbs: grams of carbohydrates — same direct lookup approach
-   - fats: grams of fat — same direct lookup approach
-   - fiber: grams of fiber — same direct lookup approach
-   - cal: calculate this as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently
-
-Return ONLY a valid JSON object — no explanation, no markdown, no code blocks.`,
-        },
+        { text: `Analyze this plate. Look carefully at the actual contents before identifying anything.\nEstimate portion sizes and look up realistic macro distributions for those portions.${userCountry ? `\nThe user is from ${userCountry} — prioritise local dish names.` : ''}\nIf the image does not contain food, set isFood to false and describe what you see in whatIsItIfNotFood.\nIf the image is a photo of a digital screen, set fromScreen to true.` },
         { inline_data: { mime_type: 'image/jpeg', data: base64 } },
-      ]);
-      if (text.startsWith('NOT_FOOD:')) {
-        return res.json({ notFood: true, identified: text.replace('NOT_FOOD:', '').trim() });
-      }
-      const parsed = extractJson(text);
+      ], { systemInstruction: NUTRITION_SYSTEM, schema: MEAL_SCHEMA });
+
+      const parsed = parseJson(text);
       if (!parsed) return res.status(500).json({ error: 'Could not parse photo scan response' });
+      if (!parsed.isFood) return res.json({ notFood: true, identified: parsed.whatIsItIfNotFood || '' });
       return res.json({
         fromScreen: !!parsed.fromScreen,
         title: parsed.title || null,
@@ -103,34 +149,12 @@ Return ONLY a valid JSON object — no explanation, no markdown, no code blocks.
     if (type === 'analyze_text') {
       const { mealText } = data;
       const text = await callGemini(GEMINI_KEY, [{
-        text: `You are a nutrition expert specializing in African meals. The user has described a meal they ate — this could be a short name like "jollof rice", a messy description like "i had fufu and light soup with chicken and some koobi", or even a long paragraph. Your job is to extract all the food items from whatever they wrote.
+        text: `The user wrote: "${mealText}"\n\nExtract all food items. Be generous — interpret typos and local shorthand (e.g. "bknu" = Banku, "jrice" = Jollof Rice). If there is genuinely no food content at all, set isFood to false. Include a correctedInput summarising what they wrote.`,
+      }], { systemInstruction: NUTRITION_SYSTEM, schema: MEAL_SCHEMA });
 
-IMPORTANT: Be extremely generous — almost anything could reference food. Only return NOT_FOOD if the input contains absolutely zero food references whatsoever (e.g. "my car broke down"). If there is ANY mention of food, extract it. A Ghanaian typing "bknu" likely means "Banku". Give it the benefit of the doubt always.
-
-If after attempting to interpret it there is genuinely NO food content at all, respond with exactly:
-NOT_FOOD: [short description of what it is]
-
-If it contains ANY food, return ONLY raw JSON with these fields:
-1. "correctedInput": a clean short summary of the meal (e.g. "Fufu with light soup and chicken"). Fix typos — do not add items not mentioned.
-2. "title": Name the meal the way a local would naturally say it. Lead with the starchy base or carb if one is present. Follow with only the single most prominent accompaniment. Exactly two components joined by "and" or "with". No brackets, parentheses, or commas.
-3. "foods": an array of objects, one per individual food item mentioned. Each object must have:
-   - name: full food name as a local would say it
-   - qty: if the user gave a precise measurement (e.g. "200g", "150ml", "3oz", "0.5 lbs", "100kg"), preserve it exactly as written and calculate nutrition for that exact amount. Otherwise use COUNT + SIZE + ITEM for countable (e.g. "2 medium eggs") or SIZE + ITEM for non-countable (e.g. "1 heaped cup of white rice"). No brackets.
-   - protein: grams of protein — if a precise weight/volume was given, calculate for that exact amount as a nutrition database would; otherwise give the value you would provide if asked "how much protein is in [this food] [this portion]?" directly
-   - carbs: grams of carbohydrates — same approach
-   - fats: grams of fat — same approach
-   - fiber: grams of fiber — same approach
-   - cal: calculate this as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently
-
-What the user wrote: "${mealText}"
-
-Return ONLY a valid JSON object with no explanation, no markdown, no code blocks.`,
-      }]);
-      if (text.startsWith('NOT_FOOD:')) {
-        return res.json({ notFood: true, identified: text.replace('NOT_FOOD:', '').trim() });
-      }
-      const parsed = extractJson(text);
+      const parsed = parseJson(text);
       if (!parsed) return res.json(null);
+      if (!parsed.isFood) return res.json({ notFood: true, identified: parsed.whatIsItIfNotFood || '' });
       return res.json({
         title: parsed.title || null,
         correctedInput: parsed.correctedInput || null,
@@ -142,30 +166,12 @@ Return ONLY a valid JSON object with no explanation, no markdown, no code blocks
     if (type === 'analyze_audio') {
       const { base64 } = data;
       const text = await callGemini(GEMINI_KEY, [
-        {
-          text: `You are a nutrition expert specializing in African meals. The user has spoken the name of a meal they ate. Listen to the audio and identify the meal.
-
-If you cannot identify a food or meal, respond with exactly:
-NOT_FOOD: [description]
-
-If it IS a food or meal, return ONLY raw JSON with these fields:
-1. "title": Name the meal the way a local would naturally say it. Lead with the starchy base or carb if present. Follow with only the single most prominent accompaniment. Exactly two components joined by "and" or "with". No brackets or commas.
-2. "foods": array of objects, one per food item. Each must have:
-   - name: full food name as a local would say it
-   - qty: if the user mentioned a precise measurement (e.g. "200g", "150ml", "3oz", "0.5 lbs"), preserve it exactly and calculate nutrition for that exact amount. Otherwise use COUNT + SIZE + ITEM (e.g. "2 medium eggs", "1 large wrap of fufu", "1 heaped cup of rice"). No brackets; only include metric units if the user specified them.
-   - protein: grams of protein — if a precise weight/volume was given, calculate for that exact amount as a nutrition database would; otherwise give the value you would provide if asked "how much protein is in [this food] [this portion]?" directly
-   - carbs: grams of carbohydrates — same approach
-   - fats: grams of fat — same approach
-   - fiber: grams of fiber — same approach
-   - cal: calculate this as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently
-
-Return ONLY raw JSON, no markdown, no explanation.`,
-        },
+        { text: 'Listen to the audio and identify the meal or food the user mentioned. If you cannot identify any food, set isFood to false.' },
         { inline_data: { mime_type: 'audio/m4a', data: base64 } },
-      ]);
-      if (!text || text.startsWith('NOT_FOOD:')) return res.json({ notFood: true });
-      const parsed = extractJson(text);
-      if (!parsed) return res.json(null);
+      ], { systemInstruction: NUTRITION_SYSTEM, schema: MEAL_SCHEMA });
+
+      const parsed = parseJson(text);
+      if (!parsed || !parsed.isFood) return res.json({ notFood: true });
       return res.json({
         title: parsed.title || null,
         foods: (parsed.foods || []).map(f => normalizeFood(f)),
@@ -176,43 +182,22 @@ Return ONLY raw JSON, no markdown, no explanation.`,
     if (type === 'lookup_nutrition') {
       const { itemName } = data;
       const text = await callGemini(GEMINI_KEY, [{
-        text: `You are a nutrition expert. Give the nutritional info for one typical serving of "${itemName}".
-Return ONLY a raw JSON object with these fields:
-- name: the proper food name
-- qty: typical single serving size (e.g. "1 medium egg", "1 cup of rice") — be specific, no brackets or metric units
-- protein: grams of protein — exact value as a nutrition database would give for this food and portion
-- carbs: grams of carbohydrates — same
-- fats: grams of fat — same
-- fiber: grams of fiber — same
-- cal: calculate as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently
-No explanation, no markdown, just raw JSON.`,
-      }]);
-      const parsed = extractJson(text);
+        text: `Give the nutritional info for one typical serving of "${itemName}". Be specific about the portion size.`,
+      }], { systemInstruction: NUTRITION_SYSTEM, schema: SINGLE_FOOD_SCHEMA });
+
+      const parsed = parseJson(text);
       if (!parsed) return res.json(null);
       return res.json(normalizeFood(parsed, itemName));
     }
 
     // ── Portion recalculation ────────────────────────────────────────────────
     if (type === 'recalculate_portion') {
-      const { foodName, oldQty, newQty, currentNutrition } = data;
+      const { foodName, oldQty, newQty, currentNutrition: n } = data;
       const text = await callGemini(GEMINI_KEY, [{
-        text: `You are a nutrition expert specializing in African and global meals. Recalculate the nutrition for this food item based on the new portion or measurement the user entered.
+        text: `Food: "${foodName}"\nPrevious portion: ${oldQty} → cal: ${n?.cal ?? 0} kcal, protein: ${n?.protein ?? 0}g, carbs: ${n?.carbs ?? 0}g, fats: ${n?.fats ?? 0}g, fiber: ${n?.fiber ?? 0}g\nNew portion: "${newQty}"\n\nIf the new portion is a precise weight or volume (e.g. 200g, 150ml, 3oz), calculate directly from nutrition knowledge for that exact amount.\nIf same unit type but different quantity, scale proportionally.\nIf the unit type changed without a precise weight, recalculate from scratch.\nIf the new portion text contains a food name (e.g. "1.5 cups of beans"), use that as the name.`,
+      }], { systemInstruction: NUTRITION_SYSTEM, schema: SINGLE_FOOD_SCHEMA });
 
-Food item: "${foodName}"
-Old portion: "${oldQty}" → calories: ${currentNutrition?.cal ?? 0} kcal, protein: ${currentNutrition?.protein ?? 0}g, carbs: ${currentNutrition?.carbs ?? 0}g, fats: ${currentNutrition?.fats ?? 0}g, fiber: ${currentNutrition?.fiber ?? 0}g
-New portion: "${newQty}"
-
-Rules:
-- If the new portion is a precise weight or volume (e.g. "200g", "150ml", "3oz", "0.5 lbs", "100g"), this is an exact measurement — calculate nutrition for that precise amount directly from your nutrition knowledge, as a food scale reading. Do not scale proportionally from the old portion.
-- If the new portion is the same informal unit but different quantity (e.g. "1 cup" → "2 cups"), scale the old nutrition proportionally.
-- If the unit type changed without a precise weight (e.g. "1 cup" → "1 large bowl"), use your nutrition knowledge to calculate correct values for the new portion from scratch.
-- Always return realistic, non-zero values. A real food portion always has calories and macros.
-- For "name", if the user's new portion text contains a food name (e.g. "1.5 cups of beans"), use that food name. Otherwise keep the original name.
-- Set cal as (protein × 4) + (carbs × 4) + (fats × 9) — do not guess calories independently.
-- Return ONLY a raw JSON object: {"name": "food name", "qty": "new portion text", "cal": 0, "protein": 0, "carbs": 0, "fats": 0, "fiber": 0}
-No explanation, no markdown, no extra text.`,
-      }]);
-      const parsed = extractJson(text);
+      const parsed = parseJson(text);
       if (!parsed) return res.json(null);
       return res.json(normalizeFood(parsed, foodName));
     }
@@ -224,27 +209,13 @@ No explanation, no markdown, no extra text.`,
       if (!allImages.length) return res.status(400).json({ error: 'No images provided' });
       const photoWord = allImages.length === 1 ? 'this image' : 'these images';
       const text = await callGemini(GEMINI_KEY, [
-        {
-          text: `You are a chef's assistant. Look at ${photoWord} carefully — the user is showing you their fridge, pantry, kitchen counter, or available ingredients.
-
-Identify ALL the food items, ingredients, and produce you can see across all provided images. Combine findings into one list without duplicates.
-
-Return ONLY a JSON object:
-{
-  "ingredients": ["tomatoes", "eggs", "plantain", "onions", "palm oil", ...],
-  "scene": "brief one-sentence description of what you see"
-}
-
-Include everything visible — fresh produce, proteins, condiments, spices, oils, grains. Use simple common names (e.g. "chicken" not "poultry"). Return ONLY raw JSON, no markdown, no explanation.`,
-        },
+        { text: `Look at ${photoWord} carefully. Identify ALL food items, ingredients, and produce you can see across all images. Combine findings into one deduplicated list. Use simple common names (e.g. "chicken" not "poultry").` },
         ...allImages.map(b => ({ inline_data: { mime_type: 'image/jpeg', data: b } })),
-      ]);
-      const parsed = extractJson(text);
+      ], { systemInstruction: INGREDIENT_SYSTEM, schema: INGREDIENTS_SCHEMA });
+
+      const parsed = parseJson(text);
       if (!parsed) return res.status(500).json({ error: 'Could not analyse image' });
-      return res.json({
-        ingredients: parsed.ingredients || [],
-        scene: parsed.scene || '',
-      });
+      return res.json({ ingredients: parsed.ingredients || [], scene: parsed.scene || '' });
     }
 
     return res.status(400).json({ error: 'Invalid type' });
