@@ -171,6 +171,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [showCheckInPage, setShowCheckInPage] = useState(false);
   const [checkInSource, setCheckInSource] = useState('today');
   const [lastSavedMealId, setLastSavedMealId] = useState(null);
+  const [mealCheckInSnapshot, setMealCheckInSnapshot] = useState(null);
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showFastingDetails, setShowFastingDetails] = useState(false);
   const [showBMIDetails, setShowBMIDetails] = useState(false);
@@ -1244,14 +1245,21 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     if (checkInSource === 'meal') {
       // Merge only meal-specific fields into the master check-in — never wipe it
       const existingV2 = existingCI?.v2Data || {};
+      // Remove moods from the previous snapshot for this meal session, add the new ones
+      const prevSnapshotMoods = mealCheckInSnapshot?.satietyMoods || [];
+      const mergedMoods = [...new Set([
+        ...(existingV2.satietyMoods || []).filter(m => !prevSnapshotMoods.includes(m)),
+        ...(data.satietyMoods || []),
+      ])];
       const mergedV2 = {
         ...existingV2,
-        satietyMoods: [...new Set([...(existingV2.satietyMoods || []), ...(data.satietyMoods || [])])],
+        satietyMoods: mergedMoods,
         noteEntries: [
           ...(existingV2.noteEntries || []),
           ...(data.noteEntries || []),
         ],
       };
+      setMealCheckInSnapshot(data);
       const mergedNotes = mergedV2.noteEntries.map(e => e.text).join('\n\n');
       const mergedCI = existingCI
         ? { ...existingCI, notes: mergedNotes, v2Data: mergedV2 }
@@ -1809,7 +1817,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       {/* === Modals === */}
       <LogMealModal
         show={showLogMealModal}
-        onClose={() => { setShowLogMealModal(false); setViewingMeal(null); setRecipeToLog(null); }}
+        onClose={() => { setShowLogMealModal(false); setViewingMeal(null); setRecipeToLog(null); setMealCheckInSnapshot(null); }}
         logMealMethod={logMealMethod}
         recipeToLog={recipeToLog}
         selectedMealDate={selectedMealDate}
@@ -1885,6 +1893,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         dailyCalorieGoal={dailyCalorieGoal}
         recentMeals={recentMeals}
         checkInHistory={checkInHistory}
+        mealCheckInSnapshot={mealCheckInSnapshot}
         onOpenCheckIn={() => openCheckInPage('meal')}
         onSaveCheckIn={(data) => {
           const dateStr = new Date().toDateString();

@@ -200,7 +200,7 @@ const ShareCardImage = ({ uri, height, style }) => {
   );
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, recipes = [], userEmail = null, userCountry = '' }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
   const streak = useMemo(() => {
     let s = 0;
     const now = new Date();
@@ -225,9 +225,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   };
 
   const renderCheckInWidget = () => {
-    const dateStr = viewingMeal?.date || (selectedMealDate ? selectedMealDate.toDateString() : new Date().toDateString());
-    const ci = checkInHistory.find(c => c.date === dateStr) || null;
-    const satietyMoods = ci?.v2Data?.satietyMoods || [];
+    const satietyMoods = mealCheckInSnapshot?.satietyMoods || [];
     const hasMealCheckIn = satietyMoods.length > 0;
 
     return (
@@ -238,11 +236,8 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 8 }}>
                 {satietyMoods.map((mood, i) => (
-                  <View key={i} style={{ alignItems: 'center', gap: 3 }}>
-                    <View style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0FDF4' }}>
-                      <Ionicons name={SATIETY_ICON_MAP[mood] || 'ellipse-outline'} size={18} color="#22C55E" />
-                    </View>
-                    <Text style={{ fontSize: 9, color: '#6B7280', fontWeight: '500', maxWidth: 44, textAlign: 'center' }}>{mood}</Text>
+                  <View key={i} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0FDF4' }}>
+                    <Ionicons name={SATIETY_ICON_MAP[mood] || 'ellipse-outline'} size={18} color="#22C55E" />
                   </View>
                 ))}
               </ScrollView>
