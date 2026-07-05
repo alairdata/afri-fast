@@ -215,10 +215,10 @@ const CheckInPage = ({
   const [stressContributors, setStressContributors] = useState([]);
   const [focusLevel, setFocusLevel] = useState(null);
 
-  // ── Section 12: Context ──────────────────────────────────────────────────
-  const [currentLocation, setCurrentLocation] = useState(null);
-  const [currentCompany, setCurrentCompany] = useState(null);
-  const [typicalDay, setTypicalDay] = useState(null);
+  // ── Section 12: Context ── (arrays: accumulate across the day's meals)
+  const [currentLocation, setCurrentLocation] = useState([]);
+  const [currentCompany, setCurrentCompany] = useState([]);
+  const [typicalDay, setTypicalDay] = useState([]);
 
   // ── Section 13: Daily Goal Check ─────────────────────────────────────────
   const [fastingGoalMet, setFastingGoalMet] = useState(null);
@@ -256,9 +256,10 @@ const CheckInPage = ({
       setStressScore(d.stressScore ?? null);
       setStressContributors(d.stressContributors ?? []);
       setFocusLevel(d.focusLevel ?? null);
-      setCurrentLocation(d.currentLocation ?? null);
-      setCurrentCompany(d.currentCompany ?? null);
-      setTypicalDay(d.typicalDay ?? null);
+      const toArr = v => Array.isArray(v) ? v : (v ? [v] : []);
+      setCurrentLocation(toArr(d.currentLocation));
+      setCurrentCompany(toArr(d.currentCompany));
+      setTypicalDay(toArr(d.typicalDay));
       setFastingGoalMet(d.fastingGoalMet ?? null);
       setTomorrowConfidence(d.tomorrowConfidence ?? null);
     }
@@ -397,8 +398,7 @@ const CheckInPage = ({
               <Chips
                 options={['Home','Work/school','Commuting','Outdoors','Social setting','Other']}
                 selected={currentLocation}
-                onToggle={setCurrentLocation}
-                singleSelect
+                onToggle={v => toggle(v, currentLocation, setCurrentLocation)}
                 chipStyle={{ backgroundColor: '#EFF6FF', borderColor: 'transparent' }}
                 selectedChipStyle={{ backgroundColor: '#EFF6FF', borderColor: '#3B82F6', borderWidth: 1.5 }}
                 showCheckmark checkmarkColor="#3B82F6" largeEmoji
@@ -410,8 +410,7 @@ const CheckInPage = ({
               <Chips
                 options={['Alone','With family','With friends','In a public setting','At work/class']}
                 selected={currentCompany}
-                onToggle={setCurrentCompany}
-                singleSelect
+                onToggle={v => toggle(v, currentCompany, setCurrentCompany)}
                 chipStyle={{ backgroundColor: '#FFF7ED', borderColor: 'transparent' }}
                 selectedChipStyle={{ backgroundColor: '#FFF7ED', borderColor: '#F97316', borderWidth: 1.5 }}
                 showCheckmark checkmarkColor="#F97316" largeEmoji
@@ -423,8 +422,7 @@ const CheckInPage = ({
               <Chips
                 options={['Yes, fairly normal','Busier than usual','More relaxed than usual','Unusual/disrupted day']}
                 selected={typicalDay}
-                onToggle={setTypicalDay}
-                singleSelect
+                onToggle={v => toggle(v, typicalDay, setTypicalDay)}
                 chipStyle={{ backgroundColor: '#FFF1F2', borderColor: 'transparent' }}
                 selectedChipStyle={{ backgroundColor: '#FFF1F2', borderColor: '#EF4444', borderWidth: 1.5 }}
                 showCheckmark checkmarkColor="#EF4444" largeEmoji

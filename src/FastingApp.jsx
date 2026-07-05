@@ -1246,16 +1246,19 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       // Merge ALL fields from this meal's check-in into the master — never wipe other data
       const existingV2 = existingCI?.v2Data || {};
       const prevSnap = mealCheckInSnapshot || {};
-      // Multi-select fields: drop this meal session's previous picks, add its new ones
-      const ARRAY_KEYS = ['emotionalMoods', 'satietyMoods', 'fastingSymptoms', 'hungerTypes', 'cravingTypes', 'fastBreakFoods', 'physicalAfterEating', 'emotionalAfterEating', 'exerciseTypes', 'bodyFeelDuringExercise', 'stressContributors'];
+      const toArr = v => Array.isArray(v) ? v : (v ? [v] : []);
+      // Multi-select fields: drop this meal session's previous picks, add its new ones.
+      // Context fields (location/company/typicalDay) accumulate too — a person can eat
+      // at home alone, then out with friends, all in one day.
+      const ARRAY_KEYS = ['emotionalMoods', 'satietyMoods', 'fastingSymptoms', 'hungerTypes', 'cravingTypes', 'fastBreakFoods', 'physicalAfterEating', 'emotionalAfterEating', 'exerciseTypes', 'bodyFeelDuringExercise', 'stressContributors', 'currentLocation', 'currentCompany', 'typicalDay'];
       // Single-value fields: new pick wins; unpicking clears it only if this session set it
-      const SCALAR_KEYS = ['wellbeingScore', 'fastingStatus', 'hungerScore', 'hasCravings', 'symptomSeverity', 'fastBreakTime', 'fastBreakIntentionality', 'energyScore', 'energyChange', 'exercisedToday', 'exerciseDuration', 'exerciseIntensity', 'exercisedWhileFasting', 'sleepHours', 'sleepQuality', 'wakeUpFeeling', 'stressScore', 'focusLevel', 'currentLocation', 'currentCompany', 'typicalDay', 'fastingGoalMet', 'tomorrowConfidence'];
+      const SCALAR_KEYS = ['wellbeingScore', 'fastingStatus', 'hungerScore', 'hasCravings', 'symptomSeverity', 'fastBreakTime', 'fastBreakIntentionality', 'energyScore', 'energyChange', 'exercisedToday', 'exerciseDuration', 'exerciseIntensity', 'exercisedWhileFasting', 'sleepHours', 'sleepQuality', 'wakeUpFeeling', 'stressScore', 'focusLevel', 'fastingGoalMet', 'tomorrowConfidence'];
       const mergedV2 = { ...existingV2 };
       ARRAY_KEYS.forEach(k => {
-        const prevArr = prevSnap[k] || [];
+        const prevArr = toArr(prevSnap[k]);
         mergedV2[k] = [...new Set([
-          ...(existingV2[k] || []).filter(v => !prevArr.includes(v)),
-          ...(data[k] || []),
+          ...toArr(existingV2[k]).filter(v => !prevArr.includes(v)),
+          ...toArr(data[k]),
         ])];
       });
       SCALAR_KEYS.forEach(k => {
@@ -1312,7 +1315,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         dbSave(supabase.from('meal_logs').update({
           moods: data.satietyMoods || [],
           symptoms: data.fastingSymptoms || [],
-          other_factors: [data.currentLocation, data.currentCompany, data.typicalDay].filter(Boolean),
+          other_factors: [...toArr(data.currentLocation), ...toArr(data.currentCompany), ...toArr(data.typicalDay)],
           notes: (data.noteEntries || []).map(e => e.text).join('\n\n'),
         }).eq('id', lastSavedMealId), 'tie meal check-in to meal_log');
       }

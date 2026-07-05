@@ -60,7 +60,7 @@ export const CHECKIN_ICON_SECTIONS = {
     },
   },
   currentLocation: {
-    color: '#3B82F6', bg: '#EFF6FF', single: true,
+    color: '#3B82F6', bg: '#EFF6FF',
     icons: {
       'Home':           'home-outline',
       'Work/school':    'briefcase-outline',
@@ -71,7 +71,7 @@ export const CHECKIN_ICON_SECTIONS = {
     },
   },
   currentCompany: {
-    color: '#F97316', bg: '#FFF7ED', single: true,
+    color: '#F97316', bg: '#FFF7ED',
     icons: {
       'Alone':               'person-outline',
       'With family':         'people-outline',
@@ -81,7 +81,7 @@ export const CHECKIN_ICON_SECTIONS = {
     },
   },
   typicalDay: {
-    color: '#EF4444', bg: '#FFF1F2', single: true,
+    color: '#EF4444', bg: '#FFF1F2',
     icons: {
       'Yes, fairly normal':      'checkmark-circle-outline',
       'Busier than usual':       'flame-outline',
@@ -91,14 +91,15 @@ export const CHECKIN_ICON_SECTIONS = {
   },
 };
 
+// Normalize a stored value (legacy string or array) into an array
+export const toValueArray = (v) => Array.isArray(v) ? v : (v ? [v] : []);
+
 // Flatten a check-in data object into [{ value, icon, color, bg }] across all sections
 export function collectCheckInIcons(data) {
   if (!data) return [];
   const items = [];
   Object.entries(CHECKIN_ICON_SECTIONS).forEach(([key, sec]) => {
-    const val = data[key];
-    const values = sec.single ? (val ? [val] : []) : (val || []);
-    values.forEach(v => items.push({
+    toValueArray(data[key]).forEach(v => items.push({
       value: v,
       icon: sec.icons[v] || 'ellipse-outline',
       color: sec.color,
