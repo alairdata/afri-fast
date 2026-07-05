@@ -223,42 +223,43 @@ const CheckInPage = ({
   const [fastingGoalMet, setFastingGoalMet] = useState(null);
   const [tomorrowConfidence, setTomorrowConfidence] = useState(null);
 
-  // Pre-populate from existing check-in when opened
+  // Reset all fields on every open — populate from existing check-in if present, blank otherwise
   useEffect(() => {
-    if (show && initialData) {
-      setWellbeingScore(initialData.wellbeingScore ?? null);
-      setEmotionalMoods(initialData.emotionalMoods ?? []);
-      setSatietyMoods(initialData.satietyMoods ?? []);
-      setHungerScore(initialData.hungerScore ?? null);
-      setHungerTypes(initialData.hungerTypes ?? []);
-      setHasCravings(initialData.hasCravings ?? null);
-      setCravingTypes(initialData.cravingTypes ?? []);
-      setFastingSymptoms(initialData.fastingSymptoms ?? []);
-      setSymptomSeverity(initialData.symptomSeverity ?? null);
-      setFastBreakTime(initialData.fastBreakTime ?? '');
-      setFastBreakFoods(initialData.fastBreakFoods ?? []);
-      setFastBreakIntentionality(initialData.fastBreakIntentionality ?? null);
-      setPhysicalAfterEating(initialData.physicalAfterEating ?? []);
-      setEmotionalAfterEating(initialData.emotionalAfterEating ?? []);
-      setEnergyScore(initialData.energyScore ?? null);
-      setEnergyChange(initialData.energyChange ?? null);
-      setExercisedToday(initialData.exercisedToday ?? null);
-      setExerciseTypes(initialData.exerciseTypes ?? []);
-      setExerciseDuration(initialData.exerciseDuration ?? null);
-      setExerciseIntensity(initialData.exerciseIntensity ?? null);
-      setExercisedWhileFasting(initialData.exercisedWhileFasting ?? null);
-      setBodyFeelDuringExercise(initialData.bodyFeelDuringExercise ?? []);
-      setSleepHours(initialData.sleepHours ?? null);
-      setSleepQuality(initialData.sleepQuality ?? null);
-      setWakeUpFeeling(initialData.wakeUpFeeling ?? null);
-      setStressScore(initialData.stressScore ?? null);
-      setStressContributors(initialData.stressContributors ?? []);
-      setFocusLevel(initialData.focusLevel ?? null);
-      setCurrentLocation(initialData.currentLocation ?? null);
-      setCurrentCompany(initialData.currentCompany ?? null);
-      setTypicalDay(initialData.typicalDay ?? null);
-      setFastingGoalMet(initialData.fastingGoalMet ?? null);
-      setTomorrowConfidence(initialData.tomorrowConfidence ?? null);
+    if (show) {
+      const d = initialData || {};
+      setWellbeingScore(d.wellbeingScore ?? null);
+      setEmotionalMoods(d.emotionalMoods ?? []);
+      setSatietyMoods(d.satietyMoods ?? []);
+      setHungerScore(d.hungerScore ?? null);
+      setHungerTypes(d.hungerTypes ?? []);
+      setHasCravings(d.hasCravings ?? null);
+      setCravingTypes(d.cravingTypes ?? []);
+      setFastingSymptoms(d.fastingSymptoms ?? []);
+      setSymptomSeverity(d.symptomSeverity ?? null);
+      setFastBreakTime(d.fastBreakTime ?? '');
+      setFastBreakFoods(d.fastBreakFoods ?? []);
+      setFastBreakIntentionality(d.fastBreakIntentionality ?? null);
+      setPhysicalAfterEating(d.physicalAfterEating ?? []);
+      setEmotionalAfterEating(d.emotionalAfterEating ?? []);
+      setEnergyScore(d.energyScore ?? null);
+      setEnergyChange(d.energyChange ?? null);
+      setExercisedToday(d.exercisedToday ?? null);
+      setExerciseTypes(d.exerciseTypes ?? []);
+      setExerciseDuration(d.exerciseDuration ?? null);
+      setExerciseIntensity(d.exerciseIntensity ?? null);
+      setExercisedWhileFasting(d.exercisedWhileFasting ?? null);
+      setBodyFeelDuringExercise(d.bodyFeelDuringExercise ?? []);
+      setSleepHours(d.sleepHours ?? null);
+      setSleepQuality(d.sleepQuality ?? null);
+      setWakeUpFeeling(d.wakeUpFeeling ?? null);
+      setStressScore(d.stressScore ?? null);
+      setStressContributors(d.stressContributors ?? []);
+      setFocusLevel(d.focusLevel ?? null);
+      setCurrentLocation(d.currentLocation ?? null);
+      setCurrentCompany(d.currentCompany ?? null);
+      setTypicalDay(d.typicalDay ?? null);
+      setFastingGoalMet(d.fastingGoalMet ?? null);
+      setTomorrowConfidence(d.tomorrowConfidence ?? null);
     }
   }, [show]);
 

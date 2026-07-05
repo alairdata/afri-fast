@@ -211,8 +211,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
   const openCheckInPage = (source = 'today') => {
     if (source === 'meal') {
-      // Always fresh per meal — no pre-population
-      setCheckInInitialData(null);
+      // Fresh per meal — only re-show what was picked for THIS meal session
+      setCheckInInitialData(mealCheckInSnapshot);
       setWaterCount(0);
       setNoteEntries([]);
     } else {
