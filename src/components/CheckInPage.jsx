@@ -356,9 +356,9 @@ const CheckInPage = ({
 
 
             {/* ── Section 5: Physical symptoms ──────────────────────────── */}
-            <SectionCard title="Physical symptoms today" titleStyle={{ fontSize: 17 }}>
+            <SectionCard title="How does your body feel today?" titleStyle={{ fontSize: 17 }}>
               <Chips
-                options={['🤕 Headache','😵 Dizziness','🤢 Nausea','😴 Fatigue','🦵 Muscle weakness','😣 Stomach cramping','🫃 Bloating','💓 Heart palpitations','🥶 Feeling cold','👄 Dry mouth','🌫️ Brain fog','🤔 Difficulty concentrating','😶 Forgetfulness','🐢 Slow thinking','😤 Irritability','🎭 Mood swings','😰 Anxiety','😑 Low motivation','✨ Mental clarity','🪶 Feeling light','🎯 Improved focus','🏅 Sense of control','✅ No symptoms']}
+                options={['Headache','Dizziness','Nausea','Fatigue','Muscle weakness','Stomach cramping','Bloating','Heart palpitations','Feeling cold','Dry mouth','Brain fog','Difficulty concentrating','Forgetfulness','Slow thinking','Irritability','Mood swings','Anxiety','Low motivation','Mental clarity','Feeling light','Improved focus','Sense of control','No symptoms']}
                 selected={fastingSymptoms}
                 onToggle={v => toggle(v, fastingSymptoms, setFastingSymptoms)}
                 chipStyle={{ backgroundColor: '#FAF5FF', borderColor: 'transparent' }}
@@ -366,6 +366,32 @@ const CheckInPage = ({
                 showCheckmark
                 checkmarkColor="#9333EA"
                 largeEmoji
+                iconMap={{
+                  'Headache':                 'medical-outline',
+                  'Dizziness':                'sync-outline',
+                  'Nausea':                   'warning-outline',
+                  'Fatigue':                  'battery-dead-outline',
+                  'Muscle weakness':          'body-outline',
+                  'Stomach cramping':         'bandage-outline',
+                  'Bloating':                 'ellipse-outline',
+                  'Heart palpitations':       'pulse-outline',
+                  'Feeling cold':             'snow-outline',
+                  'Dry mouth':                'water-outline',
+                  'Brain fog':                'cloud-outline',
+                  'Difficulty concentrating': 'eye-off-outline',
+                  'Forgetfulness':            'time-outline',
+                  'Slow thinking':            'hourglass-outline',
+                  'Irritability':             'flame-outline',
+                  'Mood swings':              'swap-horizontal-outline',
+                  'Anxiety':                  'alert-circle-outline',
+                  'Low motivation':           'trending-down-outline',
+                  'Mental clarity':           'bulb-outline',
+                  'Feeling light':            'leaf-outline',
+                  'Improved focus':           'eye-outline',
+                  'Sense of control':         'checkmark-circle-outline',
+                  'No symptoms':              'shield-checkmark-outline',
+                }}
+                iconColor="#9333EA"
               />
             </SectionCard>
 
