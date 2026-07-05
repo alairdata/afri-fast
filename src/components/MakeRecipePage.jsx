@@ -404,6 +404,112 @@ const scoreRecipe = (recipe, identifiedIngredients) => {
   return score;
 };
 
+const PAYWALL_BENEFITS = [
+  { icon: 'camera-outline', text: 'Snap your fridge or pantry — instant AI recipe ideas' },
+  { icon: 'list-outline', text: 'Type or speak your ingredients and get what you can cook' },
+  { icon: 'sparkles-outline', text: 'Unlimited AI-powered recipe suggestions, every day' },
+  { icon: 'globe-outline', text: 'Rooted in African cuisine — real meals, real flavours' },
+  { icon: 'restaurant-outline', text: 'Log any recipe straight to your meal diary in one tap' },
+];
+
+const ProPaywall = ({ visible, onClose }) => {
+  if (!visible) return null;
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={pw.backdrop}>
+        <View style={pw.sheet}>
+          {/* Close */}
+          <TouchableOpacity style={pw.closeBtn} onPress={onClose}>
+            <Ionicons name="close" size={22} color="#6B7280" />
+          </TouchableOpacity>
+
+          {/* Crown badge */}
+          <View style={pw.crownWrap}>
+            <View style={pw.crownBg}>
+              <Text style={pw.crownEmoji}>👑</Text>
+            </View>
+          </View>
+
+          <Text style={pw.headline}>Unlock AI Recipe Creator</Text>
+          <Text style={pw.sub}>
+            Turn whatever's in your kitchen into a delicious African meal — powered by AI.
+          </Text>
+
+          {/* Benefits */}
+          <View style={pw.benefits}>
+            {PAYWALL_BENEFITS.map((b, i) => (
+              <View key={i} style={pw.benefit}>
+                <View style={pw.benefitIcon}>
+                  <Ionicons name={b.icon} size={18} color="#059669" />
+                </View>
+                <Text style={pw.benefitText}>{b.text}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* CTA */}
+          <TouchableOpacity style={pw.ctaBtn} onPress={onClose}>
+            <Text style={pw.ctaTop}>Start 7-Day Free Trial</Text>
+            <Text style={pw.ctaSub}>then $4.99 / month · cancel anytime</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={pw.restoreBtn} onPress={onClose}>
+            <Text style={pw.restoreText}>Restore purchase</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const pw = StyleSheet.create({
+  backdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingHorizontal: 24, paddingTop: 20, paddingBottom: 36,
+    alignItems: 'center',
+  },
+  closeBtn: {
+    alignSelf: 'flex-end', width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+    marginBottom: 8,
+  },
+  crownWrap: { marginBottom: 16 },
+  crownBg: {
+    width: 72, height: 72, borderRadius: 24,
+    backgroundColor: '#FEF9C3',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  crownEmoji: { fontSize: 36 },
+  headline: {
+    fontSize: 22, fontWeight: '800', color: '#1F1F1F',
+    textAlign: 'center', marginBottom: 8,
+  },
+  sub: {
+    fontSize: 14, color: '#6B7280', textAlign: 'center',
+    lineHeight: 20, marginBottom: 22, paddingHorizontal: 8,
+  },
+  benefits: { width: '100%', gap: 12, marginBottom: 28 },
+  benefit: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  benefitIcon: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: '#ECFDF5', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  benefitText: { fontSize: 14, color: '#374151', lineHeight: 19, flex: 1 },
+  ctaBtn: {
+    width: '100%', backgroundColor: '#059669', borderRadius: 16,
+    paddingVertical: 16, alignItems: 'center', marginBottom: 12,
+  },
+  ctaTop: { fontSize: 16, fontWeight: '800', color: '#fff', marginBottom: 2 },
+  ctaSub: { fontSize: 11, color: 'rgba(255,255,255,0.75)' },
+  restoreBtn: { paddingVertical: 8 },
+  restoreText: { fontSize: 13, color: '#9CA3AF' },
+});
+
 const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   const [makeRecipeMethod, setMakeRecipeMethod] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -415,6 +521,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   const [photoError, setPhotoError] = useState(null);
   const [showCamera, setShowCamera] = useState(false);
   const [pendingUris, setPendingUris] = useState([]);
+  const [paywallVisible, setPaywallVisible] = useState(false);
   const cameraRef = useRef(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
@@ -577,22 +684,28 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Action cards */}
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.actionCard} onPress={() => setMakeRecipeMethod('photo')}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => setPaywallVisible(true)}>
               <View style={[styles.actionIconBg, { backgroundColor: '#ECFDF5' }]}>
                 <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
                   <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                   <Circle cx="12" cy="13" r="4" />
                 </Svg>
               </View>
+              <View style={styles.actionProBadge}>
+                <Text style={styles.actionProBadgeText}>PRO</Text>
+              </View>
               <Text style={styles.actionTitle}>Take a{'\n'}Picture</Text>
               <Text style={styles.actionDesc}>Snap your fridge or pantry</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionCard} onPress={() => setMakeRecipeMethod('list')}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => setPaywallVisible(true)}>
               <View style={[styles.actionIconBg, { backgroundColor: '#EFF6FF' }]}>
                 <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
                   <Path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                   <Path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </Svg>
+              </View>
+              <View style={styles.actionProBadge}>
+                <Text style={styles.actionProBadgeText}>PRO</Text>
               </View>
               <Text style={styles.actionTitle}>List{'\n'}Ingredients</Text>
               <Text style={styles.actionDesc}>Type or say what you have</Text>
@@ -767,6 +880,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
         onLogMeal={onLogMeal}
         userCountry={userCountry}
       />
+      <ProPaywall visible={paywallVisible} onClose={() => setPaywallVisible(false)} />
     </View>
   );
 };
@@ -800,6 +914,7 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: '#fff', borderRadius: 20, padding: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 10, elevation: 3,
+    overflow: 'hidden', position: 'relative',
   },
   actionIconBg: {
     width: 56, height: 56, borderRadius: 16,
@@ -807,6 +922,12 @@ const styles = StyleSheet.create({
   },
   actionTitle: { fontSize: 18, fontWeight: '700', color: '#1F1F1F', lineHeight: 22, marginBottom: 6 },
   actionDesc: { fontSize: 12, color: '#888', lineHeight: 16 },
+  actionProBadge: {
+    position: 'absolute', top: 12, right: 12,
+    backgroundColor: '#FEF08A', borderRadius: 6,
+    paddingHorizontal: 6, paddingVertical: 2,
+  },
+  actionProBadgeText: { fontSize: 9, fontWeight: '800', color: '#92400E', letterSpacing: 0.5 },
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
