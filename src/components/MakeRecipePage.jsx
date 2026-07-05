@@ -404,110 +404,111 @@ const scoreRecipe = (recipe, identifiedIngredients) => {
   return score;
 };
 
-const PAYWALL_BENEFITS = [
-  { icon: 'camera-outline', text: 'Snap your fridge or pantry — instant AI recipe ideas' },
-  { icon: 'list-outline', text: 'Type or speak your ingredients and get what you can cook' },
-  { icon: 'sparkles-outline', text: 'Unlimited AI-powered recipe suggestions, every day' },
-  { icon: 'globe-outline', text: 'Rooted in African cuisine — real meals, real flavours' },
-  { icon: 'restaurant-outline', text: 'Log any recipe straight to your meal diary in one tap' },
-];
-
 const ProPaywall = ({ visible, onClose }) => {
   if (!visible) return null;
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={pw.backdrop}>
-        <View style={pw.sheet}>
-          {/* Close */}
-          <TouchableOpacity style={pw.closeBtn} onPress={onClose}>
-            <Ionicons name="close" size={22} color="#6B7280" />
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <View style={pw.root}>
+
+        {/* ── Hero ── */}
+        <View style={pw.hero}>
+          <TouchableOpacity style={pw.closeBtn} onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Ionicons name="close" size={20} color="rgba(255,255,255,0.7)" />
           </TouchableOpacity>
 
-          {/* Crown badge */}
-          <View style={pw.crownWrap}>
-            <View style={pw.crownBg}>
-              <Text style={pw.crownEmoji}>👑</Text>
-            </View>
-          </View>
+          {/* floating food emojis */}
+          <Text style={[pw.floatEmoji, { top: 28, left: 24, fontSize: 38, transform: [{ rotate: '-12deg' }] }]}>🥘</Text>
+          <Text style={[pw.floatEmoji, { top: 18, right: 32, fontSize: 30, transform: [{ rotate: '8deg' }] }]}>🫕</Text>
+          <Text style={[pw.floatEmoji, { bottom: 32, left: 16, fontSize: 26, transform: [{ rotate: '10deg' }] }]}>🍳</Text>
+          <Text style={[pw.floatEmoji, { bottom: 22, right: 20, fontSize: 34, transform: [{ rotate: '-6deg' }] }]}>🌶️</Text>
 
-          <Text style={pw.headline}>Unlock AI Recipe Creator</Text>
-          <Text style={pw.sub}>
-            Turn whatever's in your kitchen into a delicious African meal — powered by AI.
-          </Text>
+          <Text style={pw.heroEyebrow}>Kitchen Intelligence</Text>
+          <Text style={pw.heroTitle}>Cook with{'\n'}what you've got.</Text>
+          <Text style={pw.heroSub}>Open your fridge. Say what's in it.{'\n'}Get a real recipe — not a Google result.</Text>
+        </View>
 
-          {/* Benefits */}
-          <View style={pw.benefits}>
-            {PAYWALL_BENEFITS.map((b, i) => (
-              <View key={i} style={pw.benefit}>
-                <View style={pw.benefitIcon}>
-                  <Ionicons name={b.icon} size={18} color="#059669" />
-                </View>
-                <Text style={pw.benefitText}>{b.text}</Text>
+        {/* ── Card ── */}
+        <View style={pw.card}>
+          {[
+            ['📸', 'Point your camera at your fridge or pantry', 'Snap your ingredients'],
+            ['🗣️', 'Type or say what you have at home', 'AI finds what you can actually cook'],
+            ['🍽️', 'One tap to log it straight to your diary', 'No re-typing, no faff'],
+          ].map(([emoji, title, sub], i) => (
+            <View key={i} style={pw.benefit}>
+              <Text style={pw.benefitEmoji}>{emoji}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={pw.benefitTitle}>{title}</Text>
+                <Text style={pw.benefitSub}>{sub}</Text>
               </View>
-            ))}
-          </View>
+            </View>
+          ))}
 
-          {/* CTA */}
-          <TouchableOpacity style={pw.ctaBtn} onPress={onClose}>
-            <Text style={pw.ctaTop}>Start 7-Day Free Trial</Text>
-            <Text style={pw.ctaSub}>then $4.99 / month · cancel anytime</Text>
+          <TouchableOpacity style={pw.cta} activeOpacity={0.85} onPress={onClose}>
+            <Text style={pw.ctaLabel}>Try free for 7 days</Text>
+            <Text style={pw.ctaMeta}>$4.99 / month after · cancel whenever</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={pw.restoreBtn} onPress={onClose}>
-            <Text style={pw.restoreText}>Restore purchase</Text>
+          <TouchableOpacity onPress={onClose} style={{ marginTop: 14, alignSelf: 'center' }}>
+            <Text style={pw.restore}>Restore purchase</Text>
           </TouchableOpacity>
         </View>
+
       </View>
     </Modal>
   );
 };
 
 const pw = StyleSheet.create({
-  backdrop: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
+  root: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  hero: {
+    flex: 1,
+    backgroundColor: '#0B3D2E',
     justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingHorizontal: 24, paddingTop: 20, paddingBottom: 36,
-    alignItems: 'center',
+    paddingHorizontal: 28,
+    paddingBottom: 36,
+    paddingTop: 56,
   },
   closeBtn: {
-    alignSelf: 'flex-end', width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
-    marginBottom: 8,
-  },
-  crownWrap: { marginBottom: 16 },
-  crownBg: {
-    width: 72, height: 72, borderRadius: 24,
-    backgroundColor: '#FEF9C3',
+    position: 'absolute', top: 52, right: 20,
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
-  crownEmoji: { fontSize: 36 },
-  headline: {
-    fontSize: 22, fontWeight: '800', color: '#1F1F1F',
-    textAlign: 'center', marginBottom: 8,
+  floatEmoji: { position: 'absolute', opacity: 0.55 },
+  heroEyebrow: {
+    fontSize: 11, fontWeight: '700', color: '#6EE7B7',
+    letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 10,
   },
-  sub: {
-    fontSize: 14, color: '#6B7280', textAlign: 'center',
-    lineHeight: 20, marginBottom: 22, paddingHorizontal: 8,
+  heroTitle: {
+    fontSize: 36, fontWeight: '900', color: '#fff',
+    lineHeight: 42, marginBottom: 12,
   },
-  benefits: { width: '100%', gap: 12, marginBottom: 28 },
-  benefit: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  benefitIcon: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: '#ECFDF5', alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
+  heroSub: {
+    fontSize: 14, color: 'rgba(255,255,255,0.6)',
+    lineHeight: 21,
   },
-  benefitText: { fontSize: 14, color: '#374151', lineHeight: 19, flex: 1 },
-  ctaBtn: {
-    width: '100%', backgroundColor: '#059669', borderRadius: 16,
-    paddingVertical: 16, alignItems: 'center', marginBottom: 12,
+  card: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingHorizontal: 24, paddingTop: 28, paddingBottom: 40,
   },
-  ctaTop: { fontSize: 16, fontWeight: '800', color: '#fff', marginBottom: 2 },
-  ctaSub: { fontSize: 11, color: 'rgba(255,255,255,0.75)' },
-  restoreBtn: { paddingVertical: 8 },
-  restoreText: { fontSize: 13, color: '#9CA3AF' },
+  benefit: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    gap: 14, marginBottom: 20,
+  },
+  benefitEmoji: { fontSize: 26, marginTop: 1 },
+  benefitTitle: { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2 },
+  benefitSub: { fontSize: 12, color: '#9CA3AF', lineHeight: 17 },
+  cta: {
+    backgroundColor: '#059669', borderRadius: 18,
+    paddingVertical: 17, alignItems: 'center',
+    marginTop: 6,
+    shadowColor: '#059669', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35, shadowRadius: 14, elevation: 6,
+  },
+  ctaLabel: { fontSize: 16, fontWeight: '800', color: '#fff', marginBottom: 3 },
+  ctaMeta: { fontSize: 11, color: 'rgba(255,255,255,0.65)' },
+  restore: { fontSize: 12, color: '#D1D5DB' },
 });
 
 const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
@@ -692,6 +693,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
                 </Svg>
               </View>
               <View style={styles.actionProBadge}>
+                <Ionicons name="lock-closed" size={8} color="#6EE7B7" />
                 <Text style={styles.actionProBadgeText}>PRO</Text>
               </View>
               <Text style={styles.actionTitle}>Take a{'\n'}Picture</Text>
@@ -705,6 +707,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
                 </Svg>
               </View>
               <View style={styles.actionProBadge}>
+                <Ionicons name="lock-closed" size={8} color="#6EE7B7" />
                 <Text style={styles.actionProBadgeText}>PRO</Text>
               </View>
               <Text style={styles.actionTitle}>List{'\n'}Ingredients</Text>
@@ -923,11 +926,12 @@ const styles = StyleSheet.create({
   actionTitle: { fontSize: 18, fontWeight: '700', color: '#1F1F1F', lineHeight: 22, marginBottom: 6 },
   actionDesc: { fontSize: 12, color: '#888', lineHeight: 16 },
   actionProBadge: {
-    position: 'absolute', top: 12, right: 12,
-    backgroundColor: '#FEF08A', borderRadius: 6,
-    paddingHorizontal: 6, paddingVertical: 2,
+    position: 'absolute', top: 10, right: 10,
+    backgroundColor: '#0B3D2E', borderRadius: 8,
+    paddingHorizontal: 7, paddingVertical: 3,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
   },
-  actionProBadgeText: { fontSize: 9, fontWeight: '800', color: '#92400E', letterSpacing: 0.5 },
+  actionProBadgeText: { fontSize: 9, fontWeight: '800', color: '#6EE7B7', letterSpacing: 0.8 },
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
