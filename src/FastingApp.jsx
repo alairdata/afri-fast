@@ -1246,7 +1246,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       const existingV2 = existingCI?.v2Data || {};
       const mergedV2 = {
         ...existingV2,
-        satietyMoods: data.satietyMoods || [],
+        satietyMoods: [...new Set([...(existingV2.satietyMoods || []), ...(data.satietyMoods || [])])],
         noteEntries: [
           ...(existingV2.noteEntries || []),
           ...(data.noteEntries || []),
