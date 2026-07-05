@@ -399,24 +399,41 @@ const CheckInPage = ({
             {/* ── Context ───────────────────────────────────────────────── */}
             <SectionCard title="Where are you right now?" titleStyle={{ fontSize: 17 }}>
               <Chips
-                options={['🏠 Home','💼 Work/school','🚗 Commuting','🌳 Outdoors','👥 Social setting','🔲 Other']}
+                options={['Home','Work/school','Commuting','Outdoors','Social setting','Other']}
                 selected={currentLocation}
                 onToggle={setCurrentLocation}
                 singleSelect
                 chipStyle={{ backgroundColor: '#EFF6FF', borderColor: 'transparent' }}
                 selectedChipStyle={{ backgroundColor: '#EFF6FF', borderColor: '#3B82F6', borderWidth: 1.5 }}
                 showCheckmark checkmarkColor="#3B82F6" largeEmoji
+                iconMap={{
+                  'Home':            'home-outline',
+                  'Work/school':     'briefcase-outline',
+                  'Commuting':       'car-outline',
+                  'Outdoors':        'leaf-outline',
+                  'Social setting':  'people-outline',
+                  'Other':           'grid-outline',
+                }}
+                iconColor="#3B82F6"
               />
             </SectionCard>
             <SectionCard title="Who are you with?" titleStyle={{ fontSize: 17 }}>
               <Chips
-                options={['🧘 Alone','👨‍👩‍👧 With family','👫 With friends','🏙️ In a public setting','🏢 At work/class']}
+                options={['Alone','With family','With friends','In a public setting','At work/class']}
                 selected={currentCompany}
                 onToggle={setCurrentCompany}
                 singleSelect
-                chipStyle={{ backgroundColor: '#EFF6FF', borderColor: 'transparent' }}
-                selectedChipStyle={{ backgroundColor: '#EFF6FF', borderColor: '#3B82F6', borderWidth: 1.5 }}
-                showCheckmark checkmarkColor="#3B82F6" largeEmoji
+                chipStyle={{ backgroundColor: '#FFF7ED', borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: '#FFF7ED', borderColor: '#F97316', borderWidth: 1.5 }}
+                showCheckmark checkmarkColor="#F97316" largeEmoji
+                iconMap={{
+                  'Alone':               'person-outline',
+                  'With family':         'people-outline',
+                  'With friends':        'heart-outline',
+                  'In a public setting': 'business-outline',
+                  'At work/class':       'school-outline',
+                }}
+                iconColor="#F97316"
               />
             </SectionCard>
             <SectionCard title="Is today a typical day for you?" titleStyle={{ fontSize: 17 }}>
@@ -431,29 +448,6 @@ const CheckInPage = ({
               />
             </SectionCard>
 
-            {/* ── Daily Goal Check ──────────────────────────────────────── */}
-            <SectionCard title="Did you hit your calorie goal today?" titleStyle={{ fontSize: 17 }}>
-              <Chips
-                options={['✅ Yes, stayed on target','⚠️ Partially — went a little over','❌ No — went over my goal','📅 No goal set for today']}
-                selected={fastingGoalMet}
-                onToggle={setFastingGoalMet}
-                singleSelect
-                chipStyle={{ backgroundColor: '#F0FDFA', borderColor: 'transparent' }}
-                selectedChipStyle={{ backgroundColor: '#F0FDFA', borderColor: '#0D9488', borderWidth: 1.5 }}
-                showCheckmark checkmarkColor="#0D9488" largeEmoji
-              />
-            </SectionCard>
-            <SectionCard title="How confident are you about tomorrow?" titleStyle={{ fontSize: 17 }}>
-              <Chips
-                options={['💪 Very confident','🙂 Somewhat confident','🤔 Uncertain','😔 I need more support']}
-                selected={tomorrowConfidence}
-                onToggle={setTomorrowConfidence}
-                singleSelect
-                chipStyle={{ backgroundColor: '#F0FDFA', borderColor: 'transparent' }}
-                selectedChipStyle={{ backgroundColor: '#F0FDFA', borderColor: '#0D9488', borderWidth: 1.5 }}
-                showCheckmark checkmarkColor="#0D9488" largeEmoji
-              />
-            </SectionCard>
 
             {/* ── Water ────────────────────────────────────────────────── */}
             <View style={ss.section}>
