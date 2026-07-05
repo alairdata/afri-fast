@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image, Modal, SafeAreaView, Platform, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image, Modal, SafeAreaView, Platform, Dimensions, ActivityIndicator, Alert, Animated } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -404,111 +404,143 @@ const scoreRecipe = (recipe, identifiedIngredients) => {
   return score;
 };
 
-const ProPaywall = ({ visible, onClose }) => {
-  if (!visible) return null;
-  return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <View style={pw.root}>
+const BENEFITS = [
+  { icon: 'camera-outline',  color: '#db6a3f', bg: '#fbeee7', title: 'Snap your fridge or pantry',   desc: 'Point your camera — the AI reads what you have and suggests real African dishes you can make right now.' },
+  { icon: 'mic-outline',     color: '#db6a3f', bg: '#fbeee7', title: 'Type or say your ingredients', desc: "No photo needed. List what's in the kitchen and get matched to meals that fit." },
+  { icon: 'receipt-outline', color: '#f0a534', bg: '#fdf3e0', title: 'Log any recipe in one tap',    desc: "Cook it, love it, add it straight to today's diary — no manual entry." },
+];
 
-        {/* ── Hero ── */}
-        <View style={pw.hero}>
-          <TouchableOpacity style={pw.closeBtn} onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Ionicons name="close" size={20} color="rgba(255,255,255,0.7)" />
+const ProPaywall = ({ visible, onClose }) => {
+  const scanY = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!visible) return;
+    Animated.loop(Animated.sequence([
+      Animated.timing(scanY, { toValue: 1, duration: 2800, useNativeDriver: true }),
+      Animated.timing(scanY, { toValue: 0, duration: 0,    useNativeDriver: true }),
+    ])).start();
+    Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0, duration: 900, useNativeDriver: true }),
+    ])).start();
+    return () => { scanY.stopAnimation(); pulse.stopAnimation(); };
+  }, [visible]);
+
+  if (!visible) return null;
+
+  const scanTranslate = scanY.interpolate({ inputRange: [0, 1], outputRange: [0, 90] });
+  const pulseScale    = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] });
+  const pulseOpacity  = pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.6, 0.2, 0] });
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={pw.backdrop}>
+        <ScrollView style={pw.sheet} contentContainerStyle={pw.sheetContent} showsVerticalScrollIndicator={false} bounces={false}>
+
+          {/* Close */}
+          <TouchableOpacity style={pw.closeBtn} onPress={onClose}>
+            <Ionicons name="close" size={18} color="#6c7872" />
           </TouchableOpacity>
 
-          {/* floating food emojis */}
-          <Text style={[pw.floatEmoji, { top: 28, left: 24, fontSize: 38, transform: [{ rotate: '-12deg' }] }]}>🥘</Text>
-          <Text style={[pw.floatEmoji, { top: 18, right: 32, fontSize: 30, transform: [{ rotate: '8deg' }] }]}>🫕</Text>
-          <Text style={[pw.floatEmoji, { bottom: 32, left: 16, fontSize: 26, transform: [{ rotate: '10deg' }] }]}>🍳</Text>
-          <Text style={[pw.floatEmoji, { bottom: 22, right: 20, fontSize: 34, transform: [{ rotate: '-6deg' }] }]}>🌶️</Text>
+          {/* Viewfinder illustration */}
+          <View style={pw.vfWrap}>
+            <View style={[pw.ch, { top: 0, left: 0 }]} /><View style={[pw.cv, { top: 0, left: 0 }]} />
+            <View style={[pw.ch, { top: 0, right: 0 }]} /><View style={[pw.cv, { top: 0, right: 0 }]} />
+            <View style={[pw.ch, { bottom: 0, left: 0 }]} /><View style={[pw.cv, { bottom: 0, left: 0 }]} />
+            <View style={[pw.ch, { bottom: 0, right: 0 }]} /><View style={[pw.cv, { bottom: 0, right: 0 }]} />
+            <Text style={[pw.food, { top: 20, left: 18 }]}>🍅</Text>
+            <Text style={[pw.food, { top: 44, left: 66 }]}>🍊</Text>
+            <Text style={[pw.food, { top: 14, right: 44 }]}>🧄</Text>
+            <Text style={[pw.food, { top: 38, right: 10 }]}>🫑</Text>
+            <Animated.View style={[pw.scanLine, { transform: [{ translateY: scanTranslate }] }]} />
+            <View style={pw.dotWrap}>
+              <Animated.View style={[pw.dotRing, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]} />
+              <View style={pw.dot} />
+            </View>
+          </View>
 
-          <Text style={pw.heroEyebrow}>Kitchen Intelligence</Text>
-          <Text style={pw.heroTitle}>Cook with{'\n'}what you've got.</Text>
-          <Text style={pw.heroSub}>Open your fridge. Say what's in it.{'\n'}Get a real recipe — not a Google result.</Text>
-        </View>
+          {/* Badge */}
+          <View style={pw.badge}><Text style={pw.badgeText}>✦  AI RECIPE CREATOR</Text></View>
 
-        {/* ── Card ── */}
-        <View style={pw.card}>
-          {[
-            ['📸', 'Point your camera at your fridge or pantry', 'Snap your ingredients'],
-            ['🗣️', 'Type or say what you have at home', 'AI finds what you can actually cook'],
-            ['🍽️', 'One tap to log it straight to your diary', 'No re-typing, no faff'],
-          ].map(([emoji, title, sub], i) => (
+          {/* Headline + sub */}
+          <Text style={pw.headline}>Turn what's in your{'\n'}kitchen into dinner.</Text>
+          <Text style={pw.sub}>Snap it, say it, or type it — get a real recipe, made from real African dishes, in seconds.</Text>
+
+          {/* Benefits */}
+          {BENEFITS.map((b, i) => (
             <View key={i} style={pw.benefit}>
-              <Text style={pw.benefitEmoji}>{emoji}</Text>
+              <View style={[pw.benefitIcon, { backgroundColor: b.bg }]}>
+                <Ionicons name={b.icon} size={20} color={b.color} />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={pw.benefitTitle}>{title}</Text>
-                <Text style={pw.benefitSub}>{sub}</Text>
+                <Text style={pw.benefitTitle}>{b.title}</Text>
+                <Text style={pw.benefitDesc}>{b.desc}</Text>
               </View>
             </View>
           ))}
 
+          {/* Pricing row */}
+          <View style={pw.pricingRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={pw.pricingMain}>7 days free</Text>
+              <Text style={pw.pricingSub}>Then $4.99/month · cancel anytime</Text>
+            </View>
+            <View style={pw.pricingPill}><Text style={pw.pricingPillText}>$0 today</Text></View>
+          </View>
+
+          {/* CTA */}
           <TouchableOpacity style={pw.cta} activeOpacity={0.85} onPress={onClose}>
-            <Text style={pw.ctaLabel}>Try free for 7 days</Text>
-            <Text style={pw.ctaMeta}>$4.99 / month after · cancel whenever</Text>
+            <Text style={pw.ctaText}>Start free trial</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={onClose} style={{ marginTop: 14, alignSelf: 'center' }}>
-            <Text style={pw.restore}>Restore purchase</Text>
+          <TouchableOpacity style={pw.restoreBtn} onPress={onClose}>
+            <Text style={pw.restoreText}>Restore purchase</Text>
           </TouchableOpacity>
-        </View>
 
+        </ScrollView>
       </View>
     </Modal>
   );
 };
 
 const pw = StyleSheet.create({
-  root: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  hero: {
-    flex: 1,
-    backgroundColor: '#0B3D2E',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 28,
-    paddingBottom: 36,
-    paddingTop: 56,
-  },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#fbfbf7', borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '94%' },
+  sheetContent: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 18, paddingBottom: 44 },
   closeBtn: {
-    position: 'absolute', top: 52, right: 20,
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center', justifyContent: 'center',
+    alignSelf: 'flex-end', width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#eeeee8', alignItems: 'center', justifyContent: 'center', marginBottom: 20,
   },
-  floatEmoji: { position: 'absolute', opacity: 0.55 },
-  heroEyebrow: {
-    fontSize: 11, fontWeight: '700', color: '#6EE7B7',
-    letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 10,
+  vfWrap: { width: 210, height: 130, marginBottom: 24, position: 'relative' },
+  ch: { position: 'absolute', width: 22, height: 3, backgroundColor: '#059669', borderRadius: 2 },
+  cv: { position: 'absolute', width: 3, height: 22, backgroundColor: '#059669', borderRadius: 2 },
+  food: { position: 'absolute', fontSize: 26 },
+  scanLine: { position: 'absolute', left: 4, right: 4, height: 1.5, backgroundColor: 'rgba(5,150,105,0.45)' },
+  dotWrap: { position: 'absolute', top: -8, right: -8, width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
+  dotRing: { position: 'absolute', width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(5,150,105,0.35)' },
+  dot: { width: 11, height: 11, borderRadius: 6, backgroundColor: '#059669' },
+  badge: { backgroundColor: '#fbeee7', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6, marginBottom: 16 },
+  badgeText: { fontSize: 10, fontWeight: '700', color: '#db6a3f', letterSpacing: 1.4 },
+  headline: { fontSize: 27, fontWeight: '900', color: '#16201b', textAlign: 'center', lineHeight: 33, marginBottom: 10 },
+  sub: { fontSize: 14, color: '#6c7872', textAlign: 'center', lineHeight: 20, marginBottom: 26 },
+  benefit: { flexDirection: 'row', gap: 14, marginBottom: 18, alignItems: 'flex-start', width: '100%' },
+  benefitIcon: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  benefitTitle: { fontSize: 15, fontWeight: '700', color: '#16201b', marginBottom: 3 },
+  benefitDesc: { fontSize: 13, color: '#6c7872', lineHeight: 18 },
+  pricingRow: {
+    flexDirection: 'row', alignItems: 'center', width: '100%',
+    borderWidth: 1.5, borderColor: '#e9e9e1', borderRadius: 999,
+    paddingVertical: 14, paddingLeft: 20, paddingRight: 10, marginBottom: 12, marginTop: 4,
   },
-  heroTitle: {
-    fontSize: 36, fontWeight: '900', color: '#fff',
-    lineHeight: 42, marginBottom: 12,
-  },
-  heroSub: {
-    fontSize: 14, color: 'rgba(255,255,255,0.6)',
-    lineHeight: 21,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingHorizontal: 24, paddingTop: 28, paddingBottom: 40,
-  },
-  benefit: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    gap: 14, marginBottom: 20,
-  },
-  benefitEmoji: { fontSize: 26, marginTop: 1 },
-  benefitTitle: { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2 },
-  benefitSub: { fontSize: 12, color: '#9CA3AF', lineHeight: 17 },
-  cta: {
-    backgroundColor: '#059669', borderRadius: 18,
-    paddingVertical: 17, alignItems: 'center',
-    marginTop: 6,
-    shadowColor: '#059669', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35, shadowRadius: 14, elevation: 6,
-  },
-  ctaLabel: { fontSize: 16, fontWeight: '800', color: '#fff', marginBottom: 3 },
-  ctaMeta: { fontSize: 11, color: 'rgba(255,255,255,0.65)' },
-  restore: { fontSize: 12, color: '#D1D5DB' },
+  pricingMain: { fontSize: 15, fontWeight: '800', color: '#16201b' },
+  pricingSub: { fontSize: 12, color: '#97a19b', marginTop: 1 },
+  pricingPill: { backgroundColor: '#059669', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  pricingPillText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  cta: { width: '100%', backgroundColor: '#059669', borderRadius: 999, paddingVertical: 17, alignItems: 'center', marginBottom: 14 },
+  ctaText: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  restoreBtn: { paddingVertical: 6 },
+  restoreText: { fontSize: 13, color: '#97a19b' },
 });
 
 const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
