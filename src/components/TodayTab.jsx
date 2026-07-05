@@ -885,15 +885,17 @@ const TodayTab = ({
           </View>
           {(() => {
             const now = new Date();
-            const last7 = Array.from({ length: 7 }, (_, i) => {
-              const d = new Date(now); d.setDate(d.getDate() - i); return d.toDateString();
+            const cutoff7 = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+            const week7Meals = (recentMeals || []).filter(m => {
+              const t = m.timestamp || new Date(m.date).getTime();
+              return !isNaN(t) && t >= cutoff7;
             });
-            const week7Meals = (recentMeals || []).filter(m => last7.includes(m.date));
             const daysLogged = new Set(week7Meals.map(m => m.date)).size;
             const totalCals7 = week7Meals.reduce((s, m) => s + (m.calories || 0), 0);
             const avgCals = daysLogged > 0 ? Math.round(totalCals7 / daysLogged) : 0;
-            const daysOnTarget = last7.filter(d => {
-              const dc = (recentMeals || []).filter(m => m.date === d).reduce((s, m) => s + (m.calories || 0), 0);
+            const byDate7 = {};
+            week7Meals.forEach(m => { byDate7[m.date] = (byDate7[m.date] || 0) + (m.calories || 0); });
+            const daysOnTarget = Object.values(byDate7).filter(dc => {
               if (!dc || !dailyCalorieGoal) return false;
               const r = dc / dailyCalorieGoal; return r >= 0.7 && r <= 1.15;
             }).length;
