@@ -328,7 +328,7 @@ const CheckInPage = ({
             </SectionCard>
 
             {/* ── Satiety Mood ─────────────────────────────────────────── */}
-            <SectionCard title="How does my stomach feel after this meal?" titleStyle={{ fontSize: 17 }}>
+            <SectionCard title="How does my stomach feel?" titleStyle={{ fontSize: 17 }}>
               <Chips
                 options={['Full','Guilty','Uncomfortable','Bad','Really good','Energized','Refreshed','Motivated','Numb','Restless']}
                 selected={satietyMoods}
