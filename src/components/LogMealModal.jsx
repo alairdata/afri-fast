@@ -216,45 +216,35 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     onOpenCheckIn?.();
   };
 
+  const SATIETY_ICON_MAP = {
+    'Full': 'restaurant-outline', 'Guilty': 'alert-circle-outline',
+    'Uncomfortable': 'bandage-outline', 'Bad': 'thumbs-down-outline',
+    'Really good': 'thumbs-up-outline', 'Energized': 'flash-outline',
+    'Refreshed': 'water-outline', 'Motivated': 'trending-up-outline',
+    'Numb': 'remove-circle-outline', 'Restless': 'walk-outline',
+  };
+
   const renderCheckInWidget = () => {
     const dateStr = viewingMeal?.date || (selectedMealDate ? selectedMealDate.toDateString() : new Date().toDateString());
-    const checkIns = checkInHistory.filter(c => c.date === dateStr);
-    const hasCheckIns = checkIns.length > 0;
-    const ci = checkIns[0] || null;
-    const allItems = ci ? [
-      ...(ci.feelings || []),
-      ...(ci.hungerLevel ? [ci.hungerLevel] : []),
-      ...(ci.moods || []),
-      ...(ci.symptoms || []),
-      ...(ci.fastBreak || []),
-      ...(ci.activities || []),
-      ...(ci.otherFactors || []),
-      ...(ci.fastingStatus ? [ci.fastingStatus] : []),
-    ] : [];
-    const emojis = allItems.map(item => {
-      const spaceIdx = item.indexOf(' ');
-      return spaceIdx > 0 ? item.slice(0, spaceIdx) : null;
-    }).filter(Boolean);
+    const ci = checkInHistory.find(c => c.date === dateStr) || null;
+    const satietyMoods = ci?.v2Data?.satietyMoods || [];
+    const hasMealCheckIn = satietyMoods.length > 0;
 
     return (
       <View style={{ marginHorizontal: 20, marginBottom: 12, marginTop: 20 }}>
         <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: '#111', marginBottom: 10, paddingHorizontal: 20 }}>CHECK-IN</Text>
-        {hasCheckIns ? (
+        {hasMealCheckIn ? (
           <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 8 }}>
-                {emojis.map((emoji, i) => (
-                  <View key={i} style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: i % 2 === 0 ? '#ECFDF5' : '#FFF7ED' }}>
-                    <Text style={{ fontSize: 22 }}>{emoji}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 8 }}>
+                {satietyMoods.map((mood, i) => (
+                  <View key={i} style={{ alignItems: 'center', gap: 3 }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0FDF4' }}>
+                      <Ionicons name={SATIETY_ICON_MAP[mood] || 'ellipse-outline'} size={18} color="#22C55E" />
+                    </View>
+                    <Text style={{ fontSize: 9, color: '#6B7280', fontWeight: '500', maxWidth: 44, textAlign: 'center' }}>{mood}</Text>
                   </View>
                 ))}
-                {ci.waterCount > 0 && (
-                  <View style={{ alignItems: 'center', justifyContent: 'center', marginLeft: 4 }}>
-                    <Ionicons name="water" size={16} color="#3B82F6" />
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#374151', marginTop: 1 }}>{ci.waterCount}</Text>
-                    <Text style={{ fontSize: 9, color: '#9CA3AF', fontWeight: '500' }}>{volumeUnit}</Text>
-                  </View>
-                )}
               </ScrollView>
               <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }} onPress={openMiniCheckIn}>
                 <Ionicons name="add" size={22} color="#fff" />
@@ -265,7 +255,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
           <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' }} onPress={openMiniCheckIn} activeOpacity={0.7}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="clipboard-outline" size={24} color="#D1D5DB" />
-              <Text style={{ fontSize: 14, color: '#9CA3AF', fontWeight: '500' }}>No check-in recorded</Text>
+              <Text style={{ fontSize: 14, color: '#9CA3AF', fontWeight: '500' }}>How did this meal feel?</Text>
             </View>
             <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="add" size={22} color="#fff" />
