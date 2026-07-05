@@ -358,7 +358,7 @@ const CheckInPage = ({
             {/* ── Section 5: Physical symptoms ──────────────────────────── */}
             <SectionCard title="How does your body feel today?" titleStyle={{ fontSize: 17 }}>
               <Chips
-                options={['Headache','Dizziness','Nausea','Fatigue','Muscle weakness','Stomach cramping','Bloating','Heart palpitations','Feeling cold','Dry mouth','Brain fog','Difficulty concentrating','Forgetfulness','Slow thinking','Irritability','Mood swings','Anxiety','Low motivation','Mental clarity','Feeling light','Improved focus','Sense of control','No symptoms']}
+                options={['Headache','Dizziness','Nausea','Fatigue','Muscle weakness','Feeling cold','Dry mouth','Brain fog','Slow thinking','Irritability','Mood swings','Anxiety','Mental clarity','Feeling light','Improved focus','Sense of control']}
                 selected={fastingSymptoms}
                 onToggle={v => toggle(v, fastingSymptoms, setFastingSymptoms)}
                 chipStyle={{ backgroundColor: '#FAF5FF', borderColor: 'transparent' }}
