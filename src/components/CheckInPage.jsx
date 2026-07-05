@@ -161,6 +161,7 @@ const CheckInPage = ({
   initialData,
   fastingSessions = [],
   isFastingNow = false,
+  source = 'today',
 }) => {
   const [checkInDate, setCheckInDate] = useState(new Date());
   const [showUnitPicker, setShowUnitPicker] = useState(false);
@@ -341,7 +342,7 @@ const CheckInPage = ({
           <ScrollView style={ss.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={ss.scrollContent}>
 
             {/* ── Overall Mood ─────────────────────────────────────────── */}
-            <SectionCard title="How are you feeling today?" titleStyle={{ fontSize: 17 }}>
+            {source !== 'meal' && <SectionCard title="How are you feeling today?" titleStyle={{ fontSize: 17 }}>
               <Chips
                 options={['Calm','Anxious','Happy','Irritable','Sad','Tired','Overwhelmed','Energized','Stressed','Content','Hopeful','Lonely','Proud','Frustrated','Indifferent','Distracted']}
                 selected={emotionalMoods}
@@ -369,10 +370,10 @@ const CheckInPage = ({
                   'Distracted':  'shuffle-outline',
                 }}
               />
-            </SectionCard>
+            </SectionCard>}
 
             {/* ── Satiety Mood ─────────────────────────────────────────── */}
-            <SectionCard title="How does my stomach feel?" titleStyle={{ fontSize: 17 }}>
+            {source !== 'calendar' && <SectionCard title="How does my stomach feel?" titleStyle={{ fontSize: 17 }}>
               <Chips
                 options={['Full','Guilty','Uncomfortable','Bad','Really good','Energized','Refreshed','Motivated','Numb','Restless']}
                 selected={satietyMoods}
@@ -396,7 +397,7 @@ const CheckInPage = ({
                 }}
                 iconColor="#22C55E"
               />
-            </SectionCard>
+            </SectionCard>}
 
 
             {/* ── Section 5: Physical symptoms ──────────────────────────── */}
