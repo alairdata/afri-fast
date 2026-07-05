@@ -438,13 +438,20 @@ const CheckInPage = ({
             </SectionCard>
             <SectionCard title="Is today a typical day for you?" titleStyle={{ fontSize: 17 }}>
               <Chips
-                options={['✅ Yes, fairly normal','🔥 Busier than usual','🌿 More relaxed than usual','🌀 Unusual/disrupted day']}
+                options={['Yes, fairly normal','Busier than usual','More relaxed than usual','Unusual/disrupted day']}
                 selected={typicalDay}
                 onToggle={setTypicalDay}
                 singleSelect
-                chipStyle={{ backgroundColor: '#EFF6FF', borderColor: 'transparent' }}
-                selectedChipStyle={{ backgroundColor: '#EFF6FF', borderColor: '#3B82F6', borderWidth: 1.5 }}
-                showCheckmark checkmarkColor="#3B82F6" largeEmoji
+                chipStyle={{ backgroundColor: '#FFF1F2', borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: '#FFF1F2', borderColor: '#EF4444', borderWidth: 1.5 }}
+                showCheckmark checkmarkColor="#EF4444" largeEmoji
+                iconMap={{
+                  'Yes, fairly normal':       'checkmark-circle-outline',
+                  'Busier than usual':        'flame-outline',
+                  'More relaxed than usual':  'leaf-outline',
+                  'Unusual/disrupted day':    'shuffle-outline',
+                }}
+                iconColor="#EF4444"
               />
             </SectionCard>
 
