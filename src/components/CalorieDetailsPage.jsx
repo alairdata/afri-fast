@@ -46,8 +46,8 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   const dailyVals = Object.values(byDate).map(d => d.calories);
   const highest = dailyVals.length > 0 ? Math.max(...dailyVals) : 0;
   const lowest = dailyVals.length > 0 ? Math.min(...dailyVals) : 0;
-  const totalMacro = totals.protein + totals.carbs + totals.fats;
-  const pct = (val) => totalMacro > 0 ? Math.round((val / totalMacro) * 100) : 0;
+  const totalMacroCal = (totals.protein * 4) + (totals.carbs * 4) + (totals.fats * 9);
+  const pct = (val, multiplier) => totalMacroCal > 0 ? Math.round((val * multiplier / totalMacroCal) * 100) : 0;
   const dailyData = Object.entries(byDate)
     .map(([date, d]) => ({ date, ...d }))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -180,7 +180,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
                   <Text style={styles.macroStatLabelSmall}>Avg daily</Text>
                 </View>
                 <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${pct(totals.protein)}%` : '--'}</Text>
+                  <Text style={styles.macroStatValueSmall}>{hasData ? `${pct(totals.protein, 4)}%` : '--'}</Text>
                   <Text style={styles.macroStatLabelSmall}>Of total</Text>
                 </View>
                 <View style={styles.macroStatItemCompact}>
@@ -207,7 +207,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
                   <Text style={styles.macroStatLabelSmall}>Avg daily</Text>
                 </View>
                 <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${pct(totals.carbs)}%` : '--'}</Text>
+                  <Text style={styles.macroStatValueSmall}>{hasData ? `${pct(totals.carbs, 4)}%` : '--'}</Text>
                   <Text style={styles.macroStatLabelSmall}>Of total</Text>
                 </View>
                 <View style={styles.macroStatItemCompact}>
@@ -234,7 +234,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
                   <Text style={styles.macroStatLabelSmall}>Avg daily</Text>
                 </View>
                 <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${pct(totals.fats)}%` : '--'}</Text>
+                  <Text style={styles.macroStatValueSmall}>{hasData ? `${pct(totals.fats, 9)}%` : '--'}</Text>
                   <Text style={styles.macroStatLabelSmall}>Of total</Text>
                 </View>
                 <View style={styles.macroStatItemCompact}>
@@ -279,22 +279,22 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
             <View style={styles.macroCardCompact}>
               <View style={styles.macroDistribution}>
                 <View style={styles.macroDistBarCompact}>
-                  <View style={{ width: hasData ? `${pct(totals.protein)}%` : '33%', height: '100%', backgroundColor: '#EF4444', borderTopLeftRadius: 6, borderBottomLeftRadius: 6 }} />
-                  <View style={{ width: hasData ? `${pct(totals.carbs)}%` : '34%', height: '100%', backgroundColor: '#F59E0B' }} />
-                  <View style={{ width: hasData ? `${pct(totals.fats)}%` : '33%', height: '100%', backgroundColor: '#8B5CF6', borderTopRightRadius: 6, borderBottomRightRadius: 6 }} />
+                  <View style={{ width: hasData ? `${pct(totals.protein, 4)}%` : '33%', height: '100%', backgroundColor: '#EF4444', borderTopLeftRadius: 6, borderBottomLeftRadius: 6 }} />
+                  <View style={{ width: hasData ? `${pct(totals.carbs, 4)}%` : '34%', height: '100%', backgroundColor: '#F59E0B' }} />
+                  <View style={{ width: hasData ? `${pct(totals.fats, 9)}%` : '33%', height: '100%', backgroundColor: '#8B5CF6', borderTopRightRadius: 6, borderBottomRightRadius: 6 }} />
                 </View>
                 <View style={styles.macroDistLegendCompact}>
                   <View style={styles.macroDistItemCompact}>
                     <View style={[styles.macroDistDotSmall, { backgroundColor: '#EF4444' }]} />
-                    <Text style={styles.macroDistLabelSmall}>Protein {hasData ? `${pct(totals.protein)}%` : '--'}</Text>
+                    <Text style={styles.macroDistLabelSmall}>Protein {hasData ? `${pct(totals.protein, 4)}%` : '--'}</Text>
                   </View>
                   <View style={styles.macroDistItemCompact}>
                     <View style={[styles.macroDistDotSmall, { backgroundColor: '#F59E0B' }]} />
-                    <Text style={styles.macroDistLabelSmall}>Carbs {hasData ? `${pct(totals.carbs)}%` : '--'}</Text>
+                    <Text style={styles.macroDistLabelSmall}>Carbs {hasData ? `${pct(totals.carbs, 4)}%` : '--'}</Text>
                   </View>
                   <View style={styles.macroDistItemCompact}>
                     <View style={[styles.macroDistDotSmall, { backgroundColor: '#8B5CF6' }]} />
-                    <Text style={styles.macroDistLabelSmall}>Fats {hasData ? `${pct(totals.fats)}%` : '--'}</Text>
+                    <Text style={styles.macroDistLabelSmall}>Fats {hasData ? `${pct(totals.fats, 9)}%` : '--'}</Text>
                   </View>
                 </View>
               </View>

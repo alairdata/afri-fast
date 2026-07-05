@@ -1571,10 +1571,10 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                 const c = hasFoods ? detectedFoods.reduce((s, f) => s + (f.carbs || 0), 0) : (viewingMeal?.carbs || 0);
                 const fa = hasFoods ? detectedFoods.reduce((s, f) => s + (f.fats || 0), 0) : (viewingMeal?.fats || 0);
                 if (!p && !c && !fa) return null;
-                const total = p + c + fa;
-                const pPct = total > 0 ? Math.round((p / total) * 100) : 0;
-                const cPct = total > 0 ? Math.round((c / total) * 100) : 0;
-                const fPct = total > 0 ? 100 - pPct - cPct : 0;
+                const totalCal = (p * 4) + (c * 4) + (fa * 9);
+                const pPct = totalCal > 0 ? Math.round((p * 4 / totalCal) * 100) : 0;
+                const cPct = totalCal > 0 ? Math.round((c * 4 / totalCal) * 100) : 0;
+                const fPct = totalCal > 0 ? 100 - pPct - cPct : 0;
                 return (
                   <View style={styles.macroCard}>
                     <Text style={styles.shareCardFoodsTitle}>Macro Distribution</Text>
