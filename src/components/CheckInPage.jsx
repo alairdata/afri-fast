@@ -58,7 +58,7 @@ const ScoreSlider = ({ value, onChange, lowLabel, highLabel }) => (
   </View>
 );
 
-const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = false, chipStyle, selectedChipStyle, showCheckmark = false, largeEmoji = false, checkmarkColor = '#F59E0B', iconMap = null }) => (
+const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = false, chipStyle, selectedChipStyle, showCheckmark = false, largeEmoji = false, checkmarkColor = '#F59E0B', iconMap = null, iconColor = '#F59E0B' }) => (
   <View style={ss.chipsContainer}>
     {options.map(opt => {
       const isSelected = singleSelect ? selected === opt : (selected || []).includes(opt);
@@ -76,7 +76,7 @@ const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = f
         >
           {iconName ? (
             <View style={ss.chipInner}>
-              <Ionicons name={iconName} size={15} color="#F59E0B" />
+              <Ionicons name={iconName} size={15} color={iconColor} />
               <Text style={textStyle}>{opt}</Text>
             </View>
           ) : emoji ? (
@@ -328,9 +328,9 @@ const CheckInPage = ({
             </SectionCard>
 
             {/* ── Satiety Mood ─────────────────────────────────────────── */}
-            <SectionCard title="Satiety Mood" titleStyle={{ fontSize: 17 }}>
+            <SectionCard title="How does my stomach feel after this meal?" titleStyle={{ fontSize: 17 }}>
               <Chips
-                options={['🍽️ Full','😔 Guilty','😣 Uncomfortable','😞 Bad','🤩 Really good','😁 Proud','✅ On track','⚡ Energized','💧 Refreshed','💪 Motivated','🥹 Grateful','🧐 Focused','😑 Unmotivated','😶 Numb','😬 Restless']}
+                options={['Full','Guilty','Uncomfortable','Bad','Really good','Energized','Refreshed','Motivated','Numb','Restless']}
                 selected={satietyMoods}
                 onToggle={v => toggle(v, satietyMoods, setSatietyMoods)}
                 chipStyle={{ backgroundColor: '#F0FDF4', borderColor: 'transparent' }}
@@ -338,6 +338,19 @@ const CheckInPage = ({
                 showCheckmark
                 checkmarkColor="#22C55E"
                 largeEmoji
+                iconMap={{
+                  'Full':          'restaurant-outline',
+                  'Guilty':        'alert-circle-outline',
+                  'Uncomfortable': 'bandage-outline',
+                  'Bad':           'thumbs-down-outline',
+                  'Really good':   'thumbs-up-outline',
+                  'Energized':     'flash-outline',
+                  'Refreshed':     'water-outline',
+                  'Motivated':     'trending-up-outline',
+                  'Numb':          'remove-circle-outline',
+                  'Restless':      'walk-outline',
+                }}
+                iconColor="#22C55E"
               />
             </SectionCard>
 
