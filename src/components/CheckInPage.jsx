@@ -58,14 +58,15 @@ const ScoreSlider = ({ value, onChange, lowLabel, highLabel }) => (
   </View>
 );
 
-const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = false, chipStyle, selectedChipStyle, showCheckmark = false, largeEmoji = false, checkmarkColor = '#F59E0B' }) => (
+const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = false, chipStyle, selectedChipStyle, showCheckmark = false, largeEmoji = false, checkmarkColor = '#F59E0B', iconMap = null }) => (
   <View style={ss.chipsContainer}>
     {options.map(opt => {
       const isSelected = singleSelect ? selected === opt : (selected || []).includes(opt);
       const disabled = !isSelected && maxSelect != null && (selected || []).length >= maxSelect;
       const spaceIdx = opt.indexOf(' ');
-      const emoji = largeEmoji && spaceIdx > -1 ? opt.slice(0, spaceIdx) : null;
+      const emoji = largeEmoji && !iconMap && spaceIdx > -1 ? opt.slice(0, spaceIdx) : null;
       const label = largeEmoji && spaceIdx > -1 ? opt.slice(spaceIdx + 1) : opt;
+      const iconName = iconMap ? iconMap[opt] : null;
       const textStyle = [ss.chipText, isSelected && (selectedChipStyle ? ss.chipTextDark : ss.chipTextSelected)];
       return (
         <Pressable
@@ -73,7 +74,12 @@ const Chips = ({ options, selected, onToggle, maxSelect = null, singleSelect = f
           style={[ss.chip, chipStyle, isSelected && (selectedChipStyle || ss.chipSelected), disabled && ss.chipDisabled]}
           onPress={() => !disabled && onToggle(isSelected && singleSelect ? null : opt)}
         >
-          {emoji ? (
+          {iconName ? (
+            <View style={ss.chipInner}>
+              <Ionicons name={iconName} size={15} color="#F59E0B" />
+              <Text style={textStyle}>{opt}</Text>
+            </View>
+          ) : emoji ? (
             <View style={ss.chipInner}>
               <Text style={ss.chipEmoji}>{emoji}</Text>
               <Text style={textStyle}>{label}</Text>
@@ -291,15 +297,33 @@ const CheckInPage = ({
           <ScrollView style={ss.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={ss.scrollContent}>
 
             {/* ── Overall Mood ─────────────────────────────────────────── */}
-            <SectionCard title="Overall Mood" titleStyle={{ fontSize: 17 }}>
+            <SectionCard title="How are you feeling today?" titleStyle={{ fontSize: 17 }}>
               <Chips
-                options={['😌 Calm','😰 Anxious','😊 Happy','😤 Irritable','😢 Sad','😴 Tired','😩 Overwhelmed','😄 Energized','😓 Stressed','😇 Content','🥺 Hopeful','😞 Lonely','😁 Proud','😖 Frustrated','😐 Indifferent','😵 Distracted']}
+                options={['Calm','Anxious','Happy','Irritable','Sad','Tired','Overwhelmed','Energized','Stressed','Content','Hopeful','Lonely','Proud','Frustrated','Indifferent','Distracted']}
                 selected={emotionalMoods}
                 onToggle={v => toggle(v, emotionalMoods, setEmotionalMoods)}
                 chipStyle={{ backgroundColor: '#FFFBEB', borderColor: 'transparent' }}
                 selectedChipStyle={{ backgroundColor: '#FFFBEB', borderColor: '#F59E0B', borderWidth: 1.5 }}
                 showCheckmark
                 largeEmoji
+                iconMap={{
+                  'Calm':        'leaf-outline',
+                  'Anxious':     'alert-circle-outline',
+                  'Happy':       'sunny-outline',
+                  'Irritable':   'flame-outline',
+                  'Sad':         'rainy-outline',
+                  'Tired':       'moon-outline',
+                  'Overwhelmed': 'thunderstorm-outline',
+                  'Energized':   'flash-outline',
+                  'Stressed':    'pulse-outline',
+                  'Content':     'heart-outline',
+                  'Hopeful':     'star-outline',
+                  'Lonely':      'person-outline',
+                  'Proud':       'ribbon-outline',
+                  'Frustrated':  'close-circle-outline',
+                  'Indifferent': 'remove-circle-outline',
+                  'Distracted':  'shuffle-outline',
+                }}
               />
             </SectionCard>
 
