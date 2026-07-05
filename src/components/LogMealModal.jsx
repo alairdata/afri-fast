@@ -201,7 +201,7 @@ const ShareCardImage = ({ uri, height, style }) => {
   );
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onSaveCheckIn, onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
   const streak = useMemo(() => {
     let s = 0;
     const now = new Date();

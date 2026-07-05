@@ -867,15 +867,44 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .limit(100)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch check_ins]', error); }
-        if (data) setCheckInHistory(data.map(r => ({
-          id: r.id, date: r.date, loggedAt: r.logged_at, timestamp: r.id,
-          feelings: r.feelings || [], fastingStatus: r.fasting_status,
-          hungerLevel: r.hunger_level, moods: r.moods || [],
-          symptoms: r.symptoms || [], fastBreak: r.fast_break || [],
-          activities: r.activities || [], otherFactors: r.other_factors || [],
-          waterCount: r.water_count, volumeUnit: r.volume_unit,
-          notes: r.notes, fastingHours: r.fasting_hours, fastingMinutes: r.fasting_minutes, v2Data: r.v2_data,
-        })));
+        if (data) {
+          const rows = data.map(r => ({
+            id: r.id, date: r.date, loggedAt: r.logged_at, timestamp: r.id,
+            feelings: r.feelings || [], fastingStatus: r.fasting_status,
+            hungerLevel: r.hunger_level, moods: r.moods || [],
+            symptoms: r.symptoms || [], fastBreak: r.fast_break || [],
+            activities: r.activities || [], otherFactors: r.other_factors || [],
+            waterCount: r.water_count, volumeUnit: r.volume_unit,
+            notes: r.notes, fastingHours: r.fasting_hours, fastingMinutes: r.fasting_minutes, v2Data: r.v2_data,
+          }));
+          // Collapse duplicate rows for the same date (older app versions could create
+          // them) — otherwise saves ping-pong between rows and data appears lost.
+          // Rows arrive newest-first: newest wins scalars, arrays are unioned.
+          const uni = (a, b) => [...new Set([...(a || []), ...(b || [])])];
+          const asArr = v => Array.isArray(v) ? v : (v ? [v] : []);
+          const byDate = {};
+          rows.forEach(r => {
+            const prev = byDate[r.date];
+            if (!prev) { byDate[r.date] = r; return; }
+            const v2n = prev.v2Data || {}, v2o = r.v2Data || {};
+            const v2 = { ...v2o, ...v2n };
+            [...new Set([...Object.keys(v2o), ...Object.keys(v2n)])].forEach(k => {
+              if (Array.isArray(v2o[k]) || Array.isArray(v2n[k])) v2[k] = uni(asArr(v2n[k]), asArr(v2o[k]));
+            });
+            byDate[r.date] = {
+              ...prev,
+              feelings: uni(prev.feelings, r.feelings),
+              moods: uni(prev.moods, r.moods),
+              symptoms: uni(prev.symptoms, r.symptoms),
+              fastBreak: uni(prev.fastBreak, r.fastBreak),
+              activities: uni(prev.activities, r.activities),
+              otherFactors: uni(prev.otherFactors, r.otherFactors),
+              notes: prev.notes || r.notes,
+              v2Data: v2,
+            };
+          });
+          setCheckInHistory(Object.values(byDate));
+        }
         setDataLoadCount(prev => prev + 1);
       });
   }, [session]);
@@ -1243,8 +1272,16 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     const existingCI = checkInHistory.find(c => c.date === dateStr);
 
     if (checkInSource === 'meal') {
-      // Merge ALL fields from this meal's check-in into the master — never wipe other data
-      const existingV2 = existingCI?.v2Data || {};
+      // Merge ALL fields from this meal's check-in into the master — never wipe other data.
+      // If the master row predates v2Data, rebuild a baseline from its legacy fields.
+      const existingV2 = existingCI?.v2Data || (existingCI ? {
+        emotionalMoods: existingCI.moods || [],
+        fastingSymptoms: existingCI.symptoms || [],
+        fastBreakFoods: existingCI.fastBreak || [],
+        exerciseTypes: existingCI.activities || [],
+        stressContributors: existingCI.otherFactors || [],
+        fastingStatus: existingCI.fastingStatus || '',
+      } : {});
       const prevSnap = mealCheckInSnapshot || {};
       const toArr = v => Array.isArray(v) ? v : (v ? [v] : []);
       // Multi-select fields: drop this meal session's previous picks, add its new ones.
@@ -1546,7 +1583,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           circumference={circumference}
           strokeDashoffset={strokeDashoffset}
           onShowPlanPage={handleOpenPlanPage}
-          onShowCheckInPage={openCheckInPage}
+          onShowCheckInPage={() => openCheckInPage('today')}
           onShowChat={(context) => { setChatOpeningContext(context || null); setShowChat(true); }}
           onStartFast={handleStartFast}
           onEndFast={handleEndFast}
@@ -1926,57 +1963,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         checkInHistory={checkInHistory}
         mealCheckInSnapshot={mealCheckInSnapshot}
         onOpenCheckIn={() => openCheckInPage('meal')}
-        onSaveCheckIn={(data) => {
-          const dateStr = new Date().toDateString();
-          const existing = checkInHistory.find(c => c.date === dateStr);
-          const checkIn = {
-            id: existing?.id || Date.now(),
-            date: dateStr,
-            timestamp: existing?.id || Date.now(),
-            feelings: data.feelings || [],
-            fastingStatus: data.fastingStatus || null,
-            hungerLevel: data.hungerLevel || null,
-            moods: data.moods || [],
-            symptoms: data.symptoms || [],
-            fastBreak: data.fastBreak || [],
-            activities: data.activities || [],
-            otherFactors: data.otherFactors || [],
-            waterCount: existing?.waterCount || 0,
-            volumeUnit,
-            notes: existing?.notes || '',
-            fastingHours: existing?.fastingHours || 0,
-            fastingMinutes: existing?.fastingMinutes || 0,
-          };
-          // Upsert in local state
-          setCheckInHistory(prev => existing
-            ? prev.map(c => c.id === existing.id ? checkIn : c)
-            : [checkIn, ...prev]
-          );
-          const dbRow = {
-            id: checkIn.id, user_id: session?.user?.id, date: checkIn.date,
-            feelings: checkIn.feelings, fasting_status: checkIn.fastingStatus,
-            hunger_level: checkIn.hungerLevel, moods: checkIn.moods,
-            symptoms: checkIn.symptoms, fast_break: checkIn.fastBreak,
-            activities: checkIn.activities, other_factors: checkIn.otherFactors,
-            water_count: checkIn.waterCount, volume_unit: volumeUnit,
-            notes: checkIn.notes, fasting_hours: checkIn.fastingHours, fasting_minutes: checkIn.fastingMinutes,
-            logged_at: new Date().toISOString(),
-          };
-          dbSave(
-            existing
-              ? supabase.from('check_ins').update(dbRow).eq('id', existing.id)
-              : supabase.from('check_ins').insert(dbRow),
-            'save check_in', (msg) => showToast(msg, 'error')
-          );
-          // Backfill meal_logs for today
-          dbSave(supabase.from('meal_logs').update({
-            feelings: checkIn.feelings, moods: checkIn.moods,
-            fasting_status: checkIn.fastingStatus, hunger_level: checkIn.hungerLevel,
-            symptoms: checkIn.symptoms, activities: checkIn.activities,
-            other_factors: checkIn.otherFactors,
-          }).eq('user_id', session?.user?.id).eq('date', dateStr), 'backfill meal_logs checkin');
-          showToast('Check-in saved!');
-        }}
         volumeUnit={volumeUnit}
         streak={(() => {
           let s = 0;
