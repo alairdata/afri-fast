@@ -170,6 +170,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [showPlanPage, setShowPlanPage] = useState(false);
   const [showCheckInPage, setShowCheckInPage] = useState(false);
   const [checkInSource, setCheckInSource] = useState('today');
+  const [lastSavedMealId, setLastSavedMealId] = useState(null);
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showFastingDetails, setShowFastingDetails] = useState(false);
   const [showBMIDetails, setShowBMIDetails] = useState(false);
@@ -208,11 +209,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [checkInInitialData, setCheckInInitialData] = useState(null);
 
   const openCheckInPage = (source = 'today') => {
-    const todayCI = checkInHistory.find(c => c.date === new Date().toDateString());
-    setWaterCount(todayCI?.waterCount || 0);
-    const existingEntries = todayCI?.v2Data?.noteEntries;
-    setNoteEntries(existingEntries || (todayCI?.notes ? [{ text: todayCI.notes, savedAt: todayCI.loggedAt || new Date().toISOString() }] : []));
-    setCheckInInitialData(todayCI?.v2Data || null);
+    if (source === 'meal') {
+      // Always fresh per meal — no pre-population
+      setCheckInInitialData(null);
+      setWaterCount(0);
+      setNoteEntries([]);
+    } else {
+      const todayCI = checkInHistory.find(c => c.date === new Date().toDateString());
+      setWaterCount(todayCI?.waterCount || 0);
+      const existingEntries = todayCI?.v2Data?.noteEntries;
+      setNoteEntries(existingEntries || (todayCI?.notes ? [{ text: todayCI.notes, savedAt: todayCI.loggedAt || new Date().toISOString() }] : []));
+      setCheckInInitialData(todayCI?.v2Data || null);
+    }
     setCheckInSource(source);
     setShowCheckInPage(true);
   };
@@ -1230,68 +1238,106 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
   const saveCheckIn = (data = {}) => {
     const now = new Date();
-    const checkIn = {
-      id: Date.now(),
-      date: now.toDateString(),
-      timestamp: Date.now(),
-      feelings: data.feelings || [],
-      fastingStatus: data.fastingStatus || '',
-      hungerLevel: data.hungerLevel || '',
-      moods: data.moods || [],
-      symptoms: data.symptoms || [],
-      fastBreak: data.fastBreak || [],
-      activities: data.activities || [],
-      otherFactors: data.otherFactors || [],
-      waterCount: data.waterCount ?? waterCount,
-      volumeUnit,
-      notes: (data.noteEntries || noteEntries || []).map(e => e.text).join('\n\n'),
-      fastingHours,
-      fastingMinutes,
-    };
-    const existingCI = checkInHistory.find(c => c.date === checkIn.date);
-    setCheckInHistory(prev => existingCI
-      ? prev.map(c => c.id === existingCI.id ? { ...checkIn, id: existingCI.id } : c)
-      : [checkIn, ...prev]
-    );
-    const ciId = existingCI?.id || checkIn.id;
-    const dbRow = {
-      id: ciId, user_id: session?.user?.id, date: checkIn.date,
-      feelings: checkIn.feelings, fasting_status: checkIn.fastingStatus,
-      hunger_level: checkIn.hungerLevel, moods: checkIn.moods,
-      symptoms: checkIn.symptoms, fast_break: checkIn.fastBreak,
-      activities: checkIn.activities, other_factors: checkIn.otherFactors,
-      water_count: checkIn.waterCount, volume_unit: checkIn.volumeUnit,
-      notes: checkIn.notes, fasting_hours: checkIn.fastingHours, fasting_minutes: checkIn.fastingMinutes,
-      v2_data: data, logged_at: now.toISOString(),
-    };
-    dbSave(
-      existingCI
-        ? supabase.from('check_ins').update(dbRow).eq('id', existingCI.id)
-        : supabase.from('check_ins').insert(dbRow),
-      'save check_in', (msg) => showToast(msg, 'error')
-    );
-    // Backfill meal_logs for this date
-    dbSave(supabase.from('meal_logs').update({
-      feelings: checkIn.feelings, moods: checkIn.moods,
-      fasting_status: checkIn.fastingStatus, hunger_level: checkIn.hungerLevel,
-      symptoms: checkIn.symptoms, activities: checkIn.activities,
-      other_factors: checkIn.otherFactors, water_count: checkIn.waterCount,
-      notes: checkIn.notes,
-    }).eq('user_id', session?.user?.id).eq('date', checkIn.date), 'backfill meal_logs checkin');
-    // Also log water to waterLogs if any was tracked
-    const resolvedWaterCount = data.waterCount ?? waterCount;
-    if (resolvedWaterCount > 0) {
-      const wId = Date.now() + 1;
-      const waterLog = {
-        id: wId,
-        date: now.toDateString(),
-        displayDate: `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()]}, ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-        amount: resolvedWaterCount,
-        unit: volumeUnit,
+    const dateStr = now.toDateString();
+    const existingCI = checkInHistory.find(c => c.date === dateStr);
+
+    if (checkInSource === 'meal') {
+      // Merge only meal-specific fields into the master check-in — never wipe it
+      const existingV2 = existingCI?.v2Data || {};
+      const mergedV2 = {
+        ...existingV2,
+        satietyMoods: data.satietyMoods || [],
+        noteEntries: [
+          ...(existingV2.noteEntries || []),
+          ...(data.noteEntries || []),
+        ],
       };
-      setWaterLogs(prev => [waterLog, ...prev]);
-      dbSave(supabase.from('water_logs').insert({ id: wId, user_id: session?.user?.id, date: waterLog.date, display_date: waterLog.displayDate, amount: waterLog.amount, unit: waterLog.unit }), 'save water_log from check-in', (msg) => showToast(msg, 'error'));
+      const mergedNotes = mergedV2.noteEntries.map(e => e.text).join('\n\n');
+      const mergedCI = existingCI
+        ? { ...existingCI, notes: mergedNotes, v2Data: mergedV2 }
+        : {
+            id: Date.now(), date: dateStr, timestamp: Date.now(),
+            feelings: [], fastingStatus: '', hungerLevel: '', moods: [],
+            symptoms: [], fastBreak: [], activities: [], otherFactors: [],
+            waterCount: 0, volumeUnit, notes: mergedNotes,
+            fastingHours, fastingMinutes, v2Data: mergedV2,
+          };
+      setCheckInHistory(prev => existingCI
+        ? prev.map(c => c.id === existingCI.id ? mergedCI : c)
+        : [mergedCI, ...prev]
+      );
+      const ciId = existingCI?.id || mergedCI.id;
+      dbSave(
+        existingCI
+          ? supabase.from('check_ins').update({ notes: mergedNotes, v2_data: mergedV2, logged_at: now.toISOString() }).eq('id', existingCI.id)
+          : supabase.from('check_ins').insert({ id: ciId, user_id: session?.user?.id, date: dateStr, feelings: [], moods: [], symptoms: [], fast_break: [], activities: [], other_factors: [], water_count: 0, notes: mergedNotes, v2_data: mergedV2, logged_at: now.toISOString() }),
+        'save meal check_in', (msg) => showToast(msg, 'error')
+      );
+      // Tie satiety data to the specific meal that was just logged
+      if (lastSavedMealId) {
+        dbSave(supabase.from('meal_logs').update({
+          moods: data.satietyMoods || [],
+          notes: (data.noteEntries || []).map(e => e.text).join('\n\n'),
+        }).eq('id', lastSavedMealId), 'tie meal check-in to meal_log');
+      }
+    } else {
+      // Today / calendar check-ins: full save as before
+      const checkIn = {
+        id: Date.now(), date: dateStr, timestamp: Date.now(),
+        feelings: data.feelings || [],
+        fastingStatus: data.fastingStatus || '',
+        hungerLevel: data.hungerLevel || '',
+        moods: data.moods || [],
+        symptoms: data.symptoms || [],
+        fastBreak: data.fastBreak || [],
+        activities: data.activities || [],
+        otherFactors: data.otherFactors || [],
+        waterCount: data.waterCount ?? waterCount,
+        volumeUnit,
+        notes: (data.noteEntries || noteEntries || []).map(e => e.text).join('\n\n'),
+        fastingHours, fastingMinutes,
+      };
+      setCheckInHistory(prev => existingCI
+        ? prev.map(c => c.id === existingCI.id ? { ...checkIn, id: existingCI.id } : c)
+        : [checkIn, ...prev]
+      );
+      const ciId = existingCI?.id || checkIn.id;
+      const dbRow = {
+        id: ciId, user_id: session?.user?.id, date: checkIn.date,
+        feelings: checkIn.feelings, fasting_status: checkIn.fastingStatus,
+        hunger_level: checkIn.hungerLevel, moods: checkIn.moods,
+        symptoms: checkIn.symptoms, fast_break: checkIn.fastBreak,
+        activities: checkIn.activities, other_factors: checkIn.otherFactors,
+        water_count: checkIn.waterCount, volume_unit: checkIn.volumeUnit,
+        notes: checkIn.notes, fasting_hours: checkIn.fastingHours, fasting_minutes: checkIn.fastingMinutes,
+        v2_data: data, logged_at: now.toISOString(),
+      };
+      dbSave(
+        existingCI
+          ? supabase.from('check_ins').update(dbRow).eq('id', existingCI.id)
+          : supabase.from('check_ins').insert(dbRow),
+        'save check_in', (msg) => showToast(msg, 'error')
+      );
+      dbSave(supabase.from('meal_logs').update({
+        feelings: checkIn.feelings, moods: checkIn.moods,
+        fasting_status: checkIn.fastingStatus, hunger_level: checkIn.hungerLevel,
+        symptoms: checkIn.symptoms, activities: checkIn.activities,
+        other_factors: checkIn.otherFactors, water_count: checkIn.waterCount,
+        notes: checkIn.notes,
+      }).eq('user_id', session?.user?.id).eq('date', checkIn.date), 'backfill meal_logs checkin');
+      const resolvedWaterCount = data.waterCount ?? waterCount;
+      if (resolvedWaterCount > 0) {
+        const wId = Date.now() + 1;
+        const waterLog = {
+          id: wId, date: dateStr,
+          displayDate: `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()]}, ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+          amount: resolvedWaterCount, unit: volumeUnit,
+        };
+        setWaterLogs(prev => [waterLog, ...prev]);
+        dbSave(supabase.from('water_logs').insert({ id: wId, user_id: session?.user?.id, date: waterLog.date, display_date: waterLog.displayDate, amount: waterLog.amount, unit: waterLog.unit }), 'save water_log from check-in', (msg) => showToast(msg, 'error'));
+      }
     }
+
     setCheckedIn(true);
     setShowCheckInPage(false);
     showToast('Check-in saved!');
@@ -1812,6 +1858,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                 });
             }
             showToast(`${mealToSave.name || 'Meal'} logged!`);
+            setLastSavedMealId(mealToSave.id);
             // Write combined meal+checkin log for ML/analytics
             const ci = checkInHistory.find(c => c.date === mealToSave.date) || null;
             dbSave(supabase.from('meal_logs').insert({
