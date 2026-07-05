@@ -1243,48 +1243,76 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     const existingCI = checkInHistory.find(c => c.date === dateStr);
 
     if (checkInSource === 'meal') {
-      // Merge only meal-specific fields into the master check-in — never wipe it
+      // Merge ALL fields from this meal's check-in into the master — never wipe other data
       const existingV2 = existingCI?.v2Data || {};
-      // Remove moods from the previous snapshot for this meal session, add the new ones
-      const prevSnapshotMoods = mealCheckInSnapshot?.satietyMoods || [];
-      const mergedMoods = [...new Set([
-        ...(existingV2.satietyMoods || []).filter(m => !prevSnapshotMoods.includes(m)),
-        ...(data.satietyMoods || []),
-      ])];
-      const mergedV2 = {
-        ...existingV2,
-        satietyMoods: mergedMoods,
-        noteEntries: [
-          ...(existingV2.noteEntries || []),
-          ...(data.noteEntries || []),
-        ],
-      };
+      const prevSnap = mealCheckInSnapshot || {};
+      // Multi-select fields: drop this meal session's previous picks, add its new ones
+      const ARRAY_KEYS = ['emotionalMoods', 'satietyMoods', 'fastingSymptoms', 'hungerTypes', 'cravingTypes', 'fastBreakFoods', 'physicalAfterEating', 'emotionalAfterEating', 'exerciseTypes', 'bodyFeelDuringExercise', 'stressContributors'];
+      // Single-value fields: new pick wins; unpicking clears it only if this session set it
+      const SCALAR_KEYS = ['wellbeingScore', 'fastingStatus', 'hungerScore', 'hasCravings', 'symptomSeverity', 'fastBreakTime', 'fastBreakIntentionality', 'energyScore', 'energyChange', 'exercisedToday', 'exerciseDuration', 'exerciseIntensity', 'exercisedWhileFasting', 'sleepHours', 'sleepQuality', 'wakeUpFeeling', 'stressScore', 'focusLevel', 'currentLocation', 'currentCompany', 'typicalDay', 'fastingGoalMet', 'tomorrowConfidence'];
+      const mergedV2 = { ...existingV2 };
+      ARRAY_KEYS.forEach(k => {
+        const prevArr = prevSnap[k] || [];
+        mergedV2[k] = [...new Set([
+          ...(existingV2[k] || []).filter(v => !prevArr.includes(v)),
+          ...(data[k] || []),
+        ])];
+      });
+      SCALAR_KEYS.forEach(k => {
+        const nv = data[k];
+        if (nv !== null && nv !== undefined && nv !== '') mergedV2[k] = nv;
+        else if (prevSnap[k] != null && prevSnap[k] !== '' && existingV2[k] === prevSnap[k]) mergedV2[k] = null;
+      });
+      const prevNotes = prevSnap.noteEntries || [];
+      mergedV2.noteEntries = [
+        ...(existingV2.noteEntries || []).filter(e => !prevNotes.some(p => p.savedAt === e.savedAt && p.text === e.text)),
+        ...(data.noteEntries || []),
+      ];
       setMealCheckInSnapshot(data);
       const mergedNotes = mergedV2.noteEntries.map(e => e.text).join('\n\n');
+      // Keep legacy top-level fields in sync so calendar/other views see the data
+      const legacyFields = {
+        feelings: (mergedV2.emotionalMoods || []).slice(0, 4),
+        moods: mergedV2.emotionalMoods || [],
+        symptoms: mergedV2.fastingSymptoms || [],
+        fastBreak: mergedV2.fastBreakFoods || [],
+        activities: mergedV2.exerciseTypes || [],
+        otherFactors: mergedV2.stressContributors || [],
+        hungerLevel: mergedV2.hungerScore ? `${mergedV2.hungerScore}/10` : '',
+        fastingStatus: mergedV2.fastingStatus || '',
+        notes: mergedNotes,
+        v2Data: mergedV2,
+      };
       const mergedCI = existingCI
-        ? { ...existingCI, notes: mergedNotes, v2Data: mergedV2 }
+        ? { ...existingCI, ...legacyFields }
         : {
             id: Date.now(), date: dateStr, timestamp: Date.now(),
-            feelings: [], fastingStatus: '', hungerLevel: '', moods: [],
-            symptoms: [], fastBreak: [], activities: [], otherFactors: [],
-            waterCount: 0, volumeUnit, notes: mergedNotes,
-            fastingHours, fastingMinutes, v2Data: mergedV2,
+            waterCount: 0, volumeUnit, fastingHours, fastingMinutes,
+            ...legacyFields,
           };
       setCheckInHistory(prev => existingCI
         ? prev.map(c => c.id === existingCI.id ? mergedCI : c)
         : [mergedCI, ...prev]
       );
       const ciId = existingCI?.id || mergedCI.id;
+      const mealDbRow = {
+        feelings: mergedCI.feelings, moods: mergedCI.moods, symptoms: mergedCI.symptoms,
+        fast_break: mergedCI.fastBreak, activities: mergedCI.activities, other_factors: mergedCI.otherFactors,
+        hunger_level: mergedCI.hungerLevel, fasting_status: mergedCI.fastingStatus,
+        notes: mergedNotes, v2_data: mergedV2, logged_at: now.toISOString(),
+      };
       dbSave(
         existingCI
-          ? supabase.from('check_ins').update({ notes: mergedNotes, v2_data: mergedV2, logged_at: now.toISOString() }).eq('id', existingCI.id)
-          : supabase.from('check_ins').insert({ id: ciId, user_id: session?.user?.id, date: dateStr, feelings: [], moods: [], symptoms: [], fast_break: [], activities: [], other_factors: [], water_count: 0, notes: mergedNotes, v2_data: mergedV2, logged_at: now.toISOString() }),
+          ? supabase.from('check_ins').update(mealDbRow).eq('id', existingCI.id)
+          : supabase.from('check_ins').insert({ id: ciId, user_id: session?.user?.id, date: dateStr, water_count: 0, volume_unit: volumeUnit, ...mealDbRow }),
         'save meal check_in', (msg) => showToast(msg, 'error')
       );
-      // Tie satiety data to the specific meal that was just logged
+      // Tie this meal's check-in data to the specific meal that was just logged
       if (lastSavedMealId) {
         dbSave(supabase.from('meal_logs').update({
           moods: data.satietyMoods || [],
+          symptoms: data.fastingSymptoms || [],
+          other_factors: [data.currentLocation, data.currentCompany, data.typicalDay].filter(Boolean),
           notes: (data.noteEntries || []).map(e => e.text).join('\n\n'),
         }).eq('id', lastSavedMealId), 'tie meal check-in to meal_log');
       }

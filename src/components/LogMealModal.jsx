@@ -10,6 +10,7 @@ import { captureRef } from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { collectCheckInIcons } from '../lib/checkinIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { uploadMealPhoto, enqueuePendingMealPhoto } from '../lib/mealPhotoUpload';
@@ -216,17 +217,9 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     onOpenCheckIn?.();
   };
 
-  const SATIETY_ICON_MAP = {
-    'Full': 'restaurant-outline', 'Guilty': 'alert-circle-outline',
-    'Uncomfortable': 'bandage-outline', 'Bad': 'thumbs-down-outline',
-    'Really good': 'thumbs-up-outline', 'Energized': 'flash-outline',
-    'Refreshed': 'water-outline', 'Motivated': 'trending-up-outline',
-    'Numb': 'remove-circle-outline', 'Restless': 'walk-outline',
-  };
-
   const renderCheckInWidget = () => {
-    const satietyMoods = mealCheckInSnapshot?.satietyMoods || [];
-    const hasMealCheckIn = satietyMoods.length > 0;
+    const checkInIcons = collectCheckInIcons(mealCheckInSnapshot);
+    const hasMealCheckIn = checkInIcons.length > 0;
 
     return (
       <View style={{ marginHorizontal: 20, marginBottom: 12, marginTop: 20 }}>
@@ -235,9 +228,9 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
           <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 8 }}>
-                {satietyMoods.map((mood, i) => (
-                  <View key={i} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0FDF4' }}>
-                    <Ionicons name={SATIETY_ICON_MAP[mood] || 'ellipse-outline'} size={18} color="#22C55E" />
+                {checkInIcons.map((item, i) => (
+                  <View key={i} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: item.bg }}>
+                    <Ionicons name={item.icon} size={18} color={item.color} />
                   </View>
                 ))}
               </ScrollView>

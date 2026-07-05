@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Pressable, ScrollView, TextInput, StyleSheet, Modal, Platform, KeyboardAvoidingView, Animated, PanResponder } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
+import { CHECKIN_ICON_SECTIONS } from '../lib/checkinIcons';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -352,24 +353,8 @@ const CheckInPage = ({
                 selectedChipStyle={{ backgroundColor: '#FFFBEB', borderColor: '#F59E0B', borderWidth: 1.5 }}
                 showCheckmark
                 largeEmoji
-                iconMap={{
-                  'Calm':        'leaf-outline',
-                  'Anxious':     'alert-circle-outline',
-                  'Happy':       'sunny-outline',
-                  'Irritable':   'flame-outline',
-                  'Sad':         'rainy-outline',
-                  'Tired':       'moon-outline',
-                  'Overwhelmed': 'thunderstorm-outline',
-                  'Energized':   'flash-outline',
-                  'Stressed':    'pulse-outline',
-                  'Content':     'heart-outline',
-                  'Hopeful':     'star-outline',
-                  'Lonely':      'person-outline',
-                  'Proud':       'ribbon-outline',
-                  'Frustrated':  'close-circle-outline',
-                  'Indifferent': 'remove-circle-outline',
-                  'Distracted':  'shuffle-outline',
-                }}
+                iconMap={CHECKIN_ICON_SECTIONS.emotionalMoods.icons}
+                iconColor={CHECKIN_ICON_SECTIONS.emotionalMoods.color}
               />
             </SectionCard>}
 
@@ -384,19 +369,8 @@ const CheckInPage = ({
                 showCheckmark
                 checkmarkColor="#22C55E"
                 largeEmoji
-                iconMap={{
-                  'Full':          'restaurant-outline',
-                  'Guilty':        'alert-circle-outline',
-                  'Uncomfortable': 'bandage-outline',
-                  'Bad':           'thumbs-down-outline',
-                  'Really good':   'thumbs-up-outline',
-                  'Energized':     'flash-outline',
-                  'Refreshed':     'water-outline',
-                  'Motivated':     'trending-up-outline',
-                  'Numb':          'remove-circle-outline',
-                  'Restless':      'walk-outline',
-                }}
-                iconColor="#22C55E"
+                iconMap={CHECKIN_ICON_SECTIONS.satietyMoods.icons}
+                iconColor={CHECKIN_ICON_SECTIONS.satietyMoods.color}
               />
             </SectionCard>}
 
@@ -412,32 +386,8 @@ const CheckInPage = ({
                 showCheckmark
                 checkmarkColor="#9333EA"
                 largeEmoji
-                iconMap={{
-                  'Headache':                 'medical-outline',
-                  'Dizziness':                'sync-outline',
-                  'Nausea':                   'warning-outline',
-                  'Fatigue':                  'battery-dead-outline',
-                  'Muscle weakness':          'body-outline',
-                  'Stomach cramping':         'bandage-outline',
-                  'Bloating':                 'ellipse-outline',
-                  'Heart palpitations':       'pulse-outline',
-                  'Feeling cold':             'snow-outline',
-                  'Dry mouth':                'water-outline',
-                  'Brain fog':                'cloud-outline',
-                  'Difficulty concentrating': 'eye-off-outline',
-                  'Forgetfulness':            'time-outline',
-                  'Slow thinking':            'hourglass-outline',
-                  'Irritability':             'flame-outline',
-                  'Mood swings':              'swap-horizontal-outline',
-                  'Anxiety':                  'alert-circle-outline',
-                  'Low motivation':           'trending-down-outline',
-                  'Mental clarity':           'bulb-outline',
-                  'Feeling light':            'leaf-outline',
-                  'Improved focus':           'eye-outline',
-                  'Sense of control':         'checkmark-circle-outline',
-                  'No symptoms':              'shield-checkmark-outline',
-                }}
-                iconColor="#9333EA"
+                iconMap={CHECKIN_ICON_SECTIONS.fastingSymptoms.icons}
+                iconColor={CHECKIN_ICON_SECTIONS.fastingSymptoms.color}
               />
             </SectionCard>
 
@@ -452,15 +402,8 @@ const CheckInPage = ({
                 chipStyle={{ backgroundColor: '#EFF6FF', borderColor: 'transparent' }}
                 selectedChipStyle={{ backgroundColor: '#EFF6FF', borderColor: '#3B82F6', borderWidth: 1.5 }}
                 showCheckmark checkmarkColor="#3B82F6" largeEmoji
-                iconMap={{
-                  'Home':            'home-outline',
-                  'Work/school':     'briefcase-outline',
-                  'Commuting':       'car-outline',
-                  'Outdoors':        'leaf-outline',
-                  'Social setting':  'people-outline',
-                  'Other':           'grid-outline',
-                }}
-                iconColor="#3B82F6"
+                iconMap={CHECKIN_ICON_SECTIONS.currentLocation.icons}
+                iconColor={CHECKIN_ICON_SECTIONS.currentLocation.color}
               />
             </SectionCard>
             <SectionCard title="Who are you with?" titleStyle={{ fontSize: 17 }}>
@@ -472,14 +415,8 @@ const CheckInPage = ({
                 chipStyle={{ backgroundColor: '#FFF7ED', borderColor: 'transparent' }}
                 selectedChipStyle={{ backgroundColor: '#FFF7ED', borderColor: '#F97316', borderWidth: 1.5 }}
                 showCheckmark checkmarkColor="#F97316" largeEmoji
-                iconMap={{
-                  'Alone':               'person-outline',
-                  'With family':         'people-outline',
-                  'With friends':        'heart-outline',
-                  'In a public setting': 'business-outline',
-                  'At work/class':       'school-outline',
-                }}
-                iconColor="#F97316"
+                iconMap={CHECKIN_ICON_SECTIONS.currentCompany.icons}
+                iconColor={CHECKIN_ICON_SECTIONS.currentCompany.color}
               />
             </SectionCard>
             <SectionCard title="Is today a typical day for you?" titleStyle={{ fontSize: 17 }}>
@@ -491,13 +428,8 @@ const CheckInPage = ({
                 chipStyle={{ backgroundColor: '#FFF1F2', borderColor: 'transparent' }}
                 selectedChipStyle={{ backgroundColor: '#FFF1F2', borderColor: '#EF4444', borderWidth: 1.5 }}
                 showCheckmark checkmarkColor="#EF4444" largeEmoji
-                iconMap={{
-                  'Yes, fairly normal':       'checkmark-circle-outline',
-                  'Busier than usual':        'flame-outline',
-                  'More relaxed than usual':  'leaf-outline',
-                  'Unusual/disrupted day':    'shuffle-outline',
-                }}
-                iconColor="#EF4444"
+                iconMap={CHECKIN_ICON_SECTIONS.typicalDay.icons}
+                iconColor={CHECKIN_ICON_SECTIONS.typicalDay.color}
               />
             </SectionCard>
 
