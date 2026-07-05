@@ -505,8 +505,8 @@ const ProPaywall = ({ visible, onClose }) => {
 };
 
 const pw = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#fbfbf7', borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '94%' },
+  backdrop: { flex: 1, backgroundColor: '#fbfbf7' },
+  sheet: { flex: 1, backgroundColor: '#fbfbf7' },
   sheetContent: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 18, paddingBottom: 44 },
   closeBtn: {
     alignSelf: 'flex-end', width: 32, height: 32, borderRadius: 16,
