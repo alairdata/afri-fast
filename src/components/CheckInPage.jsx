@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Pressable, ScrollView, TextInput, StyleSheet, Modal, Platform, KeyboardAvoidingView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, Pressable, ScrollView, TextInput, StyleSheet, Modal, Platform, KeyboardAvoidingView, Animated, PanResponder } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 
@@ -105,6 +105,50 @@ const SectionCard = ({ title, subtitle, children, titleStyle }) => (
     {children}
   </View>
 );
+
+const SwipeableNote = ({ entry, onDelete }) => {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, { dx, dy }) => Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8,
+    onPanResponderMove: (_, { dx }) => {
+      if (dx < 0) translateX.setValue(Math.max(dx, -68));
+    },
+    onPanResponderRelease: (_, { dx }) => {
+      if (dx < -36) {
+        Animated.spring(translateX, { toValue: -68, useNativeDriver: true }).start();
+      } else {
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+      }
+    },
+  })).current;
+
+  const close = () => Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+
+  return (
+    <View style={{ position: 'relative', marginBottom: 8, borderRadius: 10, overflow: 'hidden' }}>
+      <TouchableOpacity
+        style={sw.deleteBtn}
+        onPress={() => { close(); onDelete(); }}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="trash-outline" size={19} color="#fff" />
+      </TouchableOpacity>
+      <Animated.View style={[ss.noteEntry, { transform: [{ translateX }] }]} {...panResponder.panHandlers}>
+        <Text style={ss.noteEntryTime}>
+          {new Date(entry.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </Text>
+        <Text style={ss.noteEntryText}>{entry.text}</Text>
+      </Animated.View>
+    </View>
+  );
+};
+
+const sw = StyleSheet.create({
+  deleteBtn: {
+    position: 'absolute', right: 0, top: 0, bottom: 0, width: 68,
+    backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center',
+  },
+});
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -523,12 +567,11 @@ const CheckInPage = ({
               <View style={ss.section}>
                 <Text style={ss.sectionTitle}>📝 Notes</Text>
                 {(noteEntries || []).map((entry, i) => (
-                  <View key={i} style={ss.noteEntry}>
-                    <Text style={ss.noteEntryTime}>
-                      {new Date(entry.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                    <Text style={ss.noteEntryText}>{entry.text}</Text>
-                  </View>
+                  <SwipeableNote
+                    key={i}
+                    entry={entry}
+                    onDelete={() => setNoteEntries((noteEntries || []).filter((_, idx) => idx !== i))}
+                  />
                 ))}
                 <View style={ss.notesCard}>
                   <TextInput
@@ -672,7 +715,7 @@ const ss = StyleSheet.create({
 
   notesCard: { backgroundColor: 'rgba(5,150,105,0.02)', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, marginTop: 8 },
   notesInput: { width: '100%', minHeight: 80, fontSize: 14, color: '#1F1F1F', lineHeight: 21, backgroundColor: 'transparent', textAlignVertical: 'top', padding: 0, fontFamily: 'Inter' },
-  noteEntry: { backgroundColor: 'rgba(5,150,105,0.05)', borderRadius: 10, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#059669' },
+  noteEntry: { backgroundColor: '#f6f6f2', borderRadius: 10, padding: 12 },
   noteEntryTime: { fontSize: 11, fontWeight: '600', color: '#059669', marginBottom: 4 },
   noteEntryText: { fontSize: 14, color: '#1F1F1F', lineHeight: 20 },
   addNoteBtn: { alignSelf: 'flex-end', marginTop: 8, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: '#059669', borderRadius: 10 },
