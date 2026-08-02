@@ -17,7 +17,7 @@ const REVIEWS = [
   { name: 'Yemi D.', text: 'Tracked amala and ewedu for a week. The numbers matched what my nutritionist said. Impressive.', stars: 5 },
 ];
 
-const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onMakeRecipe, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked, onShowChat }) => {
+const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onMakeRecipe, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked, onShowChat, showLogMealOptions, setShowLogMealOptions }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
@@ -38,7 +38,6 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
   }, [recentMeals]);
 
   const [mealsActiveSection, setMealsActiveSection] = useState('meals');
-  const [showLogMealOptions, setShowLogMealOptions] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [expandedMealId, setExpandedMealId] = useState(null);
   const [deletingMealId, setDeletingMealId] = useState(null);

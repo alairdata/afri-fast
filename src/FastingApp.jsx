@@ -192,6 +192,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const conflictBypassStartTime = useRef(null);
   const [isOffline, setIsOffline] = useState(false);
   const [showLogMealModal, setShowLogMealModal] = useState(false);
+  const [showLogMealOptions, setShowLogMealOptions] = useState(false);
+  const [logMealOpenedFromOptions, setLogMealOpenedFromOptions] = useState(false);
   const [pendingInsightIndex, setPendingInsightIndex] = useState(null);
   const [showMakeRecipePage, setShowMakeRecipePage] = useState(false);
   const [showFindRecipePage, setShowFindRecipePage] = useState(false);
@@ -1600,6 +1602,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           onLogMeal={(recipe) => {
             setRecipeToLog(recipe);
             setLogMealMethod('recipe');
+            setLogMealOpenedFromOptions(false);
             setShowLogMealModal(true);
           }}
           onNavigateToProgress={() => setActiveTab('progress')}
@@ -1645,15 +1648,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           recentMeals={recentMeals}
           dailyCalorieGoal={dailyCalorieGoal}
           isFasting={isFasting}
+          showLogMealOptions={showLogMealOptions}
+          setShowLogMealOptions={setShowLogMealOptions}
           onLogMeal={(method) => {
             setLogMealMethod(method);
+            setLogMealOpenedFromOptions(true);
             setShowLogMealModal(true);
           }}
           onMealLogBlocked={() => showToast('Log meals only after ending your fast.')}
           onMakeRecipe={() => setShowMakeRecipePage(true)}
           onFindRecipe={() => setShowFindRecipePage(true)}
           onShowChat={(context) => { setChatOpeningContext(context || null); setShowChat(true); }}
-          onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setShowLogMealModal(true); }}
+          onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setLogMealOpenedFromOptions(false); setShowLogMealModal(true); }}
           onDeleteMeal={async (id) => {
             const prevMeals = recentMeals;
             setRecentMeals(prev => prev.filter(m => m.id !== id));
@@ -1886,7 +1892,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       {/* === Modals === */}
       <LogMealModal
         show={showLogMealModal}
-        onClose={() => { setShowLogMealModal(false); setViewingMeal(null); setRecipeToLog(null); setMealCheckInSnapshot(null); }}
+        onClose={(backToOptions) => {
+          setShowLogMealModal(false);
+          setViewingMeal(null);
+          setRecipeToLog(null);
+          setMealCheckInSnapshot(null);
+          if (backToOptions && logMealOpenedFromOptions) setShowLogMealOptions(true);
+          setLogMealOpenedFromOptions(false);
+        }}
         logMealMethod={logMealMethod}
         recipeToLog={recipeToLog}
         selectedMealDate={selectedMealDate}
@@ -1990,6 +2003,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           setShowMakeRecipePage(false);
           setRecipeToLog(recipe);
           setLogMealMethod('recipe');
+          setLogMealOpenedFromOptions(false);
           setShowLogMealModal(true);
         }}
       />

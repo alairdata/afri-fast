@@ -451,7 +451,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     resetScan();
     setDetectedFoods([]);
     setMealInput('');
-    onClose();
+    onClose(true);
   };
 
   const resetScan = () => {
