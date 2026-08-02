@@ -17,7 +17,7 @@ const REVIEWS = [
   { name: 'Yemi D.', text: 'Tracked amala and ewedu for a week. The numbers matched what my nutritionist said. Impressive.', stars: 5 },
 ];
 
-const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onMakeRecipe, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked }) => {
+const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onMakeRecipe, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked, onShowChat }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
@@ -380,9 +380,14 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
               </TouchableOpacity>
             </View>
 
-            <View style={styles.logMealCenterCircle} pointerEvents="none">
-              <Ionicons name="restaurant" size={20} color="#fff" />
-            </View>
+            <TouchableOpacity
+              style={styles.logMealCenterCircle}
+              activeOpacity={0.85}
+              onPress={() => { setShowLogMealOptions(false); onShowChat && onShowChat(); }}
+            >
+              <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
+              <Text style={styles.logMealCenterCircleLabel}>Ask</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Reviews — one at a time */}
@@ -734,21 +739,27 @@ const makeStyles = (c) => StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    marginTop: -22,
-    marginLeft: -22,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    marginTop: -36,
+    marginLeft: -36,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: 4,
     borderColor: c.card,
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+  },
+  logMealCenterCircleLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+    marginTop: 1,
   },
   logMealCard: {
     flex: 1,

@@ -1652,6 +1652,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           onMealLogBlocked={() => showToast('Log meals only after ending your fast.')}
           onMakeRecipe={() => setShowMakeRecipePage(true)}
           onFindRecipe={() => setShowFindRecipePage(true)}
+          onShowChat={(context) => { setChatOpeningContext(context || null); setShowChat(true); }}
           onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setShowLogMealModal(true); }}
           onDeleteMeal={async (id) => {
             const prevMeals = recentMeals;
