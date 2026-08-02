@@ -195,6 +195,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [showLogMealOptions, setShowLogMealOptions] = useState(false);
   const [logMealOpenedFromOptions, setLogMealOpenedFromOptions] = useState(false);
   const [chatVariant, setChatVariant] = useState('coach');
+  const [chatMealToLog, setChatMealToLog] = useState(null);
   const [pendingInsightIndex, setPendingInsightIndex] = useState(null);
   const [showMakeRecipePage, setShowMakeRecipePage] = useState(false);
   const [showFindRecipePage, setShowFindRecipePage] = useState(false);
@@ -1897,12 +1898,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           setShowLogMealModal(false);
           setViewingMeal(null);
           setRecipeToLog(null);
+          setChatMealToLog(null);
           setMealCheckInSnapshot(null);
           if (backToOptions && logMealOpenedFromOptions) setShowLogMealOptions(true);
           setLogMealOpenedFromOptions(false);
         }}
         logMealMethod={logMealMethod}
         recipeToLog={recipeToLog}
+        chatMealToLog={chatMealToLog}
         selectedMealDate={selectedMealDate}
         userCountry={userCountry}
         onSaveMeal={async (meal) => {
@@ -2313,6 +2316,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         onUpdatePersonality={(updated) => {
           setUserPersonality(updated);
           upsertProfile({ personality: updated }, 'update personality from chat');
+        }}
+        onLogMealFromChat={(meal) => {
+          setShowChat(false);
+          setChatOpeningContext(null);
+          setChatMealToLog(meal);
+          setLogMealMethod('chat');
+          setLogMealOpenedFromOptions(false);
+          setShowLogMealModal(true);
         }}
       />
 

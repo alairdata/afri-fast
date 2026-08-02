@@ -137,7 +137,11 @@ RULES:
 - Focus purely on estimating calories (and macros if useful) for whatever food or meal they mention, drawing on typical African food knowledge and their logged meals for reference.
 - Be concise and practical — give a calorie estimate and a quick breakdown, not a lecture.
 - If they name a dish, estimate realistically based on typical portion sizes; ask one quick clarifying question only if the portion size is genuinely ambiguous.
-- Keep replies to 2-4 sentences unless they ask for more detail.`;
+- Keep replies to 2-4 sentences unless they ask for more detail.
+- The user often explores several portion sizes or food options before deciding (e.g. "what about 400g of fries instead?", "what if I add cheese?"). Always read the FULL conversation and treat the LATEST quantity or choice mentioned for each food as what they've settled on — ignore earlier options they've moved away from. Never mix an earlier discarded quantity into a later total.
+- cal must always equal (protein × 4) + (carbs × 4) + (fats × 9) — never guess it independently.
+- Set isLoggable to true only when the conversation has settled on specific food item(s) with clear quantities that could be logged as a real meal right now — not for vague, hypothetical, or off-topic messages. When true, "foods" must list every finalized food item under discussion (using each one's LATEST settled quantity) with accurate macros, and "title" is a short natural name for the whole meal (e.g. "Fries, chicken and cheese").
+- When isLoggable is false, "foods" must be an empty array and "title" can be empty.`;
 }
 
 function buildPersonalityUpdatePrompt(existingPersonality, conversation, userContext) {
@@ -187,6 +191,50 @@ Analyse this data and write a personality profile that describes this user as a 
 Write as a concise paragraph (5-8 sentences) in third person using their name. Be specific and data-driven.
 
 Return ONLY the profile text. No labels, no explanation.`;
+}
+
+const MEALS_CHAT_FOOD_ITEM = {
+  type: 'OBJECT',
+  properties: {
+    name:    { type: 'STRING', description: 'Specific name of the food item.' },
+    qty:     { type: 'STRING', description: 'The LATEST settled portion size, e.g. "400g" or "1 medium wrap".' },
+    protein: { type: 'NUMBER', description: 'Grams of protein.' },
+    carbs:   { type: 'NUMBER', description: 'Grams of carbohydrates.' },
+    fats:    { type: 'NUMBER', description: 'Grams of fat.' },
+    fiber:   { type: 'NUMBER', description: 'Grams of fiber.' },
+    cal:     { type: 'NUMBER', description: 'Calories: (protein*4)+(carbs*4)+(fats*9).' },
+  },
+  required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'cal'],
+};
+
+const MEALS_CHAT_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    reply:      { type: 'STRING',  description: "Your natural conversational reply to the user's message." },
+    isLoggable: { type: 'BOOLEAN', description: 'True only if the conversation has settled on specific food item(s) and quantities that could be logged as a meal right now.' },
+    title:      { type: 'STRING',  description: 'Short natural name for the finalized meal being discussed.' },
+    foods:      { type: 'ARRAY', items: MEALS_CHAT_FOOD_ITEM, description: 'The FINAL food items and quantities the user has settled on across the whole conversation.' },
+  },
+  required: ['reply', 'isLoggable', 'foods'],
+};
+
+function parseJson(text) {
+  if (!text) return null;
+  try { return JSON.parse(text); } catch {
+    const match = text.match(/[{[][^]*[}\]]/);
+    if (!match) return null;
+    try { return JSON.parse(match[0]); } catch { return null; }
+  }
+}
+
+function normalizeFood(f, fallback = 'Unknown food') {
+  const protein = Number(f.protein) || 0;
+  const carbs   = Number(f.carbs)   || 0;
+  const fats    = Number(f.fats)    || 0;
+  const fiber   = Number(f.fiber)   || 0;
+  const macroCal = Math.round(protein * 4 + carbs * 4 + fats * 9);
+  const cal = macroCal > 0 ? macroCal : (Number(f.cal) || 0);
+  return { name: f.name || fallback, qty: f.qty || '1 serving', cal, protein, carbs, fats, fiber };
 }
 
 async function logToSupabase(supabaseUrl, supabaseKey, rows) {
@@ -241,7 +289,7 @@ export default async function handler(req, res) {
   };
 
   const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
-  const callGemini = async (systemPrompt, userMessages) => {
+  const callGemini = async (systemPrompt, userMessages, schema) => {
     const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
     if (!GEMINI_KEY) throw new Error('Gemini API key not configured');
     const contents = userMessages.map(m => ({
@@ -256,6 +304,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents,
           systemInstruction: { parts: [{ text: systemPrompt }] },
+          ...(schema ? { generationConfig: { responseMimeType: 'application/json', responseSchema: schema } } : {}),
         }),
       });
       if (response.status === 503) continue;
@@ -290,9 +339,20 @@ export default async function handler(req, res) {
         }));
       }
 
-      const reply = variant === 'meals'
-        ? await callGemini(systemPrompt, conversation)
-        : await callClaude(systemPrompt, conversation, 1024);
+      let reply;
+      let loggableMeal = null;
+
+      if (variant === 'meals') {
+        const raw = await callGemini(systemPrompt, conversation, MEALS_CHAT_SCHEMA);
+        const parsed = parseJson(raw);
+        reply = parsed?.reply || "Sorry, I couldn't work that out — try describing the food again.";
+        if (parsed?.isLoggable && parsed.foods?.length) {
+          const foods = parsed.foods.map(f => normalizeFood(f));
+          loggableMeal = { title: parsed.title || foods.map(f => f.name).join(', '), foods };
+        }
+      } else {
+        reply = await callClaude(systemPrompt, conversation, 1024);
+      }
 
       // Log this exchange to DB (fire-and-forget)
       if (userId) {
@@ -305,7 +365,7 @@ export default async function handler(req, res) {
         logToSupabase(SUPABASE_URL, SUPABASE_SERVICE_KEY, rows);
       }
 
-      return res.status(200).json({ reply });
+      return res.status(200).json({ reply, loggableMeal });
     }
 
     // === Update personality from chat session ===

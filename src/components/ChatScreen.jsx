@@ -87,6 +87,7 @@ const ChatScreen = ({
   personality,
   onUpdatePersonality,
   goalHistory,
+  onLogMealFromChat,
 }) => {
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -196,7 +197,7 @@ const ChatScreen = ({
         data: userData,
         userId,
       });
-      setMessages(prev => [...prev, { role: 'assistant', content: res.reply }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: res.reply, loggableMeal: res.loggableMeal || null }]);
     } catch (e) {
       console.error('[Chat error]', e);
       setMessages(prev => [...prev, {
@@ -246,34 +247,45 @@ const ChatScreen = ({
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
           {messages.map((msg, index) => (
-            <View
-              key={index}
-              style={[
-                styles.chatBubbleWrapper,
-                { justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' },
-              ]}
-            >
-              {msg.role === 'assistant' && !isMeals && (
-                <View style={styles.chatBubbleAvatar}>
-                  <Text style={{ fontSize: 16 }}>🤖</Text>
-                </View>
-              )}
+            <View key={index} style={{ marginBottom: 16 }}>
               <View
                 style={[
-                  styles.chatBubble,
-                  msg.role === 'user' ? styles.chatBubbleUser : styles.chatBubbleAssistant,
+                  styles.chatBubbleWrapper,
+                  { marginBottom: 0, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' },
                 ]}
               >
-                {msg.role === 'user' ? (
-                  <Text style={[styles.chatBubbleText, { color: '#fff' }]}>{msg.content}</Text>
-                ) : (
-                  <FormattedText
-                    text={msg.content}
-                    bodyStyle={[styles.chatBubbleText, { color: '#1F1F1F' }]}
-                    paragraphSpacing={10}
-                  />
+                {msg.role === 'assistant' && !isMeals && (
+                  <View style={styles.chatBubbleAvatar}>
+                    <Text style={{ fontSize: 16 }}>🤖</Text>
+                  </View>
                 )}
+                <View
+                  style={[
+                    styles.chatBubble,
+                    msg.role === 'user' ? styles.chatBubbleUser : styles.chatBubbleAssistant,
+                  ]}
+                >
+                  {msg.role === 'user' ? (
+                    <Text style={[styles.chatBubbleText, { color: '#fff' }]}>{msg.content}</Text>
+                  ) : (
+                    <FormattedText
+                      text={msg.content}
+                      bodyStyle={[styles.chatBubbleText, { color: '#1F1F1F' }]}
+                      paragraphSpacing={10}
+                    />
+                  )}
+                </View>
               </View>
+              {isMeals && msg.role === 'assistant' && msg.loggableMeal && (
+                <TouchableOpacity
+                  style={styles.logMealPill}
+                  activeOpacity={0.85}
+                  onPress={() => onLogMealFromChat && onLogMealFromChat(msg.loggableMeal)}
+                >
+                  <Ionicons name="add-circle" size={16} color="#fff" />
+                  <Text style={styles.logMealPillText}>Log this meal</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))}
           {isTyping && (
@@ -395,6 +407,15 @@ const styles = StyleSheet.create({
   },
   chatBubbleUser: { backgroundColor: '#059669', borderBottomRightRadius: 4 },
   chatBubbleText: { fontSize: 14, lineHeight: 21 },
+  logMealPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start', marginTop: 8,
+    backgroundColor: '#059669', borderRadius: 20,
+    paddingVertical: 8, paddingHorizontal: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12, shadowRadius: 4, elevation: 2,
+  },
+  logMealPillText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   chatSuggestions: { maxHeight: 52, paddingHorizontal: 20 },
   chatSuggestionsContent: { alignItems: 'center', paddingVertical: 10 },
   chatSuggestionBtn: {

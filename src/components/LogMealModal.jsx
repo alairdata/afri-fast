@@ -201,7 +201,7 @@ const ShareCardImage = ({ uri, height, style }) => {
   );
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, chatMealToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
   const streak = useMemo(() => {
     let s = 0;
     const now = new Date();
@@ -341,6 +341,37 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setCapturedPhotoSize(null);
     setScanPhase('shareCard');
   }, [show, recipeToLog]);
+
+  // When opened with a meal already worked out in the Ask chat, log it and skip straight to the share card
+  useLayoutEffect(() => {
+    if (!show || !chatMealToLog) return;
+    const mealDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
+    const isToday = mealDate.toDateString() === new Date().toDateString();
+    const timeStr = `${isToday ? 'Today' : mealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${mealDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    const mealId = Date.now();
+    const foods = (chatMealToLog.foods || []).map((f, i) => ({ ...f, id: i }));
+    if (onSaveMeal) {
+      onSaveMeal({
+        id: mealId,
+        name: chatMealToLog.title || foods.map(f => f.name).join(', '),
+        calories: foods.reduce((sum, f) => sum + (f.cal || 0), 0),
+        protein: foods.reduce((sum, f) => sum + (f.protein || 0), 0),
+        carbs: foods.reduce((sum, f) => sum + (f.carbs || 0), 0),
+        fats: foods.reduce((sum, f) => sum + (f.fats || 0), 0),
+        time: timeStr,
+        date: mealDate.toDateString(),
+        photo: null,
+        method: 'chat',
+        items: foods.map(f => `${f.name} (${f.qty})`),
+        foods,
+      });
+    }
+    setMealTitle(chatMealToLog.title || null);
+    setDetectedFoods(foods);
+    setCapturedPhoto(null);
+    setCapturedPhotoSize(null);
+    setScanPhase('shareCard');
+  }, [show, chatMealToLog]);
 
   useEffect(() => {
     if (scanPhase !== 'results' || detectedFoods.length > 0 || scanError) return;
@@ -814,7 +845,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.headerSubtitle}>LOG FOOD</Text>
             <Text style={styles.headerTitle}>
-              {logMealMethod === 'scan' ? 'Scan your meal' : logMealMethod === 'write' ? 'Write your meal' : logMealMethod === 'recipe' ? 'Make your meal' : 'Say your meal'}
+              {logMealMethod === 'scan' ? 'Scan your meal' : logMealMethod === 'write' ? 'Write your meal' : logMealMethod === 'recipe' ? 'Make your meal' : logMealMethod === 'chat' ? 'Your meal' : 'Say your meal'}
             </Text>
           </View>
         </View>
