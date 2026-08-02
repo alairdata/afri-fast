@@ -240,6 +240,32 @@ export default async function handler(req, res) {
     return result.content?.[0]?.text?.trim() || '';
   };
 
+  const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
+  const callGemini = async (systemPrompt, userMessages) => {
+    const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+    if (!GEMINI_KEY) throw new Error('Gemini API key not configured');
+    const contents = userMessages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+    for (const model of GEMINI_MODELS) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents,
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+        }),
+      });
+      if (response.status === 503) continue;
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || 'Gemini API error');
+      return result?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim() || '';
+    }
+    throw new Error('All Gemini models unavailable');
+  };
+
   try {
     const userContext = data ? buildUserContext(data) : '';
 
@@ -249,26 +275,28 @@ export default async function handler(req, res) {
         ? buildMealsChatSystemPrompt(userContext)
         : buildChatSystemPrompt(personality || '', userContext);
 
-      let claudeMessages;
+      let conversation;
       if (openingContext && (!messages || messages.length === 0)) {
         // Opened from alert card — open with specific observation
-        claudeMessages = [{
+        conversation = [{
           role: 'user',
           content: `The user just tapped on this observation you flagged for them: "${openingContext}". Open the conversation by addressing it directly and personally. Ask one follow-up question. Keep it to 2-3 sentences. Rephrase naturally — don't repeat it word for word.`,
         }];
       } else {
         // Regular conversation — last 10 messages
-        claudeMessages = (messages || []).slice(-10).map(m => ({
+        conversation = (messages || []).slice(-10).map(m => ({
           role: m.role === 'assistant' ? 'assistant' : 'user',
           content: m.content,
         }));
       }
 
-      const reply = await callClaude(systemPrompt, claudeMessages, 1024);
+      const reply = variant === 'meals'
+        ? await callGemini(systemPrompt, conversation)
+        : await callClaude(systemPrompt, conversation, 1024);
 
       // Log this exchange to DB (fire-and-forget)
       if (userId) {
-        const lastUserMsg = claudeMessages[claudeMessages.length - 1];
+        const lastUserMsg = conversation[conversation.length - 1];
         const rows = [];
         if (lastUserMsg?.role === 'user') {
           rows.push({ user_id: userId, role: 'user', content: lastUserMsg.content, action: 'message' });
