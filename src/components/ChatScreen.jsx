@@ -60,6 +60,7 @@ const SUGGESTIONS = [
 const ChatScreen = ({
   show,
   onClose,
+  variant = 'coach',
   messages,
   setMessages,
   openingContext,
@@ -91,6 +92,7 @@ const ChatScreen = ({
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef(null);
   const lastOpeningContextRef = useRef(null);
+  const isMeals = variant === 'meals';
 
   const enrichedMealLogs = (recentMeals || []).map(meal => {
     const ci = (checkInHistory || []).find(c => c.date === meal.date) || null;
@@ -166,7 +168,9 @@ const ChatScreen = ({
       // Same insight card — keep existing messages, do nothing
 
     } else if (messages.length === 0) {
-      const greeting = userName
+      const greeting = isMeals
+        ? `What are you thinking about your meal today?`
+        : userName
         ? `Hi ${userName}! I'm your personal weight loss coach. I have access to all your data — your meals, calories, weight, and hydration. Ask me anything!`
         : `Hi! I'm your personal weight loss coach. I have access to all your data — ask me anything about your progress, goals, or how to improve!`;
       setMessages([{ role: 'assistant', content: greeting }]);
@@ -216,13 +220,17 @@ const ChatScreen = ({
             <Ionicons name="chevron-back" size={24} color="#059669" />
           </TouchableOpacity>
           <View style={styles.chatHeaderInfo}>
-            <View style={styles.chatAvatar}>
-              <Text style={{ fontSize: 22 }}>🤖</Text>
-            </View>
+            {!isMeals && (
+              <View style={styles.chatAvatar}>
+                <Text style={{ fontSize: 22 }}>🤖</Text>
+              </View>
+            )}
             <View>
-              <Text style={styles.chatHeaderTitle}>Your Weight Loss Coach</Text>
+              <Text style={styles.chatHeaderTitle}>
+                {isMeals ? 'Know your calories first' : 'Your Weight Loss Coach'}
+              </Text>
               <Text style={styles.chatHeaderStatus}>
-                {isTyping ? 'Typing...' : 'Online • Knows your data'}
+                {isTyping ? 'Typing...' : isMeals ? "Let's talk about it" : 'Online • Knows your data'}
               </Text>
             </View>
           </View>
@@ -243,7 +251,7 @@ const ChatScreen = ({
                 { justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' },
               ]}
             >
-              {msg.role === 'assistant' && (
+              {msg.role === 'assistant' && !isMeals && (
                 <View style={styles.chatBubbleAvatar}>
                   <Text style={{ fontSize: 16 }}>🤖</Text>
                 </View>
@@ -268,9 +276,11 @@ const ChatScreen = ({
           ))}
           {isTyping && (
             <View style={styles.chatBubbleWrapper}>
-              <View style={styles.chatBubbleAvatar}>
-                <Text style={{ fontSize: 16 }}>🤖</Text>
-              </View>
+              {!isMeals && (
+                <View style={styles.chatBubbleAvatar}>
+                  <Text style={{ fontSize: 16 }}>🤖</Text>
+                </View>
+              )}
               <View style={[styles.chatBubble, styles.chatBubbleAssistant]}>
                 <TypingDots />
               </View>
@@ -279,27 +289,29 @@ const ChatScreen = ({
         </ScrollView>
 
         {/* Quick Suggestions */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chatSuggestions}
-          contentContainerStyle={styles.chatSuggestionsContent}
-        >
-          {SUGGESTIONS.map((s, i) => (
-            <TouchableOpacity
-              key={i}
-              style={styles.chatSuggestionBtn}
-              onPress={() => setChatInput(s)}
-            >
-              <Text style={styles.chatSuggestionText}>{s}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {!isMeals && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chatSuggestions}
+            contentContainerStyle={styles.chatSuggestionsContent}
+          >
+            {SUGGESTIONS.map((s, i) => (
+              <TouchableOpacity
+                key={i}
+                style={styles.chatSuggestionBtn}
+                onPress={() => setChatInput(s)}
+              >
+                <Text style={styles.chatSuggestionText}>{s}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
         {/* Input */}
         <View style={styles.chatInputContainer}>
           <TextInput
-            placeholder="Ask about your progress..."
+            placeholder={isMeals ? 'Type a message...' : 'Ask about your progress...'}
             placeholderTextColor="#999"
             style={styles.chatInput}
             value={chatInput}

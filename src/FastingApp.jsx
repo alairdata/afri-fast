@@ -194,6 +194,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [showLogMealModal, setShowLogMealModal] = useState(false);
   const [showLogMealOptions, setShowLogMealOptions] = useState(false);
   const [logMealOpenedFromOptions, setLogMealOpenedFromOptions] = useState(false);
+  const [chatVariant, setChatVariant] = useState('coach');
   const [pendingInsightIndex, setPendingInsightIndex] = useState(null);
   const [showMakeRecipePage, setShowMakeRecipePage] = useState(false);
   const [showFindRecipePage, setShowFindRecipePage] = useState(false);
@@ -1586,7 +1587,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           strokeDashoffset={strokeDashoffset}
           onShowPlanPage={handleOpenPlanPage}
           onShowCheckInPage={() => openCheckInPage('today')}
-          onShowChat={(context) => { setChatOpeningContext(context || null); setShowChat(true); }}
+          onShowChat={(context) => { setChatOpeningContext(context || null); setChatVariant('coach'); setShowChat(true); }}
           onStartFast={handleStartFast}
           onEndFast={handleEndFast}
           isRestoringFast={isRestoringFast}
@@ -1658,7 +1659,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           onMealLogBlocked={() => showToast('Log meals only after ending your fast.')}
           onMakeRecipe={() => setShowMakeRecipePage(true)}
           onFindRecipe={() => setShowFindRecipePage(true)}
-          onShowChat={(context) => { setChatOpeningContext(context || null); setShowChat(true); }}
+          onShowChat={(context) => { setChatOpeningContext(context || null); setChatVariant('meals'); setShowChat(true); }}
           onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setLogMealOpenedFromOptions(false); setShowLogMealModal(true); }}
           onDeleteMeal={async (id) => {
             const prevMeals = recentMeals;
@@ -2285,6 +2286,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       <ChatScreen
         show={showChat}
         onClose={() => { setShowChat(false); setChatOpeningContext(null); }}
+        variant={chatVariant}
         messages={chatMessages}
         setMessages={setChatMessages}
         openingContext={chatOpeningContext}
