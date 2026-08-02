@@ -331,52 +331,58 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
             </Text>
           </View>
 
-          <View style={styles.logMealRow}>
-            <TouchableOpacity
-              style={styles.logMealCard}
-              onPress={() => handleLogMethod('scan')}
-            >
-              <View style={[styles.logMealCardIcon, { backgroundColor: colors.accentLight }]}>
-                <Ionicons name="camera-outline" size={26} color={colors.accent} />
-              </View>
-              <Text style={styles.logMealCardTitle}>Scan</Text>
-              <Text style={styles.logMealCardDesc}>Take a photo of your food</Text>
-            </TouchableOpacity>
+          <View style={styles.logMealGrid}>
+            <View style={styles.logMealRow}>
+              <TouchableOpacity
+                style={styles.logMealCard}
+                onPress={() => handleLogMethod('scan')}
+              >
+                <View style={[styles.logMealCardIcon, { backgroundColor: colors.accentLight }]}>
+                  <Ionicons name="camera-outline" size={26} color={colors.accent} />
+                </View>
+                <Text style={styles.logMealCardTitle}>Scan</Text>
+                <Text style={styles.logMealCardDesc}>Take a photo of your food</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.logMealCard}
-              onPress={() => handleLogMethod('say')}
-            >
-              <View style={[styles.logMealCardIcon, { backgroundColor: colors.cardAlt }]}>
-                <Ionicons name="mic-outline" size={26} color="#3B82F6" />
-              </View>
-              <Text style={styles.logMealCardTitle}>Say it</Text>
-              <Text style={styles.logMealCardDesc}>Tell us what you ate</Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={styles.logMealCard}
+                onPress={() => handleLogMethod('say')}
+              >
+                <View style={[styles.logMealCardIcon, { backgroundColor: colors.cardAlt }]}>
+                  <Ionicons name="mic-outline" size={26} color="#3B82F6" />
+                </View>
+                <Text style={styles.logMealCardTitle}>Say it</Text>
+                <Text style={styles.logMealCardDesc}>Tell us what you ate</Text>
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.logMealRow}>
-            <TouchableOpacity
-              style={styles.logMealCard}
-              onPress={() => handleLogMethod('write')}
-            >
-              <View style={[styles.logMealCardIcon, { backgroundColor: colors.cardAlt }]}>
-                <Ionicons name="create-outline" size={26} color="#F97316" />
-              </View>
-              <Text style={styles.logMealCardTitle}>Write it</Text>
-              <Text style={styles.logMealCardDesc}>Type in your meal</Text>
-            </TouchableOpacity>
+            <View style={styles.logMealRow}>
+              <TouchableOpacity
+                style={styles.logMealCard}
+                onPress={() => handleLogMethod('write')}
+              >
+                <View style={[styles.logMealCardIcon, { backgroundColor: colors.cardAlt }]}>
+                  <Ionicons name="create-outline" size={26} color="#F97316" />
+                </View>
+                <Text style={styles.logMealCardTitle}>Write it</Text>
+                <Text style={styles.logMealCardDesc}>Type in your meal</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.logMealCard}
-              onPress={() => { setShowLogMealOptions(false); onMakeRecipe && onMakeRecipe(); }}
-            >
-              <View style={[styles.logMealCardIcon, { backgroundColor: colors.cardAlt }]}>
-                <Ionicons name="restaurant-outline" size={26} color="#8B5CF6" />
-              </View>
-              <Text style={styles.logMealCardTitle}>Make it</Text>
-              <Text style={styles.logMealCardDesc}>Build a healthy meal</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.logMealCard}
+                onPress={() => { setShowLogMealOptions(false); onMakeRecipe && onMakeRecipe(); }}
+              >
+                <View style={[styles.logMealCardIcon, { backgroundColor: colors.cardAlt }]}>
+                  <Ionicons name="restaurant-outline" size={26} color="#8B5CF6" />
+                </View>
+                <Text style={styles.logMealCardTitle}>Make it</Text>
+                <Text style={styles.logMealCardDesc}>Build a healthy meal</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.logMealCenterCircle} pointerEvents="none">
+              <Ionicons name="restaurant" size={20} color="#fff" />
+            </View>
           </View>
 
           {/* Reviews — one at a time */}
@@ -716,10 +722,33 @@ const makeStyles = (c) => StyleSheet.create({
     maxWidth: 90,
     textAlign: 'right',
   },
+  logMealGrid: {
+    position: 'relative',
+  },
   logMealRow: {
     flexDirection: 'row',
     gap: 12,
     marginBottom: 12,
+  },
+  logMealCenterCircle: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -22,
+    marginLeft: -22,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: c.card,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   logMealCard: {
     flex: 1,
