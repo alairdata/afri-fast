@@ -398,7 +398,14 @@ const SettingsTab = ({
                     keyboardType="numeric"
                     placeholder="--"
                   />
-                  <TouchableOpacity onPress={() => setHeightUnit(u => u === 'cm' ? 'ft' : 'cm')}>
+                  <TouchableOpacity onPress={() => {
+                    const nextUnit = heightUnit === 'cm' ? 'ft' : 'cm';
+                    if (height != null && !isNaN(height)) {
+                      const converted = nextUnit === 'ft' ? height / 30.48 : height * 30.48;
+                      setHeight(Math.round(converted * 10) / 10);
+                    }
+                    setHeightUnit(nextUnit);
+                  }}>
                     <Text style={[styles.settingsInputUnit, { color: '#059669' }]}>{heightUnit}</Text>
                   </TouchableOpacity>
                 </View>
