@@ -127,6 +127,19 @@ COACHING RULES:
 - If they reveal something new about themselves, acknowledge it naturally and remember it`;
 }
 
+function buildMealsChatSystemPrompt(userContext) {
+  return `You are a calorie-counting helper inside Afri Fast, an African fasting and nutrition app. Your only job in this chat is to help the user understand the calories and nutrition in the meal or food they describe — nothing else.
+
+${userContext}
+
+RULES:
+- Do NOT give weight-loss coaching, motivational advice, or talk about their goals, streaks, or fasting plan unless they explicitly ask about food.
+- Focus purely on estimating calories (and macros if useful) for whatever food or meal they mention, drawing on typical African food knowledge and their logged meals for reference.
+- Be concise and practical — give a calorie estimate and a quick breakdown, not a lecture.
+- If they name a dish, estimate realistically based on typical portion sizes; ask one quick clarifying question only if the portion size is genuinely ambiguous.
+- Keep replies to 2-4 sentences unless they ask for more detail.`;
+}
+
 function buildPersonalityUpdatePrompt(existingPersonality, conversation, userContext) {
   return `You are updating a personality profile for a user of Afri Fast, a health coaching app. This profile helps the AI coach understand and serve them better over time.
 
@@ -205,7 +218,7 @@ export default async function handler(req, res) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-  const { action, messages, data, personality, openingContext, userId } = req.body || {};
+  const { action, messages, data, personality, openingContext, userId, variant } = req.body || {};
 
   const callClaude = async (systemPrompt, userMessages, maxTokens = 1024) => {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -232,7 +245,9 @@ export default async function handler(req, res) {
 
     // === Send a chat message ===
     if (action === 'message') {
-      const systemPrompt = buildChatSystemPrompt(personality || '', userContext);
+      const systemPrompt = variant === 'meals'
+        ? buildMealsChatSystemPrompt(userContext)
+        : buildChatSystemPrompt(personality || '', userContext);
 
       let claudeMessages;
       if (openingContext && (!messages || messages.length === 0)) {

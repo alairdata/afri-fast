@@ -126,7 +126,7 @@ const ChatScreen = ({
   useEffect(() => {
     const wasOpen = prevShowRef.current;
     prevShowRef.current = show;
-    if (wasOpen && !show && messages.length >= 3 && onUpdatePersonality) {
+    if (wasOpen && !show && !isMeals && messages.length >= 3 && onUpdatePersonality) {
       const conversation = messages
         .map(m => `${m.role === 'user' ? 'User' : 'Coach'}: ${m.content}`)
         .join('\n');
@@ -154,6 +154,7 @@ const ChatScreen = ({
         setIsTyping(true);
         callChat({
           action: 'message',
+          variant,
           messages: [],
           openingContext,
           personality,
@@ -189,6 +190,7 @@ const ChatScreen = ({
     try {
       const res = await callChat({
         action: 'message',
+        variant,
         messages: updatedMessages,
         personality,
         data: userData,
