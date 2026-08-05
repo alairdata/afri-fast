@@ -669,11 +669,12 @@ const TodayTab = ({
   };
 
   const mealContext = getMealContext();
+  const LIGHT_OPTIONS_CAP = 150; // once over budget, still surface very light snack ideas instead of hiding the section
   const slotBudget = mealContext.budgetRatio === 0 ? 0
     : dailyCalorieGoal
       ? Math.min(
           mealContext.maxCal ?? Math.round(dailyCalorieGoal * mealContext.budgetRatio),
-          isCalOver ? 0 : calRemaining
+          isCalOver ? LIGHT_OPTIONS_CAP : calRemaining
         )
       : 600;
   const suggestedRecipes = (AFRICAN_RECIPES || [])
