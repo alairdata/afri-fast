@@ -681,7 +681,7 @@ const TodayTab = ({
     .filter(r => r.calories <= Math.max(slotBudget, 150))
     .slice(0, 3);
 
-  // Calorie adherence this week
+  // Logging history this week — checked if any meal was logged that day
   const getWeekCalHistory = () => {
     const today = new Date();
     const dayOfWeek = today.getDay();
@@ -695,9 +695,7 @@ const TodayTab = ({
       if (day > today) return null;
       const ds = day.toDateString();
       const dayCals = (recentMeals || []).filter(m => m.date === ds).reduce((s, m) => s + (m.calories || 0), 0);
-      if (dayCals === 0 || !dailyCalorieGoal) return null;
-      const ratio = dayCals / dailyCalorieGoal;
-      return ratio >= 0.7 && ratio <= 1.15 ? true : false;
+      return dayCals > 0;
     });
   };
   const calHistory = getWeekCalHistory();
@@ -855,7 +853,7 @@ const TodayTab = ({
             </TouchableOpacity>
           </View>
           <View style={styles.historyCard}>
-            <Text style={styles.historyCardSubtitle}>Days you hit your calorie goal</Text>
+            <Text style={styles.historyCardSubtitle}>Days you logged your meals</Text>
             <View style={styles.historyDots}>
               {weekDays.map((day, i) => (
                 <View key={i} style={styles.historyDay}>
