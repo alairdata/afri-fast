@@ -88,23 +88,28 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
             {selectedMealDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           </Text>
         </View>
-        <TouchableOpacity
-          style={[
-            styles.mealsDateArrow,
-            { opacity: selectedMealDate.toDateString() === new Date().toDateString() ? 0.3 : 1 }
-          ]}
-          disabled={selectedMealDate.toDateString() === new Date().toDateString()}
-          onPress={() => {
-            const today = new Date();
-            const newDate = new Date(selectedMealDate);
-            newDate.setDate(newDate.getDate() + 1);
-            if (newDate <= today) {
-              setSelectedMealDate(newDate);
-            }
-          }}
-        >
-          <Ionicons name="chevron-forward" size={18} color="#059669" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <TouchableOpacity
+            style={[
+              styles.mealsDateArrow,
+              { opacity: selectedMealDate.toDateString() === new Date().toDateString() ? 0.3 : 1 }
+            ]}
+            disabled={selectedMealDate.toDateString() === new Date().toDateString()}
+            onPress={() => {
+              const today = new Date();
+              const newDate = new Date(selectedMealDate);
+              newDate.setDate(newDate.getDate() + 1);
+              if (newDate <= today) {
+                setSelectedMealDate(newDate);
+              }
+            }}
+          >
+            <Ionicons name="chevron-forward" size={18} color="#059669" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.historyIconBtn} onPress={() => setShowHistory(true)}>
+            <Ionicons name="time-outline" size={18} color="#059669" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -220,14 +225,6 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
             );
           })}
         </View>
-      </View>
-
-      {/* View all past meals pill */}
-      <View style={{ height: 80, alignItems: 'center', justifyContent: 'center' }}>
-        <TouchableOpacity style={styles.historyPill} onPress={() => setShowHistory(true)}>
-          <Ionicons name="time-outline" size={12} color={colors.accent} />
-          <Text style={styles.historyPillText}>View past logs</Text>
-        </TouchableOpacity>
       </View>
 
       </ScrollView>
@@ -872,14 +869,21 @@ const makeStyles = (c) => StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
-  historyPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingVertical: 7, paddingHorizontal: 14,
-    borderRadius: 50,
-    borderWidth: 1, borderColor: c.accent,
+  historyIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: c.card,
+    borderWidth: 1,
+    borderColor: 'rgba(5, 150, 105, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  historyPillText: { fontSize: 11, fontWeight: '600', color: c.accent },
   historyGroup: { marginBottom: 24 },
   historyGroupHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
