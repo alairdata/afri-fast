@@ -416,18 +416,21 @@ export function MascotFace({ happy }) {
 }
 
 function HookScreen({ next, onLogin }) {
-  const rock = useRef(new Animated.Value(0)).current;
+  const scanY = useRef(new Animated.Value(0)).current;
+  const HERO_SIZE = 280;
 
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(rock, { toValue: 1,  duration: 1800, useNativeDriver: true }),
-        Animated.timing(rock, { toValue: -1, duration: 1800, useNativeDriver: true }),
+        Animated.timing(scanY, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.delay(500),
+        Animated.timing(scanY, { toValue: 0, duration: 0, useNativeDriver: true }),
+        Animated.delay(300),
       ])
     ).start();
   }, []);
 
-  const rotate = rock.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-4deg', '0deg', '4deg'] });
+  const scanTranslate = scanY.interpolate({ inputRange: [0, 1], outputRange: [0, HERO_SIZE - 4] });
 
   return (
     <View style={[s.shell, { backgroundColor: C.bg }]}>
@@ -443,13 +446,26 @@ function HookScreen({ next, onLogin }) {
 
       {/* Hero */}
       <View style={s.hookHero}>
-        <View style={s.hookHeroCircle} />
-        <View style={s.hookIllo}>
-          <Animated.View style={{ transform: [{ rotate }] }}>
-            <Text style={s.hookIlloEmoji}>🍛</Text>
-          </Animated.View>
-          <Text style={s.hookIlloSub}>jollof · fufu · suya · egusi</Text>
+        <View style={[s.hookFrame, { width: HERO_SIZE, height: HERO_SIZE }]}>
+          <Image
+            source={require('../../assets/hook-jollof.jpg')}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+          />
+          <Animated.View style={[s.demoScanLine, { transform: [{ translateY: scanTranslate }] }]} />
+          {[
+            { top: 10, left: 10 },
+            { top: 10, right: 10 },
+            { bottom: 10, left: 10 },
+            { bottom: 10, right: 10 },
+          ].map((pos, i) => (
+            <View key={i} style={[s.demoBracket, pos,
+              i === 1 || i === 3 ? { transform: [{ scaleX: -1 }] } : null,
+              i === 2 || i === 3 ? { transform: [{ scaleY: -1 }] } : null,
+            ]} />
+          ))}
         </View>
+        <Text style={s.hookIlloSub}>jollof · fufu · suya · egusi</Text>
       </View>
 
       {/* Statement */}
@@ -1474,13 +1490,14 @@ const s = StyleSheet.create({
   },
   hookBrandTxt: { fontSize: 20, fontWeight: '800', color: C.ink, letterSpacing: -0.5 },
   hookHero: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  hookHeroCircle: {
-    position: 'absolute', width: 320, height: 320, borderRadius: 160,
-    backgroundColor: C.green50, opacity: 0.8,
+  hookFrame: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: C.ink,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 16, shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
-  hookIllo: { alignItems: 'center', zIndex: 1 },
-  hookIlloEmoji: { fontSize: 300 },
-  hookIlloSub: { fontSize: 13, color: C.ink400, fontWeight: '600', marginTop: 10, letterSpacing: 0.5 },
+  hookIlloSub: { fontSize: 13, color: C.ink400, fontWeight: '600', marginTop: 14, letterSpacing: 0.5 },
   hookStatement: { paddingHorizontal: 28, paddingBottom: 8, alignItems: 'center' },
   hookHeadline: {
     fontSize: 32, fontWeight: '800', color: C.ink, lineHeight: 38,
