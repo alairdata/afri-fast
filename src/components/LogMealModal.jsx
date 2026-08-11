@@ -273,6 +273,8 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const shareCardRef = useRef(null);
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [capturedPhotoSize, setCapturedPhotoSize] = useState(null);
+  const [loggedMealId, setLoggedMealId] = useState(null);
+  const [addingPhoto, setAddingPhoto] = useState(false);
   const [scanPhase, setScanPhase] = useState('camera');
   const [selectedMealType, setSelectedMealType] = useState(() => {
     const h = new Date().getHours();
@@ -339,6 +341,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     }
     if (recipeToLog.imageUrl) setCapturedPhoto(recipeToLog.imageUrl);
     setCapturedPhotoSize(null);
+    setLoggedMealId(mealId);
     setScanPhase('shareCard');
   }, [show, recipeToLog]);
 
@@ -370,6 +373,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setDetectedFoods(foods);
     setCapturedPhoto(null);
     setCapturedPhotoSize(null);
+    setLoggedMealId(mealId);
     setScanPhase('shareCard');
   }, [show, chatMealToLog]);
 
@@ -463,6 +467,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       setCapturedPhoto(viewingMeal.localPhoto || viewingMeal.photo || null);
       setDetectedFoods(viewingMeal.foods || []);
       setMealTitle(viewingMeal.name || null);
+      setLoggedMealId(viewingMeal.id ?? null);
       setScanPhase('shareCard');
     }
   }, [viewingMeal, show]);
@@ -493,6 +498,8 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setScanError(null);
     setScanFromScreen(false);
     setMealTitle(null);
+    setLoggedMealId(null);
+    setAddingPhoto(false);
     if (scanProgressRef.current) clearInterval(scanProgressRef.current);
   };
 
@@ -549,6 +556,32 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setCapturedPhoto(asset.uri);
     if (asset.width && asset.height) setCapturedPhotoSize({ width: asset.width, height: asset.height });
     runAnalysis(asset.uri);
+  };
+
+  // Attach a photo to a meal that was logged without one (write/say/chat/recipe, or a past meal being viewed)
+  const addPhotoToMeal = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.4,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    setCapturedPhoto(asset.uri);
+    if (asset.width && asset.height) setCapturedPhotoSize({ width: asset.width, height: asset.height });
+    if (!loggedMealId || !onSaveMeal) return;
+    setAddingPhoto(true);
+    try {
+      const photoUrl = await uploadMealPhoto(asset.uri);
+      if (photoUrl) {
+        onSaveMeal({ id: loggedMealId, _updatePhoto: true, photo: photoUrl });
+      }
+    } catch (e) {
+      console.log('[Add photo] error:', e.message);
+    } finally {
+      setAddingPhoto(false);
+    }
   };
 
   const resetWrite = () => {
@@ -797,6 +830,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       const mealDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
       const isToday = mealDate.toDateString() === new Date().toDateString();
       const mealId = Date.now();
+      setLoggedMealId(mealId);
       const timeStr = `${isToday ? 'Today' : mealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${mealDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
       // Save immediately with local photo URI so it appears in the list right away
       onSaveMeal({
@@ -1444,11 +1478,27 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   const screenWidth = Dimensions.get('window').width - 48;
                   const imgHeight = capturedPhotoSize
                     ? Math.min((screenWidth * capturedPhotoSize.height) / capturedPhotoSize.width, 620)
-                    : 380;
+                    : capturedPhoto ? 380 : 160;
                   return (
                     <View style={[styles.shareCardImgPanel, { height: imgHeight }]}>
-                      {capturedPhoto && (
+                      {capturedPhoto ? (
                         <ShareCardImage uri={capturedPhoto} height={imgHeight} style={styles.shareCardImage} />
+                      ) : (
+                        <TouchableOpacity
+                          style={[styles.addPhotoBtn, { height: imgHeight }]}
+                          onPress={addPhotoToMeal}
+                          disabled={addingPhoto}
+                          activeOpacity={0.8}
+                        >
+                          {addingPhoto ? (
+                            <ActivityIndicator size="small" color="#059669" />
+                          ) : (
+                            <>
+                              <Ionicons name="camera-outline" size={26} color="#059669" />
+                              <Text style={styles.addPhotoBtnText}>Add photo</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
                       )}
                     </View>
                   );
@@ -2548,6 +2598,21 @@ const styles = StyleSheet.create({
   shareCardImage: {
     width: '100%',
     resizeMode: 'cover',
+  },
+  addPhotoBtn: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: 'rgba(5, 150, 105, 0.3)',
+    borderStyle: 'dashed',
+  },
+  addPhotoBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#059669',
   },
   shareCardInfoPanel: {
     backgroundColor: '#111',
