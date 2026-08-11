@@ -417,15 +417,16 @@ export function MascotFace({ happy }) {
 
 function HookScreen({ next, onLogin }) {
   const scanY = useRef(new Animated.Value(0)).current;
-  const HERO_SIZE = 280;
+  const { width: SW } = useWindowDimensions();
+  const HERO_SIZE = Math.min(SW - 64, 380);
 
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(scanY, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.delay(500),
+        Animated.timing(scanY, { toValue: 1, duration: 4800, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.delay(700),
         Animated.timing(scanY, { toValue: 0, duration: 0, useNativeDriver: true }),
-        Animated.delay(300),
+        Animated.delay(400),
       ])
     ).start();
   }, []);
@@ -1489,15 +1490,12 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginRight: 8,
   },
   hookBrandTxt: { fontSize: 20, fontWeight: '800', color: C.ink, letterSpacing: -0.5 },
-  hookHero: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  hookHero: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
   hookFrame: {
     borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: C.ink,
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 16, shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
   },
-  hookIlloSub: { fontSize: 13, color: C.ink400, fontWeight: '600', marginTop: 14, letterSpacing: 0.5 },
+  hookIlloSub: { fontSize: 13, color: C.ink400, fontWeight: '600', marginTop: 8, letterSpacing: 0.5 },
   hookStatement: { paddingHorizontal: 28, paddingBottom: 8, alignItems: 'center' },
   hookHeadline: {
     fontSize: 32, fontWeight: '800', color: C.ink, lineHeight: 38,
