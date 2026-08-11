@@ -415,20 +415,34 @@ export function MascotFace({ happy }) {
   );
 }
 
+const HOOK_FOODS = [
+  require('../../assets/hook-jollof.jpg'),
+  require('../../assets/hook-eba.jpg'),
+  require('../../assets/hook-beans.jpg'),
+  require('../../assets/hook-waakye.jpg'),
+];
+
 function HookScreen({ next, onLogin }) {
   const scanY = useRef(new Animated.Value(0)).current;
   const { width: SW } = useWindowDimensions();
   const HERO_SIZE = Math.min(SW - 64, 380);
+  const [foodIndex, setFoodIndex] = useState(0);
 
   useEffect(() => {
-    Animated.loop(
+    let live = true;
+    const runCycle = () => {
+      scanY.setValue(0);
       Animated.sequence([
         Animated.timing(scanY, { toValue: 1, duration: 4800, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
         Animated.delay(700),
-        Animated.timing(scanY, { toValue: 0, duration: 0, useNativeDriver: true }),
-        Animated.delay(400),
-      ])
-    ).start();
+      ]).start(() => {
+        if (!live) return;
+        setFoodIndex(i => (i + 1) % HOOK_FOODS.length);
+        runCycle();
+      });
+    };
+    runCycle();
+    return () => { live = false; };
   }, []);
 
   const scanTranslate = scanY.interpolate({ inputRange: [0, 1], outputRange: [0, HERO_SIZE - 4] });
@@ -449,7 +463,7 @@ function HookScreen({ next, onLogin }) {
       <View style={s.hookHero}>
         <View style={[s.hookFrame, { width: HERO_SIZE, height: HERO_SIZE }]}>
           <Image
-            source={require('../../assets/hook-jollof.jpg')}
+            source={HOOK_FOODS[foodIndex]}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
           />
@@ -466,7 +480,6 @@ function HookScreen({ next, onLogin }) {
             ]} />
           ))}
         </View>
-        <Text style={s.hookIlloSub}>jollof · fufu · suya · egusi</Text>
       </View>
 
       {/* Statement */}
@@ -1495,7 +1508,6 @@ const s = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
   },
-  hookIlloSub: { fontSize: 13, color: C.ink400, fontWeight: '600', marginTop: 8, letterSpacing: 0.5 },
   hookStatement: { paddingHorizontal: 28, paddingBottom: 8, alignItems: 'center' },
   hookHeadline: {
     fontSize: 32, fontWeight: '800', color: C.ink, lineHeight: 38,
