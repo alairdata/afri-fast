@@ -304,7 +304,10 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents,
           systemInstruction: { parts: [{ text: systemPrompt }] },
-          ...(schema ? { generationConfig: { responseMimeType: 'application/json', responseSchema: schema } } : {}),
+          generationConfig: {
+            temperature: 0.1,
+            ...(schema ? { responseMimeType: 'application/json', responseSchema: schema } : {}),
+          },
         }),
       });
       if (response.status === 503) continue;
