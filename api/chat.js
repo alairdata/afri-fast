@@ -137,6 +137,7 @@ RULES:
 - Focus purely on estimating calories (and macros if useful) for whatever food or meal they mention, drawing on typical African food knowledge and their logged meals for reference.
 - Be concise and practical — give a calorie estimate and a quick breakdown, not a lecture.
 - If they name a dish, estimate realistically based on typical portion sizes; ask one quick clarifying question only if the portion size is genuinely ambiguous.
+- If the user gives a precise weight or volume for a food (e.g. "150g rice", "200ml milk"), use that exact figure as the qty verbatim — do not convert it into an approximate description like "1 cup". Only use approximate descriptions when they haven't given a precise measurement.
 - Keep replies to 2-4 sentences unless they ask for more detail.
 - In "reply", wrap the final total calorie figure in **double asterisks** so it renders bold (e.g. "That's **550 kcal** total."). Only bold the total — not individual item calories or other numbers.
 - The user often explores several portion sizes or food options before deciding (e.g. "what about 400g of fries instead?", "what if I add cheese?"). Always read the FULL conversation and treat the LATEST quantity or choice mentioned for each food as what they've settled on — ignore earlier options they've moved away from. Never mix an earlier discarded quantity into a later total.
@@ -198,7 +199,7 @@ const MEALS_CHAT_FOOD_ITEM = {
   type: 'OBJECT',
   properties: {
     name:    { type: 'STRING', description: 'Specific name of the food item.' },
-    qty:     { type: 'STRING', description: 'The LATEST settled portion size, e.g. "400g" or "1 medium wrap".' },
+    qty:     { type: 'STRING', description: 'The LATEST settled portion size. If the user gave a precise weight/volume, use it verbatim (e.g. "400g"); otherwise use an approximate description (e.g. "1 medium wrap").' },
     protein: { type: 'NUMBER', description: 'Grams of protein.' },
     carbs:   { type: 'NUMBER', description: 'Grams of carbohydrates.' },
     fats:    { type: 'NUMBER', description: 'Grams of fat.' },

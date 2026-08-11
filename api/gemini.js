@@ -8,6 +8,9 @@ const NUTRITION_SYSTEM =
   'cal must always equal (protein × 4) + (carbs × 4) + (fats × 9) — never guess it independently. ' +
   'For portions: use COUNT + SIZE + ITEM for countable foods (e.g. "2 medium eggs", "1 large chicken thigh") ' +
   'and SIZE + ITEM for non-countable foods (e.g. "1 heaped cup of white rice", "1 medium wrap of fufu"). ' +
+  'EXCEPTION: if the user explicitly states a precise weight or volume for a food (e.g. "150g rice", "200ml milk", "0.5kg beef"), ' +
+  'use that exact figure verbatim as the qty — do not convert it into an approximate description. ' +
+  'Only use the COUNT/SIZE approximation style when the user has not given a precise measurement (this is always the case for photo scans, since there is no way to know exact weight from an image). ' +
   'For meal titles: lead with the starchy base or carb, then the single most prominent accompaniment, ' +
   'joined by "and" or "with". No brackets, parentheses, or commas.';
 
@@ -194,7 +197,7 @@ export default async function handler(req, res) {
     if (type === 'recalculate_portion') {
       const { foodName, oldQty, newQty, currentNutrition: n } = data;
       const text = await callGemini(GEMINI_KEY, [{
-        text: `Food: "${foodName}"\nPrevious portion: ${oldQty} → cal: ${n?.cal ?? 0} kcal, protein: ${n?.protein ?? 0}g, carbs: ${n?.carbs ?? 0}g, fats: ${n?.fats ?? 0}g, fiber: ${n?.fiber ?? 0}g\nNew portion: "${newQty}"\n\nIf the new portion is a precise weight or volume (e.g. 200g, 150ml, 3oz), calculate directly from nutrition knowledge for that exact amount.\nIf same unit type but different quantity, scale proportionally.\nIf the unit type changed without a precise weight, recalculate from scratch.\nIf the new portion text contains a food name (e.g. "1.5 cups of beans"), use that as the name.`,
+        text: `Food: "${foodName}"\nPrevious portion: ${oldQty} → cal: ${n?.cal ?? 0} kcal, protein: ${n?.protein ?? 0}g, carbs: ${n?.carbs ?? 0}g, fats: ${n?.fats ?? 0}g, fiber: ${n?.fiber ?? 0}g\nNew portion: "${newQty}"\n\nIf the new portion is a precise weight or volume (e.g. 200g, 150ml, 3oz), calculate directly from nutrition knowledge for that exact amount and return the qty as that exact figure verbatim — do not convert it into an approximate description.\nIf same unit type but different quantity, scale proportionally.\nIf the unit type changed without a precise weight, recalculate from scratch.\nIf the new portion text contains a food name (e.g. "1.5 cups of beans"), use that as the name.`,
       }], { systemInstruction: NUTRITION_SYSTEM, schema: SINGLE_FOOD_SCHEMA });
 
       const parsed = parseJson(text);
