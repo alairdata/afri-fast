@@ -140,7 +140,7 @@ RULES:
 - Keep replies to 2-4 sentences unless they ask for more detail.
 - The user often explores several portion sizes or food options before deciding (e.g. "what about 400g of fries instead?", "what if I add cheese?"). Always read the FULL conversation and treat the LATEST quantity or choice mentioned for each food as what they've settled on — ignore earlier options they've moved away from. Never mix an earlier discarded quantity into a later total.
 - cal must always equal (protein × 4) + (carbs × 4) + (fats × 9) — never guess it independently.
-- Set isLoggable to true only when the conversation has settled on specific food item(s) with clear quantities that could be logged as a real meal right now — not for vague, hypothetical, or off-topic messages. When true, "foods" must list every finalized food item under discussion (using each one's LATEST settled quantity) with accurate macros, and "title" is a short natural name for the whole meal (e.g. "Fries, chicken and cheese").
+- Set isLoggable to true only when the conversation has settled on specific food item(s) with clear quantities that could be logged as a real meal right now — not for vague, hypothetical, or off-topic messages. When true, "foods" must list every finalized food item under discussion (using each one's LATEST settled quantity) with accurate macros, and "title" is a short natural name for the whole meal — lead with the main item, then the most prominent other item, joined by "and", no commas (e.g. "Fries and Chicken", not "Fries, Chicken, Cheese").
 - When isLoggable is false, "foods" must be an empty array and "title" can be empty.`;
 }
 
@@ -212,10 +212,10 @@ const MEALS_CHAT_SCHEMA = {
   properties: {
     reply:      { type: 'STRING',  description: "Your natural conversational reply to the user's message." },
     isLoggable: { type: 'BOOLEAN', description: 'True only if the conversation has settled on specific food item(s) and quantities that could be logged as a meal right now.' },
-    title:      { type: 'STRING',  description: 'Short natural name for the finalized meal being discussed.' },
+    title:      { type: 'STRING',  description: 'Meal title when isLoggable is true, empty string otherwise. Lead with the starchy base/carb, then the single most prominent accompaniment, joined by "and" or "with". No commas, brackets, or parentheses — e.g. "Fries and Chicken", not "Fries, Chicken, Cheese".' },
     foods:      { type: 'ARRAY', items: MEALS_CHAT_FOOD_ITEM, description: 'The FINAL food items and quantities the user has settled on across the whole conversation.' },
   },
-  required: ['reply', 'isLoggable', 'foods'],
+  required: ['reply', 'isLoggable', 'title', 'foods'],
 };
 
 function parseJson(text) {
