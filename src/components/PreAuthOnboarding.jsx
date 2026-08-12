@@ -416,10 +416,10 @@ export function MascotFace({ happy }) {
 }
 
 const HOOK_FOODS = [
-  require('../../assets/hook-jollof.jpg'),
-  require('../../assets/hook-eba.jpg'),
-  require('../../assets/hook-beans.jpg'),
-  require('../../assets/hook-waakye.jpg'),
+  { src: require('../../assets/hook-jollof.jpg'), mode: 'cover' },
+  { src: require('../../assets/hook-eba.jpg'), mode: 'contain' }, // portrait photo — cover crops the top/bottom, contain shows the whole plate
+  { src: require('../../assets/hook-beans.jpg'), mode: 'cover' },
+  { src: require('../../assets/hook-waakye.jpg'), mode: 'cover' },
 ];
 
 function HookScreen({ next, onLogin }) {
@@ -470,15 +470,16 @@ function HookScreen({ next, onLogin }) {
       {/* Hero */}
       <View style={s.hookHero}>
         <View style={[s.hookFrame, { width: HERO_SIZE, height: HERO_SIZE }]}>
-          {HOOK_FOODS.map((src, i) => (
+          {HOOK_FOODS.map((food, i) => (
             <Animated.Image
               key={i}
-              source={src}
+              source={food.src}
               style={[
                 { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
+                food.mode === 'contain' && { backgroundColor: '#fff' },
                 { opacity: fadeAnims[i] },
               ]}
-              resizeMode="cover"
+              resizeMode={food.mode}
             />
           ))}
           <Animated.View style={[s.demoScanLine, { transform: [{ translateY: scanTranslate }] }]} />
