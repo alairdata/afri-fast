@@ -426,10 +426,13 @@ function HookScreen({ next, onLogin }) {
   const scanY = useRef(new Animated.Value(0)).current;
   const { width: SW } = useWindowDimensions();
   const HERO_SIZE = Math.min(SW - 64, 380);
-  const [foodIndex, setFoodIndex] = useState(0);
+  // One opacity value per photo — all four stay mounted (preloaded/decoded) at all times,
+  // we just crossfade which one is visible instead of swapping `source` (which caused a visible re-decode flash).
+  const fadeAnims = useRef(HOOK_FOODS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
 
   useEffect(() => {
     let live = true;
+    let current = 0;
     const runCycle = () => {
       scanY.setValue(0);
       Animated.sequence([
@@ -437,7 +440,12 @@ function HookScreen({ next, onLogin }) {
         Animated.delay(700),
       ]).start(() => {
         if (!live) return;
-        setFoodIndex(i => (i + 1) % HOOK_FOODS.length);
+        const next = (current + 1) % HOOK_FOODS.length;
+        Animated.parallel([
+          Animated.timing(fadeAnims[current], { toValue: 0, duration: 400, useNativeDriver: true }),
+          Animated.timing(fadeAnims[next], { toValue: 1, duration: 400, useNativeDriver: true }),
+        ]).start();
+        current = next;
         runCycle();
       });
     };
@@ -462,11 +470,17 @@ function HookScreen({ next, onLogin }) {
       {/* Hero */}
       <View style={s.hookHero}>
         <View style={[s.hookFrame, { width: HERO_SIZE, height: HERO_SIZE }]}>
-          <Image
-            source={HOOK_FOODS[foodIndex]}
-            style={{ width: '100%', height: '100%' }}
-            resizeMode="cover"
-          />
+          {HOOK_FOODS.map((src, i) => (
+            <Animated.Image
+              key={i}
+              source={src}
+              style={[
+                { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
+                { opacity: fadeAnims[i] },
+              ]}
+              resizeMode="cover"
+            />
+          ))}
           <Animated.View style={[s.demoScanLine, { transform: [{ translateY: scanTranslate }] }]} />
           {[
             { top: 10, left: 10 },
@@ -480,6 +494,7 @@ function HookScreen({ next, onLogin }) {
             ]} />
           ))}
         </View>
+        <View style={{ height: 26 }} />
       </View>
 
       {/* Statement */}
