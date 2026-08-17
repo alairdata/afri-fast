@@ -10,6 +10,13 @@ import { RecipeDetailModal, RecipeCard } from './MakeRecipePage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const getInitials = (name) => {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
 // Pool of long-form articles. Image URLs are placeholders — swap as needed.
 const ARTICLE_POOL = [
   {
@@ -325,6 +332,7 @@ const TodayTab = ({
   isRestoringFast,
   dataReady,
   goalHistory,
+  goalSource,
   pendingInsightIndex,
   onClearPendingInsight,
   onShowChat,
@@ -332,6 +340,7 @@ const TodayTab = ({
   onLogMeal,
   eatingStyle,
   eatingWindow,
+  onOpenSettings,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
@@ -387,6 +396,7 @@ const TodayTab = ({
     waterLogs: waterLogs || [],
     enrichedMealLogs: buildEnrichedMealLogs(),
     goalHistory: goalHistory || [],
+    goalSource: goalSource || 'system',
   });
 
   const fetchInsights = async (payload, forceRefresh = false) => {
@@ -709,9 +719,9 @@ const TodayTab = ({
     <View style={styles.wrapper}>
       {/* Header */}
       <View style={styles.headerCompact}>
-        <View style={styles.avatarSmall}>
-          <Text style={styles.avatarTextSmall}>JK</Text>
-        </View>
+        <TouchableOpacity style={styles.avatarSmall} onPress={onOpenSettings} accessibilityLabel="Open settings">
+          <Text style={styles.avatarTextSmall}>{getInitials(userName)}</Text>
+        </TouchableOpacity>
         <View style={styles.dateContainer}>
           <Text style={styles.dateTextSmall}>{formatDate()}</Text>
         </View>

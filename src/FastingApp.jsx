@@ -265,6 +265,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // === Body measurements ===
   const [height, setHeight] = useState('');
   const [heightUnit, setHeightUnit] = useState('cm');
+  const [age, setAge] = useState(null);
+  const [sex, setSex] = useState(null);
+  const [goalDate, setGoalDate] = useState(null);
 
   // === Nutrition goals state ===
   const [dailyCalorieGoal, setDailyCalorieGoal] = useState(2000);
@@ -277,8 +280,20 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [hydrationGoal, setHydrationGoal] = useState(6);
   const [foodMeasurement, setFoodMeasurement] = useState('cups');
   const [goalHistory, setGoalHistory] = useState([]);
+  const [goalSource, setGoalSource] = useState('system');
 
-  const recordGoalChange = (changes) => {
+  // Any goal edit made on the same calendar day the account was created is
+  // still "setting up" — it overwrites in place with no history entry, and
+  // the goal stays flagged as the system default. Once a day has passed,
+  // a genuine edit permanently flips the goal to "custom" and gets logged.
+  const recordGoalChange = (changes, dbPatch) => {
+    const isCreationDay = userJoinDate && new Date(userJoinDate).toDateString() === new Date().toDateString();
+
+    if (isCreationDay) {
+      if (dbPatch) upsertProfile(dbPatch, 'update goal (creation-day override)');
+      return;
+    }
+
     setGoalHistory(prev => {
       const snapshot = {
         from: new Date().toDateString(),
@@ -288,15 +303,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       };
       const updated = [...prev, snapshot];
       // Persist to Supabase + AsyncStorage
-      if (session?.user?.id) {
-        dbSave(supabase.from('profiles').update({ goal_history: updated }).eq('id', session.user.id), 'save goal_history');
-      }
+      upsertProfile({ ...dbPatch, goal_history: updated, goal_source: 'custom' }, 'save goal_history');
       AsyncStorage.getItem('afri-fast-settings').then(raw => {
         const s = raw ? JSON.parse(raw) : {};
-        AsyncStorage.setItem('afri-fast-settings', JSON.stringify({ ...s, goalHistory: updated }));
+        AsyncStorage.setItem('afri-fast-settings', JSON.stringify({ ...s, goalHistory: updated, goalSource: 'custom' }));
       }).catch(() => {});
       return updated;
     });
+    setGoalSource('custom');
   };
 
   const updateMacroGoalsFromCalories = (nextCalories) => {
@@ -671,6 +685,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (s.targetWeight != null) setTargetWeight(s.targetWeight);
         if (s.userGoal) setUserGoal(s.userGoal);
         if (s.goalHistory?.length) setGoalHistory(s.goalHistory);
+        if (s.goalSource) setGoalSource(s.goalSource);
+        if (s.age != null) setAge(s.age);
+        if (s.sex) setSex(s.sex);
+        if (s.goalDate) setGoalDate(s.goalDate);
       } catch (_) {}
     })();
   }, [session]);
@@ -684,10 +702,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
       dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
       hydrationGoal, startingWeight, targetWeight, userGoal,
+      age, sex, goalDate,
     })).catch(() => {});
   }, [userName, userCountry, height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
       dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
-      hydrationGoal, startingWeight, targetWeight, userGoal, session]);
+      hydrationGoal, startingWeight, targetWeight, userGoal, session, age, sex, goalDate]);
 
   // Auto-detect country from IP if not set
   useEffect(() => {
@@ -706,7 +725,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch profile from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window, goal_history, goal_source, age, sex, goal_date').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -773,6 +792,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.hydration_goal != null) setHydrationGoal(data.hydration_goal);
         if (data.goal) setUserGoal(data.goal);
         if (data.goal_history?.length) setGoalHistory(data.goal_history);
+        if (data.goal_source) setGoalSource(data.goal_source);
+        if (data.age != null) setAge(data.age);
+        if (data.sex) setSex(data.sex);
+        if (data.goal_date) setGoalDate(data.goal_date);
         if (data.personality) setUserPersonality(data.personality);
         if (data.personality_updated_at) setPersonalityUpdatedAt(new Date(data.personality_updated_at));
         setDataLoadCount(prev => prev + 1);
@@ -1045,6 +1068,21 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           const sw = parseFloat(pendingPreAuthData.currentWeight);
           setStartingWeight(sw);
           patch.starting_weight = sw;
+        }
+        if (pendingPreAuthData.age) {
+          const a = parseInt(pendingPreAuthData.age, 10);
+          if (!Number.isNaN(a)) {
+            setAge(a);
+            patch.age = a;
+          }
+        }
+        if (pendingPreAuthData.gender) {
+          setSex(pendingPreAuthData.gender);
+          patch.sex = pendingPreAuthData.gender;
+        }
+        if (pendingPreAuthData.goalDate) {
+          setGoalDate(pendingPreAuthData.goalDate);
+          patch.goal_date = pendingPreAuthData.goalDate;
         }
 
         // Single upsert with all onboarding data
@@ -1638,6 +1676,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           fatsGoal={fatsGoal}
           dataReady={dataLoadCount >= 6}
           goalHistory={goalHistory}
+          goalSource={goalSource}
+          onOpenSettings={() => setActiveTab('settings')}
           pendingInsightIndex={pendingInsightIndex}
           onClearPendingInsight={() => setPendingInsightIndex(null)}
         />
@@ -1705,6 +1745,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
       {activeTab === 'settings' && (
         <SettingsTab
+          onBack={() => setActiveTab('today')}
           onLogout={() => setShowLogoutModal(true)}
           onDeleteAccount={() => {
             Alert.alert(
@@ -1758,7 +1799,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           foodMeasurement={foodMeasurement}
           setFoodMeasurement={(val) => { setFoodMeasurement(val); upsertProfile({ food_measurement: val }, 'update food_measurement'); }}
           dailyCalorieGoal={dailyCalorieGoal}
-          setDailyCalorieGoal={(val) => { updateMacroGoalsFromCalories(val); recordGoalChange({ dailyCalorieGoal: val }); upsertProfile({ daily_calorie_goal: val }, 'update daily_calorie_goal'); }}
+          setDailyCalorieGoal={(val) => { updateMacroGoalsFromCalories(val); recordGoalChange({ dailyCalorieGoal: val }, { daily_calorie_goal: val }); }}
           macroStyle={macroStyle}
           setMacroStyle={(style) => {
             setMacroStyle(style);
@@ -1773,13 +1814,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
             }
           }}
           proteinGoal={proteinGoal}
-          setProteinGoal={(value) => { setMacroStyle('custom'); setProteinGoal(value); recordGoalChange({ proteinGoal: value }); upsertProfile({ protein_goal: value, macro_style: 'custom' }, 'update protein_goal'); }}
+          setProteinGoal={(value) => { setMacroStyle('custom'); setProteinGoal(value); recordGoalChange({ proteinGoal: value }, { protein_goal: value, macro_style: 'custom' }); }}
           carbsGoal={carbsGoal}
-          setCarbsGoal={(value) => { setMacroStyle('custom'); setCarbsGoal(value); recordGoalChange({ carbsGoal: value }); upsertProfile({ carbs_goal: value, macro_style: 'custom' }, 'update carbs_goal'); }}
+          setCarbsGoal={(value) => { setMacroStyle('custom'); setCarbsGoal(value); recordGoalChange({ carbsGoal: value }, { carbs_goal: value, macro_style: 'custom' }); }}
           fatsGoal={fatsGoal}
-          setFatsGoal={(value) => { setMacroStyle('custom'); setFatsGoal(value); recordGoalChange({ fatsGoal: value }); upsertProfile({ fats_goal: value, macro_style: 'custom' }, 'update fats_goal'); }}
+          setFatsGoal={(value) => { setMacroStyle('custom'); setFatsGoal(value); recordGoalChange({ fatsGoal: value }, { fats_goal: value, macro_style: 'custom' }); }}
           hydrationGoal={hydrationGoal}
-          setHydrationGoal={(val) => { setHydrationGoal(val); recordGoalChange({ hydrationGoal: val }); upsertProfile({ hydration_goal: val }, 'update hydration_goal'); }}
+          setHydrationGoal={(val) => { setHydrationGoal(val); recordGoalChange({ hydrationGoal: val }, { hydration_goal: val }); }}
           volumeUnit={volumeUnit}
           setVolumeUnit={(val) => { updateHydrationUnit(val); upsertProfile({ volume_unit: val }, 'update volume_unit'); }}
           targetWeight={targetWeight}
@@ -1838,7 +1879,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         dailyCalorieGoal={dailyCalorieGoal}
         onSelectPlan={(plan) => {
           setDailyCalorieGoal(plan.cal);
-          upsertProfile({ daily_calorie_goal: plan.cal }, 'save calorie goal');
+          recordGoalChange({ dailyCalorieGoal: plan.cal }, { daily_calorie_goal: plan.cal });
         }}
       />
 
@@ -1962,6 +2003,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
               date: mealToSave.date,
               meal_name: mealToSave.name || 'Meal',
               total_calories: mealToSave.calories || 0,
+              total_fiber: mealToSave.fiber || 0,
               ingredients: mealToSave.foods || [],
               feelings: ci?.feelings || [],
               moods: ci?.moods || [],
@@ -2312,6 +2354,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         weightLogs={weightLogs}
         waterLogs={waterLogs}
         goalHistory={goalHistory}
+        goalSource={goalSource}
         personality={userPersonality}
         onUpdatePersonality={(updated) => {
           setUserPersonality(updated);

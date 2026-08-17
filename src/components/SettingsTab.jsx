@@ -56,6 +56,7 @@ const SettingsTab = ({
   startingWeight, setStartingWeight,
   eatingStyle, setEatingStyle,
   eatingWindow, setEatingWindow,
+  onBack,
 }) => {
   const { isDark, colors } = useTheme();
   const [showMakeItYours, setShowMakeItYours] = useState(false);
@@ -242,6 +243,9 @@ const SettingsTab = ({
     <View style={[styles.settingsContainer, { backgroundColor: colors.bg }]}>
       {/* Sticky Profile Section */}
       <View style={[styles.settingsProfileCard, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <TouchableOpacity style={styles.settingsBackBtn} onPress={onBack} accessibilityLabel="Back">
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
+        </TouchableOpacity>
         <View style={[styles.settingsProfileAvatar, userIconColor ? { backgroundColor: userIconColor } : {}]}>
           <Text style={styles.settingsProfileInitial}>{userIcon || userName.charAt(0)}</Text>
         </View>
@@ -1213,6 +1217,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(5, 150, 105, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  settingsBackBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -8,
   },
   settingsSection: {
     backgroundColor: '#fff',

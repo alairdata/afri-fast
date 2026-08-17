@@ -1235,6 +1235,9 @@ function DoneScreen({ d, onComplete }) {
   const first = d.name ? d.name.split(' ')[0] : 'friend';
 
   const handleFinish = () => {
+    const goalDate = plan.weeks > 0
+      ? new Date(Date.now() + plan.weeks * 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      : null;
     onComplete({
       preferredName: d.name,
       gender: d.gender,
@@ -1252,6 +1255,7 @@ function DoneScreen({ d, onComplete }) {
       activity: d.activity,
       eatingStyle: d.eatingStyle,
       accountability: d.accountability,
+      goalDate,
     });
   };
 
