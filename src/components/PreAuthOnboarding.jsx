@@ -46,13 +46,13 @@ function calcPlan(d) {
   const bmr = 10 * d.weightKg + 6.25 * d.heightCm - 5 * d.age + s;
   const factor = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 }[d.activity] || 1.375;
   const tdee = bmr * factor;
-  const DEFICIT = { slow: 250, moderate: 500, aggressive: 750 };
-  const deficit = d.targetKg < d.weightKg ? (DEFICIT[d.pace] || 500) : 0;
+  const DEFICIT = { slow: 275, moderate: 550, aggressive: 825, extreme: 1100 };
+  const deficit = d.targetKg < d.weightKg ? (DEFICIT[d.pace] || 550) : 0;
   const floor = d.gender === 'Male' ? 1500 : 1200;
   let target = Math.round((tdee - deficit) / 10) * 10;
   if (target < floor) target = floor;
   const gap = d.weightKg - d.targetKg;
-  const RATE = { slow: 0.25, moderate: 0.5, aggressive: 0.75 };
+  const RATE = { slow: 0.25, moderate: 0.5, aggressive: 0.75, extreme: 1.0 };
   const rate = RATE[d.pace] || 0.5;
   const weeks = d.targetKg < d.weightKg && gap > 0 ? Math.max(1, Math.round(gap / rate)) : 0;
   const protein = Math.round(d.weightKg * 1.6);
@@ -978,6 +978,7 @@ function PaceScreen(p) {
     { v: 'slow',       t: 'Slow & steady',  s: '~0.25 kg a week · easiest to stick with',     rate: 0.25, bars: 1 },
     { v: 'moderate',   t: 'Balanced',        s: '~0.5 kg a week · our recommendation',          rate: 0.5,  bars: 2 },
     { v: 'aggressive', t: 'All-in',          s: '~0.75 kg a week · fastest, needs discipline',  rate: 0.75, bars: 3 },
+    { v: 'extreme',    t: 'All-out',         s: '~1.0 kg a week · needs strict discipline',     rate: 1.0,  bars: 4 },
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.pace} />}>
@@ -993,10 +994,10 @@ function PaceScreen(p) {
             <TouchableOpacity key={o.v} style={[s.paceCard, on && s.paceCardOn, i > 0 && { marginTop: 11 }]}
               onPress={() => set('pace', o.v)} activeOpacity={0.8}>
               <View style={[s.paceIcon, on && s.paceIconOn]}>
-                {[1, 2, 3].map(level => (
+                {[1, 2, 3, 4].map(level => (
                   <View key={level} style={{
-                    width: 8, borderRadius: 3,
-                    height: 8 + level * 8,
+                    width: 6, borderRadius: 2,
+                    height: 6 + level * 6,
                     backgroundColor: level <= o.bars ? (on ? C.primary : C.ink700) : C.line2,
                   }} />
                 ))}

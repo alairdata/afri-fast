@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from '
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
 import { computeMomentumTimeline } from '../lib/momentum';
+import { computeWeeklyPace } from '../lib/trajectory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WARN = '#F59E0B';
@@ -80,6 +81,7 @@ const InsightsTab = ({
   stepLogs = [],
   stepGoal = 10000,
   activities = [],
+  pacePreference = null,
 }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -177,15 +179,6 @@ const InsightsTab = ({
     return avgThis - avgPrior;
   }, [sortedWeights]);
 
-  // Est. Weekly Rate from Deficit — average daily deficit over logged days this week, annualized to a week
-  const avgDailyDeficit = useMemo(() => {
-    if (tdee == null) return null;
-    const logged = last7.filter((d) => d.total > 0);
-    if (!logged.length) return null;
-    return logged.reduce((s, d) => s + (tdee - d.total), 0) / logged.length;
-  }, [last7, tdee]);
-  const estWeeklyRateFromDeficitKg = avgDailyDeficit != null ? -(avgDailyDeficit * 7) / KCAL_PER_KG : null;
-
   // Deviation vs Required Pace — positive = behind pace, negative = ahead
   const deviationKg = (weeklyWeightChangeKg != null && requiredWeeklyRateKg != null)
     ? weeklyWeightChangeKg - requiredWeeklyRateKg
@@ -210,6 +203,16 @@ const InsightsTab = ({
   const momentumBg = today.band.tone === 'strong' ? colors.accentLight : today.band.tone === 'drifting' ? WARN_BG : DANGER_BG;
 
   const gauge = useMemo(() => buildGauge(momentumScore, accent), [momentumScore, accent]);
+
+  // Weekly Pace & Trajectory Engine — purely calorie-driven (are you eating at the deficit you
+  // signed up for), distinct from Momentum's scale-weight-driven Pace subscore above.
+  const weeklyPace = useMemo(() => computeWeeklyPace({
+    tdee, bmr, recentMeals, pacePreference,
+    weightEwmaTodayKg: today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg,
+    confidence: today.confidence,
+    daysSinceWeighIn: today.daysSinceWeighIn,
+    now,
+  }), [tdee, bmr, recentMeals, pacePreference, today, currentWeightKg, now]);
 
   // Trajectory Status — bucketed off Deviation relative to Required Rate
   const trajectory = useMemo(() => {
@@ -346,7 +349,7 @@ const InsightsTab = ({
 
     const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
     const confidence = today.confidence;
-    const dailyRateKg = estWeeklyRateFromDeficitKg != null ? estWeeklyRateFromDeficitKg / 7 : null;
+    const dailyRateKg = weeklyPace.dailyRateKg;
 
     const data = [];
     for (let offset = 0; offset <= 6; offset++) {
@@ -401,19 +404,20 @@ const InsightsTab = ({
       return { label: p.label, value, isProjected, changeFromStart, xFrac: data.length > 1 ? i / (data.length - 1) : 0 };
     });
     return { actual: smooth(pts('actual')), proj: smooth(pts('proj')), band, dots, points, labels: data.map((p) => p.label), weekChange, weekEndDate };
-  }, [momentumTimeline, today, currentWeightKg, estWeeklyRateFromDeficitKg, accent, colors.card, now, weightUnit]);
+  }, [momentumTimeline, today, currentWeightKg, weeklyPace, accent, colors.card, now, weightUnit]);
 
   // Trajectory card badge — reflects input fidelity before it reflects pace, per spec:
   // a stale/absent weigh-in shouldn't get badged as "off pace" when the scale just hasn't been used.
   const trendBadge = useMemo(() => {
-    if (today.daysSinceWeighIn > 14) return { label: 'Tracking Only', color: colors.textSecondary, bg: colors.cardAlt };
-    if (today.daysSinceWeighIn > 7) return { label: 'Needs Weigh-in', color: WARN, bg: WARN_BG };
-    if (weeklyWeightChangeKg == null || !requiredWeeklyRateKg) return null;
-    const ratio = weeklyWeightChangeKg / requiredWeeklyRateKg;
-    if (ratio >= 0.9) return { label: 'On pace', color: accent, bg: colors.accentLight };
-    if (ratio >= 0.5) return { label: 'Off pace', color: WARN, bg: WARN_BG };
-    return { label: 'Stalled', color: DANGER, bg: DANGER_BG };
-  }, [today, weeklyWeightChangeKg, requiredWeeklyRateKg, accent, colors.accentLight, colors.textSecondary, colors.cardAlt]);
+    if (!weeklyPace.badge) return null;
+    const toneStyle = {
+      good: { color: accent, bg: colors.accentLight },
+      warn: { color: WARN, bg: WARN_BG },
+      danger: { color: DANGER, bg: DANGER_BG },
+      neutral: { color: colors.textSecondary, bg: colors.cardAlt },
+    }[weeklyPace.badge.tone];
+    return { label: weeklyPace.badge.label, ...toneStyle };
+  }, [weeklyPace, accent, colors.accentLight, colors.textSecondary, colors.cardAlt]);
 
   const guardrail = useMemo(() => {
     if (loggedDays.length < 3 || !dailyCalorieGoal) return null;
@@ -633,9 +637,9 @@ const InsightsTab = ({
                       <Text style={[styles.statValue, { color: deficitToday >= 0 ? accent : DANGER }]}>{Math.round(Math.abs(deficitToday)).toLocaleString()}</Text>
                     </View>
                   </View>
-                  {estWeeklyRateFromDeficitKg != null && (
+                  {weeklyPace.dailyRateKg != null && (
                     <Text style={[styles.mutedBody, { marginTop: 10 }]}>
-                      At this week's average intake, your calories alone predict about {estWeeklyRateFromDeficitKg <= 0 ? '-' : '+'}{Math.abs(fromKg(estWeeklyRateFromDeficitKg, weightUnit)).toFixed(2)} {weightUnit}/week.
+                      At this week's average intake, your calories alone predict about {weeklyPace.dailyRateKg <= 0 ? '-' : '+'}{Math.abs(fromKg(weeklyPace.dailyRateKg * 7, weightUnit)).toFixed(2)} {weightUnit}/week.
                     </Text>
                   )}
                 </>

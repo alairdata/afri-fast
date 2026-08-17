@@ -277,6 +277,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [sex, setSex] = useState(null);
   const [goalDate, setGoalDate] = useState(null);
   const [activityLevel, setActivityLevel] = useState(null);
+  const [pacePreference, setPacePreference] = useState(null);
 
   // === Nutrition goals state ===
   const [dailyCalorieGoal, setDailyCalorieGoal] = useState(2000);
@@ -699,6 +700,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (s.sex) setSex(s.sex);
         if (s.goalDate) setGoalDate(s.goalDate);
         if (s.activityLevel) setActivityLevel(s.activityLevel);
+        if (s.pacePreference) setPacePreference(s.pacePreference);
       } catch (_) {}
     })();
   }, [session]);
@@ -712,11 +714,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
       dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
       hydrationGoal, startingWeight, targetWeight, userGoal,
-      age, sex, goalDate, activityLevel,
+      age, sex, goalDate, activityLevel, pacePreference,
     })).catch(() => {});
   }, [userName, userCountry, height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
       dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
-      hydrationGoal, startingWeight, targetWeight, userGoal, session, age, sex, goalDate, activityLevel]);
+      hydrationGoal, startingWeight, targetWeight, userGoal, session, age, sex, goalDate, activityLevel, pacePreference]);
 
   // Auto-detect country from IP if not set
   useEffect(() => {
@@ -735,7 +737,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch profile from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window, goal_history, goal_source, age, sex, goal_date, activity_level, step_goal').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window, goal_history, goal_source, age, sex, goal_date, activity_level, step_goal, pace_preference').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -808,6 +810,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.goal_date) setGoalDate(data.goal_date);
         if (data.activity_level) setActivityLevel(data.activity_level);
         if (data.step_goal != null) setStepGoal(data.step_goal);
+        if (data.pace_preference) setPacePreference(data.pace_preference);
         if (data.personality) setUserPersonality(data.personality);
         if (data.personality_updated_at) setPersonalityUpdatedAt(new Date(data.personality_updated_at));
         setDataLoadCount(prev => prev + 1);
@@ -1133,6 +1136,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (pendingPreAuthData.activity) {
           setActivityLevel(pendingPreAuthData.activity);
           patch.activity_level = pendingPreAuthData.activity;
+        }
+        if (pendingPreAuthData.pace) {
+          setPacePreference(pendingPreAuthData.pace);
+          patch.pace_preference = pendingPreAuthData.pace;
         }
 
         // Single upsert with all onboarding data
@@ -1813,6 +1820,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           stepLogs={stepLogs}
           stepGoal={stepGoal}
           activities={activities}
+          pacePreference={pacePreference}
         />
       )}
 
