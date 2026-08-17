@@ -166,12 +166,12 @@ const InsightsTab = ({
   const momentumColor = momentumScore >= 70 ? accent : momentumScore >= 40 ? WARN : DANGER;
   const momentumBg = momentumScore >= 70 ? colors.accentLight : momentumScore >= 40 ? WARN_BG : DANGER_BG;
 
-  // ── Risk score (calorie consistency) ────────────────────────────────────
-  const riskScore = Math.max(0, Math.min(100, spikeDays.length * 18 + crashDays.length * 12 + missingDays * 8));
-  const riskLabel = riskScore >= 70 ? 'High risk' : riskScore >= 45 ? 'Watch it' : 'Sustainable';
-  const riskColor = riskScore >= 70 ? DANGER : riskScore >= 45 ? WARN : accent;
-  const riskBg = riskScore >= 70 ? DANGER_BG : riskScore >= 45 ? WARN_BG : colors.accentLight;
-  const riskWhy = spikeDays.length > 0
+  // ── Burnout likelihood (calorie-swing heuristic) ─────────────────────────
+  const burnoutScore = Math.max(0, Math.min(100, spikeDays.length * 18 + crashDays.length * 12 + missingDays * 8));
+  const burnoutLabel = burnoutScore >= 70 ? 'High risk' : burnoutScore >= 45 ? 'Watch it' : 'Sustainable';
+  const burnoutColor = burnoutScore >= 70 ? DANGER : burnoutScore >= 45 ? WARN : accent;
+  const burnoutBg = burnoutScore >= 70 ? DANGER_BG : burnoutScore >= 45 ? WARN_BG : colors.accentLight;
+  const burnoutWhy = spikeDays.length > 0
     ? `${spikeDays.length} day${spikeDays.length > 1 ? 's' : ''} this week went over ${Math.round(dailyCalorieGoal * 1.5).toLocaleString()} kcal — big swings like that tend to catch up with you.`
     : crashDays.length > 0
       ? `${crashDays.length} day${crashDays.length > 1 ? 's' : ''} came in under ${Math.round(dailyCalorieGoal * 0.5).toLocaleString()} kcal — very low days often lead to a rebound.`
@@ -394,14 +394,14 @@ const InsightsTab = ({
             <View style={styles.card}>
               <View style={styles.rowBetween}>
                 <View>
-                  <Text style={styles.kicker}>SLIP RISK</Text>
-                  <Text style={styles.bigStat}>{riskScore}<Text style={styles.bigStatSub}>/100</Text></Text>
+                  <Text style={styles.kicker}>BURNOUT LIKELIHOOD</Text>
+                  <Text style={styles.bigStat}>{burnoutScore}<Text style={styles.bigStatSub}>/100</Text></Text>
                 </View>
-                <View style={[styles.pill, { backgroundColor: riskBg }]}>
-                  <Text style={[styles.pillText, { color: riskColor }]}>{riskLabel}</Text>
+                <View style={[styles.pill, { backgroundColor: burnoutBg }]}>
+                  <Text style={[styles.pillText, { color: burnoutColor }]}>{burnoutLabel}</Text>
                 </View>
               </View>
-              <Text style={[styles.mutedBody, { marginTop: 6 }]}>{riskWhy}</Text>
+              <Text style={[styles.mutedBody, { marginTop: 6 }]}>{burnoutWhy}</Text>
               <View style={styles.barsRow}>
                 {last7.map((d, i) => {
                   const h = dailyCalorieGoal ? Math.max(6, Math.min(60, Math.round((d.total / (dailyCalorieGoal * 2)) * 60))) : 6;
