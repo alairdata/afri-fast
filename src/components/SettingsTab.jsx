@@ -56,6 +56,10 @@ const SettingsTab = ({
   startingWeight, setStartingWeight,
   eatingStyle, setEatingStyle,
   eatingWindow, setEatingWindow,
+  age, setAge,
+  sex, setSex,
+  activityLevel, setActivityLevel,
+  pacePreference, setPacePreference,
   onBack,
 }) => {
   const { isDark, colors } = useTheme();
@@ -338,6 +342,91 @@ const SettingsTab = ({
                   </View>
                 </View>
               )}
+            </View>
+
+            {/* Personal Details */}
+            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Personal Details</Text>
+              <View style={styles.settingsItem}>
+                <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Age</Text>
+                </View>
+                <View style={styles.settingsInputWrapper}>
+                  <TextInput
+                    style={styles.settingsInput}
+                    value={age != null ? String(age) : ''}
+                    onChangeText={(text) => {
+                      const val = parseInt(text, 10);
+                      if (!isNaN(val)) setAge(val);
+                      else if (text === '') setAge(null);
+                    }}
+                    keyboardType="numeric"
+                    placeholder="--"
+                  />
+                  <Text style={styles.settingsInputUnit}>yrs</Text>
+                </View>
+              </View>
+              <View style={styles.settingsItemBlock}>
+                <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Sex</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Used in your calorie burn calculation</Text>
+                </View>
+                <View style={styles.settingsMacroStyleControl}>
+                  {['Male', 'Female', 'Other'].map((s) => (
+                    <TouchableOpacity
+                      key={s}
+                      style={[styles.settingsMacroStyleOption, sex === s && styles.settingsMacroStyleOptionActive]}
+                      onPress={() => setSex(s)}
+                    >
+                      <Text style={sex === s ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>{s}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <View style={styles.settingsItemBlock}>
+                <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Activity Level</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>How active a normal day is, not your best one</Text>
+                </View>
+                <View style={styles.settingsMacroStyleControl}>
+                  {[
+                    { v: 'sedentary', t: 'Sedentary' },
+                    { v: 'light', t: 'Light' },
+                    { v: 'moderate', t: 'Moderate' },
+                    { v: 'active', t: 'Active' },
+                  ].map(({ v, t }) => (
+                    <TouchableOpacity
+                      key={v}
+                      style={[styles.settingsMacroStyleOption, activityLevel === v && styles.settingsMacroStyleOptionActive]}
+                      onPress={() => setActivityLevel(v)}
+                    >
+                      <Text style={activityLevel === v ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <View style={styles.settingsItemBlock}>
+                <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Pace Preference</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Sets your target deficit and safety checks</Text>
+                </View>
+                <View style={styles.settingsMacroStyleControl}>
+                  {[
+                    { v: 'slow', t: 'Slow' },
+                    { v: 'moderate', t: 'Balanced' },
+                    { v: 'aggressive', t: 'All-in' },
+                    { v: 'extreme', t: 'All-out' },
+                  ].map(({ v, t }) => (
+                    <TouchableOpacity
+                      key={v}
+                      style={[styles.settingsMacroStyleOption, pacePreference === v && styles.settingsMacroStyleOptionActive]}
+                      onPress={() => setPacePreference(v)}
+                    >
+                      <Text style={pacePreference === v ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
             </View>
 
             {/* Nutrition Goals */}

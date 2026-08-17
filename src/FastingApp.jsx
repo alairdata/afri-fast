@@ -1879,6 +1879,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           setHeight={(val) => { setHeight(val); upsertProfile({ height: val }, 'update height'); }}
           heightUnit={heightUnit}
           setHeightUnit={(val) => { setHeightUnit(val); upsertProfile({ height_unit: val }, 'update height_unit'); }}
+          age={age}
+          setAge={(val) => { setAge(val); upsertProfile({ age: val }, 'update age'); }}
+          sex={sex}
+          setSex={(val) => { setSex(val); upsertProfile({ sex: val }, 'update sex'); }}
+          activityLevel={activityLevel}
+          setActivityLevel={(val) => { setActivityLevel(val); upsertProfile({ activity_level: val }, 'update activity_level'); }}
+          pacePreference={pacePreference}
+          setPacePreference={(val) => { setPacePreference(val); upsertProfile({ pace_preference: val }, 'update pace_preference'); }}
           weightUnit={weightUnit}
           setWeightUnit={(val) => { setWeightUnit(val); upsertProfile({ weight_unit: val }, 'update weight_unit'); }}
           foodMeasurement={foodMeasurement}
