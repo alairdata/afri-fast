@@ -31,6 +31,7 @@ import MealsTab from './components/MealsTab';
 import ProgressTab from './components/ProgressTab';
 import SettingsTab from './components/SettingsTab';
 import BottomTabBar from './components/BottomTabBar';
+import AnalyticsTab from './components/AnalyticsTab';
 
 import ChatScreen from './components/ChatScreen';
 
@@ -1736,6 +1737,20 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           startingWeight={startingWeight}
           dailyCalorieGoal={dailyCalorieGoal}
           hydrationGoal={hydrationGoal}
+        />
+      )}
+
+      {activeTab === 'analytics' && (
+        <AnalyticsTab
+          userName={userName}
+          weightLogs={weightLogs}
+          recentMeals={recentMeals}
+          startingWeight={startingWeight}
+          targetWeight={targetWeight}
+          weightUnit={weightUnit}
+          dailyCalorieGoal={dailyCalorieGoal}
+          goalDate={goalDate}
+          userJoinDate={userJoinDate}
         />
       )}
 
