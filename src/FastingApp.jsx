@@ -31,7 +31,7 @@ import MealsTab from './components/MealsTab';
 import ProgressTab from './components/ProgressTab';
 import SettingsTab from './components/SettingsTab';
 import BottomTabBar from './components/BottomTabBar';
-import AnalyticsTab from './components/AnalyticsTab';
+import InsightsTab from './components/InsightsTab';
 
 import ChatScreen from './components/ChatScreen';
 
@@ -1740,8 +1740,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         />
       )}
 
-      {activeTab === 'analytics' && (
-        <AnalyticsTab
+      {activeTab === 'insights' && (
+        <InsightsTab
           userName={userName}
           weightLogs={weightLogs}
           recentMeals={recentMeals}

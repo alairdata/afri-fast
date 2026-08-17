@@ -55,7 +55,7 @@ function hexToRgb(hex) {
   return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [5, 150, 105];
 }
 
-const AnalyticsTab = ({
+const InsightsTab = ({
   userName = '',
   weightLogs = [],
   recentMeals = [],
@@ -257,7 +257,7 @@ const AnalyticsTab = ({
     return weeks;
   }, [recentMeals, dailyCalorieGoal, now]);
 
-  // ── Weekday with the worst average overage (for Insights) ──────────────
+  // ── Weekday with the worst average overage (for Details) ────────────────
   const worstWeekday = useMemo(() => {
     if (!dailyCalorieGoal) return null;
     const byWeekday = Array.from({ length: 7 }, () => ({ sum: 0, count: 0 }));
@@ -305,7 +305,7 @@ const AnalyticsTab = ({
       {view === 'main' && (
         <>
           <View style={styles.headerCompact}>
-            <Text style={styles.headerTitle}>Analytics</Text>
+            <Text style={styles.headerTitle}>Insights</Text>
           </View>
 
           {Platform.OS === 'web' && <View style={{ height: 12 }} />}
@@ -364,7 +364,7 @@ const AnalyticsTab = ({
                 <View style={styles.axisRow}>
                   {chart.labels.map((l, i) => <Text key={i} style={styles.axisLabel}>{l}</Text>)}
                 </View>
-                <TouchableOpacity style={styles.detailsBtn} onPress={() => setView('insights')}>
+                <TouchableOpacity style={styles.detailsBtn} onPress={() => setView('details')}>
                   <Text style={styles.detailsBtnText}>See details</Text>
                   <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
                 </TouchableOpacity>
@@ -473,13 +473,13 @@ const AnalyticsTab = ({
         </>
       )}
 
-      {view === 'insights' && (
+      {view === 'details' && (
         <View style={styles.wrapper}>
           <View style={styles.headerCompact}>
             <TouchableOpacity style={styles.backBtn} onPress={() => setView('main')}>
               <Ionicons name="chevron-back" size={20} color={colors.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Insights</Text>
+            <Text style={styles.headerTitle}>Details</Text>
           </View>
           <ScrollView style={styles.scrollContainer} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             <Text style={styles.mutedBody}>
@@ -560,4 +560,4 @@ const makeStyles = (colors) => StyleSheet.create({
   recSub: { color: colors.textSecondary, fontSize: 12, fontWeight: '500', marginTop: 2 },
 });
 
-export default AnalyticsTab;
+export default InsightsTab;
