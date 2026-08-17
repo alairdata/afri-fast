@@ -29,7 +29,7 @@ const smooth = (pts) => {
   return d;
 };
 
-const fmtShort = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const fmtShort = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const dayLabel = (d) => 'SMTWTFS'[d.getDay()];
 
 // ── Momentum gauge (0-100 semicircle) ──────────────────────────────────────
