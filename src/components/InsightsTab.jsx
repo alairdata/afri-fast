@@ -195,8 +195,6 @@ const InsightsTab = ({
     ? weeklyWeightChangeKg - requiredWeeklyRateKg
     : null;
 
-  const loggingConsistency = loggedDays.length / 7;
-
   // Momentum Score — EWMA-smoothed engine (see src/lib/momentum.js): 40% Calorie + 25% Pace
   // + 20% Activity + 15% Logging, with a confidence shift when weigh-ins go stale and a
   // streak-based Logging term. Computed client-side from existing logs, no persisted state.
@@ -239,19 +237,24 @@ const InsightsTab = ({
   // DASHBOARD — forecast layer
   // ══════════════════════════════════════════════════════════════════════
 
-  const projected7Kg = currentWeightKg != null && weeklyWeightChangeKg != null ? currentWeightKg + weeklyWeightChangeKg * 1 : null;
-  const projected14Kg = currentWeightKg != null && weeklyWeightChangeKg != null ? currentWeightKg + weeklyWeightChangeKg * 2 : null;
+  // Forecast now shares the same energy-deficit engine as the This Week chart (weeklyPace),
+  // instead of the scale-observed weeklyWeightChangeKg -- so it stays consistent with that card
+  // and keeps working even when weigh-ins are stale, as long as calories are being logged.
+  const projected7Kg = weeklyPace.projectDay(7)?.projectedKg ?? null;
+  const projected14Kg = weeklyPace.projectDay(14)?.projectedKg ?? null;
 
   const projectedGoalDate = useMemo(() => {
-    if (currentWeightKg == null || targetWeightKg == null || !weeklyWeightChangeKg) return null;
-    const remainingKg = targetWeightKg - currentWeightKg;
-    if ((remainingKg < 0 && weeklyWeightChangeKg >= 0) || (remainingKg > 0 && weeklyWeightChangeKg <= 0)) return null;
-    const weeksNeeded = remainingKg / weeklyWeightChangeKg;
-    if (!isFinite(weeksNeeded) || weeksNeeded <= 0) return null;
-    return new Date(now + weeksNeeded * 7 * DAY_MS);
-  }, [currentWeightKg, targetWeightKg, weeklyWeightChangeKg, now]);
+    const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
+    if (anchorKg == null || targetWeightKg == null || !weeklyPace.dailyRateKg) return null;
+    const remainingKg = targetWeightKg - anchorKg;
+    const dailyRateKg = weeklyPace.dailyRateKg;
+    if ((remainingKg < 0 && dailyRateKg >= 0) || (remainingKg > 0 && dailyRateKg <= 0)) return null;
+    const daysNeeded = remainingKg / dailyRateKg;
+    if (!isFinite(daysNeeded) || daysNeeded <= 0) return null;
+    return new Date(now + daysNeeded * DAY_MS);
+  }, [today, currentWeightKg, targetWeightKg, weeklyPace, now]);
 
-  const confidence = loggingConsistency >= 0.85 ? 'High' : loggingConsistency >= 0.5 ? 'Medium' : 'Low';
+  const confidence = today.confidence >= 0.85 ? 'High' : today.confidence >= 0.5 ? 'Medium' : 'Low';
   const confidenceColor = confidence === 'High' ? accent : confidence === 'Medium' ? WARN : DANGER;
   const confidenceBg = confidence === 'High' ? colors.accentLight : confidence === 'Medium' ? WARN_BG : DANGER_BG;
 
@@ -707,7 +710,7 @@ const InsightsTab = ({
                     <Text style={styles.statValue}>{projectedGoalDate ? fmtShort(projectedGoalDate) : '--'}</Text>
                   </View>
                 </View>
-                <Text style={[styles.mutedSmall, { marginTop: 10 }]}>Confidence is based on how consistently you've logged this week — {Math.round(loggingConsistency * 100)}% of days.</Text>
+                <Text style={[styles.mutedSmall, { marginTop: 10 }]}>Confidence is based on your logging streak and how recent your last weigh-in is — {Math.round(today.confidence * 100)}% right now.</Text>
               </View>
             )}
 
