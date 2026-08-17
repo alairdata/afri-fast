@@ -368,7 +368,8 @@ const InsightsTab = ({
 
     // "This week" headline stat: projected total change from Sunday to Saturday (end of week),
     // not a rolling week-over-week comparison.
-    const weekStartVal = data.find((p) => p.actual != null)?.actual ?? null;
+    const weekStartVal = data.find((p) => p.actual != null)?.actual
+      ?? (anchorKg != null ? fromKg(anchorKg, weightUnit) : null);
     const weekEndEntry = data[data.length - 1];
     const weekEndVal = weekEndEntry.actual != null ? weekEndEntry.actual : weekEndEntry.proj != null ? weekEndEntry.proj : null;
     const weekChange = (weekStartVal != null && weekEndVal != null) ? weekEndVal - weekStartVal : null;
