@@ -323,19 +323,30 @@ const InsightsTab = ({
     return { score: nextScore, label, color, bg, note };
   }, [last7, burnoutScore, dailyCalorieGoal, accent, colors.accentLight]);
 
+  // Trajectory chart: history is the EWMA-smoothed weight (kills water-weight noise, only
+  // plotted on days with a real weigh-in — no fake flat-lining across gaps). The projection
+  // is anchored to the rolling energy deficit rather than the observed scale trend, so it
+  // still works when weigh-ins are stale (as long as calories are being logged) — and its
+  // confidence cone widens based on the same `confidence` score the Momentum engine uses.
   const chart = useMemo(() => {
     const W = 320, top = 10, bot = 100, padX = 16;
-    const historySlots = last7.map((d) => {
-      const log = sortedWeights.find((w) => new Date(w.ts).toDateString() === d.ds);
-      return { label: dayLabel(d.date), actual: log ? log.weight : null };
-    });
+    const last7Timeline = momentumTimeline.slice(-7);
+    const historySlots = last7Timeline.map((entry) => ({
+      label: dayLabel(entry.date),
+      actual: entry.hasWeighInToday ? fromKg(entry.weightEwmaKg, weightUnit) : null,
+    }));
+
     const futureSlots = [];
-    if (currentWeight != null && weeklyWeightChangeKg != null) {
-      const dailyRateDisplay = fromKg(weeklyWeightChangeKg, weightUnit) / 7;
+    const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
+    if (anchorKg != null && estWeeklyRateFromDeficitKg != null) {
+      const dailyRateKg = estWeeklyRateFromDeficitKg / 7;
+      const confidence = today.confidence;
       for (let i = 1; i <= 3; i++) {
         const d = new Date(now + i * DAY_MS);
-        const projected = currentWeight + dailyRateDisplay * i;
-        const margin = 0.08 * i;
+        const projectedKg = anchorKg + dailyRateKg * i;
+        const marginKg = i * 0.15 * (2 - confidence);
+        const projected = fromKg(projectedKg, weightUnit);
+        const margin = fromKg(marginKg, weightUnit);
         futureSlots.push({ label: dayLabel(d), proj: projected, upper: projected + margin, lower: projected - margin });
       }
     }
@@ -355,9 +366,21 @@ const InsightsTab = ({
       else if (p.proj != null) dots.push({ cx: x(i), cy: y(p.proj), fill: colors.card, stroke: accent });
     });
     return { actual: smooth(pts('actual')), proj: smooth(pts('proj')), band, dots, labels: data.map((p) => p.label) };
-  }, [last7, sortedWeights, currentWeight, weeklyWeightChangeKg, accent, colors.card, now, weightUnit]);
+  }, [momentumTimeline, today, currentWeightKg, estWeeklyRateFromDeficitKg, accent, colors.card, now, weightUnit]);
 
   const weekWeightChange = weeklyWeightChangeKg != null ? fromKg(weeklyWeightChangeKg, weightUnit) : null;
+
+  // Trajectory card badge — reflects input fidelity before it reflects pace, per spec:
+  // a stale/absent weigh-in shouldn't get badged as "off pace" when the scale just hasn't been used.
+  const trendBadge = useMemo(() => {
+    if (today.daysSinceWeighIn > 14) return { label: 'Tracking Only', color: colors.textSecondary, bg: colors.cardAlt };
+    if (today.daysSinceWeighIn > 7) return { label: 'Needs Weigh-in', color: WARN, bg: WARN_BG };
+    if (weeklyWeightChangeKg == null || !requiredWeeklyRateKg) return null;
+    const ratio = weeklyWeightChangeKg / requiredWeeklyRateKg;
+    if (ratio >= 0.9) return { label: 'On pace', color: accent, bg: colors.accentLight };
+    if (ratio >= 0.5) return { label: 'Off pace', color: WARN, bg: WARN_BG };
+    return { label: 'Stalled', color: DANGER, bg: DANGER_BG };
+  }, [today, weeklyWeightChangeKg, requiredWeeklyRateKg, accent, colors.accentLight, colors.textSecondary, colors.cardAlt]);
 
   const guardrail = useMemo(() => {
     if (loggedDays.length < 3 || !dailyCalorieGoal) return null;
@@ -510,9 +533,9 @@ const InsightsTab = ({
                       <Text style={styles.bigStatSub}> vs prior week</Text>
                     </Text>
                   </View>
-                  {trajectory && (
-                    <View style={[styles.pill, { backgroundColor: trajectory.bg }]}>
-                      <Text style={[styles.pillText, { color: trajectory.color }]}>{trajectory.label}</Text>
+                  {trendBadge && (
+                    <View style={[styles.pill, { backgroundColor: trendBadge.bg }]}>
+                      <Text style={[styles.pillText, { color: trendBadge.color }]}>{trendBadge.label}</Text>
                     </View>
                   )}
                 </View>

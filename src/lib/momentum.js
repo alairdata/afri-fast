@@ -97,7 +97,7 @@ export function computeMomentumTimeline({
   };
 
   const timeline = [];
-  let calEwma = null, actEwma = null, streak = 0;
+  let calEwma = null, actEwma = null, streak = 0, weightEwma = null;
 
   for (let i = windowDays - 1; i >= 0; i--) {
     const day = new Date(now - i * DAY_MS);
@@ -105,6 +105,15 @@ export function computeMomentumTimeline({
     const cutoffTs = day.getTime();
 
     const loggedToday = (mealsByDate[ds] || 0) > 0;
+
+    // Weight EWMA — smooths day-to-day water-weight noise. The recurrence runs every day
+    // internally (so it stays continuous across gaps), but a display value only comes out
+    // on days that actually have a weigh-in — callers shouldn't draw a line through gaps.
+    const rawWeighInToday = sortedWeights.find((w) => new Date(w.ts).toDateString() === ds);
+    if (rawWeighInToday) {
+      weightEwma = weightEwma == null ? rawWeighInToday.weightKg : ALPHA * rawWeighInToday.weightKg + (1 - ALPHA) * weightEwma;
+    }
+    const daysSinceWeighIn = daysSinceLastWeighIn(cutoffTs);
 
     // Calorie
     const calRaw = calorieRawScore(mealsByDate[ds] || 0, dailyCalorieGoal);
@@ -131,7 +140,7 @@ export function computeMomentumTimeline({
     const logScore = loggingScore(streak, loggedToday);
 
     // Confidence shift — stale weigh-in reduces trust in the pace term
-    const staleWeighIn = daysSinceLastWeighIn(cutoffTs) > 7;
+    const staleWeighIn = daysSinceWeighIn > 7;
     const weights = (paceScore != null && staleWeighIn) ? NO_WEIGHIN_WEIGHTS : BASE_WEIGHTS;
 
     // Graceful degrade: if there's no goal_date at all (paceScore null outright),
@@ -158,6 +167,9 @@ export function computeMomentumTimeline({
       confidence,
       band: bandFor(momentum),
       staleWeighIn,
+      daysSinceWeighIn,
+      weightEwmaKg: rawWeighInToday ? weightEwma : null,
+      hasWeighInToday: !!rawWeighInToday,
     });
   }
 
