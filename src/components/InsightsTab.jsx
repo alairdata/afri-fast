@@ -365,6 +365,16 @@ const InsightsTab = ({
         data.push({ label });
       }
     }
+
+    // "This week" headline stat: projected total change from Sunday to Saturday (end of week),
+    // not a rolling week-over-week comparison.
+    const weekStartVal = data.find((p) => p.actual != null)?.actual ?? null;
+    const weekEndEntry = data[data.length - 1];
+    const weekEndVal = weekEndEntry.actual != null ? weekEndEntry.actual : weekEndEntry.proj != null ? weekEndEntry.proj : null;
+    const weekChange = (weekStartVal != null && weekEndVal != null) ? weekEndVal - weekStartVal : null;
+    const weekEndDate = new Date(startOfWeek);
+    weekEndDate.setDate(startOfWeek.getDate() + 6);
+
     const vals = [];
     data.forEach((p) => ['actual', 'proj', 'upper', 'lower'].forEach((k) => p[k] != null && vals.push(p[k])));
     if (vals.length < 2) return null;
@@ -379,10 +389,8 @@ const InsightsTab = ({
       if (p.actual != null) dots.push({ cx: x(i), cy: y(p.actual), fill: accent, stroke: accent });
       else if (p.proj != null) dots.push({ cx: x(i), cy: y(p.proj), fill: colors.card, stroke: accent });
     });
-    return { actual: smooth(pts('actual')), proj: smooth(pts('proj')), band, dots, labels: data.map((p) => p.label) };
+    return { actual: smooth(pts('actual')), proj: smooth(pts('proj')), band, dots, labels: data.map((p) => p.label), weekChange, weekEndDate };
   }, [momentumTimeline, today, currentWeightKg, estWeeklyRateFromDeficitKg, accent, colors.card, now, weightUnit]);
-
-  const weekWeightChange = weeklyWeightChangeKg != null ? fromKg(weeklyWeightChangeKg, weightUnit) : null;
 
   // Trajectory card badge — reflects input fidelity before it reflects pace, per spec:
   // a stale/absent weigh-in shouldn't get badged as "off pace" when the scale just hasn't been used.
@@ -541,10 +549,10 @@ const InsightsTab = ({
               <View style={styles.card}>
                 <View style={styles.rowBetween}>
                   <View>
-                    <Text style={styles.kicker}>WEIGHT TREND</Text>
+                    <Text style={styles.kicker}>THIS WEEK</Text>
                     <Text style={styles.bigStat}>
-                      {weekWeightChange != null ? `${weekWeightChange > 0 ? '+' : ''}${weekWeightChange.toFixed(1)} ${weightUnit}` : '--'}
-                      <Text style={styles.bigStatSub}> vs prior week</Text>
+                      {chart.weekChange != null ? `${chart.weekChange > 0 ? '+' : ''}${chart.weekChange.toFixed(1)} ${weightUnit}` : '--'}
+                      <Text style={styles.bigStatSub}> by {fmtShort(chart.weekEndDate)}</Text>
                     </Text>
                   </View>
                   {trendBadge && (
