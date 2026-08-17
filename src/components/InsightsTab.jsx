@@ -110,19 +110,37 @@ const InsightsTab = ({
     const lost = Math.abs(startingWeight - currentWeight);
     const pct = Math.min(100, Math.round((lost / totalGap) * 100));
 
-    let plannedWeeklyRate = null, planPct = null;
+    let plannedWeeklyRate = null, planPct = null, label = null, labelColor = accent, labelBg = colors.accentLight, note = null;
     if (goalDate && userJoinDate) {
       const startTs = new Date(userJoinDate).getTime();
       const goalTs = new Date(goalDate).getTime();
       if (!isNaN(startTs) && !isNaN(goalTs) && goalTs > startTs) {
-        const plannedWeeks = Math.max((goalTs - startTs) / (7 * DAY_MS), 1 / 7);
-        plannedWeeklyRate = totalGap / plannedWeeks;
+        const plannedWeeksTotal = Math.max((goalTs - startTs) / (7 * DAY_MS), 1 / 7);
+        plannedWeeklyRate = totalGap / plannedWeeksTotal;
         planPct = Math.min(100, Math.round(((now - startTs) / (goalTs - startTs)) * 100));
+
+        // Where the original plan expects you to be today, vs where you actually are
+        const weeksElapsed = Math.max((now - startTs) / (7 * DAY_MS), 0);
+        const expectedLost = plannedWeeklyRate * weeksElapsed;
+        const daysAhead = Math.round(((lost - expectedLost) / (weeklyRate / 7)));
+        const behind = daysAhead <= -2;
+        const ahead = daysAhead >= 2;
+        const weeksLate = Math.round((weeksElapsed + weeksLeft) - plannedWeeksTotal);
+        const sign = goalIsLoss ? '-' : '+';
+
+        label = behind ? `${Math.abs(daysAhead)} days behind` : ahead ? `${daysAhead} days ahead` : 'On plan';
+        labelColor = behind ? '#C25A11' : accent;
+        labelBg = behind ? WARN_BG : colors.accentLight;
+        note = behind
+          ? `At ${sign}${weeklyRate.toFixed(2)} kg/week you'll get there in ${weeksLeft} weeks — about ${Math.abs(weeksLate)} week${Math.abs(weeksLate) === 1 ? '' : 's'} later than planned. Back at ${sign}${plannedWeeklyRate.toFixed(2)} you'd finish around ${fmtShort(new Date(goalDate))}.`
+          : ahead
+            ? `${weeksLeft} weeks left at this pace, about ${daysAhead} days ahead of where your plan expected you to be today.`
+            : `${weeksLeft} weeks left at this pace — right on track with your original plan.`;
       }
     }
 
-    return { weeksLeft, eta, pct, planPct, lost, togo, weeklyRate, plannedWeeklyRate };
-  }, [startingWeight, targetWeight, currentWeight, weeklyRate, goalIsLoss, goalDate, userJoinDate]);
+    return { weeksLeft, eta, pct, planPct, lost, togo, weeklyRate, plannedWeeklyRate, label, labelColor, labelBg, note };
+  }, [startingWeight, targetWeight, currentWeight, weeklyRate, goalIsLoss, goalDate, userJoinDate, accent, colors.accentLight]);
 
   // ── Daily calorie totals for last 7 days ────────────────────────────────
   const last7 = useMemo(() => {
@@ -180,6 +198,29 @@ const InsightsTab = ({
         : dailyCalorieGoal
           ? `Your calories have stayed close to ${dailyCalorieGoal.toLocaleString()} kcal all week — steady like this is sustainable.`
           : 'Set a daily calorie goal to track consistency here.';
+
+  // Next-week forecast: weight the last 3 days more heavily than the full week —
+  // a real (if simple) trend signal, not a guess.
+  const nextBurnout = useMemo(() => {
+    if (!dailyCalorieGoal) return null;
+    const recent = last7.slice(-3);
+    const recentLogged = recent.filter((d) => d.total > 0);
+    const recentScore = Math.max(0, Math.min(100,
+      recentLogged.filter((d) => d.total > dailyCalorieGoal * 1.5).length * 18
+      + recentLogged.filter((d) => d.total > 0 && d.total < dailyCalorieGoal * 0.5).length * 12
+      + (3 - recentLogged.length) * 8
+    ));
+    const nextScore = Math.round(burnoutScore * 0.4 + recentScore * 0.6);
+    const label = nextScore >= 70 ? 'High risk' : nextScore >= 45 ? 'Watch it' : 'Sustainable';
+    const color = nextScore >= 70 ? DANGER : nextScore >= 45 ? WARN : accent;
+    const bg = nextScore >= 70 ? DANGER_BG : nextScore >= 45 ? WARN_BG : colors.accentLight;
+    const note = nextScore > burnoutScore + 10
+      ? 'Trending up — the last few days have been rougher than your week average. Keep it steady or this likely continues.'
+      : nextScore < burnoutScore - 10
+        ? 'Trending down — recent days have been more consistent than earlier this week.'
+        : 'Holding steady — no clear shift from this week\'s pattern.';
+    return { score: nextScore, label, color, bg, note };
+  }, [last7, burnoutScore, dailyCalorieGoal, accent, colors.accentLight]);
 
   // ── This-week trend + short projection chart ────────────────────────────
   const chart = useMemo(() => {
@@ -416,6 +457,17 @@ const InsightsTab = ({
               <View style={styles.axisRow}>
                 {last7.map((d, i) => <Text key={i} style={styles.axisLabel}>{dayLabel(d.date)}</Text>)}
               </View>
+              {nextBurnout && (
+                <View style={styles.nextWeekRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.nextWeekTitle}>Next week: {nextBurnout.label}</Text>
+                    <Text style={styles.nextWeekNote}>{nextBurnout.note}</Text>
+                  </View>
+                  <View style={[styles.nextWeekBadge, { backgroundColor: nextBurnout.bg }]}>
+                    <Text style={[styles.nextWeekBadgeText, { color: nextBurnout.color }]}>{nextBurnout.score}</Text>
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Pace to goal */}
@@ -426,6 +478,11 @@ const InsightsTab = ({
                     <Text style={styles.kicker}>PACE TO GOAL</Text>
                     <Text style={styles.bigStat}>{fmtShort(pace.eta)}<Text style={styles.bigStatSub}> at this pace</Text></Text>
                   </View>
+                  {pace.label && (
+                    <View style={[styles.pill, { backgroundColor: pace.labelBg }]}>
+                      <Text style={[styles.pillText, { color: pace.labelColor }]}>{pace.label}</Text>
+                    </View>
+                  )}
                 </View>
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: `${pace.pct}%`, backgroundColor: accent }]} />
@@ -452,6 +509,7 @@ const InsightsTab = ({
                     <Text style={styles.statValue}>{goalIsLoss ? '-' : '+'}{pace.weeklyRate.toFixed(2)}</Text>
                   </View>
                 </View>
+                {pace.note && <Text style={[styles.mutedBody, { marginTop: 12 }]}>{pace.note}</Text>}
               </View>
             )}
             {pace?.insufficientData && (
@@ -553,6 +611,11 @@ const makeStyles = (colors) => StyleSheet.create({
   progressFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 5 },
   planMarker: { position: 'absolute', top: -5, width: 2, height: 20, borderRadius: 1 },
   statsRow: { flexDirection: 'row', gap: 10, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  nextWeekRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  nextWeekTitle: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
+  nextWeekNote: { color: colors.textSecondary, fontSize: 11.5, fontWeight: '500', marginTop: 2, lineHeight: 16 },
+  nextWeekBadge: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  nextWeekBadgeText: { fontSize: 14.5, fontWeight: '800' },
   statLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 0.6 },
   statValue: { color: colors.text, fontSize: 15, fontWeight: '800', marginTop: 3 },
   recRow: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 13, flexDirection: 'row', alignItems: 'center' },
