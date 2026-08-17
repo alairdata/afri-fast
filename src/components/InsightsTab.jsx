@@ -82,6 +82,7 @@ const InsightsTab = ({
   stepGoal = 10000,
   activities = [],
   pacePreference = null,
+  proteinGoal = null,
 }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -312,8 +313,8 @@ const InsightsTab = ({
   // Burnout / Crash-Out Risk — 4-vector model (deficit depth, food monotony, protein/fiber
   // satiety, dietary fat) computed day-by-day over the current week. See src/lib/burnout.js.
   const burnout = useMemo(() => computeBurnoutTimeline({
-    recentMeals, tdee, weightKg: today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg, now,
-  }), [recentMeals, tdee, today, currentWeightKg, now]);
+    recentMeals, tdee, proteinGoal, now,
+  }), [recentMeals, tdee, proteinGoal, now]);
 
   const burnoutScore = burnout.today.score;
   const burnoutBand = burnout.today.band;
@@ -322,11 +323,12 @@ const InsightsTab = ({
   const burnoutWhy = useMemo(() => {
     const t = burnout.today;
     const drivers = [];
-    if (t.deficitPts >= 20) drivers.push('your deficit is running deep');
-    if (t.monotonyPts >= 12) drivers.push(`you've repeated the same ${t.uniqueFoodCount} food${t.uniqueFoodCount === 1 ? '' : 's'} all week`);
-    if (t.satietyPts >= 10) drivers.push('protein or fiber is running low, so hunger keeps building');
-    if (t.fatPts > 0) drivers.push(`fat's been under 20% of calories on ${t.lowFatDays} days, which tends to hit mood and sleep`);
-    if (!drivers.length) return 'Deficit, variety, protein/fiber, and fat are all in a sustainable range this week.';
+    if (t.deficitPts >= 20) drivers.push('your deficit is running deep relative to your TDEE');
+    if (t.monotonyPts >= 12) drivers.push(`variety is low — only ${t.uniqueFoodCount} unique food${t.uniqueFoodCount === 1 ? '' : 's'} across ${t.totalMealsLogged} logged meal${t.totalMealsLogged === 1 ? '' : 's'} this week`);
+    if (t.satietyPts >= 10) drivers.push("protein is running under your target, so hunger keeps building");
+    if (t.fatPts >= 5) drivers.push("fat's well under 20% of calories, which tends to hit mood and sleep");
+    if (t.volatilityPts >= 4) drivers.push('calories are swinging a lot day to day relative to your own average');
+    if (!drivers.length) return 'Deficit, variety, protein, fat, and day-to-day consistency are all in a sustainable range this week.';
     return `This week: ${drivers.join('; ')}.`;
   }, [burnout]);
 

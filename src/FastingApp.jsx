@@ -1858,6 +1858,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           stepGoal={stepGoal}
           activities={activities}
           pacePreference={pacePreference}
+          proteinGoal={proteinGoal}
         />
       )}
 

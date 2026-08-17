@@ -1,30 +1,12 @@
-// Burnout / Crash-Out Risk engine — predicts diet abandonment risk from four
-// psychological/physiological vectors, not just "did you hit your calorie goal."
-// Computed client-side, day-by-day, same pattern as momentum.js: each day's score
-// uses a rolling 7-day window ENDING that day, so it evolves as the week plays out
-// rather than being fixed once computed.
+// Burnout / Crash-Out Risk engine — predicts diet abandonment risk from statistical ratios
+// relative to the person's own TDEE/protein target, not hardcoded kcal/gram cutoffs that don't
+// scale with body size or account for simple, repetitive-but-healthy traditional meals.
+// Computed client-side, day-by-day: each day's score uses a rolling 7-day window ENDING that
+// day, so it evolves as the week plays out rather than being fixed once computed.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const lerp = (v, x0, y0, x1, y1) => y0 + ((clamp(v, x0, x1) - x0) / (x1 - x0)) * (y1 - y0);
-
-// Used only when a day has zero explicit fiber logged, to avoid treating "wasn't tracked"
-// the same as "definitely ate none" -- checked against that day's logged food/ingredient names.
-const FIBER_FOOD_KEYWORDS = [
-  'yam', 'potato', 'potatoes', 'oat', 'oats', 'oatmeal', 'bean', 'beans', 'lentil', 'lentils',
-  'plantain', 'cassava', 'garri', 'fufu', 'moimoi', 'okra', 'bread', 'brown rice', 'apple',
-  'banana', 'berries', 'berry', 'chia', 'vegetable', 'vegetables', 'salad', 'spinach',
-  'broccoli', 'nuts', 'groundnut', 'groundnuts', 'fruit', 'orange', 'avocado',
-];
-// Scales with how many distinct high-fiber items were found, not a flat guess -- one
-// mention (e.g. "banana") shouldn't credit the same as a plate that's actually beans + yam.
-const inferredFiberCredit = (names) => {
-  const text = names.join(' ');
-  const matches = FIBER_FOOD_KEYWORDS.filter((k) => text.includes(k)).length;
-  if (!matches) return { credit: 0, known: false };
-  return { credit: clamp(10 + (matches - 1) * 6, 10, 25), known: true };
-};
 
 function bandFor(score) {
   if (score <= 25) return { label: 'Low Risk', tone: 'good' };
@@ -34,13 +16,13 @@ function bandFor(score) {
 }
 
 /**
- * @param recentMeals - meal log entries with .date, .calories, .protein, .fats, .fiber, .foods
+ * @param recentMeals - meal log entries with .date, .calories, .protein, .fats, .foods/.items
  * @param tdee - kcal/day, or null if profile incomplete
- * @param weightKg - current (EWMA) weight in kg, for g/kg protein target
+ * @param proteinGoal - the user's actual set protein target (g/day), or null
  * @param now - epoch ms
  */
-export function computeBurnoutTimeline({ recentMeals = [], tdee, weightKg, now = Date.now() }) {
-  const EMPTY_DAY = { calories: 0, protein: 0, fats: 0, fiber: 0, foods: [], hasExplicitFiber: false };
+export function computeBurnoutTimeline({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) {
+  const EMPTY_DAY = { calories: 0, protein: 0, fats: 0, foods: [], mealCount: 0 };
 
   const mealsByDate = {};
   recentMeals.forEach((m) => {
@@ -50,10 +32,9 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, weightKg, now =
     d.calories += m.calories || 0;
     d.protein += m.protein || 0;
     d.fats += m.fats || 0;
-    d.fiber += m.fiber || 0;
-    if (m.fiber > 0) d.hasExplicitFiber = true;
+    d.mealCount += 1;
     // Prefer the per-item foods array; recipe-logged meals don't have one, only an
-    // `items` string list -- fall back to that so they still count toward variety/fiber inference.
+    // `items` string list -- fall back to that so they still count toward variety.
     const names = Array.isArray(m.foods) && m.foods.length
       ? m.foods.map((f) => (f?.name || '').trim().toLowerCase())
       : Array.isArray(m.items) ? m.items.map((i) => String(i || '').trim().toLowerCase()) : [];
@@ -65,10 +46,9 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, weightKg, now =
   const nowDate = new Date(now);
   const startOfToday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
 
-  // "If this keeps up" pattern for projecting future days: the average of the last 7 actually
-  // logged days. A likelihood score that goes blank the moment it has to look forward defeats
-  // the point of calling it a likelihood -- the crash-date estimate already assumes the current
-  // pattern continues, so the daily strip should extrapolate the same way, not go silent.
+  // "If this keeps up" pattern for projecting future days -- the average of the last 7
+  // actually logged days. A likelihood score that goes blank looking forward isn't predicting
+  // anything; the crash-date estimate already assumes the current pattern continues.
   const recentPattern = (() => {
     const window = [];
     for (let i = 6; i >= 0; i--) window.push(dayTotals(new Date(startOfToday.getTime() - i * DAY_MS).toDateString()));
@@ -78,12 +58,12 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, weightKg, now =
       calories: logged.reduce((s, d) => s + d.calories, 0) / logged.length,
       protein: logged.reduce((s, d) => s + d.protein, 0) / logged.length,
       fats: logged.reduce((s, d) => s + d.fats, 0) / logged.length,
-      fiber: logged.reduce((s, d) => s + d.fiber, 0) / logged.length,
+      mealCount: logged.reduce((s, d) => s + d.mealCount, 0) / logged.length,
       foods: Array.from(new Set(logged.flatMap((d) => d.foods))),
     };
   })();
 
-  // Compute the 4-vector score for the 7-day window ending at `endDate`. Days beyond today use
+  // Compute the 5-vector score for the 7-day window ending at `endDate`. Days beyond today use
   // the recent pattern (projected) instead of real logs, since they haven't happened yet.
   const scoreWindowEnding = (endDate) => {
     const window = [];
@@ -91,58 +71,63 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, weightKg, now =
       const d = new Date(endDate.getTime() - i * DAY_MS);
       window.push(d.getTime() <= startOfToday.getTime() ? d.toDateString() : null);
     }
-    const dayFor = (ds) => (ds != null ? dayTotals(ds) : (recentPattern || { calories: 0, protein: 0, fats: 0, fiber: 0, foods: [] }));
-    const days = window.map(dayFor);
-    const loggedDays = days.filter((d) => d.calories > 0);
+    const days = window.map((ds) => (ds != null ? dayTotals(ds) : (recentPattern || { ...EMPTY_DAY, foods: [] })));
 
-    // 1. Severe Deficit Depth (max 35) — unlogged days count as the full TDEE deficit,
-    // same convention as the Weekly Pace engine.
+    // 1. Deficit Depth (max 35) -- deficit as a % of TDEE, not a fixed kcal cliff.
+    // Max penalty at a 40% cut; at/above maintenance scores 0.
     let deficitPts = 0;
-    if (tdee != null) {
-      const avgDeficit = days.reduce((s, d) => s + (tdee - d.calories), 0) / 7;
-      deficitPts = avgDeficit <= 550 ? 0
-        : avgDeficit <= 750 ? lerp(avgDeficit, 550, 0, 750, 20)
-        : avgDeficit <= 1000 ? lerp(avgDeficit, 750, 20, 1000, 35)
-        : 35;
+    if (tdee) {
+      const avgCalories = days.reduce((s, d) => s + d.calories, 0) / 7;
+      const rD = (tdee - avgCalories) / tdee;
+      deficitPts = rD <= 0 ? 0 : clamp(Math.round(35 * (rD / 0.40)), 0, 35);
     }
 
-    // 2. Food Monotony Index (max 25) — unique ingredient names across the week
+    // 2. Food Monotony (max 25) -- unique ingredients as a ratio of total meals logged, not an
+    // absolute count. Repeating simple 2-3 ingredient meals doesn't trigger a false alarm as
+    // long as variety keeps pace with how often you're logging.
     const uniqueFoods = new Set(days.flatMap((d) => d.foods));
-    const monotonyPts = uniqueFoods.size < 5 ? 25 : uniqueFoods.size <= 10 ? 12 : 0;
-
-    // 3. Satiety & Volume Deficit (max 25) — protein g/kg + fiber g/day, averaged over logged days.
-    // Fiber per day: explicit sum if any meal logged it, else inferred credit if that day's
-    // foods include known high-fiber ingredients, else "unknown" (not "zero"). If not a single
-    // logged day this week has any fiber signal at all, drop fiber from the check entirely and
-    // score satiety on protein alone -- untracked isn't the same as "ate none."
-    let satietyPts = 0;
-    if (loggedDays.length && weightKg) {
-      const avgProteinPerKg = loggedDays.reduce((s, d) => s + d.protein, 0) / loggedDays.length / weightKg;
-      const fiberByDay = loggedDays.map((d) => {
-        if (d.hasExplicitFiber) return { value: d.fiber, known: true };
-        const inferred = inferredFiberCredit(d.foods);
-        return { value: inferred.credit, known: inferred.known };
-      });
-      const anyFiberSignal = fiberByDay.some((f) => f.known);
-      if (!anyFiberSignal) {
-        satietyPts = avgProteinPerKg < 1.2 ? 25 : avgProteinPerKg < 1.6 ? 10 : 0;
-      } else {
-        const avgFiber = fiberByDay.reduce((s, f) => s + f.value, 0) / fiberByDay.length;
-        satietyPts = (avgProteinPerKg < 1.2 || avgFiber < 15) ? 25 : avgProteinPerKg < 1.6 ? 10 : 0;
-      }
+    const totalMealsLogged = days.reduce((s, d) => s + d.mealCount, 0);
+    let monotonyPts = 0;
+    if (totalMealsLogged > 0) {
+      const rV = uniqueFoods.size / totalMealsLogged;
+      monotonyPts = rV >= 0.50 ? 0 : clamp(Math.round(25 * (1 - rV / 0.50)), 0, 25);
     }
 
-    // 4. Low-Fat / Hormonal Strain (max 15) — 3+ days this week under 20% of calories from fat
-    const lowFatDays = loggedDays.filter((d) => d.calories > 0 && (d.fats * 9) / d.calories < 0.20).length;
-    const fatPts = lowFatDays >= 3 ? 15 : 0;
+    // 3. Satiety (max 25) -- protein logged vs the user's own set protein target, not a generic
+    // g/kg formula.
+    let satietyPts = 0;
+    if (proteinGoal) {
+      const avgProtein = days.reduce((s, d) => s + d.protein, 0) / 7;
+      const aP = avgProtein / proteinGoal;
+      satietyPts = aP >= 1.0 ? 0 : clamp(Math.round(25 * (1 - aP)), 0, 25);
+    }
 
-    const score = Math.round(clamp(deficitPts + monotonyPts + satietyPts + fatPts, 0, 100));
-    return { score, deficitPts: Math.round(deficitPts), monotonyPts, satietyPts, fatPts, uniqueFoodCount: uniqueFoods.size, lowFatDays, loggedDays: loggedDays.length };
+    // 4. Low-Fat Strain (max 15) -- fat's share of total calories, smoothly scaled.
+    let fatPts = 0;
+    const avgCalories = days.reduce((s, d) => s + d.calories, 0) / 7;
+    if (avgCalories > 0) {
+      const avgFat = days.reduce((s, d) => s + d.fats, 0) / 7;
+      const sF = (avgFat * 9) / avgCalories;
+      fatPts = sF >= 0.20 ? 0 : clamp(Math.round(15 * (1 - sF / 0.20)), 0, 15);
+    }
+
+    // 5. Calorie Volatility (max 10) -- coefficient of variation, catches restrict/binge swings
+    // relative to the person's own average rather than a fixed kcal-swing threshold.
+    let volatilityPts = 0;
+    const calArr = days.map((d) => d.calories);
+    const mean = calArr.reduce((s, v) => s + v, 0) / 7;
+    if (mean > 0) {
+      const variance = calArr.reduce((s, v) => s + (v - mean) ** 2, 0) / 7;
+      const cv = Math.sqrt(variance) / mean;
+      volatilityPts = cv <= 0.15 ? 0 : clamp(Math.round(10 * ((cv - 0.15) / 0.20)), 0, 10);
+    }
+
+    const score = Math.round(clamp(deficitPts + monotonyPts + satietyPts + fatPts + volatilityPts, 0, 100));
+    return { score, deficitPts, monotonyPts, satietyPts, fatPts, volatilityPts, uniqueFoodCount: uniqueFoods.size, totalMealsLogged };
   };
 
   // Build the current Sun-Sat calendar week: real scores for days up to today, projected
-  // ("if this keeps up") scores for the rest of the week -- a likelihood that goes silent
-  // the moment it has to look forward isn't actually predicting anything.
+  // ("if this keeps up") scores for the rest of the week.
   const startOfWeek = new Date(startOfToday);
   startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
 
