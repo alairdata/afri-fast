@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
+import { computeMomentumTimeline } from '../lib/momentum';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WARN = '#F59E0B';
@@ -187,66 +188,25 @@ const InsightsTab = ({
     ? weeklyWeightChangeKg - requiredWeeklyRateKg
     : null;
 
-  // Calorie Adherence % — symmetric closeness to daily target, averaged over logged days this week
-  const calorieAdherence = useMemo(() => {
-    if (!dailyCalorieGoal) return null;
-    const logged = last7.filter((d) => d.total > 0);
-    if (!logged.length) return null;
-    const ratios = logged.map((d) => Math.min(d.total, dailyCalorieGoal) / Math.max(d.total, dailyCalorieGoal));
-    return ratios.reduce((a, b) => a + b, 0) / ratios.length;
-  }, [last7, dailyCalorieGoal]);
-
   const loggingConsistency = loggedDays.length / 7;
 
-  const paceComponent = (deviationKg != null && requiredWeeklyRateKg)
-    ? Math.max(0, Math.min(1, 1 - Math.abs(deviationKg) / Math.abs(requiredWeeklyRateKg)))
-    : null;
+  // Momentum Score — EWMA-smoothed engine (see src/lib/momentum.js): 40% Calorie + 25% Pace
+  // + 20% Activity + 15% Logging, with a confidence shift when weigh-ins go stale and a
+  // streak-based Logging term. Computed client-side from existing logs, no persisted state.
+  const momentumTimeline = useMemo(() => computeMomentumTimeline({
+    weightLogs, recentMeals, stepLogs, activities,
+    dailyCalorieGoal, stepGoal, requiredWeeklyRateKg,
+    toKg: (w) => toKg(w, weightUnit),
+    now,
+  }), [weightLogs, recentMeals, stepLogs, activities, dailyCalorieGoal, stepGoal, requiredWeeklyRateKg, weightUnit, now]);
 
-  // Move Adherence — blends step adherence (steps vs stepGoal) and activity consistency
-  // (logged workout days vs a 3/week target). Either signal alone is enough to produce a score;
-  // averaged when both exist. This replaces "Step Adherence" in the spec so a steps-only day
-  // and a gym-only day both count toward movement, not just one or the other.
-  const stepAdherence = useMemo(() => {
-    const logged = last7
-      .map((d) => (stepLogs || []).find((s) => s.date === d.ds))
-      .filter(Boolean)
-      .map((s) => s.steps);
-    if (!logged.length || !stepGoal) return null;
-    const ratios = logged.map((v) => Math.min(v, stepGoal) / Math.max(v, stepGoal));
-    return ratios.reduce((a, b) => a + b, 0) / ratios.length;
-  }, [last7, stepLogs, stepGoal]);
-
-  const WORKOUT_TARGET_PER_WEEK = 3;
-  const activityAdherence = useMemo(() => {
-    if (!activities || !activities.length) return null;
-    const activeDays = last7.filter((d) => activities.some((a) => a.date === d.ds)).length;
-    return Math.min(1, activeDays / WORKOUT_TARGET_PER_WEEK);
-  }, [last7, activities]);
-
-  const moveAdherence = useMemo(() => {
-    const parts = [stepAdherence, activityAdherence].filter((v) => v != null);
-    if (!parts.length) return null;
-    return parts.reduce((a, b) => a + b, 0) / parts.length;
-  }, [stepAdherence, activityAdherence]);
-
-  // Momentum Score — 35% Calorie Adherence + 35% Pace + 15% Move Adherence + 15% Logging Consistency.
-  // Any missing component (e.g. no goal_date yet, so no Pace) redistributes its weight
-  // proportionally across whatever's available — Logging Consistency is always present as a floor.
-  const momentumScore = useMemo(() => {
-    const parts = [];
-    if (calorieAdherence != null) parts.push({ w: 35, v: calorieAdherence * 100 });
-    if (paceComponent != null) parts.push({ w: 35, v: paceComponent * 100 });
-    if (moveAdherence != null) parts.push({ w: 15, v: moveAdherence * 100 });
-    parts.push({ w: 15, v: loggingConsistency * 100 });
-    const totalW = parts.reduce((s, p) => s + p.w, 0);
-    const score = parts.reduce((s, p) => s + p.v * (p.w / totalW), 0);
-    return Math.max(0, Math.min(100, Math.round(score)));
-  }, [calorieAdherence, paceComponent, moveAdherence, loggingConsistency]);
+  const today = momentumTimeline[momentumTimeline.length - 1];
+  const momentumScore = today.momentum;
+  const momentumLabel = today.band.label === 'STRONG' ? 'Strong momentum' : today.band.label === 'DRIFTING' ? 'Drifting' : 'Stalled';
+  const momentumColor = today.band.tone === 'strong' ? accent : today.band.tone === 'drifting' ? WARN : DANGER;
+  const momentumBg = today.band.tone === 'strong' ? colors.accentLight : today.band.tone === 'drifting' ? WARN_BG : DANGER_BG;
 
   const gauge = useMemo(() => buildGauge(momentumScore, accent), [momentumScore, accent]);
-  const momentumLabel = momentumScore >= 85 ? 'Optimal' : momentumScore >= 70 ? 'Strong' : momentumScore >= 40 ? 'Getting there' : 'Needs work';
-  const momentumColor = momentumScore >= 70 ? accent : momentumScore >= 40 ? WARN : DANGER;
-  const momentumBg = momentumScore >= 70 ? colors.accentLight : momentumScore >= 40 ? WARN_BG : DANGER_BG;
 
   // Trajectory Status — bucketed off Deviation relative to Required Rate
   const trajectory = useMemo(() => {
@@ -488,7 +448,7 @@ const InsightsTab = ({
             {/* Momentum gauge */}
             <View style={[styles.card, { alignItems: 'center', paddingTop: 18 }]}>
               <Text style={styles.cardHeadline}>
-                {momentumScore >= 70 ? `Looking good this week, ${userName || 'there'}.` : `Bit of a rocky week, ${userName || 'there'}. Nothing you can't fix.`}
+                {momentumScore >= 80 ? `Looking good this week, ${userName || 'there'}.` : `Bit of a rocky week, ${userName || 'there'}. Nothing you can't fix.`}
               </Text>
               <View style={{ width: 220, height: 132, marginTop: 4 }}>
                 <Svg width={220} height={132} viewBox="0 0 220 132">
@@ -506,11 +466,27 @@ const InsightsTab = ({
                 <Text style={[styles.pillText, { color: momentumColor }]}>{momentumLabel}</Text>
               </View>
               <Text style={styles.mutedSmall}>
-                Calories {calorieAdherence != null ? Math.round(calorieAdherence * 100) : '--'}%
-                {'  ·  '}Pace {paceComponent != null ? Math.round(paceComponent * 100) : '--'}%
-                {'  ·  '}Move {moveAdherence != null ? Math.round(moveAdherence * 100) : '--'}%
-                {'  ·  '}Logging {Math.round(loggingConsistency * 100)}%
+                Calories {today.calorieSubscore}%
+                {'  ·  '}Pace {today.paceSubscore != null ? `${today.paceSubscore}%` : '--'}
+                {'  ·  '}Activity {today.activitySubscore}%
+                {'  ·  '}Logging {today.loggingSubscore}%
               </Text>
+              {today.band.tone !== 'strong' && (
+                <View style={[styles.nudgeBox, today.band.tone === 'stalled' && styles.nudgeBoxUrgent]}>
+                  <Text style={[styles.nudgeText, today.band.tone === 'stalled' && styles.nudgeTextUrgent]}>
+                    {today.band.tone === 'drifting'
+                      ? (today.activitySubscore < 50
+                          ? 'Leading indicator: activity is down this week — worth a walk today.'
+                          : today.loggingSubscore < 75
+                            ? "Leading indicator: logging has been spotty — that's usually the first thing to slip."
+                            : 'Leading indicator: pace has cooled off from where it was.')
+                      : "Momentum has stalled. Don't try to fix everything at once — just log today's meals and today's weigh-in if you have one."}
+                  </Text>
+                </View>
+              )}
+              {today.staleWeighIn && (
+                <Text style={styles.mutedSmall}>No weigh-in in over a week — pace confidence is lower until you log one.</Text>
+              )}
               {weeklyHitRates.some((w) => w != null) && (
                 <>
                   <View style={{ flexDirection: 'row', gap: 5, marginTop: 14 }}>
@@ -732,7 +708,7 @@ const InsightsTab = ({
           </View>
           <ScrollView style={styles.scrollContainer} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
             <Text style={styles.mutedBody}>
-              {momentumScore >= 70
+              {momentumScore >= 80
                 ? `Your numbers look clean this week, ${userName || 'there'}. If nothing changes, you're on pace for your goal.`
                 : `Bit of a rougher week than usual${userName ? `, ${userName}` : ''} — here's what to focus on.`}
             </Text>
@@ -782,6 +758,10 @@ const makeStyles = (colors) => StyleSheet.create({
   pill: { borderRadius: 20, paddingVertical: 5, paddingHorizontal: 14, marginTop: -2 },
   pillText: { fontSize: 12, fontWeight: '700' },
   mutedSmall: { color: colors.textMuted, fontSize: 11, fontWeight: '600', marginTop: 6 },
+  nudgeBox: { backgroundColor: WARN_BG, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginTop: 10 },
+  nudgeBoxUrgent: { backgroundColor: DANGER_BG },
+  nudgeText: { color: '#A8811F', fontSize: 11.5, fontWeight: '600', textAlign: 'center', lineHeight: 16 },
+  nudgeTextUrgent: { color: '#B91C1C' },
   strongSmall: { color: colors.text, fontSize: 10.5, fontWeight: '700' },
   mutedBody: { color: colors.textSecondary, fontSize: 12.5, fontWeight: '500', lineHeight: 18 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
