@@ -499,36 +499,6 @@ const InsightsTab = ({
               )}
             </View>
 
-            {/* Energy balance */}
-            <View style={styles.card}>
-              <Text style={styles.kicker}>ENERGY BALANCE</Text>
-              {tdee != null ? (
-                <>
-                  <View style={styles.statsRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.statLabel}>TDEE</Text>
-                      <Text style={styles.statValue}>{Math.round(tdee).toLocaleString()}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.statLabel}>TODAY</Text>
-                      <Text style={styles.statValue}>{Math.round(todayCalories).toLocaleString()}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.statLabel}>{deficitToday >= 0 ? 'DEFICIT' : 'SURPLUS'}</Text>
-                      <Text style={[styles.statValue, { color: deficitToday >= 0 ? accent : DANGER }]}>{Math.round(Math.abs(deficitToday)).toLocaleString()}</Text>
-                    </View>
-                  </View>
-                  {estWeeklyRateFromDeficitKg != null && (
-                    <Text style={[styles.mutedBody, { marginTop: 10 }]}>
-                      At this week's average intake, your calories alone predict about {estWeeklyRateFromDeficitKg <= 0 ? '-' : '+'}{Math.abs(fromKg(estWeeklyRateFromDeficitKg, weightUnit)).toFixed(2)} {weightUnit}/week.
-                    </Text>
-                  )}
-                </>
-              ) : (
-                <Text style={styles.mutedBody}>Add your age, sex, height, and activity level in Settings to see your energy balance (BMR/TDEE) here.</Text>
-              )}
-            </View>
-
             {/* This week trend */}
             {chart && (
               <View style={styles.card}>
@@ -566,6 +536,36 @@ const InsightsTab = ({
                 <Text style={styles.mutedBody}>Log a couple of weigh-ins to see your trend here.</Text>
               </View>
             )}
+
+            {/* Energy balance */}
+            <View style={styles.card}>
+              <Text style={styles.kicker}>ENERGY BALANCE</Text>
+              {tdee != null ? (
+                <>
+                  <View style={styles.statsRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.statLabel}>TDEE</Text>
+                      <Text style={styles.statValue}>{Math.round(tdee).toLocaleString()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.statLabel}>TODAY</Text>
+                      <Text style={styles.statValue}>{Math.round(todayCalories).toLocaleString()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.statLabel}>{deficitToday >= 0 ? 'DEFICIT' : 'SURPLUS'}</Text>
+                      <Text style={[styles.statValue, { color: deficitToday >= 0 ? accent : DANGER }]}>{Math.round(Math.abs(deficitToday)).toLocaleString()}</Text>
+                    </View>
+                  </View>
+                  {estWeeklyRateFromDeficitKg != null && (
+                    <Text style={[styles.mutedBody, { marginTop: 10 }]}>
+                      At this week's average intake, your calories alone predict about {estWeeklyRateFromDeficitKg <= 0 ? '-' : '+'}{Math.abs(fromKg(estWeeklyRateFromDeficitKg, weightUnit)).toFixed(2)} {weightUnit}/week.
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <Text style={styles.mutedBody}>Add your age, sex, height, and activity level in Settings to see your energy balance (BMR/TDEE) here.</Text>
+              )}
+            </View>
 
             {/* Forecast */}
             {(projected7Kg != null || projectedGoalDate) && (
