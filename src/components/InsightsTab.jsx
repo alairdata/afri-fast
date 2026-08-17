@@ -437,8 +437,8 @@ const InsightsTab = ({
     const label = trendBadge?.label;
     if (!label || label === 'On Pace') return null;
     if (label === 'Too Aggressive') {
-      return weeklyPace.underBmrDays >= 3
-        ? `This isn't about going too fast — you've logged under what your organs need at rest (${bmr ? Math.round(bmr).toLocaleString() : 'your resting need'} kcal) on ${weeklyPace.underBmrDays} of the last 7 days. That's under-eating, not overachieving. Bring your calories back up.`
+      return weeklyPace.belowBmrFloor
+        ? `This isn't about going too fast — your last few logged days are averaging ${Math.round(weeklyPace.threeDayAvgCalories).toLocaleString()} kcal, under the safe floor for what your organs need at rest (~${weeklyPace.bmrSafetyFloor ? Math.round(weeklyPace.bmrSafetyFloor).toLocaleString() : ''} kcal). That's under-eating, not overachieving. Bring your calories back up.`
         : "Your average deficit is running well past your target for this pace — that's more aggressive than intended, not a sign it's working better.";
     }
     if (label === 'Needs Weigh-in') return "It's been over a week since your last weigh-in — log one so this pace reading actually means something.";

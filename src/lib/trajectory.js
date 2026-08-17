@@ -29,19 +29,31 @@ export function computeWeeklyPace({
   recentMeals.forEach((m) => { if (m.date) mealsByDate[m.date] = (mealsByDate[m.date] || 0) + (m.calories || 0); });
 
   let d7d = 0;
-  let underBmrDays = 0;
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now - i * DAY_MS);
     const logged = mealsByDate[d.toDateString()] || 0;
     const deficit = tdee != null ? tdee - logged : 0;
     d7d += deficit;
-    if (bmr != null && logged > 0 && logged < bmr) underBmrDays++;
   }
   const dBar = d7d / 7; // average daily deficit
   const vEnergyKg = d7d / KCAL_PER_KG; // expected 7-day loss from food energy alone (positive = loss)
   const pRatio = (tdee != null && dTarget) ? dBar / dTarget : null;
 
-  const unsafe = underBmrDays >= 3 || (pRatio != null && pRatio > 1.30);
+  // Safety floor: a 3-day rolling AVERAGE (only counting days actually logged) below 80% of BMR,
+  // not a single-day or full-BMR threshold. BMR formulas are population estimates -- flagging
+  // every day under the raw number, or any one light day, produces false "Too Aggressive" alarms
+  // on perfectly normal, high-protein deficits.
+  let recentLoggedTotal = 0, recentLoggedCount = 0;
+  for (let i = 2; i >= 0; i--) {
+    const d = new Date(now - i * DAY_MS);
+    const logged = mealsByDate[d.toDateString()] || 0;
+    if (logged > 0) { recentLoggedTotal += logged; recentLoggedCount++; }
+  }
+  const threeDayAvgCalories = recentLoggedCount > 0 ? recentLoggedTotal / recentLoggedCount : null;
+  const bmrSafetyFloor = bmr != null ? bmr * 0.80 : null;
+  const belowBmrFloor = threeDayAvgCalories != null && bmrSafetyFloor != null && threeDayAvgCalories < bmrSafetyFloor;
+
+  const unsafe = belowBmrFloor || (pRatio != null && pRatio > 1.30);
 
   let badge = null;
   if (daysSinceWeighIn > 14) badge = { label: 'Tracking Only', tone: 'neutral' };
@@ -64,5 +76,5 @@ export function computeWeeklyPace({
     return { projectedKg, upperKg: projectedKg + marginKg, lowerKg: projectedKg - marginKg };
   };
 
-  return { dTarget, d7d, dBar, vEnergyKg, pRatio, unsafe, underBmrDays, badge, dailyRateKg, projectDay };
+  return { dTarget, d7d, dBar, vEnergyKg, pRatio, unsafe, belowBmrFloor, threeDayAvgCalories, bmrSafetyFloor, badge, dailyRateKg, projectDay };
 }
