@@ -351,7 +351,7 @@ const InsightsTab = ({
 
           {Platform.OS === 'web' && <View style={{ height: 12 }} />}
 
-          <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+          <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
             {/* Momentum gauge */}
             <View style={[styles.card, { alignItems: 'center', paddingTop: 18 }]}>
               <Text style={styles.cardHeadline}>
@@ -539,7 +539,7 @@ const InsightsTab = ({
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Details</Text>
           </View>
-          <ScrollView style={styles.scrollContainer} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.scrollContainer} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
             <Text style={styles.mutedBody}>
               {momentumScore >= 70
                 ? `Your numbers look clean this week, ${userName || 'there'}. If nothing changes, you're on pace for your goal.`
