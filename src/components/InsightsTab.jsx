@@ -418,6 +418,24 @@ const InsightsTab = ({
     return { label: weeklyPace.badge.label, ...toneStyle };
   }, [weeklyPace, accent, colors.accentLight, colors.textSecondary, colors.cardAlt]);
 
+  // Plain-language explanation for the trend badge — stays quiet when things are fine
+  // (matches the Momentum nudge pattern), but "Too Aggressive" especially needs unpacking:
+  // it reads like a pace warning when it's actually about under-eating.
+  const trendNote = useMemo(() => {
+    const label = trendBadge?.label;
+    if (!label || label === 'On Pace') return null;
+    if (label === 'Too Aggressive') {
+      return weeklyPace.underBmrDays >= 3
+        ? `This isn't about going too fast — you've logged under your BMR (${bmr ? Math.round(bmr).toLocaleString() : 'your resting burn'} kcal) on ${weeklyPace.underBmrDays} of the last 7 days. That's under-eating, not overachieving. Bring your calories back up.`
+        : "Your average deficit is running well past your target for this pace — that's more aggressive than intended, not a sign it's working better.";
+    }
+    if (label === 'Needs Weigh-in') return "It's been over a week since your last weigh-in — log one so this pace reading actually means something.";
+    if (label === 'Tracking Only') return "No weigh-in in over two weeks. This is running on your meal logs alone, so treat the projection as a rough guess, not a forecast.";
+    if (label === 'Off Pace') return "You're behind the deficit your chosen pace needs — nothing urgent, just a nudge to close the gap.";
+    if (label === 'Stalled') return "Your average deficit this week is well under target — worth checking your portions, or whether your TDEE still matches your day-to-day.";
+    return null;
+  }, [trendBadge, weeklyPace, bmr]);
+
   const guardrail = useMemo(() => {
     if (loggedDays.length < 3 || !dailyCalorieGoal) return null;
     const maxDay = loggedDays.reduce((a, b) => (b.total > a.total ? b : a), loggedDays[0]);
@@ -605,6 +623,13 @@ const InsightsTab = ({
                 <View style={styles.axisRow}>
                   {chart.labels.map((l, i) => <Text key={i} style={styles.axisLabel}>{l}</Text>)}
                 </View>
+                {trendNote && (
+                  <View style={[styles.nudgeBox, (trendBadge?.label === 'Too Aggressive' || trendBadge?.label === 'Stalled') && styles.nudgeBoxUrgent]}>
+                    <Text style={[styles.nudgeText, (trendBadge?.label === 'Too Aggressive' || trendBadge?.label === 'Stalled') && styles.nudgeTextUrgent]}>
+                      {trendNote}
+                    </Text>
+                  </View>
+                )}
                 <TouchableOpacity style={styles.detailsBtn} onPress={() => setView('details')}>
                   <Text style={styles.detailsBtnText}>See details</Text>
                   <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
