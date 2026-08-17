@@ -9,21 +9,24 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const ProgressTab = ({
   onShowWeightModal, onShowFastingDetails, onShowBMIDetails, onShowCalorieDetails, onShowHydrationDetails,
-  fastingSessions = [], recentMeals = [], weightLogs = [], waterLogs = [], checkInHistory = [],
+  onShowStepsDetails, onShowAddActivity,
+  fastingSessions = [], recentMeals = [], weightLogs = [], waterLogs = [], stepLogs = [], activities = [], checkInHistory = [],
   height = '', heightUnit = 'cm', weightUnit = 'kg', volumeUnit = 'oz', targetWeight = null, startingWeight = null,
-  dailyCalorieGoal = 2000, hydrationGoal = 0,
+  dailyCalorieGoal = 2000, hydrationGoal = 0, stepGoal = 10000,
 }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
   const [progressRange, setProgressRange] = useState('7 days');
   const [weightTooltip, setWeightTooltip] = useState(null);
+  const [stepsTooltip, setStepsTooltip] = useState(null);
   const [calTooltip, setCalTooltip] = useState(null);
   const [waterTooltip, setWaterTooltip] = useState(null);
 
   useEffect(() => { if (!weightTooltip) return; const t = setTimeout(() => setWeightTooltip(null), 2000); return () => clearTimeout(t); }, [weightTooltip]);
   useEffect(() => { if (!calTooltip) return; const t = setTimeout(() => setCalTooltip(null), 2000); return () => clearTimeout(t); }, [calTooltip]);
   useEffect(() => { if (!waterTooltip) return; const t = setTimeout(() => setWaterTooltip(null), 2000); return () => clearTimeout(t); }, [waterTooltip]);
+  useEffect(() => { if (!stepsTooltip) return; const t = setTimeout(() => setStepsTooltip(null), 2000); return () => clearTimeout(t); }, [stepsTooltip]);
 
   const getProgressData = () => {
     const now = Date.now();
@@ -60,6 +63,18 @@ const ProgressTab = ({
     const rangeWater = (waterLogs || []).filter(w => {
       if (days === 99999) return true;
       const t = w.timestamp || new Date(w.date).getTime();
+      return !isNaN(t) && t >= cutoff;
+    });
+
+    const rangeSteps = (stepLogs || []).filter(s => {
+      if (days === 99999) return true;
+      const t = s.id || new Date(s.date).getTime();
+      return !isNaN(t) && t >= cutoff;
+    });
+
+    const rangeActivities = (activities || []).filter(a => {
+      if (days === 99999) return true;
+      const t = a.timestamp || new Date(a.date).getTime();
       return !isNaN(t) && t >= cutoff;
     });
 
@@ -133,6 +148,31 @@ const ProgressTab = ({
     const waterChartData = uniqueWater.slice(0, isLongRange ? 12 : 7).reverse().map(l => Math.round(l.totalL * 10) / 10);
     const avgWaterL = uniqueWater.length > 0 ? (uniqueWater.reduce((s, l) => s + l.totalL, 0) / uniqueWater.length).toFixed(1) : '0';
 
+    // Steps stats
+    const stepsByDate = {};
+    rangeSteps.forEach(l => {
+      const key = l.date;
+      if (!stepsByDate[key]) stepsByDate[key] = { date: key, totalSteps: 0 };
+      stepsByDate[key].totalSteps += l.steps;
+    });
+    const dailySteps = Object.values(stepsByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
+    let uniqueSteps;
+    if (isLongRange && dailySteps.length > 0) {
+      const monthlySteps = {};
+      dailySteps.forEach(d => {
+        const dt = new Date(d.date);
+        const mKey = `${dt.getFullYear()}-${dt.getMonth()}`;
+        if (!monthlySteps[mKey]) monthlySteps[mKey] = { date: d.date, totalSteps: 0, days: 0 };
+        monthlySteps[mKey].totalSteps += d.totalSteps;
+        monthlySteps[mKey].days += 1;
+      });
+      uniqueSteps = Object.values(monthlySteps).map(m => ({ date: m.date, totalSteps: Math.round(m.totalSteps / m.days) }));
+    } else {
+      uniqueSteps = dailySteps;
+    }
+    const stepsChartData = uniqueSteps.slice(0, isLongRange ? 12 : 7).reverse().map(l => l.totalSteps);
+    const avgSteps = uniqueSteps.length > 0 ? Math.round(uniqueSteps.reduce((s, l) => s + l.totalSteps, 0) / uniqueSteps.length) : 0;
+
     // Chart label formatter
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const formatLabel = (dateStr) => {
@@ -184,6 +224,12 @@ const ProgressTab = ({
       waterChartData,
       avgWaterL,
       waterGoalMet: `${uniqueWater.filter(w => w.totalL >= 2).length}/${uniqueWater.length}`,
+      // Steps
+      uniqueSteps,
+      stepsChartData,
+      avgSteps,
+      stepsGoalMet: `${uniqueSteps.filter(s => s.totalSteps >= stepGoal).length}/${uniqueSteps.length}`,
+      recentActivities: [...(activities || [])].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 5),
       // Labels
       formatLabel,
     };
@@ -626,6 +672,160 @@ const ProgressTab = ({
           </View>
         </View>
 
+        {/* Section 7: Steps Trends */}
+        <View style={styles.progressSectionCompact}>
+          <View style={styles.progressSectionHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="footsteps-outline" size={14} color="#1F1F1F" />
+              <Text style={styles.progressSectionTitleCompact}>Steps</Text>
+            </View>
+            <TouchableOpacity onPress={() => onShowStepsDetails && onShowStepsDetails()}>
+              <Text style={styles.seeAllBtnSmall}>See all</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.chartCardCompact}>
+            {(() => {
+              const uniqueLogs = progressData.uniqueSteps;
+              const hasStepsData = uniqueLogs.length > 0;
+              const hasMultipleSteps = uniqueLogs.length >= 2;
+              const chartData = progressData.stepsChartData;
+              const stepsYMax = stepGoal > 0 ? stepGoal + 2000 : undefined;
+
+              return (
+                <>
+                  <View style={{ marginLeft: 0, marginRight: -22, height: 200, overflow: 'hidden', position: 'relative' }}>
+                    {hasMultipleSteps ? (
+                      <>
+                      <LineChart
+                        data={{
+                          labels: uniqueLogs.slice(0, progressData.isLongRange ? 12 : 7).reverse().map((l, i, arr) => {
+                            if (arr.length <= 7 || i % Math.ceil(arr.length / 7) === 0 || i === arr.length - 1) {
+                              return progressData.formatLabel(l.date);
+                            }
+                            return '';
+                          }),
+                          datasets: [
+                            { data: chartData },
+                            { data: [0] },
+                          ],
+                        }}
+                        fromNumber={stepsYMax}
+                        width={SCREEN_WIDTH + 22}
+                        height={190}
+                        chartConfig={{
+                          backgroundColor: colors.card,
+                          backgroundGradientFrom: colors.card,
+                          backgroundGradientTo: colors.card,
+                          decimalPlaces: 0,
+                          color: (opacity = 1) => `rgba(249, 115, 22, ${opacity})`,
+                          labelColor: () => '#888',
+                          propsForDots: { r: '0' },
+                          propsForBackgroundLines: { stroke: 'transparent' },
+                          fillShadowGradient: '#F97316',
+                          fillShadowGradientFrom: '#F97316',
+                          fillShadowGradientTo: '#F97316',
+                          fillShadowGradientFromOpacity: 0.3,
+                          fillShadowGradientToOpacity: 0.05,
+                          propsForLabels: { fontSize: 9 },
+                          paddingRight: 48,
+                        }}
+                        renderDotContent={({ x, y, index }) => (
+                          <Rect key={`${x}-${y}`} x={x - 3} y={y - 3} width={6} height={6} fill="#F97316" rx={1} />
+                        )}
+                        onDataPointClick={({ value, x, y }) => setStepsTooltip(t => t?.x === x && t?.y === y ? null : { value, x, y })}
+                        bezier
+                        style={{ borderRadius: 12, marginLeft: -54 }}
+                        withInnerLines={false}
+                        withOuterLines={false}
+                        fromZero={false}
+                        withHorizontalLabels={false}
+                      />
+                      {stepsTooltip && (
+                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(stepsTooltip.x - 30, SCREEN_WIDTH - 120)), top: stepsTooltip.y - 12 }]} pointerEvents="none">
+                          <Text style={styles.chartTooltipText}>{stepsTooltip.value.toLocaleString()}</Text>
+                        </View>
+                      )}
+                      </>
+                    ) : (
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={styles.chartPlaceholderText}>{hasStepsData ? `${progressData.avgSteps.toLocaleString()} steps` : 'No steps data'}</Text>
+                        <Text style={styles.chartPlaceholderSubtext}>{hasStepsData ? 'Log more to see trends' : 'Log steps to start'}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.calorieStatsRow}>
+                    <View style={styles.calorieStatItem}>
+                      <Text style={styles.calorieStatValue}>{hasStepsData ? progressData.avgSteps.toLocaleString() : '--'}</Text>
+                      <Text style={styles.calorieStatLabel}>{progressData.isLongRange ? 'Avg monthly' : 'Avg daily'}</Text>
+                    </View>
+                    <View style={styles.calorieStatDivider} />
+                    <View style={styles.calorieStatItem}>
+                      <Text style={styles.calorieStatValue}>{hasStepsData ? progressData.stepsGoalMet : '--'}</Text>
+                      <Text style={styles.calorieStatLabel}>Goal met</Text>
+                    </View>
+                  </View>
+                </>
+              );
+            })()}
+            <View style={styles.weightActionsCompact}>
+              <TouchableOpacity style={[styles.weightActionBtnCompact, { backgroundColor: '#F97316', shadowColor: 'rgba(249, 115, 22, 1)' }]} onPress={() => onShowStepsDetails && onShowStepsDetails()}>
+                <Text style={styles.weightActionBtnText}>Log steps</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.weightActionLinkCompact} onPress={() => onShowStepsDetails && onShowStepsDetails()}>
+                <Text style={styles.weightActionLinkText}>View all logs</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Section 8: Activities */}
+        <View style={styles.progressSectionCompact}>
+          <View style={styles.progressSectionHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="barbell-outline" size={14} color="#1F1F1F" />
+              <Text style={styles.progressSectionTitleCompact}>Activities</Text>
+            </View>
+            <TouchableOpacity onPress={() => onShowAddActivity && onShowAddActivity()}>
+              <Text style={styles.seeAllBtnSmall}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.chartCardCompact}>
+            {progressData.recentActivities.length === 0 ? (
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                <Text style={styles.chartPlaceholderText}>No activities logged</Text>
+                <Text style={styles.chartPlaceholderSubtext}>Log a walk, run, or workout to start</Text>
+              </View>
+            ) : (
+              <View style={{ gap: 8 }}>
+                {progressData.recentActivities.map((a) => {
+                  const icon = a.type === 'walking' ? 'walk-outline' : a.type === 'running' ? 'body-outline'
+                    : a.type === 'cycling' ? 'bicycle-outline' : a.type === 'swimming' ? 'water-outline'
+                    : a.type === 'strength' ? 'barbell-outline' : a.type === 'sports' ? 'football-outline' : 'ellipsis-horizontal-circle-outline';
+                  const parts = [`${a.durationMin} min`];
+                  if (a.distance) parts.push(`${a.distance} ${a.distanceUnit || 'km'}`);
+                  if (a.estimatedCalories) parts.push(`~${a.estimatedCalories} kcal`);
+                  return (
+                    <View key={a.id} style={styles.activityRow}>
+                      <View style={styles.activityIconWrap}>
+                        <Ionicons name={icon} size={16} color="#F97316" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.activityName}>{a.name}{a.sessionType ? ` · ${a.sessionType}` : ''}</Text>
+                        <Text style={styles.activityMeta}>{parts.join(' · ')}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+            <View style={styles.weightActionsCompact}>
+              <TouchableOpacity style={[styles.weightActionBtnCompact, { backgroundColor: '#F97316', shadowColor: 'rgba(249, 115, 22, 1)' }]} onPress={() => onShowAddActivity && onShowAddActivity()}>
+                <Text style={styles.weightActionBtnText}>Add activity</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
         <View style={{ height: 100 }} />
       </ScrollView>
     </View>
@@ -633,6 +833,17 @@ const ProgressTab = ({
 };
 
 const makeStyles = (c) => StyleSheet.create({
+  activityRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 8, paddingHorizontal: 10,
+    backgroundColor: c.cardAlt, borderRadius: 12,
+  },
+  activityIconWrap: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: 'rgba(249,115,22,0.1)', alignItems: 'center', justifyContent: 'center',
+  },
+  activityName: { fontSize: 13, fontWeight: '700', color: c.text },
+  activityMeta: { fontSize: 11.5, color: c.textMuted, marginTop: 1 },
   progressTab: {
     flex: 1,
     backgroundColor: c.appBg,

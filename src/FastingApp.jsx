@@ -40,6 +40,8 @@ import CheckInPage from './components/CheckInPage';
 import PlanSelectionPage from './components/PlanSelectionPage';
 import WeightLogPage from './components/WeightLogPage';
 import HydrationDetailsPage from './components/HydrationDetailsPage';
+import StepsDetailsPage from './components/StepsDetailsPage';
+import AddActivityModal from './components/AddActivityModal';
 import CalorieDetailsPage from './components/CalorieDetailsPage';
 import BMIDetailsPage from './components/BMIDetailsPage';
 import FastingDetailsPage from './components/FastingDetailsPage';
@@ -178,6 +180,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [showBMIDetails, setShowBMIDetails] = useState(false);
   const [showCalorieDetails, setShowCalorieDetails] = useState(false);
   const [showHydrationDetails, setShowHydrationDetails] = useState(false);
+  const [showStepsDetails, setShowStepsDetails] = useState(false);
+  const [showAddActivity, setShowAddActivity] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [whisperPosts, setWhisperPosts] = useState([]);
   const [showFastingQuiz, setShowFastingQuiz] = useState(false);
@@ -262,6 +266,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const waterUnit = volumeUnit;
   const setWaterUnit = setVolumeUnit;
   const [waterLogs, setWaterLogs] = useState([]);
+  const [stepLogs, setStepLogs] = useState([]);
+  const [stepGoal, setStepGoal] = useState(10000);
+  const [activities, setActivities] = useState([]);
 
   // === Body measurements ===
   const [height, setHeight] = useState('');
@@ -728,7 +735,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch profile from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window, goal_history, goal_source, age, sex, goal_date, activity_level').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window, goal_history, goal_source, age, sex, goal_date, activity_level, step_goal').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -800,6 +807,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.sex) setSex(data.sex);
         if (data.goal_date) setGoalDate(data.goal_date);
         if (data.activity_level) setActivityLevel(data.activity_level);
+        if (data.step_goal != null) setStepGoal(data.step_goal);
         if (data.personality) setUserPersonality(data.personality);
         if (data.personality_updated_at) setPersonalityUpdatedAt(new Date(data.personality_updated_at));
         setDataLoadCount(prev => prev + 1);
@@ -966,6 +974,40 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch water_logs]', error); }
         if (data) setWaterLogs(data.map(r => ({ id: r.id, date: r.date, displayDate: r.display_date, amount: r.amount, unit: r.unit })));
+        setDataLoadCount(prev => prev + 1);
+      });
+  }, [session]);
+
+  // Fetch step logs
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    supabase.from('step_logs')
+      .select('id, date, display_date, steps')
+      .eq('user_id', session.user.id)
+      .order('logged_at', { ascending: false })
+      .limit(100)
+      .then(({ data, error }) => {
+        if (error) { console.error('[DB Error - fetch step_logs]', error); }
+        if (data) setStepLogs(data.map(r => ({ id: r.id, date: r.date, displayDate: r.display_date, steps: r.steps })));
+        setDataLoadCount(prev => prev + 1);
+      });
+  }, [session]);
+
+  // Fetch activities
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    supabase.from('activities')
+      .select('id, type, name, date, timestamp, duration_min, distance, distance_unit, session_type, estimated_calories')
+      .eq('user_id', session.user.id)
+      .order('logged_at', { ascending: false })
+      .limit(100)
+      .then(({ data, error }) => {
+        if (error) { console.error('[DB Error - fetch activities]', error); }
+        if (data) setActivities(data.map(r => ({
+          id: r.id, type: r.type, name: r.name, date: r.date, timestamp: r.timestamp,
+          durationMin: r.duration_min, distance: r.distance, distanceUnit: r.distance_unit,
+          sessionType: r.session_type, estimatedCalories: r.estimated_calories,
+        })));
         setDataLoadCount(prev => prev + 1);
       });
   }, [session]);
@@ -1682,7 +1724,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           proteinGoal={proteinGoal}
           carbsGoal={carbsGoal}
           fatsGoal={fatsGoal}
-          dataReady={dataLoadCount >= 6}
+          dataReady={dataLoadCount >= 8}
           goalHistory={goalHistory}
           goalSource={goalSource}
           onOpenSettings={() => setActiveTab('settings')}
@@ -1731,6 +1773,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           onShowBMIDetails={() => setShowBMIDetails(true)}
           onShowCalorieDetails={() => setShowCalorieDetails(true)}
           onShowHydrationDetails={() => setShowHydrationDetails(true)}
+          onShowStepsDetails={() => setShowStepsDetails(true)}
+          onShowAddActivity={() => setShowAddActivity(true)}
           fastingSessions={fastingSessions}
           height={height}
           heightUnit={heightUnit}
@@ -1739,6 +1783,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           recentMeals={recentMeals}
           weightLogs={weightLogs}
           waterLogs={waterLogs}
+          stepLogs={stepLogs}
+          stepGoal={stepGoal}
+          activities={activities}
           checkInHistory={checkInHistory}
           targetWeight={targetWeight}
           startingWeight={startingWeight}
@@ -1763,6 +1810,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           height={height}
           heightUnit={heightUnit}
           activityLevel={activityLevel}
+          stepLogs={stepLogs}
+          stepGoal={stepGoal}
+          activities={activities}
         />
       )}
 
@@ -1930,6 +1980,31 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         setWaterUnit={setWaterUnit}
         onWaterSaved={(log) => dbSave(supabase.from('water_logs').insert({ id: log.id, user_id: session?.user?.id, date: log.date, display_date: log.displayDate, amount: log.amount, unit: log.unit }), 'save water_log', (msg) => showToast(msg, 'error'))}
         onWaterDeleted={(log) => dbSave(supabase.from('water_logs').delete().eq('id', log.id).eq('user_id', session?.user?.id), 'delete water_log', (msg) => showToast(msg, 'error'))}
+      />
+
+      <StepsDetailsPage
+        show={showStepsDetails}
+        onClose={() => setShowStepsDetails(false)}
+        stepLogs={stepLogs}
+        setStepLogs={setStepLogs}
+        stepGoal={stepGoal}
+        onStepsSaved={(log) => dbSave(supabase.from('step_logs').insert({ id: log.id, user_id: session?.user?.id, date: log.date, display_date: log.displayDate, steps: log.steps }), 'save step_log', (msg) => showToast(msg, 'error'))}
+        onStepsDeleted={(log) => dbSave(supabase.from('step_logs').delete().eq('id', log.id).eq('user_id', session?.user?.id), 'delete step_log', (msg) => showToast(msg, 'error'))}
+      />
+
+      <AddActivityModal
+        show={showAddActivity}
+        onClose={() => setShowAddActivity(false)}
+        currentWeightKg={weightLogs.length ? (weightUnit === 'lbs' ? weightLogs[0].weight / 2.20462 : weightLogs[0].weight) : (startingWeight != null ? (weightUnit === 'lbs' ? startingWeight / 2.20462 : startingWeight) : null)}
+        onSave={(entry) => {
+          setActivities(prev => [entry, ...prev]);
+          dbSave(supabase.from('activities').insert({
+            id: entry.id, user_id: session?.user?.id, type: entry.type, name: entry.name,
+            date: entry.date, timestamp: entry.timestamp, duration_min: entry.durationMin,
+            distance: entry.distance, distance_unit: entry.distanceUnit,
+            session_type: entry.sessionType, estimated_calories: entry.estimatedCalories,
+          }), 'save activity', (msg) => showToast(msg, 'error'));
+        }}
       />
 
       <CalorieDetailsPage

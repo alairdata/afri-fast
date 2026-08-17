@@ -76,6 +76,9 @@ const InsightsTab = ({
   height = '',
   heightUnit = 'cm',
   activityLevel = null,
+  stepLogs = [],
+  stepGoal = 10000,
+  activities = [],
 }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -199,18 +202,46 @@ const InsightsTab = ({
     ? Math.max(0, Math.min(1, 1 - Math.abs(deviationKg) / Math.abs(requiredWeeklyRateKg)))
     : null;
 
-  // Momentum Score — spec is 35% Calorie Adherence + 35% Pace + 15% Step Adherence + 15% Logging Consistency.
-  // Step tracking doesn't exist in the app yet, so that 15% is dropped and redistributed
-  // proportionally (41% / 41% / 18%) until activity logging ships.
+  // Move Adherence — blends step adherence (steps vs stepGoal) and activity consistency
+  // (logged workout days vs a 3/week target). Either signal alone is enough to produce a score;
+  // averaged when both exist. This replaces "Step Adherence" in the spec so a steps-only day
+  // and a gym-only day both count toward movement, not just one or the other.
+  const stepAdherence = useMemo(() => {
+    const logged = last7
+      .map((d) => (stepLogs || []).find((s) => s.date === d.ds))
+      .filter(Boolean)
+      .map((s) => s.steps);
+    if (!logged.length || !stepGoal) return null;
+    const ratios = logged.map((v) => Math.min(v, stepGoal) / Math.max(v, stepGoal));
+    return ratios.reduce((a, b) => a + b, 0) / ratios.length;
+  }, [last7, stepLogs, stepGoal]);
+
+  const WORKOUT_TARGET_PER_WEEK = 3;
+  const activityAdherence = useMemo(() => {
+    if (!activities || !activities.length) return null;
+    const activeDays = last7.filter((d) => activities.some((a) => a.date === d.ds)).length;
+    return Math.min(1, activeDays / WORKOUT_TARGET_PER_WEEK);
+  }, [last7, activities]);
+
+  const moveAdherence = useMemo(() => {
+    const parts = [stepAdherence, activityAdherence].filter((v) => v != null);
+    if (!parts.length) return null;
+    return parts.reduce((a, b) => a + b, 0) / parts.length;
+  }, [stepAdherence, activityAdherence]);
+
+  // Momentum Score — 35% Calorie Adherence + 35% Pace + 15% Move Adherence + 15% Logging Consistency.
+  // Any missing component (e.g. no goal_date yet, so no Pace) redistributes its weight
+  // proportionally across whatever's available — Logging Consistency is always present as a floor.
   const momentumScore = useMemo(() => {
     const parts = [];
-    if (calorieAdherence != null) parts.push({ w: 41, v: calorieAdherence * 100 });
-    if (paceComponent != null) parts.push({ w: 41, v: paceComponent * 100 });
-    parts.push({ w: 18, v: loggingConsistency * 100 });
+    if (calorieAdherence != null) parts.push({ w: 35, v: calorieAdherence * 100 });
+    if (paceComponent != null) parts.push({ w: 35, v: paceComponent * 100 });
+    if (moveAdherence != null) parts.push({ w: 15, v: moveAdherence * 100 });
+    parts.push({ w: 15, v: loggingConsistency * 100 });
     const totalW = parts.reduce((s, p) => s + p.w, 0);
     const score = parts.reduce((s, p) => s + p.v * (p.w / totalW), 0);
     return Math.max(0, Math.min(100, Math.round(score)));
-  }, [calorieAdherence, paceComponent, loggingConsistency]);
+  }, [calorieAdherence, paceComponent, moveAdherence, loggingConsistency]);
 
   const gauge = useMemo(() => buildGauge(momentumScore, accent), [momentumScore, accent]);
   const momentumLabel = momentumScore >= 85 ? 'Optimal' : momentumScore >= 70 ? 'Strong' : momentumScore >= 40 ? 'Getting there' : 'Needs work';
@@ -477,6 +508,7 @@ const InsightsTab = ({
               <Text style={styles.mutedSmall}>
                 Calories {calorieAdherence != null ? Math.round(calorieAdherence * 100) : '--'}%
                 {'  ·  '}Pace {paceComponent != null ? Math.round(paceComponent * 100) : '--'}%
+                {'  ·  '}Move {moveAdherence != null ? Math.round(moveAdherence * 100) : '--'}%
                 {'  ·  '}Logging {Math.round(loggingConsistency * 100)}%
               </Text>
               {weeklyHitRates.some((w) => w != null) && (
