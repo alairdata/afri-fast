@@ -37,18 +37,44 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, weightKg, now =
 
   const dayTotals = (ds) => mealsByDate[ds] || { calories: 0, protein: 0, fats: 0, fiber: 0, foods: [] };
 
-  // Compute the 4-vector score for the 7-day window ending at `endDate`
+  const nowDate = new Date(now);
+  const startOfToday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
+
+  // "If this keeps up" pattern for projecting future days: the average of the last 7 actually
+  // logged days. A likelihood score that goes blank the moment it has to look forward defeats
+  // the point of calling it a likelihood -- the crash-date estimate already assumes the current
+  // pattern continues, so the daily strip should extrapolate the same way, not go silent.
+  const recentPattern = (() => {
+    const window = [];
+    for (let i = 6; i >= 0; i--) window.push(dayTotals(new Date(startOfToday.getTime() - i * DAY_MS).toDateString()));
+    const logged = window.filter((d) => d.calories > 0);
+    if (!logged.length) return null;
+    return {
+      calories: logged.reduce((s, d) => s + d.calories, 0) / logged.length,
+      protein: logged.reduce((s, d) => s + d.protein, 0) / logged.length,
+      fats: logged.reduce((s, d) => s + d.fats, 0) / logged.length,
+      fiber: logged.reduce((s, d) => s + d.fiber, 0) / logged.length,
+      foods: Array.from(new Set(logged.flatMap((d) => d.foods))),
+    };
+  })();
+
+  // Compute the 4-vector score for the 7-day window ending at `endDate`. Days beyond today use
+  // the recent pattern (projected) instead of real logs, since they haven't happened yet.
   const scoreWindowEnding = (endDate) => {
     const window = [];
-    for (let i = 6; i >= 0; i--) window.push(new Date(endDate.getTime() - i * DAY_MS).toDateString());
-    const days = window.map(dayTotals);
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(endDate.getTime() - i * DAY_MS);
+      window.push(d.getTime() <= startOfToday.getTime() ? d.toDateString() : null);
+    }
+    const dayFor = (ds) => (ds != null ? dayTotals(ds) : (recentPattern || { calories: 0, protein: 0, fats: 0, fiber: 0, foods: [] }));
+    const days = window.map(dayFor);
     const loggedDays = days.filter((d) => d.calories > 0);
 
     // 1. Severe Deficit Depth (max 35) — unlogged days count as the full TDEE deficit,
     // same convention as the Weekly Pace engine.
     let deficitPts = 0;
     if (tdee != null) {
-      const avgDeficit = window.reduce((s, ds) => s + (tdee - dayTotals(ds).calories), 0) / 7;
+      const avgDeficit = days.reduce((s, d) => s + (tdee - d.calories), 0) / 7;
       deficitPts = avgDeficit <= 550 ? 0
         : avgDeficit <= 750 ? lerp(avgDeficit, 550, 0, 750, 20)
         : avgDeficit <= 1000 ? lerp(avgDeficit, 750, 20, 1000, 35)
@@ -75,10 +101,9 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, weightKg, now =
     return { score, deficitPts: Math.round(deficitPts), monotonyPts, satietyPts, fatPts, uniqueFoodCount: uniqueFoods.size, lowFatDays, loggedDays: loggedDays.length };
   };
 
-  // Build the current Sun-Sat calendar week: real scores for days up to today, nothing for
-  // future days (no fake projection — matches how the weight trend chart treats gaps).
-  const nowDate = new Date(now);
-  const startOfToday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
+  // Build the current Sun-Sat calendar week: real scores for days up to today, projected
+  // ("if this keeps up") scores for the rest of the week -- a likelihood that goes silent
+  // the moment it has to look forward isn't actually predicting anything.
   const startOfWeek = new Date(startOfToday);
   startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
 
@@ -86,11 +111,8 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, weightKg, now =
   for (let offset = 0; offset <= 6; offset++) {
     const d = new Date(startOfWeek);
     d.setDate(startOfWeek.getDate() + offset);
-    if (d.getTime() > startOfToday.getTime()) {
-      week.push({ date: d, isFuture: true });
-    } else {
-      week.push({ date: d, isFuture: false, ...scoreWindowEnding(d) });
-    }
+    const isFuture = d.getTime() > startOfToday.getTime();
+    week.push({ date: d, isFuture, isProjected: isFuture && !!recentPattern, ...scoreWindowEnding(d) });
   }
 
   const today = scoreWindowEnding(startOfToday);

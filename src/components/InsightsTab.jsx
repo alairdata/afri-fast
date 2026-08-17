@@ -729,14 +729,12 @@ const InsightsTab = ({
               <Text style={[styles.mutedBody, { marginTop: 6 }]}>{burnoutWhy}</Text>
               <View style={styles.burnoutWeekRow}>
                 {burnout.week.map((d, i) => {
-                  const dayColor = d.isFuture ? colors.border
-                    : d.score <= 25 ? accent : d.score <= 55 ? WARN : d.score <= 80 ? '#EA580C' : DANGER;
+                  const dayColor = d.score <= 25 ? accent : d.score <= 55 ? WARN : d.score <= 80 ? '#EA580C' : DANGER;
+                  const h = Math.max(10, Math.round((d.score / 100) * 56));
                   return (
                     <View key={i} style={styles.burnoutDayCol}>
-                      <Text style={[styles.burnoutDayScore, { color: d.isFuture ? colors.textMuted : dayColor }]}>
-                        {d.isFuture ? '--' : d.score}
-                      </Text>
-                      <View style={[styles.burnoutDayDot, { backgroundColor: dayColor }]} />
+                      <Text style={[styles.burnoutDayScore, { color: dayColor }]}>{d.score}</Text>
+                      <View style={[styles.burnoutBar, { height: h, backgroundColor: dayColor, opacity: d.isFuture ? 0.55 : 1 }]} />
                       <Text style={styles.axisLabel}>{dayLabel(d.date)}</Text>
                     </View>
                   );
@@ -887,10 +885,10 @@ const makeStyles = (colors) => StyleSheet.create({
   detailsBtnText: { color: colors.accentText, fontSize: 12.5, fontWeight: '700' },
   warnDot: { width: 22, height: 22, borderRadius: 7, backgroundColor: WARN, alignItems: 'center', justifyContent: 'center' },
   dismissBtn: { marginTop: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: '#FCE3CB', borderRadius: 11, paddingVertical: 10, alignItems: 'center' },
-  burnoutWeekRow: { flexDirection: 'row', gap: 4, marginTop: 14 },
-  burnoutDayCol: { flex: 1, alignItems: 'center', gap: 4 },
+  burnoutWeekRow: { flexDirection: 'row', gap: 6, alignItems: 'flex-end', marginTop: 16 },
+  burnoutDayCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
   burnoutDayScore: { fontSize: 12, fontWeight: '800' },
-  burnoutDayDot: { width: 8, height: 8, borderRadius: 4 },
+  burnoutBar: { width: '100%', borderRadius: 8 },
   progressTrack: { height: 10, backgroundColor: colors.cardAlt, borderRadius: 5, marginTop: 16, marginBottom: 8, overflow: 'visible' },
   progressFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 5 },
   planMarker: { position: 'absolute', top: -5, width: 2, height: 20, borderRadius: 1 },
