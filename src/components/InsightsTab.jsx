@@ -115,14 +115,26 @@ const InsightsTab = ({
     return !isNaN(h) && h > 0 ? toCm(h, heightUnit) : null;
   }, [height, heightUnit]);
 
-  // BMR — Mifflin-St Jeor
+  // Today's EWMA-smoothed weight — same alpha=0.3 recurrence as momentum.js, computed
+  // independently here (only depends on raw weight logs) so BMR/TDEE can react to it
+  // without waiting on the full momentum timeline. Mathematically identical to
+  // momentumTimeline's last entry, since the recurrence only advances on logged days either way.
+  const weightEwmaKg = useMemo(() => {
+    let ewma = null;
+    sortedWeights.forEach((w) => { ewma = ewma == null ? w.weightKg : 0.3 * w.weightKg + 0.7 * ewma; });
+    return ewma;
+  }, [sortedWeights]);
+
+  // BMR — Mifflin-St Jeor, recalculated off the smoothed *current* weight (not starting
+  // weight) so the calorie budget scales down as you actually lose weight, instead of going stale.
   const bmr = useMemo(() => {
-    if (!age || !sex || !heightCm || currentWeightKg == null) return null;
-    const base = 10 * currentWeightKg + 6.25 * heightCm - 5 * age;
+    const weightForBmr = weightEwmaKg != null ? weightEwmaKg : currentWeightKg;
+    if (!age || !sex || !heightCm || weightForBmr == null) return null;
+    const base = 10 * weightForBmr + 6.25 * heightCm - 5 * age;
     if (sex === 'Male') return base + 5;
     if (sex === 'Female') return base - 161;
     return base - 78; // unspecified — midpoint of the two offsets
-  }, [age, sex, heightCm, currentWeightKg]);
+  }, [age, sex, heightCm, weightEwmaKg, currentWeightKg]);
 
   const activityMultiplier = ACTIVITY_MULTIPLIERS[activityLevel] || ACTIVITY_MULTIPLIERS.light;
   const tdee = bmr != null ? bmr * activityMultiplier : null;
