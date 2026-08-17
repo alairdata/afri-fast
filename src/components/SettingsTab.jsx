@@ -60,6 +60,12 @@ const SettingsTab = ({
   sex, setSex,
   activityLevel, setActivityLevel,
   pacePreference, setPacePreference,
+  userGoal, setUserGoal,
+  struggles, setStruggles,
+  foodContext, setFoodContext,
+  cuisines, setCuisines,
+  motivations, setMotivations,
+  accountability, setAccountability,
   onBack,
 }) => {
   const { isDark, colors } = useTheme();
@@ -423,6 +429,152 @@ const SettingsTab = ({
                       onPress={() => setPacePreference(v)}
                     >
                       <Text style={pacePreference === v ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            {/* Your Goal */}
+            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Your Goal</Text>
+              <View style={styles.settingsItemBlock}>
+                <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>What brings you here?</Text>
+                </View>
+                <View style={styles.settingsMacroStyleControl}>
+                  {[
+                    { v: 'lose', t: 'Lose weight' },
+                    { v: 'eat', t: 'Eat better' },
+                    { v: 'consistent', t: 'Stay consistent' },
+                    { v: 'understand', t: 'Understand my body' },
+                  ].map(({ v, t }) => (
+                    <TouchableOpacity
+                      key={v}
+                      style={[styles.settingsMacroStyleOption, userGoal === v && styles.settingsMacroStyleOptionActive]}
+                      onPress={() => setUserGoal(v)}
+                    >
+                      <Text style={userGoal === v ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            {/* What You Struggle With */}
+            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>What You Struggle With</Text>
+              <View style={styles.settingsItemBlock}>
+                <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Pick as many as apply</Text>
+                </View>
+                <View style={styles.settingsMacroStyleControl}>
+                  {[
+                    { v: 'forget', t: 'I forget to track' },
+                    { v: 'local', t: "Don't know local food calories" },
+                    { v: 'motivation', t: 'I lose motivation' },
+                    { v: 'eatout', t: 'I eat out a lot' },
+                  ].map(({ v, t }) => (
+                    <TouchableOpacity
+                      key={v}
+                      style={[styles.settingsMacroStyleOption, (struggles || []).includes(v) && styles.settingsMacroStyleOptionActive]}
+                      onPress={() => setStruggles((struggles || []).includes(v) ? struggles.filter((x) => x !== v) : [...(struggles || []), v])}
+                    >
+                      <Text style={(struggles || []).includes(v) ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            {/* Food Context */}
+            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Food Context</Text>
+              <View style={styles.settingsItemBlock}>
+                <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Where does your food come from?</Text>
+                </View>
+                <View style={styles.settingsMacroStyleControl}>
+                  {[
+                    { v: 'home', t: 'Mostly home-cooked' },
+                    { v: 'out', t: 'Mostly bought / eating out' },
+                    { v: 'mix', t: 'A mix of both' },
+                  ].map(({ v, t }) => (
+                    <TouchableOpacity
+                      key={v}
+                      style={[styles.settingsMacroStyleOption, foodContext === v && styles.settingsMacroStyleOptionActive]}
+                      onPress={() => setFoodContext(v)}
+                    >
+                      <Text style={foodContext === v ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <View style={[styles.settingsItemBlock, { marginTop: 4 }]}>
+                <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Cuisines you cook/eat</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Pick as many as apply</Text>
+                </View>
+                <View style={styles.settingsMacroStyleControl}>
+                  {['Nigerian', 'Ghanaian', 'Kenyan', 'Swahili', 'Ethiopian', 'Senegalese', 'Continental', 'Fast food'].map((c) => (
+                    <TouchableOpacity
+                      key={c}
+                      style={[styles.settingsMacroStyleOption, (cuisines || []).includes(c) && styles.settingsMacroStyleOptionActive]}
+                      onPress={() => setCuisines((cuisines || []).includes(c) ? cuisines.filter((x) => x !== c) : [...(cuisines || []), c])}
+                    >
+                      <Text style={(cuisines || []).includes(c) ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>{c}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            {/* What's Motivating You */}
+            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>What's Motivating You</Text>
+              <View style={styles.settingsItemBlock}>
+                <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Pick as many as apply</Text>
+                </View>
+                <View style={styles.settingsMacroStyleControl}>
+                  {[
+                    { v: 'wedding', t: 'A big event' },
+                    { v: 'health', t: 'A health wake-up call' },
+                    { v: 'confident', t: 'To feel confident again' },
+                    { v: 'doctor', t: "Doctor's advice" },
+                    { v: 'curious', t: 'Just curious' },
+                  ].map(({ v, t }) => (
+                    <TouchableOpacity
+                      key={v}
+                      style={[styles.settingsMacroStyleOption, (motivations || []).includes(v) && styles.settingsMacroStyleOptionActive]}
+                      onPress={() => setMotivations((motivations || []).includes(v) ? motivations.filter((x) => x !== v) : [...(motivations || []), v])}
+                    >
+                      <Text style={(motivations || []).includes(v) ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            {/* Accountability Style */}
+            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Accountability Style</Text>
+              <View style={styles.settingsItemBlock}>
+                <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>How should we keep you on track?</Text>
+                </View>
+                <View style={styles.settingsMacroStyleControl}>
+                  {[
+                    { v: 'gentle', t: 'Gentle nudges' },
+                    { v: 'firm', t: 'Firm reminders' },
+                    { v: 'alone', t: 'Leave me alone' },
+                  ].map(({ v, t }) => (
+                    <TouchableOpacity
+                      key={v}
+                      style={[styles.settingsMacroStyleOption, accountability === v && styles.settingsMacroStyleOptionActive]}
+                      onPress={() => setAccountability(v)}
+                    >
+                      <Text style={accountability === v ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>{t}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>

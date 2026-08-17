@@ -278,6 +278,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [goalDate, setGoalDate] = useState(null);
   const [activityLevel, setActivityLevel] = useState(null);
   const [pacePreference, setPacePreference] = useState(null);
+  const [struggles, setStruggles] = useState([]);
+  const [foodContext, setFoodContext] = useState(null);
+  const [cuisines, setCuisines] = useState([]);
+  const [motivations, setMotivations] = useState([]);
+  const [accountability, setAccountability] = useState(null);
 
   // === Nutrition goals state ===
   const [dailyCalorieGoal, setDailyCalorieGoal] = useState(2000);
@@ -701,6 +706,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (s.goalDate) setGoalDate(s.goalDate);
         if (s.activityLevel) setActivityLevel(s.activityLevel);
         if (s.pacePreference) setPacePreference(s.pacePreference);
+        if (s.struggles?.length) setStruggles(s.struggles);
+        if (s.foodContext) setFoodContext(s.foodContext);
+        if (s.cuisines?.length) setCuisines(s.cuisines);
+        if (s.motivations?.length) setMotivations(s.motivations);
+        if (s.accountability) setAccountability(s.accountability);
       } catch (_) {}
     })();
   }, [session]);
@@ -715,10 +725,12 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
       hydrationGoal, startingWeight, targetWeight, userGoal,
       age, sex, goalDate, activityLevel, pacePreference,
+      struggles, foodContext, cuisines, motivations, accountability,
     })).catch(() => {});
   }, [userName, userCountry, height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
       dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
-      hydrationGoal, startingWeight, targetWeight, userGoal, session, age, sex, goalDate, activityLevel, pacePreference]);
+      hydrationGoal, startingWeight, targetWeight, userGoal, session, age, sex, goalDate, activityLevel, pacePreference,
+      struggles, foodContext, cuisines, motivations, accountability]);
 
   // Auto-detect country from IP if not set
   useEffect(() => {
@@ -737,7 +749,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch profile from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window, goal_history, goal_source, age, sex, goal_date, activity_level, step_goal, pace_preference').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window, goal_history, goal_source, age, sex, goal_date, activity_level, step_goal, pace_preference, struggles, food_context, cuisines, motivations, accountability').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -811,6 +823,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.activity_level) setActivityLevel(data.activity_level);
         if (data.step_goal != null) setStepGoal(data.step_goal);
         if (data.pace_preference) setPacePreference(data.pace_preference);
+        if (data.struggles?.length) setStruggles(data.struggles);
+        if (data.food_context) setFoodContext(data.food_context);
+        if (data.cuisines?.length) setCuisines(data.cuisines);
+        if (data.motivations?.length) setMotivations(data.motivations);
+        if (data.accountability) setAccountability(data.accountability);
         if (data.personality) setUserPersonality(data.personality);
         if (data.personality_updated_at) setPersonalityUpdatedAt(new Date(data.personality_updated_at));
         setDataLoadCount(prev => prev + 1);
@@ -1140,6 +1157,26 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (pendingPreAuthData.pace) {
           setPacePreference(pendingPreAuthData.pace);
           patch.pace_preference = pendingPreAuthData.pace;
+        }
+        if (pendingPreAuthData.struggles?.length) {
+          setStruggles(pendingPreAuthData.struggles);
+          patch.struggles = pendingPreAuthData.struggles;
+        }
+        if (pendingPreAuthData.foodContext) {
+          setFoodContext(pendingPreAuthData.foodContext);
+          patch.food_context = pendingPreAuthData.foodContext;
+        }
+        if (pendingPreAuthData.cuisines?.length) {
+          setCuisines(pendingPreAuthData.cuisines);
+          patch.cuisines = pendingPreAuthData.cuisines;
+        }
+        if (pendingPreAuthData.whys?.length) {
+          setMotivations(pendingPreAuthData.whys);
+          patch.motivations = pendingPreAuthData.whys;
+        }
+        if (pendingPreAuthData.accountability) {
+          setAccountability(pendingPreAuthData.accountability);
+          patch.accountability = pendingPreAuthData.accountability;
         }
 
         // Single upsert with all onboarding data
@@ -1887,6 +1924,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           setActivityLevel={(val) => { setActivityLevel(val); upsertProfile({ activity_level: val }, 'update activity_level'); }}
           pacePreference={pacePreference}
           setPacePreference={(val) => { setPacePreference(val); upsertProfile({ pace_preference: val }, 'update pace_preference'); }}
+          userGoal={userGoal}
+          setUserGoal={(val) => { setUserGoal(val); upsertProfile({ goal: val }, 'update goal'); }}
+          struggles={struggles}
+          setStruggles={(val) => { setStruggles(val); upsertProfile({ struggles: val }, 'update struggles'); }}
+          foodContext={foodContext}
+          setFoodContext={(val) => { setFoodContext(val); upsertProfile({ food_context: val }, 'update food_context'); }}
+          cuisines={cuisines}
+          setCuisines={(val) => { setCuisines(val); upsertProfile({ cuisines: val }, 'update cuisines'); }}
+          motivations={motivations}
+          setMotivations={(val) => { setMotivations(val); upsertProfile({ motivations: val }, 'update motivations'); }}
+          accountability={accountability}
+          setAccountability={(val) => { setAccountability(val); upsertProfile({ accountability: val }, 'update accountability'); }}
           weightUnit={weightUnit}
           setWeightUnit={(val) => { setWeightUnit(val); upsertProfile({ weight_unit: val }, 'update weight_unit'); }}
           foodMeasurement={foodMeasurement}

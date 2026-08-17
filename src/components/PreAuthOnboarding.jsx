@@ -1256,6 +1256,10 @@ function DoneScreen({ d, onComplete }) {
       activity: d.activity,
       eatingStyle: d.eatingStyle,
       accountability: d.accountability,
+      struggles: d.struggles,
+      foodContext: d.foodContext,
+      cuisines: d.cuisines,
+      whys: d.whys,
       goalDate,
     });
   };
