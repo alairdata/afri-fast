@@ -330,27 +330,41 @@ const InsightsTab = ({
   // confidence cone widens based on the same `confidence` score the Momentum engine uses.
   const chart = useMemo(() => {
     const W = 320, top = 10, bot = 100, padX = 16;
-    const last7Timeline = momentumTimeline.slice(-7);
-    const historySlots = last7Timeline.map((entry) => ({
-      label: dayLabel(entry.date),
-      actual: entry.hasWeighInToday ? fromKg(entry.weightEwmaKg, weightUnit) : null,
-    }));
 
-    const futureSlots = [];
+    // Fixed calendar week (Sun-Sat), not a rolling window — history for days up to today,
+    // projection for whatever's left of the week.
+    const nowDate = new Date(now);
+    const startOfToday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
+    const startOfWeek = new Date(startOfToday);
+    startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+
+    const timelineByDs = {};
+    momentumTimeline.forEach((entry) => { timelineByDs[entry.ds] = entry; });
+
     const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
-    if (anchorKg != null && estWeeklyRateFromDeficitKg != null) {
-      const dailyRateKg = estWeeklyRateFromDeficitKg / 7;
-      const confidence = today.confidence;
-      for (let i = 1; i <= 3; i++) {
-        const d = new Date(now + i * DAY_MS);
-        const projectedKg = anchorKg + dailyRateKg * i;
-        const marginKg = i * 0.15 * (2 - confidence);
+    const confidence = today.confidence;
+    const dailyRateKg = estWeeklyRateFromDeficitKg != null ? estWeeklyRateFromDeficitKg / 7 : null;
+
+    const data = [];
+    for (let offset = 0; offset <= 6; offset++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + offset);
+      const dayDiff = Math.round((d.getTime() - startOfToday.getTime()) / DAY_MS);
+      const label = dayLabel(d);
+
+      if (dayDiff <= 0) {
+        const entry = timelineByDs[d.toDateString()];
+        data.push({ label, actual: entry?.hasWeighInToday ? fromKg(entry.weightEwmaKg, weightUnit) : null });
+      } else if (anchorKg != null && dailyRateKg != null) {
+        const projectedKg = anchorKg + dailyRateKg * dayDiff;
+        const marginKg = dayDiff * 0.15 * (2 - confidence);
         const projected = fromKg(projectedKg, weightUnit);
         const margin = fromKg(marginKg, weightUnit);
-        futureSlots.push({ label: dayLabel(d), proj: projected, upper: projected + margin, lower: projected - margin });
+        data.push({ label, proj: projected, upper: projected + margin, lower: projected - margin });
+      } else {
+        data.push({ label });
       }
     }
-    const data = [...historySlots, ...futureSlots];
     const vals = [];
     data.forEach((p) => ['actual', 'proj', 'upper', 'lower'].forEach((k) => p[k] != null && vals.push(p[k])));
     if (vals.length < 2) return null;
