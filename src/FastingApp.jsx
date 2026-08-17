@@ -269,6 +269,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [age, setAge] = useState(null);
   const [sex, setSex] = useState(null);
   const [goalDate, setGoalDate] = useState(null);
+  const [activityLevel, setActivityLevel] = useState(null);
 
   // === Nutrition goals state ===
   const [dailyCalorieGoal, setDailyCalorieGoal] = useState(2000);
@@ -690,6 +691,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (s.age != null) setAge(s.age);
         if (s.sex) setSex(s.sex);
         if (s.goalDate) setGoalDate(s.goalDate);
+        if (s.activityLevel) setActivityLevel(s.activityLevel);
       } catch (_) {}
     })();
   }, [session]);
@@ -703,11 +705,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
       dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
       hydrationGoal, startingWeight, targetWeight, userGoal,
-      age, sex, goalDate,
+      age, sex, goalDate, activityLevel,
     })).catch(() => {});
   }, [userName, userCountry, height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
       dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
-      hydrationGoal, startingWeight, targetWeight, userGoal, session, age, sex, goalDate]);
+      hydrationGoal, startingWeight, targetWeight, userGoal, session, age, sex, goalDate, activityLevel]);
 
   // Auto-detect country from IP if not set
   useEffect(() => {
@@ -726,7 +728,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // Fetch profile from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window, goal_history, goal_source, age, sex, goal_date').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window, goal_history, goal_source, age, sex, goal_date, activity_level').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -797,6 +799,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (data.age != null) setAge(data.age);
         if (data.sex) setSex(data.sex);
         if (data.goal_date) setGoalDate(data.goal_date);
+        if (data.activity_level) setActivityLevel(data.activity_level);
         if (data.personality) setUserPersonality(data.personality);
         if (data.personality_updated_at) setPersonalityUpdatedAt(new Date(data.personality_updated_at));
         setDataLoadCount(prev => prev + 1);
@@ -1084,6 +1087,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (pendingPreAuthData.goalDate) {
           setGoalDate(pendingPreAuthData.goalDate);
           patch.goal_date = pendingPreAuthData.goalDate;
+        }
+        if (pendingPreAuthData.activity) {
+          setActivityLevel(pendingPreAuthData.activity);
+          patch.activity_level = pendingPreAuthData.activity;
         }
 
         // Single upsert with all onboarding data
@@ -1751,6 +1758,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           dailyCalorieGoal={dailyCalorieGoal}
           goalDate={goalDate}
           userJoinDate={userJoinDate}
+          age={age}
+          sex={sex}
+          height={height}
+          heightUnit={heightUnit}
+          activityLevel={activityLevel}
         />
       )}
 

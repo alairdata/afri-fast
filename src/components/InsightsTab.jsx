@@ -9,6 +9,12 @@ const WARN = '#F59E0B';
 const DANGER = '#EF4444';
 const WARN_BG = '#FFF7ED';
 const DANGER_BG = '#FEF2F2';
+const KCAL_PER_KG = 7700;
+const ACTIVITY_MULTIPLIERS = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 };
+
+const toKg = (w, unit) => (unit === 'lbs' ? w / 2.20462 : w);
+const fromKg = (kg, unit) => (unit === 'lbs' ? kg * 2.20462 : kg);
+const toCm = (h, unit) => (unit === 'ft' ? h * 30.48 : h);
 
 const smooth = (pts) => {
   if (!pts.length) return '';
@@ -65,6 +71,11 @@ const InsightsTab = ({
   dailyCalorieGoal = 2000,
   goalDate = null,
   userJoinDate = null,
+  age = null,
+  sex = null,
+  height = '',
+  heightUnit = 'cm',
+  activityLevel = null,
 }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -74,75 +85,54 @@ const InsightsTab = ({
 
   const now = Date.now();
 
-  // ── Weight history, sorted ──────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  // PROFILE & GOALS — one-time baseline
+  // ══════════════════════════════════════════════════════════════════════
+
   const sortedWeights = useMemo(() => {
     return (weightLogs || [])
-      .map((w) => ({ ...w, ts: w.timestamp || new Date(w.date).getTime() }))
+      .map((w) => ({ ...w, ts: w.timestamp || new Date(w.date).getTime(), weightKg: toKg(w.weight, weightUnit) }))
       .filter((w) => !isNaN(w.ts) && typeof w.weight === 'number')
       .sort((a, b) => a.ts - b.ts);
-  }, [weightLogs]);
+  }, [weightLogs, weightUnit]);
 
   const currentWeight = sortedWeights.length ? sortedWeights[sortedWeights.length - 1].weight : startingWeight;
+  const currentWeightKg = currentWeight != null ? toKg(currentWeight, weightUnit) : null;
+  const startingWeightKg = startingWeight != null ? toKg(startingWeight, weightUnit) : null;
+  const targetWeightKg = targetWeight != null ? toKg(targetWeight, weightUnit) : null;
   const goalIsLoss = targetWeight != null && startingWeight != null ? targetWeight <= startingWeight : true;
 
-  // Weekly rate of change (positive = moving toward goal), from last 14 days of logs (or all-time if sparse)
-  const weeklyRate = useMemo(() => {
-    const recent = sortedWeights.filter((w) => now - w.ts <= 14 * DAY_MS);
-    const basis = recent.length >= 2 ? recent : sortedWeights;
-    if (basis.length < 2) return null;
-    const f = basis[0], l = basis[basis.length - 1];
-    const weeksSpan = Math.max((l.ts - f.ts) / (7 * DAY_MS), 1 / 7);
-    const rawRate = (f.weight - l.weight) / weeksSpan; // positive = weight fell over time
-    return goalIsLoss ? rawRate : -rawRate;
-  }, [sortedWeights, goalIsLoss]);
+  const heightCm = useMemo(() => {
+    const h = parseFloat(height);
+    return !isNaN(h) && h > 0 ? toCm(h, heightUnit) : null;
+  }, [height, heightUnit]);
 
-  // ── Pace to goal ─────────────────────────────────────────────────────────
-  const pace = useMemo(() => {
-    if (targetWeight == null || startingWeight == null || currentWeight == null) return null;
-    const totalGap = Math.abs(startingWeight - targetWeight);
-    const togo = goalIsLoss ? currentWeight - targetWeight : targetWeight - currentWeight;
-    if (totalGap === 0) return null;
-    if (togo <= 0) return { done: true };
-    if (weeklyRate == null || weeklyRate <= 0.01) return { stalled: weeklyRate != null, insufficientData: weeklyRate == null, togo };
+  // BMR — Mifflin-St Jeor
+  const bmr = useMemo(() => {
+    if (!age || !sex || !heightCm || currentWeightKg == null) return null;
+    const base = 10 * currentWeightKg + 6.25 * heightCm - 5 * age;
+    if (sex === 'Male') return base + 5;
+    if (sex === 'Female') return base - 161;
+    return base - 78; // unspecified — midpoint of the two offsets
+  }, [age, sex, heightCm, currentWeightKg]);
 
-    const weeksLeft = Math.ceil(togo / weeklyRate);
-    const eta = new Date(now + weeksLeft * 7 * DAY_MS);
-    const lost = Math.abs(startingWeight - currentWeight);
-    const pct = Math.min(100, Math.round((lost / totalGap) * 100));
+  const activityMultiplier = ACTIVITY_MULTIPLIERS[activityLevel] || ACTIVITY_MULTIPLIERS.light;
+  const tdee = bmr != null ? bmr * activityMultiplier : null;
 
-    let plannedWeeklyRate = null, planPct = null, label = null, labelColor = accent, labelBg = colors.accentLight, note = null;
-    if (goalDate && userJoinDate) {
-      const startTs = new Date(userJoinDate).getTime();
-      const goalTs = new Date(goalDate).getTime();
-      if (!isNaN(startTs) && !isNaN(goalTs) && goalTs > startTs) {
-        const plannedWeeksTotal = Math.max((goalTs - startTs) / (7 * DAY_MS), 1 / 7);
-        plannedWeeklyRate = totalGap / plannedWeeksTotal;
-        planPct = Math.min(100, Math.round(((now - startTs) / (goalTs - startTs)) * 100));
+  // Required Weekly Rate (kg/week, negative = need to lose)
+  const requiredWeeklyRateKg = useMemo(() => {
+    if (targetWeightKg == null || startingWeightKg == null || !goalDate || !userJoinDate) return null;
+    const startTs = new Date(userJoinDate).getTime();
+    const goalTs = new Date(goalDate).getTime();
+    if (isNaN(startTs) || isNaN(goalTs) || goalTs <= startTs) return null;
+    const weeks = (goalTs - startTs) / (7 * DAY_MS);
+    return (targetWeightKg - startingWeightKg) / weeks;
+  }, [targetWeightKg, startingWeightKg, goalDate, userJoinDate]);
 
-        // Where the original plan expects you to be today, vs where you actually are
-        const weeksElapsed = Math.max((now - startTs) / (7 * DAY_MS), 0);
-        const expectedLost = plannedWeeklyRate * weeksElapsed;
-        const daysAhead = Math.round(((lost - expectedLost) / (weeklyRate / 7)));
-        const behind = daysAhead <= -2;
-        const ahead = daysAhead >= 2;
-        const weeksLate = Math.round((weeksElapsed + weeksLeft) - plannedWeeksTotal);
-        const sign = goalIsLoss ? '-' : '+';
+  // ══════════════════════════════════════════════════════════════════════
+  // DAILY CALCULATIONS — recomputed from the log every render
+  // ══════════════════════════════════════════════════════════════════════
 
-        label = behind ? `${Math.abs(daysAhead)} days behind` : ahead ? `${daysAhead} days ahead` : 'On plan';
-        labelColor = behind ? '#C25A11' : accent;
-        labelBg = behind ? WARN_BG : colors.accentLight;
-        note = behind
-          ? `At ${sign}${weeklyRate.toFixed(2)} kg/week you'll get there in ${weeksLeft} weeks — about ${Math.abs(weeksLate)} week${Math.abs(weeksLate) === 1 ? '' : 's'} later than planned. Back at ${sign}${plannedWeeklyRate.toFixed(2)} you'd finish around ${fmtShort(new Date(goalDate))}.`
-          : ahead
-            ? `${weeksLeft} weeks left at this pace, about ${daysAhead} days ahead of where your plan expected you to be today.`
-            : `${weeksLeft} weeks left at this pace — right on track with your original plan.`;
-      }
-    }
-
-    return { weeksLeft, eta, pct, planPct, lost, togo, weeklyRate, plannedWeeklyRate, label, labelColor, labelBg, note };
-  }, [startingWeight, targetWeight, currentWeight, weeklyRate, goalIsLoss, goalDate, userJoinDate, accent, colors.accentLight]);
-
-  // ── Daily calorie totals for last 7 days ────────────────────────────────
   const last7 = useMemo(() => {
     const days = [];
     for (let i = 6; i >= 0; i--) {
@@ -155,36 +145,158 @@ const InsightsTab = ({
   }, [recentMeals, now]);
 
   const loggedDays = last7.filter((d) => d.total > 0);
-  const goalHitDays = loggedDays.filter((d) => d.total <= dailyCalorieGoal * 1.15).length;
-  const spikeDays = loggedDays.filter((d) => d.total > dailyCalorieGoal * 1.5);
-  const crashDays = loggedDays.filter((d) => d.total > 0 && d.total < dailyCalorieGoal * 0.5);
   const missingDays = 7 - loggedDays.length;
+  const todayCalories = last7[last7.length - 1]?.total || 0;
+  const deficitToday = tdee != null ? tdee - todayCalories : null; // positive = deficit, negative = surplus
 
-  // ── Momentum score ──────────────────────────────────────────────────────
+  // 7 / 14-day rolling average weigh-in (by log count, not calendar days)
+  const avgWeightKg = (n) => {
+    const logs = sortedWeights.slice(-n);
+    if (!logs.length) return null;
+    return logs.reduce((s, w) => s + w.weightKg, 0) / logs.length;
+  };
+  const avg7Kg = useMemo(() => avgWeightKg(7), [sortedWeights]);
+  const avg14Kg = useMemo(() => avgWeightKg(14), [sortedWeights]);
+
+  // Weekly Weight Change (observed trajectory) — this week's 7-log avg vs the 7 before it
+  const weeklyWeightChangeKg = useMemo(() => {
+    const n = sortedWeights.length;
+    if (n < 4) return null;
+    const thisWeek = sortedWeights.slice(-7);
+    const priorWeek = sortedWeights.slice(Math.max(0, n - 14), Math.max(0, n - 7));
+    if (!priorWeek.length) return null;
+    const avgThis = thisWeek.reduce((s, w) => s + w.weightKg, 0) / thisWeek.length;
+    const avgPrior = priorWeek.reduce((s, w) => s + w.weightKg, 0) / priorWeek.length;
+    return avgThis - avgPrior;
+  }, [sortedWeights]);
+
+  // Est. Weekly Rate from Deficit — average daily deficit over logged days this week, annualized to a week
+  const avgDailyDeficit = useMemo(() => {
+    if (tdee == null) return null;
+    const logged = last7.filter((d) => d.total > 0);
+    if (!logged.length) return null;
+    return logged.reduce((s, d) => s + (tdee - d.total), 0) / logged.length;
+  }, [last7, tdee]);
+  const estWeeklyRateFromDeficitKg = avgDailyDeficit != null ? -(avgDailyDeficit * 7) / KCAL_PER_KG : null;
+
+  // Deviation vs Required Pace — positive = behind pace, negative = ahead
+  const deviationKg = (weeklyWeightChangeKg != null && requiredWeeklyRateKg != null)
+    ? weeklyWeightChangeKg - requiredWeeklyRateKg
+    : null;
+
+  // Calorie Adherence % — symmetric closeness to daily target, averaged over logged days this week
+  const calorieAdherence = useMemo(() => {
+    if (!dailyCalorieGoal) return null;
+    const logged = last7.filter((d) => d.total > 0);
+    if (!logged.length) return null;
+    const ratios = logged.map((d) => Math.min(d.total, dailyCalorieGoal) / Math.max(d.total, dailyCalorieGoal));
+    return ratios.reduce((a, b) => a + b, 0) / ratios.length;
+  }, [last7, dailyCalorieGoal]);
+
+  const loggingConsistency = loggedDays.length / 7;
+
+  const paceComponent = (deviationKg != null && requiredWeeklyRateKg)
+    ? Math.max(0, Math.min(1, 1 - Math.abs(deviationKg) / Math.abs(requiredWeeklyRateKg)))
+    : null;
+
+  // Momentum Score — spec is 35% Calorie Adherence + 35% Pace + 15% Step Adherence + 15% Logging Consistency.
+  // Step tracking doesn't exist in the app yet, so that 15% is dropped and redistributed
+  // proportionally (41% / 41% / 18%) until activity logging ships.
   const momentumScore = useMemo(() => {
-    const goalHitRate = goalHitDays / 7;
-    let paceScoreVal = null;
-    if (pace?.done) {
-      paceScoreVal = 100;
-    } else if (pace?.stalled) {
-      paceScoreVal = 0;
-    } else if (pace && !pace.insufficientData && pace.weeklyRate != null) {
-      paceScoreVal = pace.plannedWeeklyRate
-        ? Math.max(0, Math.min(1, pace.weeklyRate / pace.plannedWeeklyRate)) * 100
-        : 100; // making any real progress with no plan to compare against — full credit
-    }
-    const score = paceScoreVal != null
-      ? Math.round(goalHitRate * 100 * 0.6 + paceScoreVal * 0.4)
-      : Math.round(goalHitRate * 100);
-    return Math.max(0, Math.min(100, score));
-  }, [goalHitDays, pace]);
+    const parts = [];
+    if (calorieAdherence != null) parts.push({ w: 41, v: calorieAdherence * 100 });
+    if (paceComponent != null) parts.push({ w: 41, v: paceComponent * 100 });
+    parts.push({ w: 18, v: loggingConsistency * 100 });
+    const totalW = parts.reduce((s, p) => s + p.w, 0);
+    const score = parts.reduce((s, p) => s + p.v * (p.w / totalW), 0);
+    return Math.max(0, Math.min(100, Math.round(score)));
+  }, [calorieAdherence, paceComponent, loggingConsistency]);
 
   const gauge = useMemo(() => buildGauge(momentumScore, accent), [momentumScore, accent]);
   const momentumLabel = momentumScore >= 85 ? 'Optimal' : momentumScore >= 70 ? 'Strong' : momentumScore >= 40 ? 'Getting there' : 'Needs work';
   const momentumColor = momentumScore >= 70 ? accent : momentumScore >= 40 ? WARN : DANGER;
   const momentumBg = momentumScore >= 70 ? colors.accentLight : momentumScore >= 40 ? WARN_BG : DANGER_BG;
 
-  // ── Burnout likelihood (calorie-swing heuristic) ─────────────────────────
+  // Trajectory Status — bucketed off Deviation relative to Required Rate
+  const trajectory = useMemo(() => {
+    if (deviationKg == null || !requiredWeeklyRateKg) return null;
+    const ratio = deviationKg / Math.abs(requiredWeeklyRateKg);
+    if (ratio <= -0.001) return { label: 'Ahead of Pace', color: accent, bg: colors.accentLight };
+    if (ratio <= 0.10) return { label: 'On Track', color: accent, bg: colors.accentLight };
+    if (ratio <= 0.30) return { label: 'Drifting', color: WARN, bg: WARN_BG };
+    return { label: 'Stalled', color: DANGER, bg: DANGER_BG };
+  }, [deviationKg, requiredWeeklyRateKg, accent, colors.accentLight]);
+
+  // ══════════════════════════════════════════════════════════════════════
+  // DASHBOARD — forecast layer
+  // ══════════════════════════════════════════════════════════════════════
+
+  const projected7Kg = currentWeightKg != null && weeklyWeightChangeKg != null ? currentWeightKg + weeklyWeightChangeKg * 1 : null;
+  const projected14Kg = currentWeightKg != null && weeklyWeightChangeKg != null ? currentWeightKg + weeklyWeightChangeKg * 2 : null;
+
+  const projectedGoalDate = useMemo(() => {
+    if (currentWeightKg == null || targetWeightKg == null || !weeklyWeightChangeKg) return null;
+    const remainingKg = targetWeightKg - currentWeightKg;
+    if ((remainingKg < 0 && weeklyWeightChangeKg >= 0) || (remainingKg > 0 && weeklyWeightChangeKg <= 0)) return null;
+    const weeksNeeded = remainingKg / weeklyWeightChangeKg;
+    if (!isFinite(weeksNeeded) || weeksNeeded <= 0) return null;
+    return new Date(now + weeksNeeded * 7 * DAY_MS);
+  }, [currentWeightKg, targetWeightKg, weeklyWeightChangeKg, now]);
+
+  const confidence = loggingConsistency >= 0.85 ? 'High' : loggingConsistency >= 0.5 ? 'Medium' : 'Low';
+  const confidenceColor = confidence === 'High' ? accent : confidence === 'Medium' ? WARN : DANGER;
+  const confidenceBg = confidence === 'High' ? colors.accentLight : confidence === 'Medium' ? WARN_BG : DANGER_BG;
+
+  // Pace-to-goal card display (converts everything back to the user's own unit)
+  const pace = useMemo(() => {
+    if (startingWeightKg == null || targetWeightKg == null || currentWeightKg == null) return null;
+    const totalGapKg = Math.abs(startingWeightKg - targetWeightKg);
+    if (totalGapKg < 0.05) return null;
+    const togoKg = Math.abs(targetWeightKg - currentWeightKg);
+    if (togoKg < 0.05) return { done: true };
+    if (weeklyWeightChangeKg == null) return { insufficientData: true };
+
+    const lostKg = Math.abs(currentWeightKg - startingWeightKg);
+    const pct = Math.min(100, Math.round((lostKg / totalGapKg) * 100));
+    let planPct = null;
+    if (goalDate && userJoinDate) {
+      const startTs = new Date(userJoinDate).getTime();
+      const goalTs = new Date(goalDate).getTime();
+      if (!isNaN(startTs) && !isNaN(goalTs) && goalTs > startTs) {
+        planPct = Math.min(100, Math.round(((now - startTs) / (goalTs - startTs)) * 100));
+      }
+    }
+
+    let note = null;
+    if (trajectory && requiredWeeklyRateKg) {
+      const sign = requiredWeeklyRateKg < 0 ? '-' : '+';
+      const observedRate = fromKg(Math.abs(weeklyWeightChangeKg), weightUnit);
+      const requiredRate = fromKg(Math.abs(requiredWeeklyRateKg), weightUnit);
+      if (trajectory.label === 'Stalled' || trajectory.label === 'Drifting') {
+        note = `You're averaging ${sign}${observedRate.toFixed(2)} ${weightUnit}/week against a required ${sign}${requiredRate.toFixed(2)} ${weightUnit}/week to hit your goal date.${projectedGoalDate ? ` At this pace you'd land around ${fmtShort(projectedGoalDate)}.` : " At this pace it's not clear you'll reach your goal — worth revisiting your target."}`;
+      } else if (trajectory.label === 'Ahead of Pace') {
+        note = `You're averaging ${sign}${observedRate.toFixed(2)} ${weightUnit}/week, ahead of the ${sign}${requiredRate.toFixed(2)} ${weightUnit}/week you need.${projectedGoalDate ? ` On track to finish around ${fmtShort(projectedGoalDate)}, ahead of schedule.` : ''}`;
+      } else {
+        note = `Right on your required pace of ${sign}${requiredRate.toFixed(2)} ${weightUnit}/week.${projectedGoalDate ? ` Keep this up and you'll land around ${fmtShort(projectedGoalDate)}.` : ''}`;
+      }
+    }
+
+    return {
+      eta: projectedGoalDate,
+      pct, planPct, note,
+      lost: fromKg(lostKg, weightUnit),
+      togo: fromKg(togoKg, weightUnit),
+      weeklyRate: fromKg(Math.abs(weeklyWeightChangeKg), weightUnit),
+    };
+  }, [startingWeightKg, targetWeightKg, currentWeightKg, weeklyWeightChangeKg, goalDate, userJoinDate, trajectory, requiredWeeklyRateKg, projectedGoalDate, weightUnit, now]);
+
+  // ══════════════════════════════════════════════════════════════════════
+  // Supporting cards (calorie-swing guardrail, burnout heuristic, streaks)
+  // ══════════════════════════════════════════════════════════════════════
+
+  const spikeDays = loggedDays.filter((d) => d.total > dailyCalorieGoal * 1.5);
+  const crashDays = loggedDays.filter((d) => d.total > 0 && d.total < dailyCalorieGoal * 0.5);
+
   const burnoutScore = Math.max(0, Math.min(100, spikeDays.length * 18 + crashDays.length * 12 + missingDays * 8));
   const burnoutLabel = burnoutScore >= 70 ? 'High risk' : burnoutScore >= 45 ? 'Watch it' : 'Sustainable';
   const burnoutColor = burnoutScore >= 70 ? DANGER : burnoutScore >= 45 ? WARN : accent;
@@ -199,8 +311,6 @@ const InsightsTab = ({
           ? `Your calories have stayed close to ${dailyCalorieGoal.toLocaleString()} kcal all week — steady like this is sustainable.`
           : 'Set a daily calorie goal to track consistency here.';
 
-  // Next-week forecast: weight the last 3 days more heavily than the full week —
-  // a real (if simple) trend signal, not a guess.
   const nextBurnout = useMemo(() => {
     if (!dailyCalorieGoal) return null;
     const recent = last7.slice(-3);
@@ -222,7 +332,6 @@ const InsightsTab = ({
     return { score: nextScore, label, color, bg, note };
   }, [last7, burnoutScore, dailyCalorieGoal, accent, colors.accentLight]);
 
-  // ── This-week trend + short projection chart ────────────────────────────
   const chart = useMemo(() => {
     const W = 320, top = 10, bot = 100, padX = 16;
     const historySlots = last7.map((d) => {
@@ -230,11 +339,11 @@ const InsightsTab = ({
       return { label: dayLabel(d.date), actual: log ? log.weight : null };
     });
     const futureSlots = [];
-    if (currentWeight != null && weeklyRate != null) {
-      const dailyRate = weeklyRate / 7;
+    if (currentWeight != null && weeklyWeightChangeKg != null) {
+      const dailyRateDisplay = fromKg(weeklyWeightChangeKg, weightUnit) / 7;
       for (let i = 1; i <= 3; i++) {
         const d = new Date(now + i * DAY_MS);
-        const projected = currentWeight - (goalIsLoss ? dailyRate * i : -dailyRate * i);
+        const projected = currentWeight + dailyRateDisplay * i;
         const margin = 0.08 * i;
         futureSlots.push({ label: dayLabel(d), proj: projected, upper: projected + margin, lower: projected - margin });
       }
@@ -255,15 +364,10 @@ const InsightsTab = ({
       else if (p.proj != null) dots.push({ cx: x(i), cy: y(p.proj), fill: colors.card, stroke: accent });
     });
     return { actual: smooth(pts('actual')), proj: smooth(pts('proj')), band, dots, labels: data.map((p) => p.label) };
-  }, [last7, sortedWeights, currentWeight, weeklyRate, goalIsLoss, accent, colors.card, now]);
+  }, [last7, sortedWeights, currentWeight, weeklyWeightChangeKg, accent, colors.card, now, weightUnit]);
 
-  const weekWeightChange = useMemo(() => {
-    const weekAgoLog = sortedWeights.filter((w) => now - w.ts <= 7 * DAY_MS)[0];
-    if (!weekAgoLog || currentWeight == null) return null;
-    return currentWeight - weekAgoLog.weight;
-  }, [sortedWeights, currentWeight, now]);
+  const weekWeightChange = weeklyWeightChangeKg != null ? fromKg(weeklyWeightChangeKg, weightUnit) : null;
 
-  // ── Guardrail: biggest single-day swing this week ───────────────────────
   const guardrail = useMemo(() => {
     if (loggedDays.length < 3 || !dailyCalorieGoal) return null;
     const maxDay = loggedDays.reduce((a, b) => (b.total > a.total ? b : a), loggedDays[0]);
@@ -280,7 +384,6 @@ const InsightsTab = ({
     return null;
   }, [loggedDays, dailyCalorieGoal]);
 
-  // ── 6-week consistency strip ─────────────────────────────────────────────
   const weeklyHitRates = useMemo(() => {
     const weeks = [];
     for (let w = 5; w >= 0; w--) {
@@ -298,7 +401,6 @@ const InsightsTab = ({
     return weeks;
   }, [recentMeals, dailyCalorieGoal, now]);
 
-  // ── Weekday with the worst average overage (for Details) ────────────────
   const worstWeekday = useMemo(() => {
     if (!dailyCalorieGoal) return null;
     const byWeekday = Array.from({ length: 7 }, () => ({ sum: 0, count: 0 }));
@@ -372,6 +474,11 @@ const InsightsTab = ({
               <View style={[styles.pill, { backgroundColor: momentumBg }]}>
                 <Text style={[styles.pillText, { color: momentumColor }]}>{momentumLabel}</Text>
               </View>
+              <Text style={styles.mutedSmall}>
+                Calories {calorieAdherence != null ? Math.round(calorieAdherence * 100) : '--'}%
+                {'  ·  '}Pace {paceComponent != null ? Math.round(paceComponent * 100) : '--'}%
+                {'  ·  '}Logging {Math.round(loggingConsistency * 100)}%
+              </Text>
               {weeklyHitRates.some((w) => w != null) && (
                 <>
                   <View style={{ flexDirection: 'row', gap: 5, marginTop: 14 }}>
@@ -384,6 +491,36 @@ const InsightsTab = ({
               )}
             </View>
 
+            {/* Energy balance */}
+            <View style={styles.card}>
+              <Text style={styles.kicker}>ENERGY BALANCE</Text>
+              {tdee != null ? (
+                <>
+                  <View style={styles.statsRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.statLabel}>TDEE</Text>
+                      <Text style={styles.statValue}>{Math.round(tdee).toLocaleString()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.statLabel}>TODAY</Text>
+                      <Text style={styles.statValue}>{Math.round(todayCalories).toLocaleString()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.statLabel}>{deficitToday >= 0 ? 'DEFICIT' : 'SURPLUS'}</Text>
+                      <Text style={[styles.statValue, { color: deficitToday >= 0 ? accent : DANGER }]}>{Math.round(Math.abs(deficitToday)).toLocaleString()}</Text>
+                    </View>
+                  </View>
+                  {estWeeklyRateFromDeficitKg != null && (
+                    <Text style={[styles.mutedBody, { marginTop: 10 }]}>
+                      At this week's average intake, your calories alone predict about {estWeeklyRateFromDeficitKg <= 0 ? '-' : '+'}{Math.abs(fromKg(estWeeklyRateFromDeficitKg, weightUnit)).toFixed(2)} {weightUnit}/week.
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <Text style={styles.mutedBody}>Add your age, sex, height, and activity level in Settings to see your energy balance (BMR/TDEE) here.</Text>
+              )}
+            </View>
+
             {/* This week trend */}
             {chart && (
               <View style={styles.card}>
@@ -392,9 +529,14 @@ const InsightsTab = ({
                     <Text style={styles.kicker}>WEIGHT TREND</Text>
                     <Text style={styles.bigStat}>
                       {weekWeightChange != null ? `${weekWeightChange > 0 ? '+' : ''}${weekWeightChange.toFixed(1)} ${weightUnit}` : '--'}
-                      <Text style={styles.bigStatSub}> past 7 days</Text>
+                      <Text style={styles.bigStatSub}> vs prior week</Text>
                     </Text>
                   </View>
+                  {trajectory && (
+                    <View style={[styles.pill, { backgroundColor: trajectory.bg }]}>
+                      <Text style={[styles.pillText, { color: trajectory.color }]}>{trajectory.label}</Text>
+                    </View>
+                  )}
                 </View>
                 <Svg width="100%" height={104} viewBox="0 0 320 104" preserveAspectRatio="none" style={{ marginTop: 8 }}>
                   {!!chart.band && <Path d={chart.band} fill={accent} fillOpacity={0.1} />}
@@ -417,6 +559,33 @@ const InsightsTab = ({
               </View>
             )}
 
+            {/* Forecast */}
+            {(projected7Kg != null || projectedGoalDate) && (
+              <View style={styles.card}>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.kicker}>FORECAST</Text>
+                  <View style={[styles.pill, { backgroundColor: confidenceBg }]}>
+                    <Text style={[styles.pillText, { color: confidenceColor }]}>{confidence} confidence</Text>
+                  </View>
+                </View>
+                <View style={[styles.statsRow, { marginTop: 10 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.statLabel}>IN 7 DAYS</Text>
+                    <Text style={styles.statValue}>{projected7Kg != null ? `${fromKg(projected7Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.statLabel}>IN 14 DAYS</Text>
+                    <Text style={styles.statValue}>{projected14Kg != null ? `${fromKg(projected14Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.statLabel}>GOAL DATE</Text>
+                    <Text style={styles.statValue}>{projectedGoalDate ? fmtShort(projectedGoalDate) : '--'}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.mutedSmall, { marginTop: 10 }]}>Confidence is based on how consistently you've logged this week — {Math.round(loggingConsistency * 100)}% of days.</Text>
+              </View>
+            )}
+
             {/* Guardrail */}
             {guardrail && !guardrailDismissed && (
               <View style={[styles.card, { backgroundColor: WARN_BG, borderColor: '#FCE3CB' }]}>
@@ -431,7 +600,7 @@ const InsightsTab = ({
               </View>
             )}
 
-            {/* Risk / consistency */}
+            {/* Burnout likelihood */}
             <View style={styles.card}>
               <View style={styles.rowBetween}>
                 <View>
@@ -471,18 +640,13 @@ const InsightsTab = ({
             </View>
 
             {/* Pace to goal */}
-            {pace && !pace.done && !pace.stalled && !pace.insufficientData && (
+            {pace && !pace.done && !pace.insufficientData && (
               <View style={styles.card}>
                 <View style={styles.rowBetween}>
                   <View>
                     <Text style={styles.kicker}>PACE TO GOAL</Text>
-                    <Text style={styles.bigStat}>{fmtShort(pace.eta)}<Text style={styles.bigStatSub}> at this pace</Text></Text>
+                    <Text style={styles.bigStat}>{pace.eta ? fmtShort(pace.eta) : '--'}<Text style={styles.bigStatSub}> at this pace</Text></Text>
                   </View>
-                  {pace.label && (
-                    <View style={[styles.pill, { backgroundColor: pace.labelBg }]}>
-                      <Text style={[styles.pillText, { color: pace.labelColor }]}>{pace.label}</Text>
-                    </View>
-                  )}
                 </View>
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: `${pace.pct}%`, backgroundColor: accent }]} />
@@ -515,11 +679,6 @@ const InsightsTab = ({
             {pace?.insufficientData && (
               <View style={styles.card}>
                 <Text style={styles.mutedBody}>Log a few more weigh-ins over the next week or two and your pace-to-goal will show up here.</Text>
-              </View>
-            )}
-            {pace?.stalled && (
-              <View style={styles.card}>
-                <Text style={styles.mutedBody}>Your weight hasn't moved toward your goal over the last couple of weeks — worth a look at your calorie target.</Text>
               </View>
             )}
             {pace?.done && (
