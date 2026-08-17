@@ -9,6 +9,23 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const lerp = (v, x0, y0, x1, y1) => y0 + ((clamp(v, x0, x1) - x0) / (x1 - x0)) * (y1 - y0);
 
+// Used only when a day has zero explicit fiber logged, to avoid treating "wasn't tracked"
+// the same as "definitely ate none" -- checked against that day's logged food/ingredient names.
+const FIBER_FOOD_KEYWORDS = [
+  'yam', 'potato', 'potatoes', 'oat', 'oats', 'oatmeal', 'bean', 'beans', 'lentil', 'lentils',
+  'plantain', 'cassava', 'garri', 'fufu', 'moimoi', 'okra', 'bread', 'brown rice', 'apple',
+  'banana', 'berries', 'berry', 'chia', 'vegetable', 'vegetables', 'salad', 'spinach',
+  'broccoli', 'nuts', 'groundnut', 'groundnuts', 'fruit', 'orange', 'avocado',
+];
+// Scales with how many distinct high-fiber items were found, not a flat guess -- one
+// mention (e.g. "banana") shouldn't credit the same as a plate that's actually beans + yam.
+const inferredFiberCredit = (names) => {
+  const text = names.join(' ');
+  const matches = FIBER_FOOD_KEYWORDS.filter((k) => text.includes(k)).length;
+  if (!matches) return { credit: 0, known: false };
+  return { credit: clamp(10 + (matches - 1) * 6, 10, 25), known: true };
+};
+
 function bandFor(score) {
   if (score <= 25) return { label: 'Low Risk', tone: 'good' };
   if (score <= 55) return { label: 'Moderate Risk', tone: 'warn' };
@@ -23,19 +40,27 @@ function bandFor(score) {
  * @param now - epoch ms
  */
 export function computeBurnoutTimeline({ recentMeals = [], tdee, weightKg, now = Date.now() }) {
+  const EMPTY_DAY = { calories: 0, protein: 0, fats: 0, fiber: 0, foods: [], hasExplicitFiber: false };
+
   const mealsByDate = {};
   recentMeals.forEach((m) => {
     if (!m.date) return;
-    if (!mealsByDate[m.date]) mealsByDate[m.date] = { calories: 0, protein: 0, fats: 0, fiber: 0, foods: [] };
+    if (!mealsByDate[m.date]) mealsByDate[m.date] = { ...EMPTY_DAY, foods: [] };
     const d = mealsByDate[m.date];
     d.calories += m.calories || 0;
     d.protein += m.protein || 0;
     d.fats += m.fats || 0;
     d.fiber += m.fiber || 0;
-    if (Array.isArray(m.foods)) d.foods.push(...m.foods.map((f) => (f?.name || '').trim().toLowerCase()).filter(Boolean));
+    if (m.fiber > 0) d.hasExplicitFiber = true;
+    // Prefer the per-item foods array; recipe-logged meals don't have one, only an
+    // `items` string list -- fall back to that so they still count toward variety/fiber inference.
+    const names = Array.isArray(m.foods) && m.foods.length
+      ? m.foods.map((f) => (f?.name || '').trim().toLowerCase())
+      : Array.isArray(m.items) ? m.items.map((i) => String(i || '').trim().toLowerCase()) : [];
+    d.foods.push(...names.filter(Boolean));
   });
 
-  const dayTotals = (ds) => mealsByDate[ds] || { calories: 0, protein: 0, fats: 0, fiber: 0, foods: [] };
+  const dayTotals = (ds) => mealsByDate[ds] || EMPTY_DAY;
 
   const nowDate = new Date(now);
   const startOfToday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
@@ -85,12 +110,26 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, weightKg, now =
     const uniqueFoods = new Set(days.flatMap((d) => d.foods));
     const monotonyPts = uniqueFoods.size < 5 ? 25 : uniqueFoods.size <= 10 ? 12 : 0;
 
-    // 3. Satiety & Volume Deficit (max 25) — protein g/kg + fiber g/day, averaged over logged days
+    // 3. Satiety & Volume Deficit (max 25) — protein g/kg + fiber g/day, averaged over logged days.
+    // Fiber per day: explicit sum if any meal logged it, else inferred credit if that day's
+    // foods include known high-fiber ingredients, else "unknown" (not "zero"). If not a single
+    // logged day this week has any fiber signal at all, drop fiber from the check entirely and
+    // score satiety on protein alone -- untracked isn't the same as "ate none."
     let satietyPts = 0;
     if (loggedDays.length && weightKg) {
       const avgProteinPerKg = loggedDays.reduce((s, d) => s + d.protein, 0) / loggedDays.length / weightKg;
-      const avgFiber = loggedDays.reduce((s, d) => s + d.fiber, 0) / loggedDays.length;
-      satietyPts = (avgProteinPerKg < 1.2 || avgFiber < 15) ? 25 : avgProteinPerKg < 1.6 ? 10 : 0;
+      const fiberByDay = loggedDays.map((d) => {
+        if (d.hasExplicitFiber) return { value: d.fiber, known: true };
+        const inferred = inferredFiberCredit(d.foods);
+        return { value: inferred.credit, known: inferred.known };
+      });
+      const anyFiberSignal = fiberByDay.some((f) => f.known);
+      if (!anyFiberSignal) {
+        satietyPts = avgProteinPerKg < 1.2 ? 25 : avgProteinPerKg < 1.6 ? 10 : 0;
+      } else {
+        const avgFiber = fiberByDay.reduce((s, f) => s + f.value, 0) / fiberByDay.length;
+        satietyPts = (avgProteinPerKg < 1.2 || avgFiber < 15) ? 25 : avgProteinPerKg < 1.6 ? 10 : 0;
+      }
     }
 
     // 4. Low-Fat / Hormonal Strain (max 15) — 3+ days this week under 20% of calories from fat
