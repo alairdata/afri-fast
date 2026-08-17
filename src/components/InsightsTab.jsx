@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
@@ -85,6 +85,9 @@ const InsightsTab = ({
   const styles = makeStyles(colors);
   const [view, setView] = useState('main');
   const [guardrailDismissed, setGuardrailDismissed] = useState(false);
+  const [chartTooltip, setChartTooltip] = useState(null);
+
+  useEffect(() => { if (!chartTooltip) return; const t = setTimeout(() => setChartTooltip(null), 4000); return () => clearTimeout(t); }, [chartTooltip]);
   const accent = colors.accent;
 
   const now = Date.now();
@@ -390,7 +393,14 @@ const InsightsTab = ({
       if (p.actual != null) dots.push({ cx: x(i), cy: y(p.actual), fill: accent, stroke: accent });
       else if (p.proj != null) dots.push({ cx: x(i), cy: y(p.proj), fill: colors.card, stroke: accent });
     });
-    return { actual: smooth(pts('actual')), proj: smooth(pts('proj')), band, dots, labels: data.map((p) => p.label), weekChange, weekEndDate };
+    // Per-day tap targets — value + predicted/actual change from Sunday's reference weight.
+    const points = data.map((p, i) => {
+      const value = p.actual != null ? p.actual : p.proj != null ? p.proj : null;
+      const isProjected = p.actual == null && p.proj != null;
+      const changeFromStart = (value != null && weekStartVal != null) ? value - weekStartVal : null;
+      return { label: p.label, value, isProjected, changeFromStart, xFrac: data.length > 1 ? i / (data.length - 1) : 0 };
+    });
+    return { actual: smooth(pts('actual')), proj: smooth(pts('proj')), band, dots, points, labels: data.map((p) => p.label), weekChange, weekEndDate };
   }, [momentumTimeline, today, currentWeightKg, estWeeklyRateFromDeficitKg, accent, colors.card, now, weightUnit]);
 
   // Trajectory card badge — reflects input fidelity before it reflects pace, per spec:
@@ -562,12 +572,33 @@ const InsightsTab = ({
                     </View>
                   )}
                 </View>
-                <Svg width="100%" height={104} viewBox="0 0 320 104" preserveAspectRatio="none" style={{ marginTop: 8 }}>
-                  {!!chart.band && <Path d={chart.band} fill={accent} fillOpacity={0.1} />}
-                  <Path d={chart.proj} fill="none" stroke={accent} strokeWidth={2} strokeDasharray="4 4" />
-                  <Path d={chart.actual} fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="round" />
-                  {chart.dots.map((p, i) => <Circle key={i} cx={p.cx} cy={p.cy} r={3.2} fill={p.fill} stroke={p.stroke} strokeWidth={1.6} />)}
-                </Svg>
+                <View style={{ position: 'relative', marginTop: 8 }}>
+                  <Svg width="100%" height={104} viewBox="0 0 320 104" preserveAspectRatio="none">
+                    {!!chart.band && <Path d={chart.band} fill={accent} fillOpacity={0.1} />}
+                    <Path d={chart.proj} fill="none" stroke={accent} strokeWidth={2} strokeDasharray="4 4" />
+                    <Path d={chart.actual} fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="round" />
+                    {chart.dots.map((p, i) => <Circle key={i} cx={p.cx} cy={p.cy} r={3.2} fill={p.fill} stroke={p.stroke} strokeWidth={1.6} />)}
+                  </Svg>
+                  <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+                    <View style={{ flex: 1, flexDirection: 'row' }} pointerEvents="box-none">
+                      {chart.points.map((pt, i) => (
+                        <TouchableOpacity
+                          key={i}
+                          disabled={pt.value == null}
+                          style={{ flex: 1 }}
+                          onPress={() => setChartTooltip((t) => (t?.i === i ? null : { i, ...pt }))}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.chartInfoRow}>
+                  <Text style={styles.chartInfoText}>
+                    {chartTooltip
+                      ? `${chartTooltip.label}${chartTooltip.isProjected ? ' (predicted)' : ''}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.changeFromStart != null ? `  ·  ${chartTooltip.changeFromStart > 0 ? '+' : ''}${chartTooltip.changeFromStart.toFixed(1)} ${weightUnit} vs Sun` : ''}`
+                      : 'Tap a point for that day’s number'}
+                  </Text>
+                </View>
                 <View style={styles.axisRow}>
                   {chart.labels.map((l, i) => <Text key={i} style={styles.axisLabel}>{l}</Text>)}
                 </View>
@@ -815,6 +846,8 @@ const makeStyles = (colors) => StyleSheet.create({
   kicker: { color: colors.textMuted, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.8 },
   bigStat: { color: colors.text, fontSize: 19, fontWeight: '800' },
   bigStatSub: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  chartInfoRow: { minHeight: 16, marginTop: 6, alignItems: 'center' },
+  chartInfoText: { color: colors.textMuted, fontSize: 11, fontWeight: '600' },
   axisRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 6 },
   axisLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '600' },
   detailsBtn: { marginTop: 10, backgroundColor: colors.cardAlt, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
