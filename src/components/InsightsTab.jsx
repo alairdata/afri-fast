@@ -11,7 +11,6 @@ const WARN = '#F59E0B';
 const DANGER = '#EF4444';
 const WARN_BG = '#FFF7ED';
 const DANGER_BG = '#FEF2F2';
-const KCAL_PER_KG = 7700;
 const ACTIVITY_MULTIPLIERS = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 };
 
 const toKg = (w, unit) => (unit === 'lbs' ? w / 2.20462 : w);
