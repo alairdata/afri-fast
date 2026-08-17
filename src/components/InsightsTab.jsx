@@ -5,6 +5,7 @@ import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
 import { computeMomentumTimeline } from '../lib/momentum';
 import { computeWeeklyPace } from '../lib/trajectory';
+import { computeBurnoutTimeline } from '../lib/burnout';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WARN = '#F59E0B';
@@ -308,40 +309,26 @@ const InsightsTab = ({
   const spikeDays = loggedDays.filter((d) => d.total > dailyCalorieGoal * 1.5);
   const crashDays = loggedDays.filter((d) => d.total > 0 && d.total < dailyCalorieGoal * 0.5);
 
-  const burnoutScore = Math.max(0, Math.min(100, spikeDays.length * 18 + crashDays.length * 12 + missingDays * 8));
-  const burnoutLabel = burnoutScore >= 70 ? 'High risk' : burnoutScore >= 45 ? 'Watch it' : 'Sustainable';
-  const burnoutColor = burnoutScore >= 70 ? DANGER : burnoutScore >= 45 ? WARN : accent;
-  const burnoutBg = burnoutScore >= 70 ? DANGER_BG : burnoutScore >= 45 ? WARN_BG : colors.accentLight;
-  const burnoutWhy = spikeDays.length > 0
-    ? `${spikeDays.length} day${spikeDays.length > 1 ? 's' : ''} this week went over ${Math.round(dailyCalorieGoal * 1.5).toLocaleString()} kcal — big swings like that tend to catch up with you.`
-    : crashDays.length > 0
-      ? `${crashDays.length} day${crashDays.length > 1 ? 's' : ''} came in under ${Math.round(dailyCalorieGoal * 0.5).toLocaleString()} kcal — very low days often lead to a rebound.`
-      : missingDays >= 3
-        ? `${missingDays} of the last 7 days weren't logged — hard to tell what's really going on without the data.`
-        : dailyCalorieGoal
-          ? `Your calories have stayed close to ${dailyCalorieGoal.toLocaleString()} kcal all week — steady like this is sustainable.`
-          : 'Set a daily calorie goal to track consistency here.';
+  // Burnout / Crash-Out Risk — 4-vector model (deficit depth, food monotony, protein/fiber
+  // satiety, dietary fat) computed day-by-day over the current week. See src/lib/burnout.js.
+  const burnout = useMemo(() => computeBurnoutTimeline({
+    recentMeals, tdee, weightKg: today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg, now,
+  }), [recentMeals, tdee, today, currentWeightKg, now]);
 
-  const nextBurnout = useMemo(() => {
-    if (!dailyCalorieGoal) return null;
-    const recent = last7.slice(-3);
-    const recentLogged = recent.filter((d) => d.total > 0);
-    const recentScore = Math.max(0, Math.min(100,
-      recentLogged.filter((d) => d.total > dailyCalorieGoal * 1.5).length * 18
-      + recentLogged.filter((d) => d.total > 0 && d.total < dailyCalorieGoal * 0.5).length * 12
-      + (3 - recentLogged.length) * 8
-    ));
-    const nextScore = Math.round(burnoutScore * 0.4 + recentScore * 0.6);
-    const label = nextScore >= 70 ? 'High risk' : nextScore >= 45 ? 'Watch it' : 'Sustainable';
-    const color = nextScore >= 70 ? DANGER : nextScore >= 45 ? WARN : accent;
-    const bg = nextScore >= 70 ? DANGER_BG : nextScore >= 45 ? WARN_BG : colors.accentLight;
-    const note = nextScore > burnoutScore + 10
-      ? 'Trending up — the last few days have been rougher than your week average. Keep it steady or this likely continues.'
-      : nextScore < burnoutScore - 10
-        ? 'Trending down — recent days have been more consistent than earlier this week.'
-        : 'Holding steady — no clear shift from this week\'s pattern.';
-    return { score: nextScore, label, color, bg, note };
-  }, [last7, burnoutScore, dailyCalorieGoal, accent, colors.accentLight]);
+  const burnoutScore = burnout.today.score;
+  const burnoutBand = burnout.today.band;
+  const burnoutColor = burnoutBand.tone === 'good' ? accent : burnoutBand.tone === 'warn' ? WARN : DANGER;
+  const burnoutBg = burnoutBand.tone === 'good' ? colors.accentLight : burnoutBand.tone === 'warn' ? WARN_BG : DANGER_BG;
+  const burnoutWhy = useMemo(() => {
+    const t = burnout.today;
+    const drivers = [];
+    if (t.deficitPts >= 20) drivers.push('your deficit is running deep');
+    if (t.monotonyPts >= 12) drivers.push(`you've repeated the same ${t.uniqueFoodCount} food${t.uniqueFoodCount === 1 ? '' : 's'} all week`);
+    if (t.satietyPts >= 10) drivers.push('protein or fiber is running low, so hunger keeps building');
+    if (t.fatPts > 0) drivers.push(`fat's been under 20% of calories on ${t.lowFatDays} days, which tends to hit mood and sleep`);
+    if (!drivers.length) return 'Deficit, variety, protein/fiber, and fat are all in a sustainable range this week.';
+    return `This week: ${drivers.join('; ')}.`;
+  }, [burnout]);
 
   // Trajectory chart: history is the EWMA-smoothed weight (kills water-weight noise, only
   // plotted on days with a real weigh-in — no fake flat-lining across gaps). The projection
@@ -736,32 +723,35 @@ const InsightsTab = ({
                   <Text style={styles.bigStat}>{burnoutScore}<Text style={styles.bigStatSub}>/100</Text></Text>
                 </View>
                 <View style={[styles.pill, { backgroundColor: burnoutBg }]}>
-                  <Text style={[styles.pillText, { color: burnoutColor }]}>{burnoutLabel}</Text>
+                  <Text style={[styles.pillText, { color: burnoutColor }]}>{burnoutBand.label}</Text>
                 </View>
               </View>
               <Text style={[styles.mutedBody, { marginTop: 6 }]}>{burnoutWhy}</Text>
-              <View style={styles.barsRow}>
-                {last7.map((d, i) => {
-                  const h = dailyCalorieGoal ? Math.max(6, Math.min(60, Math.round((d.total / (dailyCalorieGoal * 2)) * 60))) : 6;
-                  const over = d.total > dailyCalorieGoal * 1.5;
+              <View style={styles.burnoutWeekRow}>
+                {burnout.week.map((d, i) => {
+                  const dayColor = d.isFuture ? colors.border
+                    : d.score <= 25 ? accent : d.score <= 55 ? WARN : d.score <= 80 ? '#EA580C' : DANGER;
                   return (
-                    <View key={i} style={styles.barCol}>
-                      <View style={[styles.bar, { height: h, backgroundColor: d.total === 0 ? colors.border : over ? DANGER : colors.accentLight }]} />
+                    <View key={i} style={styles.burnoutDayCol}>
+                      <Text style={[styles.burnoutDayScore, { color: d.isFuture ? colors.textMuted : dayColor }]}>
+                        {d.isFuture ? '--' : d.score}
+                      </Text>
+                      <View style={[styles.burnoutDayDot, { backgroundColor: dayColor }]} />
+                      <Text style={styles.axisLabel}>{dayLabel(d.date)}</Text>
                     </View>
                   );
                 })}
               </View>
-              <View style={styles.axisRow}>
-                {last7.map((d, i) => <Text key={i} style={styles.axisLabel}>{dayLabel(d.date)}</Text>)}
-              </View>
-              {nextBurnout && (
+              {burnoutScore > 25 && (
                 <View style={styles.nextWeekRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.nextWeekTitle}>Next week: {nextBurnout.label}</Text>
-                    <Text style={styles.nextWeekNote}>{nextBurnout.note}</Text>
+                    <Text style={styles.nextWeekTitle}>Estimated crash risk window</Text>
+                    <Text style={styles.nextWeekNote}>
+                      At this rate, off-plan eating or a crash-out becomes likely around {fmtShort(burnout.crashDate)} — {burnout.daysToCrash} day{burnout.daysToCrash === 1 ? '' : 's'} out — if nothing changes.
+                    </Text>
                   </View>
-                  <View style={[styles.nextWeekBadge, { backgroundColor: nextBurnout.bg }]}>
-                    <Text style={[styles.nextWeekBadgeText, { color: nextBurnout.color }]}>{nextBurnout.score}</Text>
+                  <View style={[styles.nextWeekBadge, { backgroundColor: burnoutBg }]}>
+                    <Text style={[styles.nextWeekBadgeText, { color: burnoutColor }]}>{burnout.daysToCrash}d</Text>
                   </View>
                 </View>
               )}
@@ -897,9 +887,10 @@ const makeStyles = (colors) => StyleSheet.create({
   detailsBtnText: { color: colors.accentText, fontSize: 12.5, fontWeight: '700' },
   warnDot: { width: 22, height: 22, borderRadius: 7, backgroundColor: WARN, alignItems: 'center', justifyContent: 'center' },
   dismissBtn: { marginTop: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: '#FCE3CB', borderRadius: 11, paddingVertical: 10, alignItems: 'center' },
-  barsRow: { flexDirection: 'row', gap: 6, alignItems: 'flex-end', height: 60, marginTop: 14 },
-  barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%' },
-  bar: { width: '100%', borderRadius: 5 },
+  burnoutWeekRow: { flexDirection: 'row', gap: 4, marginTop: 14 },
+  burnoutDayCol: { flex: 1, alignItems: 'center', gap: 4 },
+  burnoutDayScore: { fontSize: 12, fontWeight: '800' },
+  burnoutDayDot: { width: 8, height: 8, borderRadius: 4 },
   progressTrack: { height: 10, backgroundColor: colors.cardAlt, borderRadius: 5, marginTop: 16, marginBottom: 8, overflow: 'visible' },
   progressFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 5 },
   planMarker: { position: 'absolute', top: -5, width: 2, height: 20, borderRadius: 1 },
