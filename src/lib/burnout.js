@@ -3,6 +3,9 @@
 // scale with body size or account for simple, repetitive-but-healthy traditional meals.
 // Computed client-side, day-by-day: each day's score uses a rolling 7-day window ENDING that
 // day, so it evolves as the week plays out rather than being fixed once computed.
+//
+// Also used as a building block by momentum.js (Satiety pillar = 100 - burnout score for that
+// day) via the exported computeBurnoutScore single-day function.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -15,15 +18,12 @@ function bandFor(score) {
   return { label: 'Critical Crash Risk', tone: 'critical' };
 }
 
-/**
- * @param recentMeals - meal log entries with .date, .calories, .protein, .fats, .foods/.items
- * @param tdee - kcal/day, or null if profile incomplete
- * @param proteinGoal - the user's actual set protein target (g/day), or null
- * @param now - epoch ms
- */
-export function computeBurnoutTimeline({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) {
-  const EMPTY_DAY = { calories: 0, protein: 0, fats: 0, foods: [], mealCount: 0 };
+const EMPTY_DAY = { calories: 0, protein: 0, fats: 0, foods: [], mealCount: 0 };
 
+// Shared setup: builds the per-day meal lookup, the "if this keeps up" projection pattern for
+// future dates, and a scoreWindowEnding(endDate) closure that computes the 5-vector score for
+// the 7-day window ending at any date. Used by both exported functions below.
+function buildScorer({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) {
   const mealsByDate = {};
   recentMeals.forEach((m) => {
     if (!m.date) return;
@@ -63,8 +63,6 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, proteinGoal, no
     };
   })();
 
-  // Compute the 5-vector score for the 7-day window ending at `endDate`. Days beyond today use
-  // the recent pattern (projected) instead of real logs, since they haven't happened yet.
   const scoreWindowEnding = (endDate) => {
     const window = [];
     for (let i = 6; i >= 0; i--) {
@@ -74,7 +72,6 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, proteinGoal, no
     const days = window.map((ds) => (ds != null ? dayTotals(ds) : (recentPattern || { ...EMPTY_DAY, foods: [] })));
 
     // 1. Deficit Depth (max 35) -- deficit as a % of TDEE, not a fixed kcal cliff.
-    // Max penalty at a 40% cut; at/above maintenance scores 0.
     let deficitPts = 0;
     if (tdee) {
       const avgCalories = days.reduce((s, d) => s + d.calories, 0) / 7;
@@ -82,9 +79,7 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, proteinGoal, no
       deficitPts = rD <= 0 ? 0 : clamp(Math.round(35 * (rD / 0.40)), 0, 35);
     }
 
-    // 2. Food Monotony (max 25) -- unique ingredients as a ratio of total meals logged, not an
-    // absolute count. Repeating simple 2-3 ingredient meals doesn't trigger a false alarm as
-    // long as variety keeps pace with how often you're logging.
+    // 2. Food Monotony (max 25) -- unique ingredients as a ratio of total meals logged.
     const uniqueFoods = new Set(days.flatMap((d) => d.foods));
     const totalMealsLogged = days.reduce((s, d) => s + d.mealCount, 0);
     let monotonyPts = 0;
@@ -93,8 +88,7 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, proteinGoal, no
       monotonyPts = rV >= 0.50 ? 0 : clamp(Math.round(25 * (1 - rV / 0.50)), 0, 25);
     }
 
-    // 3. Satiety (max 25) -- protein logged vs the user's own set protein target, not a generic
-    // g/kg formula.
+    // 3. Satiety (max 25) -- protein logged vs the user's own set protein target.
     let satietyPts = 0;
     if (proteinGoal) {
       const avgProtein = days.reduce((s, d) => s + d.protein, 0) / 7;
@@ -111,8 +105,7 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, proteinGoal, no
       fatPts = sF >= 0.20 ? 0 : clamp(Math.round(15 * (1 - sF / 0.20)), 0, 15);
     }
 
-    // 5. Calorie Volatility (max 10) -- coefficient of variation, catches restrict/binge swings
-    // relative to the person's own average rather than a fixed kcal-swing threshold.
+    // 5. Calorie Volatility (max 10) -- coefficient of variation.
     let volatilityPts = 0;
     const calArr = days.map((d) => d.calories);
     const mean = calArr.reduce((s, v) => s + v, 0) / 7;
@@ -126,8 +119,19 @@ export function computeBurnoutTimeline({ recentMeals = [], tdee, proteinGoal, no
     return { score, deficitPts, monotonyPts, satietyPts, fatPts, volatilityPts, uniqueFoodCount: uniqueFoods.size, totalMealsLogged };
   };
 
-  // Build the current Sun-Sat calendar week: real scores for days up to today, projected
-  // ("if this keeps up") scores for the rest of the week.
+  return { scoreWindowEnding, startOfToday, recentPattern };
+}
+
+/** Single-day entry point -- used by momentum.js's Satiety pillar. */
+export function computeBurnoutScore({ recentMeals = [], tdee, proteinGoal, endDate, now = Date.now() }) {
+  const { scoreWindowEnding } = buildScorer({ recentMeals, tdee, proteinGoal, now });
+  return scoreWindowEnding(endDate);
+}
+
+/** Full-week entry point -- used by the Burnout Likelihood card. */
+export function computeBurnoutTimeline({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) {
+  const { scoreWindowEnding, startOfToday, recentPattern } = buildScorer({ recentMeals, tdee, proteinGoal, now });
+
   const startOfWeek = new Date(startOfToday);
   startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
 

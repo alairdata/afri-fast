@@ -197,15 +197,17 @@ const InsightsTab = ({
     ? weeklyWeightChangeKg - requiredWeeklyRateKg
     : null;
 
-  // Momentum Score — EWMA-smoothed engine (see src/lib/momentum.js): 40% Calorie + 25% Pace
-  // + 20% Activity + 15% Logging, with a confidence shift when weigh-ins go stale and a
-  // streak-based Logging term. Computed client-side from existing logs, no persisted state.
+  // Momentum Score — EWMA-smoothed engine (see src/lib/momentum.js): 40% Calorie + 35% Satiety
+  // (= 100 - that day's Burnout risk) + 25% Movement (MET-based active energy vs BMR/TDEE gap).
+  // Pace lives on its own "Pace to Goal" card below instead of feeding Momentum directly.
+  // Computed client-side from existing logs, no persisted state.
   const momentumTimeline = useMemo(() => computeMomentumTimeline({
     weightLogs, recentMeals, stepLogs, activities,
-    dailyCalorieGoal, stepGoal, requiredWeeklyRateKg,
+    dailyCalorieGoal, tdee, bmr, proteinGoal,
+    fallbackWeightKg: currentWeightKg,
     toKg: (w) => toKg(w, weightUnit),
     now,
-  }), [weightLogs, recentMeals, stepLogs, activities, dailyCalorieGoal, stepGoal, requiredWeeklyRateKg, weightUnit, now]);
+  }), [weightLogs, recentMeals, stepLogs, activities, dailyCalorieGoal, tdee, bmr, proteinGoal, currentWeightKg, weightUnit, now]);
 
   const today = momentumTimeline[momentumTimeline.length - 1];
   const momentumScore = today.momentum;
@@ -547,20 +549,19 @@ const InsightsTab = ({
                 <Text style={[styles.pillText, { color: momentumColor }]}>{momentumLabel}</Text>
               </View>
               <Text style={styles.mutedSmall}>
-                Calories {today.calorieSubscore}%
-                {'  ·  '}Pace {today.paceSubscore != null ? `${today.paceSubscore}%` : '--'}
-                {'  ·  '}Activity {today.activitySubscore}%
-                {'  ·  '}Logging {today.loggingSubscore}%
+                Calorie {today.calorieSubscore}%
+                {'  ·  '}Satiety {today.satietySubscore}%
+                {'  ·  '}Movement {today.movementSubscore != null ? `${today.movementSubscore}%` : '--'}
               </Text>
               {today.band.tone !== 'strong' && (
                 <View style={[styles.nudgeBox, today.band.tone === 'stalled' && styles.nudgeBoxUrgent]}>
                   <Text style={[styles.nudgeText, today.band.tone === 'stalled' && styles.nudgeTextUrgent]}>
                     {today.band.tone === 'drifting'
-                      ? (today.activitySubscore < 50
-                          ? 'Leading indicator: activity is down this week — worth a walk today.'
-                          : today.loggingSubscore < 75
-                            ? "Leading indicator: logging has been spotty — that's usually the first thing to slip."
-                            : 'Leading indicator: pace has cooled off from where it was.')
+                      ? (today.movementSubscore != null && today.movementSubscore < 50
+                          ? 'Leading indicator: movement is down this week — worth a walk today.'
+                          : today.satietySubscore < 50
+                            ? "Leading indicator: satiety has been slipping — that's usually what precedes a crash-out."
+                            : 'Leading indicator: calorie consistency has cooled off from where it was.')
                       : "Momentum has stalled. Don't try to fix everything at once — just log today's meals and today's weigh-in if you have one."}
                   </Text>
                 </View>

@@ -16,7 +16,7 @@ const ACTIVITY_TYPES = [
 ];
 
 // Rough MET-based estimate — a ballpark, not a precise measurement.
-const MET = { walking: 3.5, running: 9.8, cycling: 7.5, swimming: 6, strength: 5, sports: 7, other: 4 };
+const MET = { walking: 3.5, running: 9.8, cycling: 7.5, swimming: 6, strength: 6, sports: 7, other: 4 };
 const estimateCalories = (type, durationMin, weightKg) => {
   if (!weightKg || !durationMin) return null;
   const met = MET[type] || 4;

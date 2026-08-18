@@ -1,43 +1,57 @@
 // Momentum Score engine — computed client-side from existing logs (no persisted state).
 // EWMA gives the "hard to build, quick to lose" feel without needing a stored daily
 // snapshot: each day's sub-score is derived purely from raw inputs + the recurrence.
+//
+// v2: three pillars only -- Calorie (40%), Satiety (35%, = 100 - that day's Burnout Risk
+// score), Movement (25%, MET-based active energy vs a physiological target). Pace and Logging
+// are no longer separate weighted terms: Pace lives on its own "Pace to Goal" card instead, and
+// Logging's old role (don't let a single missed day double-penalize) is now handled by having
+// unlogged days decay the Calorie/Movement EWMA by 5% instead of injecting a raw-zero score.
+
+import { computeBurnoutScore } from './burnout';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ALPHA = 0.3; // EWMA decay factor (~7-day half-life)
-const WORKOUT_TARGET_PER_WEEK = 3;
 
-const BASE_WEIGHTS = { calorie: 0.40, pace: 0.25, activity: 0.20, logging: 0.15 };
-const NO_WEIGHIN_WEIGHTS = { calorie: 0.50, pace: 0.05, activity: 0.20, logging: 0.25 };
+const WEIGHTS = { calorie: 0.40, satiety: 0.35, movement: 0.25 };
+
+// MET (Metabolic Equivalent of Task) per activity type -- shared with AddActivityModal.jsx's
+// own estimate so the two don't silently disagree.
+const MET = { walking: 3.5, running: 9.8, cycling: 7.5, swimming: 6, strength: 6, sports: 7, other: 4 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-function calorieRawScore(actual, budget) {
-  if (!budget || actual == null) return 0;
-  const dev = Math.abs(actual - budget) / budget;
-  return clamp(100 - dev * 150, 0, 100);
+// R_C = 1 - |logged - target| / target
+function calorieRawScore(actual, target) {
+  if (!target) return 0;
+  const rC = 1 - Math.abs(actual - target) / target;
+  return Math.max(0, Math.round(100 * rC));
 }
 
-// ratio = observed weekly rate / required weekly rate (both signed kg/week, same direction)
-function paceScoreFromRatio(ratio) {
-  if (ratio == null) return null;
-  if (ratio >= 1) return 100;
-  if (ratio >= 0.5) return 60 + ((ratio - 0.5) / 0.5) * 30; // 60..90
-  if (ratio >= 0) return 40 + (ratio / 0.5) * 20; // 40 (stalled) .. 60
-  return clamp(20 * (1 + Math.max(ratio, -1)), 0, 20); // 0..20, gaining during a deficit
+// E_active (kcal) for the day: gym/activity sessions via MET formula, steps via a flat
+// per-step-per-kg estimate. R_M = E_active / E_target, where E_target = TDEE - BMR
+// (the "activity" slice of TDEE implied by the person's PAL/activity multiplier).
+function movementRawScore({ dayActivities, steps, weightKg, bmr, tdee }) {
+  if (!weightKg || !bmr || !tdee) return null;
+  const eTarget = tdee - bmr;
+  if (eTarget <= 0) return null;
+  let eActive = 0;
+  dayActivities.forEach((a) => {
+    const met = MET[a.type] || MET.other;
+    eActive += (a.durationMin || 0) * met * 3.5 * weightKg / 200;
+  });
+  eActive += (steps || 0) * weightKg * 0.0005;
+  return clamp(Math.round(100 * (eActive / eTarget)), 0, 100);
 }
 
-function activityRawScore(avgSteps7, stepGoal, workouts7) {
-  const stepsPart = stepGoal ? Math.min(1, avgSteps7 / stepGoal) : 0;
-  const workoutsPart = Math.min(1, workouts7 / WORKOUT_TARGET_PER_WEEK);
-  return clamp((0.6 * stepsPart + 0.4 * workoutsPart) * 100, 0, 100);
-}
-
-function loggingScore(streak, loggedToday) {
-  if (!loggedToday) return 0;
-  if (streak <= 1) return 60;
-  if (streak <= 3) return 60 + ((streak - 1) / 2) * 15; // 60..75
-  if (streak < 7) return 75 + ((streak - 3) / 4) * 25; // 75..100
-  return 100;
+// Shared EWMA step for Calorie/Movement: blend today's raw score in if there's real data for
+// today, otherwise gently decay yesterday's smoothed value (never re-inject a raw zero -- an
+// unlogged day isn't the same as "definitely failed today"). Decay only applies once there's
+// an actual smoothed value to decay -- a day with no history yet isn't "momentum lost", it's
+// "nothing built yet", so it stays null (displayed as neutral) rather than drifting toward 0.
+function ewmaStep(prev, rawToday, hasDataToday) {
+  if (hasDataToday) return prev == null ? rawToday : ALPHA * rawToday + (1 - ALPHA) * prev;
+  return prev == null ? null : prev * 0.95;
 }
 
 function bandFor(score) {
@@ -57,8 +71,10 @@ export function computeMomentumTimeline({
   stepLogs = [],
   activities = [],
   dailyCalorieGoal,
-  stepGoal,
-  requiredWeeklyRateKg, // signed kg/week, negative = need to lose; null if no goal_date set
+  tdee,
+  bmr,
+  proteinGoal,
+  fallbackWeightKg, // used for the movement calc on days before any weigh-in exists
   toKg,
   windowDays = 60,
   now = Date.now(),
@@ -77,18 +93,12 @@ export function computeMomentumTimeline({
   const stepsByDate = {};
   stepLogs.forEach((s) => { stepsByDate[s.date] = (stepsByDate[s.date] || 0) + (s.steps || 0); });
 
-  const activityDates = new Set(activities.map((a) => a.date));
-
-  const observedRateAsOf = (cutoffTs) => {
-    const upTo = sortedWeights.filter((w) => w.ts <= cutoffTs);
-    if (upTo.length < 4) return null;
-    const thisWeek = upTo.slice(-7);
-    const priorWeek = upTo.slice(Math.max(0, upTo.length - 14), Math.max(0, upTo.length - 7));
-    if (!priorWeek.length) return null;
-    const avgThis = thisWeek.reduce((s, w) => s + w.weightKg, 0) / thisWeek.length;
-    const avgPrior = priorWeek.reduce((s, w) => s + w.weightKg, 0) / priorWeek.length;
-    return avgThis - avgPrior;
-  };
+  const activitiesByDate = {};
+  activities.forEach((a) => {
+    if (!a.date) return;
+    if (!activitiesByDate[a.date]) activitiesByDate[a.date] = [];
+    activitiesByDate[a.date].push({ type: a.type, durationMin: a.durationMin });
+  });
 
   const daysSinceLastWeighIn = (cutoffTs) => {
     const upTo = sortedWeights.filter((w) => w.ts <= cutoffTs);
@@ -97,73 +107,61 @@ export function computeMomentumTimeline({
   };
 
   const timeline = [];
-  let calEwma = null, actEwma = null, streak = 0, weightEwma = null;
+  let calEwma = null, moveEwma = null, weightEwma = null, loggedStreak7 = [];
 
   for (let i = windowDays - 1; i >= 0; i--) {
     const day = new Date(now - i * DAY_MS);
     const ds = day.toDateString();
     const cutoffTs = day.getTime();
 
-    const loggedToday = (mealsByDate[ds] || 0) > 0;
+    const caloriesToday = mealsByDate[ds] || 0;
+    const loggedToday = caloriesToday > 0;
 
-    // Weight EWMA — smooths day-to-day water-weight noise. The recurrence runs every day
-    // internally (so it stays continuous across gaps), but a display value only comes out
-    // on days that actually have a weigh-in — callers shouldn't draw a line through gaps.
+    // Weight EWMA — smooths day-to-day water-weight noise. Only emitted on real weigh-in days,
+    // but also used internally as the body-weight input to today's movement calc.
     const rawWeighInToday = sortedWeights.find((w) => new Date(w.ts).toDateString() === ds);
     if (rawWeighInToday) {
       weightEwma = weightEwma == null ? rawWeighInToday.weightKg : ALPHA * rawWeighInToday.weightKg + (1 - ALPHA) * weightEwma;
     }
     const daysSinceWeighIn = daysSinceLastWeighIn(cutoffTs);
+    const weightForToday = weightEwma != null ? weightEwma : fallbackWeightKg;
 
-    // Calorie
-    const calRaw = calorieRawScore(mealsByDate[ds] || 0, dailyCalorieGoal);
-    calEwma = calEwma == null ? calRaw : ALPHA * calRaw + (1 - ALPHA) * calEwma;
+    // Pillar 1: Calorie (40%)
+    const calRaw = calorieRawScore(caloriesToday, dailyCalorieGoal);
+    calEwma = ewmaStep(calEwma, calRaw, loggedToday);
 
-    // Pace / trend
-    const observedRate = observedRateAsOf(cutoffTs);
-    const paceRatio = (observedRate != null && requiredWeeklyRateKg) ? observedRate / requiredWeeklyRateKg : null;
-    const paceScore = paceScoreFromRatio(paceRatio);
+    // Pillar 2: Satiety (35%) = 100 - that day's Burnout Risk score. No separate EWMA layer --
+    // Burnout is already a rolling 7-day-window calculation, so it's inherently smoothed.
+    const burnout = computeBurnoutScore({ recentMeals, tdee, proteinGoal, endDate: day, now });
+    const satietyScore = clamp(100 - burnout.score, 0, 100);
 
-    // Activity (7-day trailing window ending today)
-    let stepsSum = 0, stepsCount = 0, workoutDays = 0;
-    for (let d = 0; d < 7; d++) {
-      const dd = new Date(cutoffTs - d * DAY_MS).toDateString();
-      if (stepsByDate[dd] != null) { stepsSum += stepsByDate[dd]; stepsCount++; }
-      if (activityDates.has(dd)) workoutDays++;
-    }
-    const avgSteps7 = stepsCount ? stepsSum / stepsCount : 0;
-    const actRaw = activityRawScore(avgSteps7, stepGoal, workoutDays);
-    actEwma = actEwma == null ? actRaw : ALPHA * actRaw + (1 - ALPHA) * actEwma;
+    // Pillar 3: Movement (25%) — MET-based active energy vs a physiological target (TDEE - BMR)
+    const dayActivities = activitiesByDate[ds] || [];
+    const stepsToday = stepsByDate[ds] || 0;
+    const hasMovementDataToday = dayActivities.length > 0 || stepsToday > 0;
+    const moveRaw = movementRawScore({ dayActivities, steps: stepsToday, weightKg: weightForToday, bmr, tdee });
+    moveEwma = moveRaw == null ? moveEwma : ewmaStep(moveEwma, moveRaw, hasMovementDataToday);
 
-    // Logging streak
-    streak = loggedToday ? streak + 1 : 0;
-    const logScore = loggingScore(streak, loggedToday);
+    const momentum = Math.round(clamp(
+      WEIGHTS.calorie * (calEwma ?? 50) + WEIGHTS.satiety * satietyScore + WEIGHTS.movement * (moveEwma ?? 50),
+      0, 100,
+    ));
 
-    // Confidence shift — stale weigh-in reduces trust in the pace term
+    // Confidence (used by the trajectory chart's cone + Weekly Pace engine) -- how many of the
+    // last 7 days had any meal logged, discounted if the last weigh-in has gone stale.
+    loggedStreak7.push(loggedToday);
+    if (loggedStreak7.length > 7) loggedStreak7.shift();
+    const loggingRatio = loggedStreak7.filter(Boolean).length / loggedStreak7.length;
     const staleWeighIn = daysSinceWeighIn > 7;
-    const weights = (paceScore != null && staleWeighIn) ? NO_WEIGHIN_WEIGHTS : BASE_WEIGHTS;
-
-    // Graceful degrade: if there's no goal_date at all (paceScore null outright),
-    // drop it and redistribute proportionally across whatever's available.
-    const parts = [
-      { key: 'calorie', w: weights.calorie, v: calEwma },
-      { key: 'activity', w: weights.activity, v: actEwma },
-      { key: 'logging', w: weights.logging, v: logScore },
-    ];
-    if (paceScore != null) parts.push({ key: 'pace', w: weights.pace, v: paceScore });
-    const totalW = parts.reduce((s, p) => s + p.w, 0);
-    const momentum = Math.round(parts.reduce((s, p) => s + p.v * (p.w / totalW), 0));
-
-    const confidence = clamp((logScore / 100) * (staleWeighIn ? 0.65 : 1), 0, 1);
+    const confidence = clamp(loggingRatio * (staleWeighIn ? 0.65 : 1), 0, 1);
 
     timeline.push({
       date: day,
       ds,
-      calorieSubscore: Math.round(calEwma),
-      paceSubscore: paceScore != null ? Math.round(paceScore) : null,
-      activitySubscore: Math.round(actEwma),
-      loggingSubscore: Math.round(logScore),
-      momentum: clamp(momentum, 0, 100),
+      calorieSubscore: Math.round(calEwma ?? 50),
+      satietySubscore: Math.round(satietyScore),
+      movementSubscore: moveEwma != null ? Math.round(moveEwma) : null,
+      momentum,
       confidence,
       band: bandFor(momentum),
       staleWeighIn,
