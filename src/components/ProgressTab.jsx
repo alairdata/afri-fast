@@ -32,7 +32,11 @@ const ProgressTab = ({
     const now = Date.now();
     const days = progressRange === '7 days' ? 7 : progressRange === '30 days' ? 30 : progressRange === '90 days' ? 90 : 99999;
     const cutoff = now - days * 24 * 60 * 60 * 1000;
-    const isLongRange = days >= 90; // 90 days or All time — use monthly grouping
+    // 7/30 days -> one point per day. 90 days -> one point per calendar week (Sun-Sat), labeled
+    // by the week's last day. All time -> one point per month. isLongRange just means "grouped
+    // into buckets, show up to ~12" -- the grouping key itself is rangeMode.
+    const rangeMode = days === 90 ? 'weekly' : days === 99999 ? 'monthly' : 'daily';
+    const isLongRange = rangeMode !== 'daily';
 
     // Filter sessions within range
     const sessions = fastingSessions.filter(s => s.startTime >= cutoff);
@@ -129,18 +133,34 @@ const ProgressTab = ({
     });
     const dailyWater = Object.values(waterByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    // For long range, aggregate by month
+    // Groups pre-sorted-descending daily entries into weekly (Sun-Sat) or monthly buckets,
+    // averaging the given field. Since entries are scanned newest-first, the first one seen per
+    // bucket is the most recent day in that period -- i.e. the bucket's date ends up being its
+    // own last day, which is exactly the label each bucket should show.
+    const groupByPeriod = (dailyEntries, field) => {
+      if (rangeMode === 'daily' || !dailyEntries.length) return dailyEntries;
+      const buckets = {};
+      dailyEntries.forEach((d) => {
+        const dt = new Date(d.date);
+        let key;
+        if (rangeMode === 'monthly') {
+          key = `${dt.getFullYear()}-${dt.getMonth()}`;
+        } else {
+          const weekStart = new Date(dt);
+          weekStart.setDate(dt.getDate() - dt.getDay());
+          key = weekStart.toDateString();
+        }
+        if (!buckets[key]) buckets[key] = { date: d.date, total: 0, days: 0 };
+        buckets[key].total += d[field];
+        buckets[key].days += 1;
+      });
+      return Object.values(buckets).map((b) => ({ date: b.date, [field]: b.total / b.days }));
+    };
+
+    // For long range, aggregate by week (90 days) or month (all time)
     let uniqueWater;
     if (isLongRange && dailyWater.length > 0) {
-      const monthlyWater = {};
-      dailyWater.forEach(d => {
-        const dt = new Date(d.date);
-        const mKey = `${dt.getFullYear()}-${dt.getMonth()}`;
-        if (!monthlyWater[mKey]) monthlyWater[mKey] = { date: d.date, totalL: 0, days: 0 };
-        monthlyWater[mKey].totalL += d.totalL;
-        monthlyWater[mKey].days += 1;
-      });
-      uniqueWater = Object.values(monthlyWater).map(m => ({ date: m.date, totalL: Math.round((m.totalL / m.days) * 10) / 10 }));
+      uniqueWater = groupByPeriod(dailyWater, 'totalL').map((w) => ({ ...w, totalL: Math.round(w.totalL * 10) / 10 }));
     } else {
       uniqueWater = dailyWater;
     }
@@ -158,15 +178,7 @@ const ProgressTab = ({
     const dailySteps = Object.values(stepsByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
     let uniqueSteps;
     if (isLongRange && dailySteps.length > 0) {
-      const monthlySteps = {};
-      dailySteps.forEach(d => {
-        const dt = new Date(d.date);
-        const mKey = `${dt.getFullYear()}-${dt.getMonth()}`;
-        if (!monthlySteps[mKey]) monthlySteps[mKey] = { date: d.date, totalSteps: 0, days: 0 };
-        monthlySteps[mKey].totalSteps += d.totalSteps;
-        monthlySteps[mKey].days += 1;
-      });
-      uniqueSteps = Object.values(monthlySteps).map(m => ({ date: m.date, totalSteps: Math.round(m.totalSteps / m.days) }));
+      uniqueSteps = groupByPeriod(dailySteps, 'totalSteps').map((s) => ({ ...s, totalSteps: Math.round(s.totalSteps) }));
     } else {
       uniqueSteps = dailySteps;
     }
@@ -174,12 +186,13 @@ const ProgressTab = ({
     const avgSteps = uniqueSteps.length > 0 ? Math.round(uniqueSteps.reduce((s, l) => s + l.totalSteps, 0) / uniqueSteps.length) : 0;
 
     // Chart label formatter
-    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const pad2 = (n) => String(n).padStart(2, '0');
     const formatLabel = (dateStr) => {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr.slice(0, 6);
-      if (isLongRange) return `${MONTHS[d.getMonth()]}'${String(d.getFullYear()).slice(2)}`;
-      return `${d.getDate()}-${MONTHS[d.getMonth()]}`;
+      if (rangeMode === 'monthly') return `${pad2(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)}`;
+      if (rangeMode === 'weekly') return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`;
+      return pad2(d.getDate());
     };
 
     // Monthly grouping for calories (long range)
