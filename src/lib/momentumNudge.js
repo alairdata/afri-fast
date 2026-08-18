@@ -80,7 +80,10 @@ export async function getCachedMomentumNudge(userId) {
 // trailing 14-day gym/steps split) — never anything the model has to infer on its own.
 // fingerprint: a coarse string built from those same facts (see InsightsTab.jsx), rounded enough
 // that trivial noise doesn't force a regenerate — only a materially different picture does.
-export async function getMomentumNudge({ userId, facts, fingerprint }) {
+// force: bypasses the 1-hour safety window (but never the same-fingerprint dedupe — no point
+// re-generating identical facts). Pass this when the user just logged something themselves; the
+// hourly cap is meant to bound passive/ambient drift, not delay feedback on a deliberate action.
+export async function getMomentumNudge({ userId, facts, fingerprint, force = false }) {
   if (!userId) return null;
 
   const [local, remote] = await Promise.all([getLocalCache(userId), getRemoteCache(userId)]);
@@ -88,7 +91,7 @@ export async function getMomentumNudge({ userId, facts, fingerprint }) {
 
   if (newest) {
     const sameFingerprint = newest.fingerprint === fingerprint;
-    const withinSafetyWindow = Date.now() - newest.timestamp < MIN_REFRESH_MS;
+    const withinSafetyWindow = !force && (Date.now() - newest.timestamp < MIN_REFRESH_MS);
     if (sameFingerprint || withinSafetyWindow) {
       if (remote && (!local || remote.timestamp > local.timestamp)) {
         await saveLocalCache(userId, { nudge: remote.nudge, fingerprint: remote.fingerprint });

@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
@@ -466,16 +466,28 @@ const InsightsTab = ({
   // AI-generated nudge — shows the deterministic template instantly (zero latency, zero cost),
   // then swaps in the AI line once it loads. Falls back to the template forever if the call
   // fails or the user is offline; never blank, never stuck on a spinner.
+  //
+  // The 1-hour cap in momentumNudge.js is meant to bound passive drift (reopening the app,
+  // EWMA decay rolling into a new day) — it should NOT delay feedback on something the user just
+  // did. logCountRef tracks the total number of logged entries across meals/steps/activities/
+  // weigh-ins; when that total goes UP since the last run of this effect, it's a deliberate log
+  // action, so `force` bypasses the hourly cap for that one call.
   const [aiNudge, setAiNudge] = useState(null);
+  const logCountRef = useRef(null);
   useEffect(() => {
     let cancelled = false;
     if (!userId || today.band.tone === 'strong') { setAiNudge(null); return; }
+
+    const logCount = (recentMeals?.length || 0) + (stepLogs?.length || 0) + (activities?.length || 0) + (weightLogs?.length || 0);
+    const justLogged = logCountRef.current != null && logCount > logCountRef.current;
+    logCountRef.current = logCount;
+
     getCachedMomentumNudge(userId).then((cached) => { if (!cancelled && cached) setAiNudge(cached); });
-    getMomentumNudge({ userId, facts: momentumFacts, fingerprint: momentumFingerprint }).then((nudge) => {
+    getMomentumNudge({ userId, facts: momentumFacts, fingerprint: momentumFingerprint, force: justLogged }).then((nudge) => {
       if (!cancelled && nudge) setAiNudge(nudge);
     });
     return () => { cancelled = true; };
-  }, [userId, momentumFingerprint]);
+  }, [userId, momentumFingerprint, recentMeals, stepLogs, activities, weightLogs]);
 
   const nudgeText = aiNudge || momentumNudge;
 
