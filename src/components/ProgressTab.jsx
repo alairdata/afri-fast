@@ -689,60 +689,65 @@ const ProgressTab = ({
               const hasStepsData = uniqueLogs.length > 0;
               const hasMultipleSteps = uniqueLogs.length >= 2;
               const chartData = progressData.stepsChartData;
-              const stepsYMax = stepGoal > 0 ? stepGoal + 2000 : undefined;
+              const chartLabels = uniqueLogs.slice(0, progressData.isLongRange ? 12 : 7).reverse().map((l, i, arr) => {
+                if (arr.length <= 7 || i % Math.ceil(arr.length / 7) === 0 || i === arr.length - 1) {
+                  return progressData.formatLabel(l.date);
+                }
+                return '';
+              });
+              // Hand-rolled instead of react-native-chart-kit's BarChart: that library has no real
+              // y-axis max/min prop (its "fromNumber"-style options are no-ops in this version —
+              // the axis is silently auto-scaled from whatever's in the visible window), so the
+              // ceiling couldn't actually be pinned to the step goal, and there's no way to render
+              // real axis labels. This version sets both explicitly.
+              const CHART_H = 140;
+              const dataMax = chartData.length ? Math.max(...chartData) : 0;
+              const axisMax = Math.max(stepGoal > 0 ? stepGoal : 0, dataMax, 1) * 1.15;
+              const goalY = stepGoal > 0 && stepGoal <= axisMax ? CHART_H - (stepGoal / axisMax) * CHART_H : null;
 
               return (
                 <>
-                  <View style={{ marginLeft: 0, marginRight: -22, height: 200, overflow: 'hidden', position: 'relative' }}>
+                  <View style={{ height: 200, overflow: 'hidden', position: 'relative' }}>
                     {hasMultipleSteps ? (
                       <>
-                      <LineChart
-                        data={{
-                          labels: uniqueLogs.slice(0, progressData.isLongRange ? 12 : 7).reverse().map((l, i, arr) => {
-                            if (arr.length <= 7 || i % Math.ceil(arr.length / 7) === 0 || i === arr.length - 1) {
-                              return progressData.formatLabel(l.date);
-                            }
-                            return '';
-                          }),
-                          datasets: [
-                            { data: chartData },
-                            { data: [0] },
-                          ],
-                        }}
-                        fromNumber={stepsYMax}
-                        width={SCREEN_WIDTH + 22}
-                        height={190}
-                        chartConfig={{
-                          backgroundColor: colors.card,
-                          backgroundGradientFrom: colors.card,
-                          backgroundGradientTo: colors.card,
-                          decimalPlaces: 0,
-                          color: (opacity = 1) => `rgba(249, 115, 22, ${opacity})`,
-                          labelColor: () => '#888',
-                          propsForDots: { r: '0' },
-                          propsForBackgroundLines: { stroke: 'transparent' },
-                          fillShadowGradient: '#F97316',
-                          fillShadowGradientFrom: '#F97316',
-                          fillShadowGradientTo: '#F97316',
-                          fillShadowGradientFromOpacity: 0.3,
-                          fillShadowGradientToOpacity: 0.05,
-                          propsForLabels: { fontSize: 9 },
-                          paddingRight: 48,
-                        }}
-                        renderDotContent={({ x, y, index }) => (
-                          <Rect key={`${x}-${y}`} x={x - 3} y={y - 3} width={6} height={6} fill="#F97316" rx={1} />
-                        )}
-                        onDataPointClick={({ value, x, y }) => setStepsTooltip(t => t?.x === x && t?.y === y ? null : { value, x, y })}
-                        bezier
-                        style={{ borderRadius: 12, marginLeft: -54 }}
-                        withInnerLines={false}
-                        withOuterLines={false}
-                        fromZero={false}
-                        withHorizontalLabels={false}
-                      />
+                      <View style={{ flexDirection: 'row', height: CHART_H, marginTop: 10 }}>
+                        <View style={{ width: 34, height: CHART_H, justifyContent: 'space-between', paddingRight: 4 }}>
+                          <Text style={styles.stepsAxisLabel}>{Math.round(axisMax).toLocaleString()}</Text>
+                          <Text style={styles.stepsAxisLabel}>0</Text>
+                        </View>
+                        <View style={{ flex: 1, position: 'relative' }}>
+                          {goalY != null && (
+                            <View style={[styles.stepsGoalLine, { top: goalY }]} />
+                          )}
+                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
+                            {chartData.map((value, i) => {
+                              const barH = Math.max(value > 0 ? 3 : 0, (value / axisMax) * CHART_H);
+                              const metGoal = stepGoal > 0 && value >= stepGoal;
+                              return (
+                                <TouchableOpacity
+                                  key={i}
+                                  style={{ flex: 1, alignItems: 'center' }}
+                                  activeOpacity={0.7}
+                                  onPress={() => setStepsTooltip(t => t?.i === i ? null : { i, value })}
+                                >
+                                  <View style={{
+                                    width: '70%', height: barH, borderRadius: 4,
+                                    backgroundColor: metGoal ? '#F97316' : 'rgba(249,115,22,0.35)',
+                                  }} />
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row', marginLeft: 34 }}>
+                        {chartLabels.map((label, i) => (
+                          <Text key={i} style={[styles.stepsAxisLabel, { flex: 1, textAlign: 'center' }]}>{label}</Text>
+                        ))}
+                      </View>
                       {stepsTooltip && (
-                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(stepsTooltip.x - 30, SCREEN_WIDTH - 120)), top: stepsTooltip.y - 12 }]} pointerEvents="none">
-                          <Text style={styles.chartTooltipText}>{stepsTooltip.value.toLocaleString()}</Text>
+                        <View style={styles.stepsTooltipCentered} pointerEvents="none">
+                          <Text style={styles.chartTooltipText}>{stepsTooltip.value.toLocaleString()} steps</Text>
                         </View>
                       )}
                       </>
@@ -949,6 +954,29 @@ const makeStyles = (c) => StyleSheet.create({
     color: '#fff',
     fontSize: 11,
     fontWeight: '600',
+  },
+  stepsAxisLabel: {
+    fontSize: 9,
+    color: '#888',
+  },
+  stepsGoalLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(249,115,22,0.5)',
+    zIndex: 1,
+  },
+  stepsTooltipCentered: {
+    position: 'absolute',
+    top: 4,
+    alignSelf: 'center',
+    backgroundColor: '#000',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    zIndex: 20,
   },
   streaksGridFour: {
     flexDirection: 'row',
