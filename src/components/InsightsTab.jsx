@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
-import { computeMomentumTimeline } from '../lib/momentum';
+import { computeMomentumTimeline, MET } from '../lib/momentum';
 import { computeWeeklyPace } from '../lib/trajectory';
 import { computeBurnoutTimeline } from '../lib/burnout';
 
@@ -217,6 +217,32 @@ const InsightsTab = ({
 
   const gauge = useMemo(() => buildGauge(momentumScore, accent), [momentumScore, accent]);
 
+  // Movement modality — classifies whether this person mostly earns active energy through
+  // gym/strength sessions or through daily steps (last 14 days), so the Movement nudge can
+  // recommend the kind of activity they actually do instead of defaulting to "go for a walk".
+  const movementModality = useMemo(() => {
+    const cutoff = now - 14 * DAY_MS;
+    const weightKg = currentWeightKg || 70;
+    let gymKcal = 0, stepsKcal = 0;
+    activities.forEach((a) => {
+      const ts = a.timestamp || new Date(a.date).getTime();
+      if (isNaN(ts) || ts < cutoff) return;
+      const met = MET[a.type] || MET.other;
+      gymKcal += (a.durationMin || 0) * met * 3.5 * weightKg / 200;
+    });
+    stepLogs.forEach((s) => {
+      const ts = s.timestamp || new Date(s.date).getTime();
+      if (isNaN(ts) || ts < cutoff) return;
+      stepsKcal += (s.steps || 0) * weightKg * 0.0005;
+    });
+    const total = gymKcal + stepsKcal;
+    if (total < 50) return 'unknown';
+    const gymRatio = gymKcal / total;
+    if (gymRatio >= 0.6) return 'gym';
+    if (gymRatio <= 0.4) return 'steps';
+    return 'mixed';
+  }, [activities, stepLogs, currentWeightKg, now]);
+
   // Weekly Pace & Trajectory Engine — purely calorie-driven (are you eating at the deficit you
   // signed up for), distinct from Momentum's scale-weight-driven Pace subscore above.
   const weeklyPace = useMemo(() => computeWeeklyPace({
@@ -333,6 +359,66 @@ const InsightsTab = ({
     if (!drivers.length) return 'Deficit, variety, protein, fat, and day-to-day consistency are all in a sustainable range this week.';
     return `This week: ${drivers.join('; ')}.`;
   }, [burnout]);
+
+  // Momentum nudge — the "why" line under the gauge. Context-aware rather than a canned
+  // platitude: Movement recommends the kind of activity this person actually does (gym vs
+  // steps) with the exact active-kcal gap, Satiety cites the real protein/driver numbers behind
+  // that day's Burnout score, and Calorie states the exact kcal over/under today's target.
+  const momentumNudge = useMemo(() => {
+    if (today.band.tone === 'stalled') {
+      return "Momentum has stalled. Don't try to fix everything at once — just log today's meals and today's weigh-in if you have one.";
+    }
+    if (today.band.tone !== 'drifting') return null;
+
+    if (today.movementSubscore != null && today.movementSubscore < 50) {
+      const gap = today.movementTargetKcal != null
+        ? Math.round(today.movementTargetKcal - today.movementGymKcal - today.movementStepsKcal)
+        : null;
+      if (gap != null && gap <= 0) {
+        return `Leading indicator: movement is at ${today.movementSubscore}% overall, but you've already hit today's active-energy target — a few more days like this brings the average back up.`;
+      }
+      if (gap != null) {
+        const weightKg = currentWeightKg || 70;
+        if (movementModality === 'gym') {
+          const minutesNeeded = Math.max(10, Math.round(gap / (MET.strength * 3.5 * weightKg / 200)));
+          return `Leading indicator: movement is at ${today.movementSubscore}% of your active-energy target — you're about ${gap} active kcal short today, roughly a ${minutesNeeded}-min gym session or bodyweight circuit.`;
+        }
+        if (movementModality === 'steps') {
+          const stepsNeeded = Math.round(gap / (weightKg * 0.0005));
+          return `Leading indicator: movement is at ${today.movementSubscore}% of your active-energy target — about ${stepsNeeded.toLocaleString()} more steps today closes the gap.`;
+        }
+        return `Leading indicator: movement is at ${today.movementSubscore}% of your active-energy target — you're about ${gap} active kcal short today, via a gym session or extra steps.`;
+      }
+      return `Leading indicator: movement is at ${today.movementSubscore}% of your active-energy target this week — log a walk, gym session, or your steps today to start closing it.`;
+    }
+
+    if (today.satietySubscore < 50) {
+      const t = burnout.today;
+      // Pick the single biggest driver behind today's Burnout score and give the one action
+      // that actually moves it, instead of listing every contributing factor.
+      const ranked = [
+        { pts: t.satietyPts, action: proteinGoal ? `you're averaging ${t.avgProtein}g protein against a ${proteinGoal}g target this week — add a protein-forward food to your next meal` : 'protein has been running low this week — add a protein-forward food to your next meal' },
+        { pts: t.deficitPts, action: `your deficit is running deep relative to your TDEE — bring today's calories closer to target rather than cutting further` },
+        { pts: t.monotonyPts, action: `variety is low — only ${t.uniqueFoodCount} unique food${t.uniqueFoodCount === 1 ? '' : 's'} across ${t.totalMealsLogged} meals this week — swap in a different protein or side today` },
+        { pts: t.fatPts, action: "fat's well under 20% of calories — add a source of healthy fat like avocado, nuts, or oil to a meal" },
+        { pts: t.volatilityPts, action: 'calories are swinging a lot day to day — try to land close to your recent daily average today' },
+      ].sort((a, b) => b.pts - a.pts);
+      const top = ranked[0].pts > 0 ? ranked[0].action : 'this usually eases once deficit, variety, and protein settle back to your normal range';
+      return `Leading indicator: satiety is at ${today.satietySubscore}%, usually what precedes a crash-out — ${top}.`;
+    }
+
+    if (today.caloriesLoggedToday) {
+      const gapKcal = Math.round(Math.abs(today.caloriesLoggedToday - dailyCalorieGoal));
+      const over = today.caloriesLoggedToday > dailyCalorieGoal;
+      if (gapKcal > 0) {
+        const action = over
+          ? "no need to compensate by cutting tomorrow — just get back to target"
+          : "worth topping up if you're still hungry rather than treating it as a win";
+        return `Leading indicator: calorie consistency is at ${today.calorieSubscore}%, down from where it's been — you're ${gapKcal} kcal ${over ? 'over' : 'under'} today's target, ${action}.`;
+      }
+    }
+    return `Leading indicator: calorie consistency is at ${today.calorieSubscore}%, down from where it's been — log today's meals as close to on-target as you can to start bringing it back up.`;
+  }, [today, movementModality, burnout, proteinGoal, dailyCalorieGoal, currentWeightKg]);
 
   // Trajectory chart: history is the EWMA-smoothed weight (kills water-weight noise, only
   // plotted on days with a real weigh-in — no fake flat-lining across gaps). The projection
@@ -553,16 +639,10 @@ const InsightsTab = ({
                 {'  ·  '}Satiety {today.satietySubscore}%
                 {'  ·  '}Movement {today.movementSubscore != null ? `${today.movementSubscore}%` : '--'}
               </Text>
-              {today.band.tone !== 'strong' && (
+              {momentumNudge && (
                 <View style={[styles.nudgeBox, today.band.tone === 'stalled' && styles.nudgeBoxUrgent]}>
                   <Text style={[styles.nudgeText, today.band.tone === 'stalled' && styles.nudgeTextUrgent]}>
-                    {today.band.tone === 'drifting'
-                      ? (today.movementSubscore != null && today.movementSubscore < 50
-                          ? 'Leading indicator: movement is down this week — worth a walk today.'
-                          : today.satietySubscore < 50
-                            ? "Leading indicator: satiety has been slipping — that's usually what precedes a crash-out."
-                            : 'Leading indicator: calorie consistency has cooled off from where it was.')
-                      : "Momentum has stalled. Don't try to fix everything at once — just log today's meals and today's weigh-in if you have one."}
+                    {momentumNudge}
                   </Text>
                 </View>
               )}

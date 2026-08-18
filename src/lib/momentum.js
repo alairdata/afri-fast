@@ -16,8 +16,9 @@ const ALPHA = 0.3; // EWMA decay factor (~7-day half-life)
 const WEIGHTS = { calorie: 0.40, satiety: 0.35, movement: 0.25 };
 
 // MET (Metabolic Equivalent of Task) per activity type -- shared with AddActivityModal.jsx's
-// own estimate so the two don't silently disagree.
-const MET = { walking: 3.5, running: 9.8, cycling: 7.5, swimming: 6, strength: 6, sports: 7, other: 4 };
+// own estimate so the two don't silently disagree. Exported so UI code (the Movement nudge)
+// can classify a person's usual modality -- gym vs steps -- without a second copy of this table.
+export const MET = { walking: 3.5, running: 9.8, cycling: 7.5, swimming: 6, strength: 6, sports: 7, other: 4 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -30,18 +31,22 @@ function calorieRawScore(actual, target) {
 
 // E_active (kcal) for the day: gym/activity sessions via MET formula, steps via a flat
 // per-step-per-kg estimate. R_M = E_active / E_target, where E_target = TDEE - BMR
-// (the "activity" slice of TDEE implied by the person's PAL/activity multiplier).
-function movementRawScore({ dayActivities, steps, weightKg, bmr, tdee }) {
+// (the "activity" slice of TDEE implied by the person's PAL/activity multiplier). Returns the
+// gym/steps split too, not just the score -- the Movement nudge needs it to recommend the kind
+// of activity the person actually does, and the exact kcal short of target, not just a walk.
+function movementBreakdown({ dayActivities, steps, weightKg, bmr, tdee }) {
   if (!weightKg || !bmr || !tdee) return null;
   const eTarget = tdee - bmr;
   if (eTarget <= 0) return null;
-  let eActive = 0;
+  let eGym = 0;
   dayActivities.forEach((a) => {
     const met = MET[a.type] || MET.other;
-    eActive += (a.durationMin || 0) * met * 3.5 * weightKg / 200;
+    eGym += (a.durationMin || 0) * met * 3.5 * weightKg / 200;
   });
-  eActive += (steps || 0) * weightKg * 0.0005;
-  return clamp(Math.round(100 * (eActive / eTarget)), 0, 100);
+  const eSteps = (steps || 0) * weightKg * 0.0005;
+  const eActive = eGym + eSteps;
+  const score = clamp(Math.round(100 * (eActive / eTarget)), 0, 100);
+  return { score, eGym, eSteps, eActive, eTarget };
 }
 
 // Shared EWMA step for Calorie/Movement: blend today's raw score in if there's real data for
@@ -139,8 +144,8 @@ export function computeMomentumTimeline({
     const dayActivities = activitiesByDate[ds] || [];
     const stepsToday = stepsByDate[ds] || 0;
     const hasMovementDataToday = dayActivities.length > 0 || stepsToday > 0;
-    const moveRaw = movementRawScore({ dayActivities, steps: stepsToday, weightKg: weightForToday, bmr, tdee });
-    moveEwma = moveRaw == null ? moveEwma : ewmaStep(moveEwma, moveRaw, hasMovementDataToday);
+    const moveBreakdown = movementBreakdown({ dayActivities, steps: stepsToday, weightKg: weightForToday, bmr, tdee });
+    moveEwma = moveBreakdown == null ? moveEwma : ewmaStep(moveEwma, moveBreakdown.score, hasMovementDataToday);
 
     const momentum = Math.round(clamp(
       WEIGHTS.calorie * (calEwma ?? 50) + WEIGHTS.satiety * satietyScore + WEIGHTS.movement * (moveEwma ?? 50),
@@ -158,9 +163,15 @@ export function computeMomentumTimeline({
     timeline.push({
       date: day,
       ds,
+      caloriesLoggedToday: caloriesToday,
       calorieSubscore: Math.round(calEwma ?? 50),
       satietySubscore: Math.round(satietyScore),
       movementSubscore: moveEwma != null ? Math.round(moveEwma) : null,
+      // Today's raw (unsmoothed) gym/steps kcal split + target -- for a "you're X kcal short,
+      // via a gym session or Y more steps" nudge, since the smoothed subscore alone can't say that.
+      movementGymKcal: moveBreakdown ? Math.round(moveBreakdown.eGym) : null,
+      movementStepsKcal: moveBreakdown ? Math.round(moveBreakdown.eSteps) : null,
+      movementTargetKcal: moveBreakdown ? Math.round(moveBreakdown.eTarget) : null,
       momentum,
       confidence,
       band: bandFor(momentum),

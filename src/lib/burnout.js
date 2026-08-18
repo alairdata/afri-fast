@@ -73,9 +73,9 @@ function buildScorer({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) 
 
     // 1. Deficit Depth (max 35) -- deficit as a % of TDEE, not a fixed kcal cliff.
     let deficitPts = 0;
+    const avgCaloriesAll = days.reduce((s, d) => s + d.calories, 0) / 7;
     if (tdee) {
-      const avgCalories = days.reduce((s, d) => s + d.calories, 0) / 7;
-      const rD = (tdee - avgCalories) / tdee;
+      const rD = (tdee - avgCaloriesAll) / tdee;
       deficitPts = rD <= 0 ? 0 : clamp(Math.round(35 * (rD / 0.40)), 0, 35);
     }
 
@@ -90,8 +90,8 @@ function buildScorer({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) 
 
     // 3. Satiety (max 25) -- protein logged vs the user's own set protein target.
     let satietyPts = 0;
+    const avgProtein = days.reduce((s, d) => s + d.protein, 0) / 7;
     if (proteinGoal) {
-      const avgProtein = days.reduce((s, d) => s + d.protein, 0) / 7;
       const aP = avgProtein / proteinGoal;
       satietyPts = aP >= 1.0 ? 0 : clamp(Math.round(25 * (1 - aP)), 0, 25);
     }
@@ -116,7 +116,13 @@ function buildScorer({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) 
     }
 
     const score = Math.round(clamp(deficitPts + monotonyPts + satietyPts + fatPts + volatilityPts, 0, 100));
-    return { score, deficitPts, monotonyPts, satietyPts, fatPts, volatilityPts, uniqueFoodCount: uniqueFoods.size, totalMealsLogged };
+    return {
+      score, deficitPts, monotonyPts, satietyPts, fatPts, volatilityPts,
+      uniqueFoodCount: uniqueFoods.size, totalMealsLogged,
+      // Raw 7-day averages -- so callers can cite an exact gap ("62g vs your 120g target")
+      // instead of just a points breakdown.
+      avgCalories: Math.round(avgCaloriesAll), avgProtein: Math.round(avgProtein),
+    };
   };
 
   return { scoreWindowEnding, startOfToday, recentPattern };
