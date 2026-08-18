@@ -7,7 +7,11 @@
 // fixed server-side (not read from the request body) so a leaked secret still can't be used to
 // write into a different account.
 
-async function insertSupabase(table, rows) {
+// Upserts (not inserts) by primary key -- if this endpoint runs more than once for the same day
+// (e.g. several fixed-time automations instead of one nightly run), re-syncing must REPLACE that
+// day's row, not add another one. Every reader downstream (Momentum's Movement pillar, the Steps
+// chart) sums all rows for a date, so duplicate rows for the same day would silently multiply it.
+async function upsertSupabase(table, rows) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) throw new Error('Supabase service credentials not configured');
@@ -18,14 +22,23 @@ async function insertSupabase(table, rows) {
       'apikey': SUPABASE_SERVICE_KEY,
       'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
       'Content-Type': 'application/json',
-      'Prefer': 'return=minimal',
+      'Prefer': 'return=minimal,resolution=merge-duplicates',
     },
     body: JSON.stringify(rows),
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Supabase insert failed (${response.status}): ${text}`);
+    throw new Error(`Supabase upsert failed (${response.status}): ${text}`);
   }
+}
+
+// Deterministic id for a given (metric, date) so re-syncing the same day always targets the same
+// row via the primary key -- distinct range (8xxx...) from both the app's own Date.now()-based
+// ids and the one-time backfill's 9xxx... range, so none of the three can ever collide.
+const DAY_MS = 24 * 60 * 60 * 1000;
+function webhookRowId(dateStr) {
+  const daysSinceEpoch = Math.floor(new Date(dateStr).getTime() / DAY_MS);
+  return 8000000000000 + daysSinceEpoch;
 }
 
 // Extracts today's steps total from the real payload shape confirmed from a live device:
@@ -101,7 +114,7 @@ export default async function handler(req, res) {
   console.log('[health-webhook] raw payload:', JSON.stringify(body).slice(0, 5000));
 
   const metric = (req.query.metric || 'steps').toString();
-  const dateStr = new Date().toDateString(); // automation runs nightly for the day just finished
+  const dateStr = new Date().toDateString(); // "today" -- whatever day this call happens to land on
 
   try {
     if (metric === 'steps') {
@@ -110,8 +123,8 @@ export default async function handler(req, res) {
         console.error('[health-webhook] could not extract a steps total — payload shape was:', JSON.stringify(body).slice(0, 500));
         return res.status(200).json({ ok: false, reason: 'unrecognized payload shape, logged for review' });
       }
-      await insertSupabase('step_logs', [{
-        id: Date.now(),
+      await upsertSupabase('step_logs', [{
+        id: webhookRowId(dateStr),
         user_id: USER_ID,
         date: dateStr,
         display_date: dateStr,
