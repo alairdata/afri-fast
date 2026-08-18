@@ -28,11 +28,13 @@ async function insertSupabase(table, rows) {
   }
 }
 
-// Best-effort extraction of a total steps count from whatever shape the "Find Health Samples"
-// Shortcuts action hands us — the exact JSON keys vary by iOS version and how the shortcut's
-// fields are wired, and can't be known for certain without a real payload to look at. Tries
-// several plausible shapes; the raw body is always logged either way so the parser can be
-// tightened to match exactly once we've seen one real request.
+// Extracts today's steps total from the real payload shape confirmed from a live device:
+// Shortcuts coerces the "Find Health Samples" (grouped by Day) list into ONE newline-separated
+// text string when the JSON field's type is Text -- each line is one day's total, oldest first,
+// e.g. "4339\n3423\n...\n440". The shortcut's "last 1 day" filter isn't actually limiting the
+// result set (still sends the full history every run), so this takes the LAST line -- the most
+// recent day, i.e. today -- rather than relying on the filter to have done that already. Still
+// tries a couple of object-shape fallbacks in case a future payload looks different.
 function extractStepsTotal(body) {
   const samples = Array.isArray(body) ? body
     : Array.isArray(body?.samples) ? body.samples
@@ -48,17 +50,26 @@ function extractStepsTotal(body) {
     return null;
   };
 
-  let total = 0;
-  let found = false;
+  const numbers = [];
   samples.forEach((s) => {
     if (s == null) return;
+    if (typeof s === 'number') { numbers.push(s); return; }
+    if (typeof s === 'string') {
+      s.split(/\r?\n/).forEach((line) => {
+        const trimmed = line.trim();
+        if (trimmed === '') return;
+        const n = Number(trimmed);
+        if (!Number.isNaN(n)) numbers.push(n);
+      });
+      return;
+    }
     for (const key of ['Quantity', 'quantity', 'Sum', 'sum', 'Value', 'value', 'Steps', 'steps', 'Amount', 'amount']) {
       const n = asNumber(s[key]);
-      if (n != null) { total += n; found = true; break; }
+      if (n != null) { numbers.push(n); break; }
     }
   });
 
-  return found ? Math.round(total) : null;
+  return numbers.length ? Math.round(numbers[numbers.length - 1]) : null;
 }
 
 export default async function handler(req, res) {
