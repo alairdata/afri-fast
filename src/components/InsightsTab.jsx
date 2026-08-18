@@ -351,11 +351,11 @@ const InsightsTab = ({
   const burnoutWhy = useMemo(() => {
     const t = burnout.today;
     const drivers = [];
-    if (t.deficitPts >= 20) drivers.push('your deficit is running deep relative to your TDEE');
+    if (t.deficitPts >= 6) drivers.push('your deficit is running deep relative to your TDEE');
     if (t.monotonyPts >= 12) drivers.push(`variety is low — only ${t.uniqueFoodCount} unique food${t.uniqueFoodCount === 1 ? '' : 's'} across ${t.totalMealsLogged} logged meal${t.totalMealsLogged === 1 ? '' : 's'} this week`);
     if (t.satietyPts >= 10) drivers.push("protein is running under your target, so hunger keeps building");
     if (t.fatPts >= 5) drivers.push("fat's well under 20% of calories, which tends to hit mood and sleep");
-    if (t.volatilityPts >= 4) drivers.push('calories are swinging a lot day to day relative to your own average');
+    if (t.volatilityPts >= 10) drivers.push('calories are swinging a lot day to day — binge-restrict pattern, not a steady deficit');
     if (!drivers.length) return 'Deficit, variety, protein, fat, and day-to-day consistency are all in a sustainable range this week.';
     return `This week: ${drivers.join('; ')}.`;
   }, [burnout]);

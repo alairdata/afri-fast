@@ -22,11 +22,14 @@ export const MET = { walking: 3.5, running: 9.8, cycling: 7.5, swimming: 6, stre
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-// R_C = 1 - |logged - target| / target
+// R_C = 1 - |logged - target| / target. Unclamped below zero (down to -100): eating at
+// maintenance (0 pts) and eating 2,000kcal past maintenance are not the same event -- the
+// latter actively erodes the deficit banked on previous days, and the EWMA needs a genuinely
+// negative input to drag the smoothed score down instead of just gently coasting to a floor.
 function calorieRawScore(actual, target) {
   if (!target) return 0;
   const rC = 1 - Math.abs(actual - target) / target;
-  return Math.max(0, Math.round(100 * rC));
+  return Math.max(-100, Math.round(100 * rC));
 }
 
 // E_active (kcal) for the day: gym/activity sessions via MET formula, steps via a flat

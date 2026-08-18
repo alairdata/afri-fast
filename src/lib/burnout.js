@@ -67,16 +67,24 @@ function buildScorer({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) 
     const window = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(endDate.getTime() - i * DAY_MS);
-      window.push(d.getTime() <= startOfToday.getTime() ? d.toDateString() : null);
+      // Compare calendar days, not raw timestamps -- endDate can carry today's actual
+      // clock time (momentum.js passes `now` verbatim as endDate for the current day), and
+      // comparing that directly against a midnight-normalized startOfToday would wrongly
+      // mark today "future" for any time after midnight, silently swapping its real data
+      // for the projected average.
+      const dMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      window.push(dMidnight.getTime() <= startOfToday.getTime() ? d.toDateString() : null);
     }
     const days = window.map((ds) => (ds != null ? dayTotals(ds) : (recentPattern || { ...EMPTY_DAY, foods: [] })));
 
-    // 1. Deficit Depth (max 35) -- deficit as a % of TDEE, not a fixed kcal cliff.
+    // 1. Deficit Depth (max 10) -- deficit as a % of TDEE, not a fixed kcal cliff. Weighted
+    // down from an earlier max of 35: an isolated deep-deficit week matters less to crash-out
+    // risk than day-to-day binge-restrict volatility (below), which is the sharper predictor.
     let deficitPts = 0;
     const avgCaloriesAll = days.reduce((s, d) => s + d.calories, 0) / 7;
     if (tdee) {
       const rD = (tdee - avgCaloriesAll) / tdee;
-      deficitPts = rD <= 0 ? 0 : clamp(Math.round(35 * (rD / 0.40)), 0, 35);
+      deficitPts = rD <= 0 ? 0 : clamp(Math.round(10 * (rD / 0.35)), 0, 10);
     }
 
     // 2. Food Monotony (max 25) -- unique ingredients as a ratio of total meals logged.
@@ -105,14 +113,17 @@ function buildScorer({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) 
       fatPts = sF >= 0.20 ? 0 : clamp(Math.round(15 * (1 - sF / 0.20)), 0, 15);
     }
 
-    // 5. Calorie Volatility (max 10) -- coefficient of variation.
+    // 5. Calorie Volatility (max 25) -- coefficient of variation. Weighted up from an earlier
+    // max of 10: this is the actual signature of a binge-restrict loop (e.g. 1,400kcal days
+    // alternating with 3,500+kcal days), which a simple 7-day average calorie figure hides
+    // completely even though it's what precedes giving up, not just running a steady deficit.
     let volatilityPts = 0;
     const calArr = days.map((d) => d.calories);
     const mean = calArr.reduce((s, v) => s + v, 0) / 7;
     if (mean > 0) {
       const variance = calArr.reduce((s, v) => s + (v - mean) ** 2, 0) / 7;
       const cv = Math.sqrt(variance) / mean;
-      volatilityPts = cv <= 0.15 ? 0 : clamp(Math.round(10 * ((cv - 0.15) / 0.20)), 0, 10);
+      volatilityPts = cv <= 0.15 ? 0 : clamp(Math.round(25 * ((cv - 0.15) / 0.20)), 0, 25);
     }
 
     const score = Math.round(clamp(deficitPts + monotonyPts + satietyPts + fatPts + volatilityPts, 0, 100));
