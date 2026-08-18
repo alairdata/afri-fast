@@ -32,9 +32,11 @@ const ProgressTab = ({
     const now = Date.now();
     const days = progressRange === '7 days' ? 7 : progressRange === '30 days' ? 30 : progressRange === '90 days' ? 90 : 99999;
     const cutoff = now - days * 24 * 60 * 60 * 1000;
-    // 7/30 days -> one point per day. 90 days -> one point per calendar week (Sun-Sat), labeled
-    // by the week's last day. All time -> one point per month. isLongRange just means "grouped
-    // into buckets, show up to ~12" -- the grouping key itself is rangeMode.
+    // Every range always shows one point per individual day -- charts never aggregate into
+    // weekly/monthly averages. rangeMode only controls the axis label FORMAT (see formatLabel):
+    // "12-Aug" for 7/30 days, "21/05" (dd/mm) for 90 days, "Jan/26" (Mon/YY) for All time.
+    // isLongRange is still used for a couple of "avg daily" vs "avg monthly" stat labels below
+    // the charts, unrelated to the chart rendering itself.
     const rangeMode = days === 90 ? 'weekly' : days === 99999 ? 'monthly' : 'daily';
     const isLongRange = rangeMode !== 'daily';
 
@@ -133,39 +135,11 @@ const ProgressTab = ({
     });
     const dailyWater = Object.values(waterByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    // Groups pre-sorted-descending daily entries into weekly (Sun-Sat) or monthly buckets,
-    // averaging the given field. Since entries are scanned newest-first, the first one seen per
-    // bucket is the most recent day in that period -- i.e. the bucket's date ends up being its
-    // own last day, which is exactly the label each bucket should show.
-    const groupByPeriod = (dailyEntries, field) => {
-      if (rangeMode === 'daily' || !dailyEntries.length) return dailyEntries;
-      const buckets = {};
-      dailyEntries.forEach((d) => {
-        const dt = new Date(d.date);
-        let key;
-        if (rangeMode === 'monthly') {
-          key = `${dt.getFullYear()}-${dt.getMonth()}`;
-        } else {
-          const weekStart = new Date(dt);
-          weekStart.setDate(dt.getDate() - dt.getDay());
-          key = weekStart.toDateString();
-        }
-        if (!buckets[key]) buckets[key] = { date: d.date, total: 0, days: 0 };
-        buckets[key].total += d[field];
-        buckets[key].days += 1;
-      });
-      return Object.values(buckets).map((b) => ({ date: b.date, [field]: b.total / b.days }));
-    };
-
-    // For long range, aggregate by week (90 days) or month (all time)
-    let uniqueWater;
-    if (isLongRange && dailyWater.length > 0) {
-      uniqueWater = groupByPeriod(dailyWater, 'totalL').map((w) => ({ ...w, totalL: Math.round(w.totalL * 10) / 10 }));
-    } else {
-      uniqueWater = dailyWater;
-    }
-
-    const waterChartData = uniqueWater.slice(0, isLongRange ? 12 : 7).reverse().map(l => Math.round(l.totalL * 10) / 10);
+    // Every day always gets its own point/bar -- never aggregated into weekly/monthly averages,
+    // regardless of range. Only the axis LABELS get sparse (see pickLabelIndices below); the
+    // underlying data stays daily so a 90-day or All-time view still shows every real day.
+    const uniqueWater = dailyWater;
+    const waterChartData = uniqueWater.slice().reverse().map(l => Math.round(l.totalL * 10) / 10);
     const avgWaterL = uniqueWater.length > 0 ? (uniqueWater.reduce((s, l) => s + l.totalL, 0) / uniqueWater.length).toFixed(1) : '0';
 
     // Steps stats
@@ -176,23 +150,34 @@ const ProgressTab = ({
       stepsByDate[key].totalSteps += l.steps;
     });
     const dailySteps = Object.values(stepsByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
-    let uniqueSteps;
-    if (isLongRange && dailySteps.length > 0) {
-      uniqueSteps = groupByPeriod(dailySteps, 'totalSteps').map((s) => ({ ...s, totalSteps: Math.round(s.totalSteps) }));
-    } else {
-      uniqueSteps = dailySteps;
-    }
-    const stepsChartData = uniqueSteps.slice(0, isLongRange ? 12 : 7).reverse().map(l => l.totalSteps);
+    const uniqueSteps = dailySteps;
+    const stepsChartData = uniqueSteps.slice().reverse().map(l => l.totalSteps);
     const avgSteps = uniqueSteps.length > 0 ? Math.round(uniqueSteps.reduce((s, l) => s + l.totalSteps, 0) / uniqueSteps.length) : 0;
 
-    // Chart label formatter
+    // Chart label formatter -- matches the reference exactly: "12-Aug" for 7/30 days,
+    // "21/05" (dd/mm) for 90 days, "Jan/26" (Mon/YY) for All time.
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const pad2 = (n) => String(n).padStart(2, '0');
     const formatLabel = (dateStr) => {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr.slice(0, 6);
-      if (rangeMode === 'monthly') return `${pad2(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)}`;
+      if (rangeMode === 'monthly') return `${MONTHS[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
       if (rangeMode === 'weekly') return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`;
-      return pad2(d.getDate());
+      return `${d.getDate()}-${MONTHS[d.getMonth()]}`;
+    };
+
+    // Picks up to `count` evenly-spaced indices (always including first and last) from a dense
+    // day-by-day array, so a chart with 90+ points still only labels ~4 of them -- every bar/point
+    // stays, only the text underneath thins out.
+    const pickLabelIndices = (n, count = 4) => {
+      const idxs = new Set();
+      if (n <= count) { for (let i = 0; i < n; i++) idxs.add(i); return idxs; }
+      for (let k = 0; k < count; k++) idxs.add(Math.round((k * (n - 1)) / (count - 1)));
+      return idxs;
+    };
+    const buildLabels = (items) => {
+      const idxs = pickLabelIndices(items.length);
+      return items.map((item, i) => (idxs.has(i) ? formatLabel(item.date) : ''));
     };
 
     // Monthly grouping for calories (long range)
@@ -245,6 +230,7 @@ const ProgressTab = ({
       recentActivities: [...(activities || [])].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 5),
       // Labels
       formatLabel,
+      buildLabels,
     };
   };
 
@@ -384,8 +370,7 @@ const ProgressTab = ({
               const hasMultiple = uniqueLogs.length >= 2;
               const latest = hasData ? uniqueLogs[0] : null;
               const unit = latest ? latest.unit : 'kg';
-              const displayCount = progressData.isLongRange ? 12 : 7;
-              const displayLogs = uniqueLogs.slice(0, displayCount).reverse();
+              const displayLogs = uniqueLogs.slice().reverse();
               const allWeights = displayLogs.map(l => l.weight);
               const currentWeight = hasData ? latest.weight : null;
               const yMax = currentWeight != null ? Math.ceil(currentWeight + 5) : undefined;
@@ -397,12 +382,7 @@ const ProgressTab = ({
                       <>
                       <LineChart
                         data={{
-                          labels: displayLogs.map((l, i, arr) => {
-                            if (arr.length <= 7 || i % Math.ceil(arr.length / 7) === 0 || i === arr.length - 1) {
-                              return progressData.formatLabel(l.date);
-                            }
-                            return '';
-                          }),
+                          labels: progressData.buildLabels(displayLogs),
                           datasets: [
                             { data: allWeights },
                             ...(yMin != null ? [{ data: [yMin] }] : []),
@@ -490,7 +470,7 @@ const ProgressTab = ({
           </View>
           <View style={styles.chartCardCompact}>
             {(() => {
-              const dailyData = progressData.dailyCalData.slice(0, progressData.isLongRange ? 12 : 7).reverse();
+              const dailyData = progressData.dailyCalData.slice().reverse();
               const hasData = dailyData.length > 0;
               const hasMultiple = dailyData.length >= 2;
               const lastMeal = progressData.rangeMeals.length > 0 ? progressData.rangeMeals[0] : null;
@@ -502,10 +482,7 @@ const ProgressTab = ({
                       <>
                       <LineChart
                         data={{
-                          labels: dailyData.map((d) => {
-                            if (progressData.days > 7) return '';
-                            return progressData.formatLabel(d.date);
-                          }),
+                          labels: progressData.buildLabels(dailyData),
                           datasets: [
                             { data: dailyData.map(d => d.calories) },
                             ...(dailyCalorieGoal > 0 ? [{ data: [Math.round(dailyCalorieGoal * 0.5)] }] : []),
@@ -605,12 +582,7 @@ const ProgressTab = ({
                       <>
                       <LineChart
                         data={{
-                          labels: uniqueLogs.slice(0, progressData.isLongRange ? 12 : 7).reverse().map((l, i, arr) => {
-                            if (arr.length <= 7 || i % Math.ceil(arr.length / 7) === 0 || i === arr.length - 1) {
-                              return progressData.formatLabel(l.date);
-                            }
-                            return '';
-                          }),
+                          labels: progressData.buildLabels(uniqueLogs.slice().reverse()),
                           datasets: [
                             { data: chartData },
                             { data: [0] },
@@ -702,12 +674,10 @@ const ProgressTab = ({
               const hasStepsData = uniqueLogs.length > 0;
               const hasMultipleSteps = uniqueLogs.length >= 2;
               const chartData = progressData.stepsChartData;
-              const chartLabels = uniqueLogs.slice(0, progressData.isLongRange ? 12 : 7).reverse().map((l, i, arr) => {
-                if (arr.length <= 7 || i % Math.ceil(arr.length / 7) === 0 || i === arr.length - 1) {
-                  return progressData.formatLabel(l.date);
-                }
-                return '';
-              });
+              const chartLabels = progressData.buildLabels(uniqueLogs.slice().reverse());
+              // Fixed gap works for a handful of bars but eats all the space once there are
+              // dozens/hundreds (90+ days) -- shrink it as the count grows so bars stay visible.
+              const barGap = chartData.length > 60 ? 0 : chartData.length > 20 ? 1 : 4;
               // Hand-rolled instead of react-native-chart-kit's BarChart: that library has no real
               // y-axis max/min prop (its "fromNumber"-style options are no-ops in this version —
               // the axis is silently auto-scaled from whatever's in the visible window), so the
@@ -732,7 +702,7 @@ const ProgressTab = ({
                           {goalY != null && (
                             <View style={[styles.stepsGoalLine, { top: goalY }]} />
                           )}
-                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
+                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: barGap }}>
                             {chartData.map((value, i) => {
                               const barH = Math.max(value > 0 ? 3 : 0, (value / axisMax) * CHART_H);
                               const metGoal = stepGoal > 0 && value >= stepGoal;
