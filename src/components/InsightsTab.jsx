@@ -6,6 +6,7 @@ import { useTheme } from '../lib/theme';
 import { computeMomentumTimeline, MET } from '../lib/momentum';
 import { computeWeeklyPace } from '../lib/trajectory';
 import { computeBurnoutTimeline } from '../lib/burnout';
+import { getCachedMomentumNudge, getMomentumNudge } from '../lib/momentumNudge';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WARN = '#F59E0B';
@@ -64,6 +65,7 @@ function hexToRgb(hex) {
 }
 
 const InsightsTab = ({
+  userId = null,
   userName = '',
   weightLogs = [],
   recentMeals = [],
@@ -218,8 +220,10 @@ const InsightsTab = ({
   const gauge = useMemo(() => buildGauge(momentumScore, accent), [momentumScore, accent]);
 
   // Movement modality — classifies whether this person mostly earns active energy through
-  // gym/strength sessions or through daily steps (last 14 days), so the Movement nudge can
-  // recommend the kind of activity they actually do instead of defaulting to "go for a walk".
+  // gym/strength sessions or through daily steps (last 14 days), so the template Movement nudge
+  // can recommend the kind of activity they actually do instead of defaulting to "go for a
+  // walk". The AI nudge gets the raw gymKcal14d/stepsKcal14d split directly instead of this
+  // bucket, so it can describe the pattern in its own words rather than a rigid category.
   const movementModality = useMemo(() => {
     const cutoff = now - 14 * DAY_MS;
     const weightKg = currentWeightKg || 70;
@@ -236,11 +240,8 @@ const InsightsTab = ({
       stepsKcal += (s.steps || 0) * weightKg * 0.0005;
     });
     const total = gymKcal + stepsKcal;
-    if (total < 50) return 'unknown';
-    const gymRatio = gymKcal / total;
-    if (gymRatio >= 0.6) return 'gym';
-    if (gymRatio <= 0.4) return 'steps';
-    return 'mixed';
+    const classification = total < 50 ? 'unknown' : (gymKcal / total) >= 0.6 ? 'gym' : (gymKcal / total) <= 0.4 ? 'steps' : 'mixed';
+    return { classification, gymKcal14d: gymKcal, stepsKcal14d: stepsKcal };
   }, [activities, stepLogs, currentWeightKg, now]);
 
   // Weekly Pace & Trajectory Engine — purely calorie-driven (are you eating at the deficit you
@@ -379,11 +380,11 @@ const InsightsTab = ({
       }
       if (gap != null) {
         const weightKg = currentWeightKg || 70;
-        if (movementModality === 'gym') {
+        if (movementModality.classification === 'gym') {
           const minutesNeeded = Math.max(10, Math.round(gap / (MET.strength * 3.5 * weightKg / 200)));
           return `Leading indicator: movement is at ${today.movementSubscore}% of your active-energy target — you're about ${gap} active kcal short today, roughly a ${minutesNeeded}-min gym session or bodyweight circuit.`;
         }
-        if (movementModality === 'steps') {
+        if (movementModality.classification === 'steps') {
           const stepsNeeded = Math.round(gap / (weightKg * 0.0005));
           return `Leading indicator: movement is at ${today.movementSubscore}% of your active-energy target — about ${stepsNeeded.toLocaleString()} more steps today closes the gap.`;
         }
@@ -419,6 +420,64 @@ const InsightsTab = ({
     }
     return `Leading indicator: calorie consistency is at ${today.calorieSubscore}%, down from where it's been — log today's meals as close to on-target as you can to start bringing it back up.`;
   }, [today, movementModality, burnout, proteinGoal, dailyCalorieGoal, currentWeightKg]);
+
+  // Structured facts for the AI nudge — the exact same numbers the template above uses, just
+  // handed to the model directly instead of pre-picked through the if/else waterfall, so it can
+  // reason over all three pillars (and the raw gym/steps split) at once rather than being locked
+  // into one rigid driver + one rigid movement-modality bucket.
+  const momentumFacts = useMemo(() => ({
+    todayBand: today.band.label,
+    momentumScore: today.momentum,
+    calorie: { subscore: today.calorieSubscore, loggedToday: today.caloriesLoggedToday, targetToday: dailyCalorieGoal },
+    satiety: {
+      subscore: today.satietySubscore,
+      burnoutScore: burnout.today.score,
+      avgProtein: burnout.today.avgProtein,
+      proteinGoal: proteinGoal || null,
+      avgCalories: burnout.today.avgCalories,
+      tdee: tdee || null,
+      uniqueFoodCount: burnout.today.uniqueFoodCount,
+      totalMealsLogged: burnout.today.totalMealsLogged,
+      points: { deficit: burnout.today.deficitPts, monotony: burnout.today.monotonyPts, protein: burnout.today.satietyPts, fat: burnout.today.fatPts, volatility: burnout.today.volatilityPts },
+    },
+    movement: {
+      subscore: today.movementSubscore,
+      gymKcalToday: today.movementGymKcal,
+      stepsKcalToday: today.movementStepsKcal,
+      targetKcalToday: today.movementTargetKcal,
+      trailing14Days: { gymKcal: Math.round(movementModality.gymKcal14d), stepsKcal: Math.round(movementModality.stepsKcal14d) },
+    },
+    userName: userName || null,
+  }), [today, burnout, proteinGoal, tdee, dailyCalorieGoal, movementModality, userName]);
+
+  // Coarse fingerprint of the facts above — rounded enough that a single gram of protein or one
+  // extra step doesn't force a regenerate, only a materially different picture does.
+  const momentumFingerprint = useMemo(() => {
+    const r5 = (n) => (n == null ? 'x' : Math.round(n / 5) * 5);
+    const r25 = (n) => (n == null ? 'x' : Math.round(n / 25) * 25);
+    return [
+      today.band.label,
+      r5(today.calorieSubscore), r25(today.caloriesLoggedToday),
+      r5(today.satietySubscore),
+      r5(today.movementSubscore), r25(today.movementGymKcal), r25(today.movementStepsKcal),
+    ].join('|');
+  }, [today]);
+
+  // AI-generated nudge — shows the deterministic template instantly (zero latency, zero cost),
+  // then swaps in the AI line once it loads. Falls back to the template forever if the call
+  // fails or the user is offline; never blank, never stuck on a spinner.
+  const [aiNudge, setAiNudge] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId || today.band.tone === 'strong') { setAiNudge(null); return; }
+    getCachedMomentumNudge(userId).then((cached) => { if (!cancelled && cached) setAiNudge(cached); });
+    getMomentumNudge({ userId, facts: momentumFacts, fingerprint: momentumFingerprint }).then((nudge) => {
+      if (!cancelled && nudge) setAiNudge(nudge);
+    });
+    return () => { cancelled = true; };
+  }, [userId, momentumFingerprint]);
+
+  const nudgeText = aiNudge || momentumNudge;
 
   // Trajectory chart: history is the EWMA-smoothed weight (kills water-weight noise, only
   // plotted on days with a real weigh-in — no fake flat-lining across gaps). The projection
@@ -639,10 +698,10 @@ const InsightsTab = ({
                 {'  ·  '}Satiety {today.satietySubscore}%
                 {'  ·  '}Movement {today.movementSubscore != null ? `${today.movementSubscore}%` : '--'}
               </Text>
-              {momentumNudge && (
+              {nudgeText && (
                 <View style={[styles.nudgeBox, today.band.tone === 'stalled' && styles.nudgeBoxUrgent]}>
                   <Text style={[styles.nudgeText, today.band.tone === 'stalled' && styles.nudgeTextUrgent]}>
-                    {momentumNudge}
+                    {nudgeText}
                   </Text>
                 </View>
               )}

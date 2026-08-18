@@ -1840,6 +1840,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
       {activeTab === 'insights' && (
         <InsightsTab
+          userId={session?.user?.id}
           userName={userName}
           weightLogs={weightLogs}
           recentMeals={recentMeals}

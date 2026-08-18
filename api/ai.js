@@ -203,6 +203,24 @@ Return ONLY a valid JSON array, no markdown, no explanation:
   { "feeling": "...", "why": "...", "action": "...", "takeaway": "...", "cta": "..." }
 ]`;
 
+const MOMENTUM_NUDGE_PROMPT = `You are a warm, smart health coach embedded in a calorie-deficit tracking app for African users, writing ONE short line that appears in a small box under a "Momentum Score" gauge on the Insights screen.
+
+The Momentum Score blends three pillars: Calorie consistency (40% weight), Satiety/sustainability (35% weight, derived from a Burnout-risk model), and Movement (25% weight, MET-based active energy vs a physiological target). You are given the exact computed numbers behind all three pillars for today, plus the person's trailing 14-day gym-kcal vs steps-kcal split. Your job: explain what's actually dragging the score down right now, in plain warm language, and give ONE small doable action.
+
+## Rules
+- Use the person's own numbers exactly as given — kcal gaps, percentages, grams. Never invent, estimate, or round loosely beyond what's provided.
+- For Movement: you're given raw trailing-14-day gymKcal and stepsKcal totals, not a pre-sorted category. Read them yourself and describe how this person actually moves in your own words (e.g. clearly gym-focused, mostly a walker, does a mix, or barely any movement logged at all) — don't force a rigid label, just talk about it naturally like you've noticed their pattern.
+- Pick whichever pillar is the most useful thing to raise right now — usually the lowest subscore, but use judgment if two are close and one has a clearer fix.
+- Speak like a smart, honest friend, not a clinical app or a report. No "macro targets", no "caloric deficit", no jargon — plain everyday language.
+- One sentence, two at most. This is a small box under a gauge, not a paragraph.
+- Do not use a label or prefix like "Leading indicator:" — just talk to them directly.
+- End with one concrete, specific action tied to the real numbers you were given.
+- If todayBand is "STALLED", keep it simple — the action should just be "log something today" (a meal or a weigh-in), not a complex plan.
+- Never say "based on your data" or "your logs show" — you just know them.
+
+## Output
+Return ONLY valid JSON, no markdown, no explanation: {"nudge": "..."}`;
+
 function getGoalAtDate(goalHistory, dateStr, profile) {
   if (!goalHistory?.length || !dateStr) return profile;
   const date = new Date(dateStr);
@@ -543,6 +561,20 @@ or the word: null`;
       if (!jsonMatch) {
         console.error('[/api/ai just_for_you] No JSON in response:', raw.slice(0, 300));
         return res.status(500).json({ error: 'Could not parse insight' });
+      }
+      const result = JSON.parse(jsonMatch[0]);
+      return res.status(200).json(result);
+    }
+
+    if (type === 'momentum_nudge') {
+      const prompt = `${MOMENTUM_NUDGE_PROMPT}\n\nTODAY'S MOMENTUM DATA:\n${JSON.stringify(data)}`;
+      const raw = await callClaude(prompt, CLAUDE_KEY, 300, 'claude-haiku-4-5-20251001');
+
+      const stripped = raw.replace(/```json|```/g, '').trim();
+      const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error('[/api/ai momentum_nudge] No JSON in response:', raw.slice(0, 300));
+        return res.status(500).json({ error: 'Could not parse nudge' });
       }
       const result = JSON.parse(jsonMatch[0]);
       return res.status(200).json(result);
