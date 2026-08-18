@@ -6,6 +6,7 @@ import { LineChart } from 'react-native-chart-kit';
 import { Rect } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const ProgressTab = ({
   onShowWeightModal, onShowFastingDetails, onShowBMIDetails, onShowCalorieDetails, onShowHydrationDetails,
@@ -737,7 +738,7 @@ const ProgressTab = ({
                       )}
                       </>
                     ) : (
-                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                      <View style={{ height: 160, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={styles.chartPlaceholderText}>{hasStepsData ? `${progressData.avgSteps.toLocaleString()} steps` : 'No steps data'}</Text>
                         <Text style={styles.chartPlaceholderSubtext}>{hasStepsData ? 'Log more to see trends' : 'Log steps to start'}</Text>
                       </View>
