@@ -129,6 +129,23 @@ const ProgressTab = ({
       return Math.round(ml / 100) / 10;
     };
 
+    // Fills gaps so the chosen range always shows every calendar day in it -- a day with no log
+    // becomes a real 0 entry instead of being skipped, so "7 days" always means 7 bars/points,
+    // not "however many of the last 7 days happened to have data". Only applies when there's a
+    // fixed day count (not All time, which has no natural start to fill from).
+    const fillDays = (byDate, field, dayCount) => {
+      if (dayCount === 99999) {
+        return Object.values(byDate).sort((a, b) => new Date(b.date) - new Date(a.date));
+      }
+      const out = [];
+      for (let i = 0; i < dayCount; i++) {
+        const d = new Date(now - i * DAY_MS);
+        const ds = d.toDateString();
+        out.push(byDate[ds] || { date: ds, [field]: 0 });
+      }
+      return out; // already newest-first, matching the sort order of the non-filled path
+    };
+
     // Water stats
     // Aggregate water totals per day (sum all entries for same date)
     const waterByDate = {};
@@ -137,14 +154,15 @@ const ProgressTab = ({
       if (!waterByDate[key]) waterByDate[key] = { date: key, totalL: 0 };
       waterByDate[key].totalL += toL(l.amount, l.unit);
     });
-    const dailyWater = Object.values(waterByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
+    const dailyWater = fillDays(waterByDate, 'totalL', days);
 
     // Every day always gets its own point/bar -- never aggregated into weekly/monthly averages,
     // regardless of range. Only the axis LABELS get sparse (see pickLabelIndices below); the
     // underlying data stays daily so a 90-day or All-time view still shows every real day.
     const uniqueWater = dailyWater;
     const waterChartData = uniqueWater.slice().reverse().map(l => Math.round(l.totalL * 10) / 10);
-    const avgWaterL = uniqueWater.length > 0 ? (uniqueWater.reduce((s, l) => s + l.totalL, 0) / uniqueWater.length).toFixed(1) : '0';
+    const loggedWaterDays = dailyWater.filter(l => l.totalL > 0);
+    const avgWaterL = loggedWaterDays.length > 0 ? (loggedWaterDays.reduce((s, l) => s + l.totalL, 0) / loggedWaterDays.length).toFixed(1) : '0';
 
     // Steps stats
     const stepsByDate = {};
@@ -153,10 +171,11 @@ const ProgressTab = ({
       if (!stepsByDate[key]) stepsByDate[key] = { date: key, totalSteps: 0 };
       stepsByDate[key].totalSteps += l.steps;
     });
-    const dailySteps = Object.values(stepsByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
+    const dailySteps = fillDays(stepsByDate, 'totalSteps', days);
     const uniqueSteps = dailySteps;
     const stepsChartData = uniqueSteps.slice().reverse().map(l => l.totalSteps);
-    const avgSteps = uniqueSteps.length > 0 ? Math.round(uniqueSteps.reduce((s, l) => s + l.totalSteps, 0) / uniqueSteps.length) : 0;
+    const loggedStepsDays = dailySteps.filter(l => l.totalSteps > 0);
+    const avgSteps = loggedStepsDays.length > 0 ? Math.round(loggedStepsDays.reduce((s, l) => s + l.totalSteps, 0) / loggedStepsDays.length) : 0;
 
     // Chart label formatter -- matches the reference exactly: "12-Aug" for 7/30 days,
     // "21/05" (dd/mm) for 90 days, "Jan/26" (Mon/YY) for All time.
@@ -225,11 +244,13 @@ const ProgressTab = ({
       uniqueWater,
       waterChartData,
       avgWaterL,
+      hasLoggedWater: loggedWaterDays.length > 0,
       waterGoalMet: `${uniqueWater.filter(w => w.totalL >= 2).length}/${uniqueWater.length}`,
       // Steps
       uniqueSteps,
       stepsChartData,
       avgSteps,
+      hasLoggedSteps: loggedStepsDays.length > 0,
       stepsGoalMet: `${uniqueSteps.filter(s => s.totalSteps >= stepGoal).length}/${uniqueSteps.length}`,
       recentActivities: [...(activities || [])].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 5),
       // Labels
@@ -567,70 +588,57 @@ const ProgressTab = ({
           <View style={styles.chartCardCompact}>
             {(() => {
               const uniqueLogs = progressData.uniqueWater;
-              const hasWaterData = uniqueLogs.length > 0;
-              const hasMultipleWater = uniqueLogs.length >= 2;
+              const hasWaterData = progressData.hasLoggedWater;
+              const hasMultipleWater = hasWaterData && uniqueLogs.length >= 2;
               const chartData = progressData.waterChartData;
-              const goalL = hydrationGoal > 0
-                ? volumeUnit === 'mL' ? hydrationGoal / 1000
-                : volumeUnit === 'oz' ? (hydrationGoal * 29.574) / 1000
-                : volumeUnit === 'sachet' ? hydrationGoal * 0.5
-                : volumeUnit === 'bottle' ? hydrationGoal * 0.75
-                : hydrationGoal
-                : 0;
-              const waterYMax = goalL > 0 ? Math.round((goalL + 2) * 10) / 10 : undefined;
+              const orderedLogs = uniqueLogs.slice().reverse();
+              const chartLabels = progressData.buildLabels(orderedLogs);
+              const barGap = chartData.length > 40 ? 1 : chartData.length > 12 ? 2 : 6;
+              const CHART_H = 140;
+              const dataMax = chartData.length ? Math.max(...chartData) : 0;
+              const axisMax = Math.ceil(dataMax) || 1;
 
               return (
                 <>
-                  <View style={{ marginLeft: 0, marginRight: -22, height: 200, overflow: 'hidden', position: 'relative' }}>
+                  <View style={{ overflow: 'hidden', position: 'relative' }}>
                     {hasMultipleWater ? (
                       <>
-                      <LineChart
-                        data={{
-                          labels: progressData.buildLabels(uniqueLogs.slice().reverse()),
-                          datasets: [
-                            { data: chartData },
-                            { data: [0] },
-                          ],
-                        }}
-                        fromNumber={waterYMax}
-                        width={SCREEN_WIDTH + 22}
-                        height={190}
-                        chartConfig={{
-                          backgroundColor: colors.card,
-                          backgroundGradientFrom: colors.card,
-                          backgroundGradientTo: colors.card,
-                          decimalPlaces: 1,
-                          color: (opacity = 1) => `rgba(14, 165, 233, ${opacity})`,
-                          labelColor: () => '#888',
-                          propsForDots: { r: '0' },
-                          propsForBackgroundLines: { stroke: 'transparent' },
-                          fillShadowGradient: '#0EA5E9',
-                          fillShadowGradientFrom: '#0EA5E9',
-                          fillShadowGradientTo: '#0EA5E9',
-                          fillShadowGradientFromOpacity: 0.3,
-                          fillShadowGradientToOpacity: 0.05,
-                          propsForLabels: { fontSize: 9 },
-                          paddingRight: 48,
-                        }}
-                        renderDotContent={({ x, y, index }) => (
-                          <Rect key={`${x}-${y}`} x={x - 3} y={y - 3} width={6} height={6} fill="#0EA5E9" rx={1} />
-                        )}
-                        onDataPointClick={({ value, x, y }) => setWaterTooltip(t => t?.x === x && t?.y === y ? null : { value, x, y })}
-                        bezier
-                        style={{ borderRadius: 12, marginLeft: -54 }}
-                        withInnerLines={false}
-                        withOuterLines={false}
-                        fromZero={false}
-                        withHorizontalLabels={false}
-                      />
+                      <View style={{ height: CHART_H, marginTop: 10 }}>
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: barGap }}>
+                          {chartData.map((value, i) => {
+                            const barH = Math.max(value > 0 ? 3 : 0, (value / axisMax) * CHART_H);
+                            return (
+                              <TouchableOpacity
+                                key={i}
+                                style={{ flex: 1 }}
+                                activeOpacity={0.7}
+                                onPress={() => setWaterTooltip(t => t?.i === i ? null : { i, value, date: orderedLogs[i]?.date })}
+                              >
+                                <View style={{
+                                  width: '100%', height: barH, borderRadius: 2,
+                                  backgroundColor: '#0EA5E9',
+                                }} />
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row' }}>
+                        {chartLabels.map((label, i) => (
+                          <Text key={i} style={[styles.stepsAxisLabel, { flex: 1, textAlign: 'center' }]}>{label}</Text>
+                        ))}
+                      </View>
                       {waterTooltip && (
-                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(waterTooltip.x - 30, SCREEN_WIDTH - 120)), top: waterTooltip.y - 12 }]} pointerEvents="none">
+                        <View style={styles.stepsTooltipCentered} pointerEvents="none">
                           <Text style={styles.chartTooltipText}>{waterTooltip.value} L</Text>
+                          {waterTooltip.date && (
+                            <Text style={styles.chartTooltipSub}>{progressData.formatLabel(waterTooltip.date)}</Text>
+                          )}
                         </View>
                       )}
                       </>
                     ) : (
-                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                      <View style={{ height: 160, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={styles.chartPlaceholderText}>{hasWaterData ? `${progressData.avgWaterL} L` : 'No hydration data'}</Text>
                         <Text style={styles.chartPlaceholderSubtext}>{hasWaterData ? 'Log more to see trends' : 'Log water to start'}</Text>
                       </View>
@@ -675,8 +683,8 @@ const ProgressTab = ({
           <View style={styles.chartCardCompact}>
             {(() => {
               const uniqueLogs = progressData.uniqueSteps;
-              const hasStepsData = uniqueLogs.length > 0;
-              const hasMultipleSteps = uniqueLogs.length >= 2;
+              const hasStepsData = progressData.hasLoggedSteps;
+              const hasMultipleSteps = hasStepsData && uniqueLogs.length >= 2;
               const chartData = progressData.stepsChartData;
               const orderedLogs = uniqueLogs.slice().reverse();
               const chartLabels = progressData.buildLabels(orderedLogs);
@@ -691,7 +699,7 @@ const ProgressTab = ({
 
               return (
                 <>
-                  <View style={{ height: 200, overflow: 'hidden', position: 'relative' }}>
+                  <View style={{ overflow: 'hidden', position: 'relative' }}>
                     {hasMultipleSteps ? (
                       <>
                       <View style={{ height: CHART_H, marginTop: 10 }}>
