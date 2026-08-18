@@ -73,7 +73,18 @@ export default async function handler(req, res) {
   if (!SECRET || !USER_ID) return res.status(500).json({ error: 'Webhook not configured' });
 
   const provided = req.headers['x-webhook-secret'] || (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
-  if (provided !== SECRET) return res.status(401).json({ error: 'Unauthorized' });
+  if (provided !== SECRET) {
+    // Never log the actual secret values -- just enough shape info (length, first/last char) to
+    // tell a copy-paste mismatch (whitespace, wrong header, truncation) apart from a genuinely
+    // different string, without exposing anything usable.
+    console.error('[health-webhook] secret mismatch', {
+      providedLen: provided.length, expectedLen: SECRET.length,
+      providedEdges: provided ? `${provided[0]}...${provided[provided.length - 1]}` : '(empty)',
+      expectedEdges: `${SECRET[0]}...${SECRET[SECRET.length - 1]}`,
+      headerKeysSeen: Object.keys(req.headers).filter((k) => k.toLowerCase().includes('secret') || k.toLowerCase() === 'authorization'),
+    });
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   const body = req.body;
   console.log('[health-webhook] raw payload:', JSON.stringify(body).slice(0, 5000));
