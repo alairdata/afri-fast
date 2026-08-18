@@ -33,12 +33,13 @@ const ProgressTab = ({
     const days = progressRange === '7 days' ? 7 : progressRange === '30 days' ? 30 : progressRange === '90 days' ? 90 : 99999;
     const cutoff = now - days * 24 * 60 * 60 * 1000;
     // Every range always shows one point per individual day -- charts never aggregate into
-    // weekly/monthly averages. rangeMode only controls the axis label FORMAT (see formatLabel):
-    // "12-Aug" for 7/30 days, "21/05" (dd/mm) for 90 days, "Jan/26" (Mon/YY) for All time.
-    // isLongRange is still used for a couple of "avg daily" vs "avg monthly" stat labels below
-    // the charts, unrelated to the chart rendering itself.
-    const rangeMode = days === 90 ? 'weekly' : days === 99999 ? 'monthly' : 'daily';
-    const isLongRange = rangeMode !== 'daily';
+    // weekly/monthly averages. rangeMode controls the axis label FORMAT per the design spec:
+    // "18-Aug" for 7 days ONLY, "18/08" (dd/mm) for 30 AND 90 days, "Aug/26" (Mmm/yy) for All
+    // time. This grouping is deliberately different from isLongRange below (which groups 30
+    // days with 7 for the "weekly avg" stat pills, not with 90) -- the two are independent axes
+    // of the design, not the same split, so they can't share one variable.
+    const rangeMode = days === 7 ? 'daily' : days === 99999 ? 'monthly' : 'weekly';
+    const isLongRange = days >= 90; // 90 days & All time = "monthly avg" pills; 7/30 = "weekly avg"
 
     // Filter sessions within range
     const sessions = fastingSessions.filter(s => s.startTime >= cutoff);
@@ -674,56 +675,43 @@ const ProgressTab = ({
               const hasStepsData = uniqueLogs.length > 0;
               const hasMultipleSteps = uniqueLogs.length >= 2;
               const chartData = progressData.stepsChartData;
-              const chartLabels = progressData.buildLabels(uniqueLogs.slice().reverse());
-              // Fixed gap works for a handful of bars but eats all the space once there are
-              // dozens/hundreds (90+ days) -- shrink it as the count grows so bars stay visible.
-              const barGap = chartData.length > 60 ? 0 : chartData.length > 20 ? 1 : 4;
-              // Hand-rolled instead of react-native-chart-kit's BarChart: that library has no real
-              // y-axis max/min prop (its "fromNumber"-style options are no-ops in this version —
-              // the axis is silently auto-scaled from whatever's in the visible window), so the
-              // ceiling couldn't actually be pinned to the step goal, and there's no way to render
-              // real axis labels. This version sets both explicitly.
+              const orderedLogs = uniqueLogs.slice().reverse();
+              const chartLabels = progressData.buildLabels(orderedLogs);
+              // Gap tiers matching the design spec exactly: n>40 -> thin, n>12 -> medium, else wide.
+              const barGap = chartData.length > 40 ? 1 : chartData.length > 12 ? 2 : 6;
+              // No goal line, no goal-based ceiling, no numeric axis labels, single fill color for
+              // every bar -- the design spec has none of those; ceiling is just the actual peak
+              // rounded up to the nearest 1000, matching the reference's niceMax exactly.
               const CHART_H = 140;
               const dataMax = chartData.length ? Math.max(...chartData) : 0;
-              const axisMax = Math.max(stepGoal > 0 ? stepGoal : 0, dataMax, 1) * 1.15;
-              const goalY = stepGoal > 0 && stepGoal <= axisMax ? CHART_H - (stepGoal / axisMax) * CHART_H : null;
+              const axisMax = Math.ceil(dataMax / 1000) * 1000 || 1000;
 
               return (
                 <>
                   <View style={{ height: 200, overflow: 'hidden', position: 'relative' }}>
                     {hasMultipleSteps ? (
                       <>
-                      <View style={{ flexDirection: 'row', height: CHART_H, marginTop: 10 }}>
-                        <View style={{ width: 34, height: CHART_H, justifyContent: 'space-between', paddingRight: 4 }}>
-                          <Text style={styles.stepsAxisLabel}>{Math.round(axisMax).toLocaleString()}</Text>
-                          <Text style={styles.stepsAxisLabel}>0</Text>
-                        </View>
-                        <View style={{ flex: 1, position: 'relative' }}>
-                          {goalY != null && (
-                            <View style={[styles.stepsGoalLine, { top: goalY }]} />
-                          )}
-                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: barGap }}>
-                            {chartData.map((value, i) => {
-                              const barH = Math.max(value > 0 ? 3 : 0, (value / axisMax) * CHART_H);
-                              const metGoal = stepGoal > 0 && value >= stepGoal;
-                              return (
-                                <TouchableOpacity
-                                  key={i}
-                                  style={{ flex: 1 }}
-                                  activeOpacity={0.7}
-                                  onPress={() => setStepsTooltip(t => t?.i === i ? null : { i, value })}
-                                >
-                                  <View style={{
-                                    width: '100%', height: barH, borderRadius: 4,
-                                    backgroundColor: metGoal ? '#F97316' : 'rgba(249,115,22,0.35)',
-                                  }} />
-                                </TouchableOpacity>
-                              );
-                            })}
-                          </View>
+                      <View style={{ height: CHART_H, marginTop: 10 }}>
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: barGap }}>
+                          {chartData.map((value, i) => {
+                            const barH = Math.max(value > 0 ? 3 : 0, (value / axisMax) * CHART_H);
+                            return (
+                              <TouchableOpacity
+                                key={i}
+                                style={{ flex: 1 }}
+                                activeOpacity={0.7}
+                                onPress={() => setStepsTooltip(t => t?.i === i ? null : { i, value, date: orderedLogs[i]?.date })}
+                              >
+                                <View style={{
+                                  width: '100%', height: barH, borderRadius: 2,
+                                  backgroundColor: '#fb923c',
+                                }} />
+                              </TouchableOpacity>
+                            );
+                          })}
                         </View>
                       </View>
-                      <View style={{ flexDirection: 'row', marginLeft: 34 }}>
+                      <View style={{ flexDirection: 'row' }}>
                         {chartLabels.map((label, i) => (
                           <Text key={i} style={[styles.stepsAxisLabel, { flex: 1, textAlign: 'center' }]}>{label}</Text>
                         ))}
@@ -731,6 +719,9 @@ const ProgressTab = ({
                       {stepsTooltip && (
                         <View style={styles.stepsTooltipCentered} pointerEvents="none">
                           <Text style={styles.chartTooltipText}>{stepsTooltip.value.toLocaleString()} steps</Text>
+                          {stepsTooltip.date && (
+                            <Text style={styles.chartTooltipSub}>{progressData.formatLabel(stepsTooltip.date)}</Text>
+                          )}
                         </View>
                       )}
                       </>
@@ -936,29 +927,29 @@ const makeStyles = (c) => StyleSheet.create({
   chartTooltipText: {
     color: '#fff',
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  chartTooltipSub: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '500',
+    opacity: 0.75,
+    marginTop: 1,
   },
   stepsAxisLabel: {
     fontSize: 9,
-    color: '#888',
-  },
-  stepsGoalLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    borderTopWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(249,115,22,0.5)',
-    zIndex: 1,
+    color: '#b3b9c4',
+    fontWeight: '400',
   },
   stepsTooltipCentered: {
     position: 'absolute',
     top: 4,
     alignSelf: 'center',
-    backgroundColor: '#000',
-    borderRadius: 6,
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
+    alignItems: 'center',
     zIndex: 20,
   },
   streaksGridFour: {
