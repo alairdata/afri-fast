@@ -725,9 +725,11 @@ const InsightsTab = ({
               <View style={styles.card}>
                 <View style={styles.rowBetween}>
                   <View>
-                    <Text style={styles.kicker}>THIS WEEK</Text>
+                    <Text style={styles.kicker}>PREDICTION THIS WEEK</Text>
                     <Text style={styles.bigStat}>
-                      {chart.weekChange != null ? `${chart.weekChange > 0 ? '+' : ''}${chart.weekChange.toFixed(1)} ${weightUnit}` : '--'}
+                      {chart.weekChange != null
+                        ? `${Math.abs(chart.weekChange).toFixed(1)} ${weightUnit} ${chart.weekChange > 0 ? 'gain' : chart.weekChange < 0 ? 'loss' : 'change'}`
+                        : '--'}
                       <Text style={styles.bigStatSub}> by {fmtShort(chart.weekEndDate)}</Text>
                     </Text>
                   </View>
@@ -760,7 +762,7 @@ const InsightsTab = ({
                 <View style={styles.chartInfoRow}>
                   <Text style={styles.chartInfoText}>
                     {chartTooltip
-                      ? `${chartTooltip.label}${chartTooltip.isProjected ? ' (predicted)' : ''}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.changeFromStart != null ? `  ·  ${chartTooltip.changeFromStart > 0 ? '+' : ''}${chartTooltip.changeFromStart.toFixed(1)} ${weightUnit} vs Sun` : ''}`
+                      ? `${chartTooltip.label}${chartTooltip.isProjected ? ' (predicted)' : ''}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.changeFromStart != null ? `  ·  ${Math.abs(chartTooltip.changeFromStart).toFixed(1)} ${weightUnit} ${chartTooltip.changeFromStart > 0 ? 'gain' : chartTooltip.changeFromStart < 0 ? 'loss' : 'change'} vs Sun` : ''}`
                       : 'Tap a point for that day’s number'}
                   </Text>
                 </View>
