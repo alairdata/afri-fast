@@ -75,7 +75,10 @@ const ProgressTab = ({
 
     const rangeSteps = (stepLogs || []).filter(s => {
       if (days === 99999) return true;
-      const t = s.id || new Date(s.date).getTime();
+      // id is a client-generated primary key (Date.now() for manual logs, but a large synthetic
+      // number like 9000000000000+n for backfilled/webhook-synced rows) -- never a real
+      // timestamp. date is the only reliable field the client actually fetches for step_logs.
+      const t = new Date(s.date).getTime();
       return !isNaN(t) && t >= cutoff;
     });
 
