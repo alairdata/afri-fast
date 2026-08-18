@@ -739,12 +739,12 @@ const ProgressTab = ({
                               return (
                                 <TouchableOpacity
                                   key={i}
-                                  style={{ flex: 1, alignItems: 'center' }}
+                                  style={{ flex: 1 }}
                                   activeOpacity={0.7}
                                   onPress={() => setStepsTooltip(t => t?.i === i ? null : { i, value })}
                                 >
                                   <View style={{
-                                    width: '70%', height: barH, borderRadius: 4,
+                                    width: '100%', height: barH, borderRadius: 4,
                                     backgroundColor: metGoal ? '#F97316' : 'rgba(249,115,22,0.35)',
                                   }} />
                                 </TouchableOpacity>
