@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
 import { useTheme } from '../lib/theme';
 import { LineChart } from 'react-native-chart-kit';
-import { Rect } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -31,16 +30,13 @@ const ProgressTab = ({
 
   const getProgressData = () => {
     const now = Date.now();
-    const days = progressRange === '7 days' ? 7 : progressRange === '30 days' ? 30 : progressRange === '90 days' ? 90 : 99999;
+    const days = progressRange === '7 days' ? 7 : progressRange === '14 days' ? 14 : progressRange === '30 days' ? 30 : 90;
     const cutoff = now - days * 24 * 60 * 60 * 1000;
     // Every range always shows one point per individual day -- charts never aggregate into
-    // weekly/monthly averages. rangeMode controls the axis label FORMAT per the design spec:
-    // "18-Aug" for 7 days ONLY, "18/08" (dd/mm) for 30 AND 90 days, "Aug/26" (Mmm/yy) for All
-    // time. This grouping is deliberately different from isLongRange below (which groups 30
-    // days with 7 for the "weekly avg" stat pills, not with 90) -- the two are independent axes
-    // of the design, not the same split, so they can't share one variable.
-    const rangeMode = days === 7 ? 'daily' : days === 99999 ? 'monthly' : 'weekly';
-    const isLongRange = days >= 90; // 90 days & All time = "monthly avg" pills; 7/30 = "weekly avg"
+    // weekly/monthly averages. rangeMode controls the axis label FORMAT: "18-Aug" (dd-Mmm) for
+    // 7 days only, "18/08" (dd/mm) for 14/30/90 days. No more "All time" bucket/format.
+    const rangeMode = days === 7 ? 'daily' : 'weekly';
+    const isLongRange = days >= 90; // 90 days = "monthly avg" pills; 7/14/30 = "weekly avg"
 
     // Filter sessions within range
     const sessions = fastingSessions.filter(s => s.startTime >= cutoff);
@@ -132,12 +128,8 @@ const ProgressTab = ({
 
     // Fills gaps so the chosen range always shows every calendar day in it -- a day with no log
     // becomes a real 0 entry instead of being skipped, so "7 days" always means 7 bars/points,
-    // not "however many of the last 7 days happened to have data". Only applies when there's a
-    // fixed day count (not All time, which has no natural start to fill from).
+    // not "however many of the last 7 days happened to have data".
     const fillDays = (byDate, field, dayCount) => {
-      if (dayCount === 99999) {
-        return Object.values(byDate).sort((a, b) => new Date(b.date) - new Date(a.date));
-      }
       const out = [];
       for (let i = 0; i < dayCount; i++) {
         const d = new Date(now - i * DAY_MS);
@@ -178,14 +170,12 @@ const ProgressTab = ({
     const loggedStepsDays = dailySteps.filter(l => l.totalSteps > 0);
     const avgSteps = loggedStepsDays.length > 0 ? Math.round(loggedStepsDays.reduce((s, l) => s + l.totalSteps, 0) / loggedStepsDays.length) : 0;
 
-    // Chart label formatter -- matches the reference exactly: "12-Aug" for 7/30 days,
-    // "21/05" (dd/mm) for 90 days, "Jan/26" (Mon/YY) for All time.
+    // Chart label formatter: "18-Aug" (dd-Mmm) for 7 days, "18/08" (dd/mm) for 14/30/90 days.
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const pad2 = (n) => String(n).padStart(2, '0');
     const formatLabel = (dateStr) => {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr.slice(0, 6);
-      if (rangeMode === 'monthly') return `${MONTHS[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
       if (rangeMode === 'weekly') return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`;
       return `${d.getDate()}-${MONTHS[d.getMonth()]}`;
     };
@@ -204,16 +194,47 @@ const ProgressTab = ({
       return items.map((item, i) => (idxs.has(i) ? formatLabel(item.date) : ''));
     };
 
-    // Monthly grouping for calories (long range)
+    // Fills gaps by carrying the last real value forward instead of zeroing it out -- for a
+    // level metric like weight, "no log today" means "assume unchanged", not "assume 0kg". Days
+    // before the very first real log stay genuinely blank (nothing to carry forward yet).
+    const fillDaysCarryForward = (byDate, field, dayCount) => {
+      const out = [];
+      let lastEntry = null;
+      for (let i = dayCount - 1; i >= 0; i--) {
+        const d = new Date(now - i * DAY_MS);
+        const ds = d.toDateString();
+        const entry = byDate[ds];
+        if (entry) { lastEntry = entry; out.push(entry); }
+        else if (lastEntry) { out.push({ ...lastEntry, date: ds, carried: true }); }
+        // else: no real value yet to carry forward -- leave this day out entirely (a true gap,
+        // not a fabricated one)
+      }
+      return out.reverse(); // newest-first, matching the rest of this file's convention
+    };
+
     const mealsByDate = {};
     rangeMeals.forEach(m => {
       if (!m.date) return;
       if (!mealsByDate[m.date]) mealsByDate[m.date] = { calories: 0, date: m.date };
       mealsByDate[m.date].calories += m.calories || 0;
     });
-    const dailyCalData = Object.values(mealsByDate);
+    const dailyCalData = fillDays(mealsByDate, 'calories', days);
+    const loggedCalDays = dailyCalData.filter(d => d.calories > 0);
+
+    // Weight -- group multiple same-day logs by averaging, then carry-forward fill gaps.
+    const weightsByDate = {};
+    rangeWeights.forEach(w => {
+      if (!weightsByDate[w.date]) weightsByDate[w.date] = { ...w, weights: [] };
+      weightsByDate[w.date].weights.push(w.weight);
+    });
+    Object.values(weightsByDate).forEach(g => {
+      g.weight = parseFloat((g.weights.reduce((a, b) => a + b, 0) / g.weights.length).toFixed(1));
+    });
+    const uniqueWeights = fillDaysCarryForward(weightsByDate, 'weight', days);
+    const weightChartData = uniqueWeights.slice().reverse().map(w => w.weight);
+    const hasLoggedWeight = uniqueWeights.some(w => !w.carried);
     const totalCal = rangeMeals.reduce((sum, m) => sum + (m.calories || 0), 0);
-    const calDaysCount = dailyCalData.length;
+    const calDaysCount = loggedCalDays.length; // real logged days only, not the zero-filled gaps
     const monthsCount = Math.max(Math.ceil(days / 30), 1);
 
     return {
@@ -233,12 +254,16 @@ const ProgressTab = ({
       streakTrend: streak >= 7 ? '\ud83d\udd25 On fire!' : streak >= 3 ? '\ud83d\udcaa\ud83c\udfff Keep going!' : streak > 0 ? '\u2197 Building' : 'Start today!',
       // Weight
       rangeWeights,
+      uniqueWeights,
+      weightChartData,
+      hasLoggedWeight,
       weightChange: `${parseFloat(weightChange) >= 0 ? '+' : ''}${weightChange} kg`,
       weeklyChange: rangeWeights.length >= 2 ? `${(parseFloat(weightChange) / Math.max(days / 7, 1)).toFixed(1)} kg/wk` : '--',
       monthlyChange: rangeWeights.length >= 2 ? `${(parseFloat(weightChange) / Math.max(monthsCount, 1)).toFixed(1)} kg/mo` : '--',
       // Calories
       rangeMeals,
       dailyCalData,
+      hasLoggedCal: loggedCalDays.length > 0,
       avgDailyCal: calDaysCount > 0 ? Math.round(totalCal / calDaysCount) : 0,
       avgMonthlyCal: calDaysCount > 0 ? Math.round(totalCal / Math.max(monthsCount, 1)) : 0,
       // Water
@@ -274,7 +299,7 @@ const ProgressTab = ({
 
       {/* Time Range Selector */}
       <View style={styles.timeRangeSelectorCompact}>
-        {['7 days', '30 days', '90 days', 'All time'].map((range) => (
+        {['7 days', '14 days', '30 days', '90 days'].map((range) => (
           <TouchableOpacity
             key={range}
             style={[
@@ -382,23 +407,14 @@ const ProgressTab = ({
           <Text style={styles.progressSectionTitleCompact}>Weight trend</Text>
           <View style={styles.chartCardCompact}>
             {(() => {
-              const logs = progressData.rangeWeights;
-              // Group by date and average weights logged on the same day
-              const byDate = {};
-              logs.forEach(l => {
-                if (!byDate[l.date]) byDate[l.date] = { ...l, weights: [] };
-                byDate[l.date].weights.push(l.weight);
-              });
-              const uniqueLogs = Object.values(byDate)
-                .map(g => ({ ...g, weight: parseFloat((g.weights.reduce((a, b) => a + b, 0) / g.weights.length).toFixed(1)) }))
-                .sort((a, b) => new Date(b.date) - new Date(a.date));
-              const hasData = uniqueLogs.length > 0;
-              const hasMultiple = uniqueLogs.length >= 2;
-              const latest = hasData ? uniqueLogs[0] : null;
+              const uniqueLogs = progressData.uniqueWeights;
+              const hasData = progressData.hasLoggedWeight;
+              const hasMultiple = hasData && uniqueLogs.length >= 2;
+              const latest = uniqueLogs.length > 0 ? uniqueLogs[0] : null;
               const unit = latest ? latest.unit : 'kg';
               const displayLogs = uniqueLogs.slice().reverse();
-              const allWeights = displayLogs.map(l => l.weight);
-              const currentWeight = hasData ? latest.weight : null;
+              const allWeights = progressData.weightChartData;
+              const currentWeight = latest ? latest.weight : null;
               const yMax = currentWeight != null ? Math.ceil(currentWeight + 5) : undefined;
               const yMin = targetWeight != null ? Math.floor(targetWeight - 10) : undefined;
               return (
@@ -434,9 +450,6 @@ const ProgressTab = ({
                           propsForLabels: { fontSize: 9 },
                           paddingRight: 48,
                         }}
-                        renderDotContent={({ x, y, index, indexData }) => (
-                          <Rect key={`${x}-${y}`} x={x - 3} y={y - 3} width={6} height={6} fill="#059669" rx={1} />
-                        )}
                         onDataPointClick={({ value, x, y }) => setWeightTooltip(t => t?.x === x && t?.y === y ? null : { value, x, y })}
                         bezier
                         style={{ borderRadius: 12, marginLeft: -54 }}
@@ -496,64 +509,60 @@ const ProgressTab = ({
           </View>
           <View style={styles.chartCardCompact}>
             {(() => {
-              const dailyData = progressData.dailyCalData.slice().reverse();
-              const hasData = dailyData.length > 0;
-              const hasMultiple = dailyData.length >= 2;
+              const uniqueLogs = progressData.dailyCalData;
+              const hasData = progressData.hasLoggedCal;
+              const hasMultiple = hasData && uniqueLogs.length >= 2;
               const lastMeal = progressData.rangeMeals.length > 0 ? progressData.rangeMeals[0] : null;
+              const orderedLogs = uniqueLogs.slice().reverse();
+              const chartData = orderedLogs.map(d => d.calories);
+              const chartLabels = progressData.buildLabels(orderedLogs);
+              const barGap = chartData.length > 40 ? 1 : chartData.length > 12 ? 2 : 6;
+              const CHART_H = 140;
+              const dataMax = chartData.length ? Math.max(...chartData) : 0;
+              const axisMax = Math.max(dataMax, dailyCalorieGoal > 0 ? dailyCalorieGoal : 0, 1) * 1.1;
 
               return (
                 <>
-                  <View style={{ marginLeft: 0, marginRight: -22, height: 200, overflow: 'hidden', position: 'relative' }}>
+                  <View style={{ overflow: 'hidden', position: 'relative' }}>
                     {hasMultiple ? (
                       <>
-                      <LineChart
-                        data={{
-                          labels: progressData.buildLabels(dailyData),
-                          datasets: [
-                            { data: dailyData.map(d => d.calories) },
-                            ...(dailyCalorieGoal > 0 ? [{ data: [Math.round(dailyCalorieGoal * 0.5)] }] : []),
-                          ],
-                        }}
-                        fromNumber={dailyCalorieGoal > 0 ? dailyCalorieGoal + 500 : undefined}
-                        width={SCREEN_WIDTH + 22}
-                        height={190}
-                        chartConfig={{
-                          backgroundColor: colors.card,
-                          backgroundGradientFrom: colors.card,
-                          backgroundGradientTo: colors.card,
-                          decimalPlaces: 0,
-                          color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
-                          labelColor: () => '#888',
-                          propsForDots: { r: '0' },
-                          propsForBackgroundLines: { stroke: 'transparent' },
-                          fillShadowGradient: '#EF4444',
-                          fillShadowGradientFrom: '#EF4444',
-                          fillShadowGradientTo: '#EF4444',
-                          fillShadowGradientFromOpacity: 0.3,
-                          fillShadowGradientToOpacity: 0.05,
-                          propsForLabels: { fontSize: 9 },
-                          paddingRight: 48,
-                        }}
-                        renderDotContent={({ x, y, index }) => (
-                          <Rect key={`${x}-${y}`} x={x - 3} y={y - 3} width={6} height={6} fill="#EF4444" rx={1} />
-                        )}
-                        onDataPointClick={({ value, x, y }) => setCalTooltip(t => t?.x === x && t?.y === y ? null : { value, x, y })}
-                        bezier
-                        style={{ borderRadius: 12, marginLeft: -54 }}
-                        withInnerLines={false}
-                        withOuterLines={false}
-                        fromZero={false}
-                        withHorizontalLabels={false}
-                      />
+                      <View style={{ height: CHART_H, marginTop: 10 }}>
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: barGap }}>
+                          {chartData.map((value, i) => {
+                            const barH = Math.max(value > 0 ? 3 : 0, (value / axisMax) * CHART_H);
+                            return (
+                              <TouchableOpacity
+                                key={i}
+                                style={{ flex: 1 }}
+                                activeOpacity={0.7}
+                                onPress={() => setCalTooltip(t => t?.i === i ? null : { i, value, date: orderedLogs[i]?.date })}
+                              >
+                                <View style={{
+                                  width: '100%', height: barH, borderRadius: 2,
+                                  backgroundColor: '#EF4444',
+                                }} />
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row' }}>
+                        {chartLabels.map((label, i) => (
+                          <Text key={i} style={[styles.stepsAxisLabel, { flex: 1, textAlign: 'center' }]}>{label}</Text>
+                        ))}
+                      </View>
                       {calTooltip && (
-                        <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(calTooltip.x - 30, SCREEN_WIDTH - 120)), top: calTooltip.y - 12 }]} pointerEvents="none">
-                          <Text style={styles.chartTooltipText}>{calTooltip.value} cal</Text>
+                        <View style={styles.stepsTooltipCentered} pointerEvents="none">
+                          <Text style={styles.chartTooltipText}>{calTooltip.value.toLocaleString()} cal</Text>
+                          {calTooltip.date && (
+                            <Text style={styles.chartTooltipSub}>{progressData.formatLabel(calTooltip.date)}</Text>
+                          )}
                         </View>
                       )}
                       </>
                     ) : (
-                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={styles.chartPlaceholderText}>{hasData ? `${dailyData[0].calories} cal` : 'No calorie data'}</Text>
+                      <View style={{ height: 160, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={styles.chartPlaceholderText}>{hasData ? `${orderedLogs[orderedLogs.length - 1].calories} cal` : 'No calorie data'}</Text>
                         <Text style={styles.chartPlaceholderSubtext}>{hasData ? 'Log more meals to see trends' : 'Log a meal to start'}</Text>
                       </View>
                     )}
