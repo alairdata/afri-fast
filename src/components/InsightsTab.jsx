@@ -5,6 +5,7 @@ import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
 import { computeMomentumTimeline, MET } from '../lib/momentum';
 import { computeWeeklyPace } from '../lib/trajectory';
+import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
 import { getCachedMomentumNudge, getMomentumNudge } from '../lib/momentumNudge';
 
@@ -243,6 +244,15 @@ const InsightsTab = ({
     const classification = total < 50 ? 'unknown' : (gymKcal / total) >= 0.6 ? 'gym' : (gymKcal / total) <= 0.4 ? 'steps' : 'mixed';
     return { classification, gymKcal14d: gymKcal, stepsKcal14d: stepsKcal };
   }, [activities, stepLogs, currentWeightKg, now]);
+
+  // Observed TDEE — calibrates real energy expenditure from actual weigh-ins + actual logged
+  // calories over the same window, instead of trusting the Mifflin-St Jeor formula alone. Needs
+  // at least 2 weeks between first/last weigh-in and at least 40% of that window logged; returns
+  // { available: false, reason } otherwise. Purely informational for now -- doesn't feed the
+  // formula-based `tdee` used elsewhere yet.
+  const observedTdee = useMemo(() => computeObservedTdee({
+    weightLogs, recentMeals, toKg: (w) => toKg(w, weightUnit), now,
+  }), [weightLogs, recentMeals, weightUnit, now]);
 
   // Weekly Pace & Trajectory Engine — purely calorie-driven (are you eating at the deficit you
   // signed up for), distinct from Momentum's scale-weight-driven Pace subscore above.
@@ -822,6 +832,11 @@ const InsightsTab = ({
                   {weeklyPace.dailyRateKg != null && (
                     <Text style={[styles.mutedBody, { marginTop: 10 }]}>
                       At this week's average intake, your calories alone predict about {weeklyPace.dailyRateKg <= 0 ? '-' : '+'}{Math.abs(fromKg(weeklyPace.dailyRateKg * 7, weightUnit)).toFixed(2)} {weightUnit}/week.
+                    </Text>
+                  )}
+                  {observedTdee.available && (
+                    <Text style={[styles.mutedBody, { marginTop: 6 }]}>
+                      Your own history says something different: over the last {observedTdee.spanDays} days you averaged {observedTdee.avgDailyCalories.toLocaleString()} kcal/day and your weight changed {observedTdee.weightChangeKg > 0 ? '+' : ''}{observedTdee.weightChangeKg} kg — working backward from that, your real TDEE looks closer to {observedTdee.observedTdee.toLocaleString()} kcal (vs {Math.round(tdee).toLocaleString()} from the formula above){observedTdee.confidence < 0.6 ? ', though this is still a rough estimate — more consistent logging will sharpen it' : ''}.
                     </Text>
                   )}
                 </>
