@@ -70,49 +70,48 @@ function buildScorer({ recentMeals = [], tdee, bmr, pacePreference, proteinGoal,
 
   // Deficit Depth (max 10) -- looks back 28 days, not 7: real metabolic/satiety burnout from
   // under-eating is a multi-week phenomenon, and a 7-day average can't tell "day 4 of a diet"
-  // from "day 60." Classifies each logged day into a zone relative to the person's own BMR/TDEE:
-  //   Red    -- below the 80%-BMR safety floor (outright violation)
-  //   Yellow -- above the floor but still under full BMR (never crosses the line, but never
-  //             actually eats enough either -- chronically "not satiety happy")
-  //   Green  -- BMR up to their own pace-deficit target (a normal, sustainable cut)
-  //   (anything above target isn't counted as strain at all)
-  // Unlogged days are skipped entirely rather than counted as Red -- silence isn't under-eating.
-  // Red counts more than Yellow, and a recent (last-7-of-the-28) run of 4+ Red/Yellow days in a
-  // row adds an extra bump, since satiety debt compounds fast once it's back-to-back.
+  // from "day 60." Deliberately has no fixed "% of BMR" cutoff above the floor -- someone running
+  // a bigger deficit than average isn't doing anything wrong, and a flat line (e.g. "100% of BMR")
+  // would flag plenty of people for correctly hitting their own, more aggressive, intentional
+  // target. Instead each logged day gets a severity from 0 to 1 based on where it falls in THIS
+  // person's own floor-to-target range: right at their target = 0 (no strain, that's the plan
+  // working), right at (or below) the 80%-BMR floor = 1 (max strain), linear in between. Eating
+  // at or above target isn't strain at all, whatever the number is.
+  // Unlogged days are skipped entirely rather than counted as strain -- silence isn't under-eating.
+  // A recent (last-7-of-the-28) run of 4+ days at 0.5+ severity adds an extra bump, since satiety
+  // debt compounds fast once it's back-to-back.
   const deficitDepthScore = (endDate) => {
     if (bmr == null || tdee == null) return 0;
     const floor = bmr * BMR_SAFETY_FLOOR_RATIO;
     const paceDeficit = PACE_TARGET_DEFICIT[pacePreference] || PACE_TARGET_DEFICIT.moderate;
-    const greenTop = Math.max(bmr, tdee - paceDeficit); // guard against a target more aggressive than BMR itself
+    const target = Math.max(floor + 1, tdee - paceDeficit); // guard divide-by-zero if the pace itself asks for less than the floor
 
-    const zoneFor = (cal) => {
-      if (cal < floor) return 'red';
-      if (cal < bmr) return 'yellow';
-      if (cal <= greenTop) return 'green';
-      return null; // at/above their own target -- not strain
+    const severityFor = (cal) => {
+      if (cal >= target) return 0;
+      if (cal <= floor) return 1;
+      return (target - cal) / (target - floor);
     };
 
-    let nRed = 0, nYellow = 0;
-    const recentZones = []; // last 7 of the 28, oldest first -- for the back-to-back check
+    let strainSum = 0;
+    const recentSeverities = []; // last 7 of the 28, oldest first -- for the back-to-back check
     for (let i = DEFICIT_DEPTH_WINDOW_DAYS - 1; i >= 0; i--) {
       const d = new Date(endDate.getTime() - i * DAY_MS);
       const dMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
       if (dMidnight.getTime() > startOfToday.getTime()) continue; // can't classify a future day
       const cal = dayTotals(d.toDateString()).calories;
-      const zone = cal > 0 ? zoneFor(cal) : null; // unlogged day -- skip, don't count as strain
-      if (zone === 'red') nRed++;
-      if (zone === 'yellow') nYellow++;
-      if (i < 7) recentZones.push(zone);
+      const severity = cal > 0 ? severityFor(cal) : 0; // unlogged day -- skip, don't count as strain
+      strainSum += severity * 0.5;
+      if (i < 7) recentSeverities.push(severity);
     }
 
     let longestRun = 0, currentRun = 0;
-    recentZones.forEach((z) => {
-      currentRun = (z === 'red' || z === 'yellow') ? currentRun + 1 : 0;
+    recentSeverities.forEach((s) => {
+      currentRun = s >= 0.5 ? currentRun + 1 : 0;
       longestRun = Math.max(longestRun, currentRun);
     });
     const backToBackBonus = longestRun >= 4 ? 2 : 0;
 
-    return clamp(Math.round(nRed * 0.5 + nYellow * 0.3 + backToBackBonus), 0, 10);
+    return clamp(Math.round(strainSum + backToBackBonus), 0, 10);
   };
 
   const scoreWindowEnding = (endDate) => {
