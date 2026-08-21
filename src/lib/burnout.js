@@ -6,6 +6,12 @@
 // the exception -- it looks back 28 days, since real under-eating burnout is a multi-week
 // phenomenon a 7-day snapshot can't distinguish from a single hard week.
 //
+// No longer tracks food repetition as its own factor -- eating the same staple combo repeatedly
+// isn't inherently a crash-out signal (that assumption came from Western fad-diet psychology and
+// doesn't hold for a diet built around real staples people actually like), and nutrient adequacy
+// is already covered directly by the Protein and Fat factors below. If those are being met,
+// repetition on its own isn't treated as a problem.
+//
 // Also used as a building block by momentum.js (Satiety pillar = 100 - burnout score for that
 // day) via the exported computeBurnoutScore single-day function.
 
@@ -23,27 +29,21 @@ function bandFor(score) {
   return { label: 'Critical Crash Risk', tone: 'critical' };
 }
 
-const EMPTY_DAY = { calories: 0, protein: 0, fats: 0, foods: [], mealCount: 0 };
+const EMPTY_DAY = { calories: 0, protein: 0, fats: 0, mealCount: 0 };
 
 // Shared setup: builds the per-day meal lookup, the "if this keeps up" projection pattern for
-// future dates, and a scoreWindowEnding(endDate) closure that computes the 5-vector score for
-// the 7-day window ending at any date. Used by both exported functions below.
+// future dates, and a scoreWindowEnding(endDate) closure that computes the score for the 7-day
+// window ending at any date. Used by both exported functions below.
 function buildScorer({ recentMeals = [], tdee, bmr, pacePreference, proteinGoal, now = Date.now() }) {
   const mealsByDate = {};
   recentMeals.forEach((m) => {
     if (!m.date) return;
-    if (!mealsByDate[m.date]) mealsByDate[m.date] = { ...EMPTY_DAY, foods: [] };
+    if (!mealsByDate[m.date]) mealsByDate[m.date] = { ...EMPTY_DAY };
     const d = mealsByDate[m.date];
     d.calories += m.calories || 0;
     d.protein += m.protein || 0;
     d.fats += m.fats || 0;
     d.mealCount += 1;
-    // Prefer the per-item foods array; recipe-logged meals don't have one, only an
-    // `items` string list -- fall back to that so they still count toward variety.
-    const names = Array.isArray(m.foods) && m.foods.length
-      ? m.foods.map((f) => (f?.name || '').trim().toLowerCase())
-      : Array.isArray(m.items) ? m.items.map((i) => String(i || '').trim().toLowerCase()) : [];
-    d.foods.push(...names.filter(Boolean));
   });
 
   const dayTotals = (ds) => mealsByDate[ds] || EMPTY_DAY;
@@ -64,7 +64,6 @@ function buildScorer({ recentMeals = [], tdee, bmr, pacePreference, proteinGoal,
       protein: logged.reduce((s, d) => s + d.protein, 0) / logged.length,
       fats: logged.reduce((s, d) => s + d.fats, 0) / logged.length,
       mealCount: logged.reduce((s, d) => s + d.mealCount, 0) / logged.length,
-      foods: Array.from(new Set(logged.flatMap((d) => d.foods))),
     };
   })();
 
@@ -132,7 +131,7 @@ function buildScorer({ recentMeals = [], tdee, bmr, pacePreference, proteinGoal,
       const dMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
       window.push(dMidnight.getTime() <= startOfToday.getTime() ? d.toDateString() : null);
     }
-    const days = window.map((ds) => (ds != null ? dayTotals(ds) : (recentPattern || { ...EMPTY_DAY, foods: [] })));
+    const days = window.map((ds) => (ds != null ? dayTotals(ds) : (recentPattern || EMPTY_DAY)));
 
     // 1. Deficit Depth (max 10) -- see deficitDepthScore above (28-day zone-based, not this
     // window's 7-day average). Weighted down from an earlier max of 35: an isolated deep-deficit
@@ -141,36 +140,31 @@ function buildScorer({ recentMeals = [], tdee, bmr, pacePreference, proteinGoal,
     const deficitPts = deficitDepthScore(endDate);
     const avgCaloriesAll = days.reduce((s, d) => s + d.calories, 0) / 7;
 
-    // 2. Food Monotony (max 25) -- unique ingredients as a ratio of total meals logged.
-    const uniqueFoods = new Set(days.flatMap((d) => d.foods));
-    const totalMealsLogged = days.reduce((s, d) => s + d.mealCount, 0);
-    let monotonyPts = 0;
-    if (totalMealsLogged > 0) {
-      const rV = uniqueFoods.size / totalMealsLogged;
-      monotonyPts = rV >= 0.50 ? 0 : clamp(Math.round(25 * (1 - rV / 0.50)), 0, 25);
-    }
-
-    // 3. Satiety (max 25) -- protein logged vs the user's own set protein target.
+    // 2. Protein / Satiety (max 40) -- protein logged vs the user's own set protein target.
+    // Scaled up from 25 to absorb the removed Food Monotony factor's budget (proportionally with
+    // Fat below, keeping their relative weight to each other the same) -- this is the real driver
+    // of whether meals actually feel satisfying, which is what monotony was trying to proxy for.
     let satietyPts = 0;
     const avgProtein = days.reduce((s, d) => s + d.protein, 0) / 7;
     if (proteinGoal) {
       const aP = avgProtein / proteinGoal;
-      satietyPts = aP >= 1.0 ? 0 : clamp(Math.round(25 * (1 - aP)), 0, 25);
+      satietyPts = aP >= 1.0 ? 0 : clamp(Math.round(40 * (1 - aP)), 0, 40);
     }
 
-    // 4. Low-Fat Strain (max 15) -- fat's share of total calories, smoothly scaled.
+    // 3. Low-Fat Strain (max 25) -- fat's share of total calories, smoothly scaled. Scaled up
+    // from 15, same reasoning as Protein above.
     let fatPts = 0;
     const avgCalories = days.reduce((s, d) => s + d.calories, 0) / 7;
     if (avgCalories > 0) {
       const avgFat = days.reduce((s, d) => s + d.fats, 0) / 7;
       const sF = (avgFat * 9) / avgCalories;
-      fatPts = sF >= 0.20 ? 0 : clamp(Math.round(15 * (1 - sF / 0.20)), 0, 15);
+      fatPts = sF >= 0.20 ? 0 : clamp(Math.round(25 * (1 - sF / 0.20)), 0, 25);
     }
 
-    // 5. Calorie Volatility (max 25) -- coefficient of variation. Weighted up from an earlier
-    // max of 10: this is the actual signature of a binge-restrict loop (e.g. 1,400kcal days
-    // alternating with 3,500+kcal days), which a simple 7-day average calorie figure hides
-    // completely even though it's what precedes giving up, not just running a steady deficit.
+    // 4. Calorie Volatility (max 25) -- coefficient of variation. This is the actual signature of
+    // a binge-restrict loop (e.g. 1,400kcal days alternating with 3,500+kcal days), which a
+    // simple 7-day average calorie figure hides completely even though it's what precedes giving
+    // up, not just running a steady deficit.
     let volatilityPts = 0;
     const calArr = days.map((d) => d.calories);
     const mean = calArr.reduce((s, v) => s + v, 0) / 7;
@@ -180,10 +174,9 @@ function buildScorer({ recentMeals = [], tdee, bmr, pacePreference, proteinGoal,
       volatilityPts = cv <= 0.15 ? 0 : clamp(Math.round(25 * ((cv - 0.15) / 0.20)), 0, 25);
     }
 
-    const score = Math.round(clamp(deficitPts + monotonyPts + satietyPts + fatPts + volatilityPts, 0, 100));
+    const score = Math.round(clamp(deficitPts + satietyPts + fatPts + volatilityPts, 0, 100));
     return {
-      score, deficitPts, monotonyPts, satietyPts, fatPts, volatilityPts,
-      uniqueFoodCount: uniqueFoods.size, totalMealsLogged,
+      score, deficitPts, satietyPts, fatPts, volatilityPts,
       // Raw 7-day averages -- so callers can cite an exact gap ("62g vs your 120g target")
       // instead of just a points breakdown.
       avgCalories: Math.round(avgCaloriesAll), avgProtein: Math.round(avgProtein),

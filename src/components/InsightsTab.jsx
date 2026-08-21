@@ -390,8 +390,8 @@ const InsightsTab = ({
   const spikeDays = loggedDays.filter((d) => d.total > dailyCalorieGoal * 1.5);
   const crashDays = loggedDays.filter((d) => d.total > 0 && d.total < dailyCalorieGoal * 0.5);
 
-  // Burnout / Crash-Out Risk — 4-vector model (deficit depth, food monotony, protein/fiber
-  // satiety, dietary fat) computed day-by-day over the current week. See src/lib/burnout.js.
+  // Burnout / Crash-Out Risk — 4-vector model (deficit depth, protein satiety, dietary fat,
+  // calorie volatility) computed day-by-day over the current week. See src/lib/burnout.js.
   const burnout = useMemo(() => computeBurnoutTimeline({
     recentMeals, tdee, bmr, pacePreference, proteinGoal, now,
   }), [recentMeals, tdee, bmr, pacePreference, proteinGoal, now]);
@@ -404,11 +404,10 @@ const InsightsTab = ({
     const t = burnout.today;
     const drivers = [];
     if (t.deficitPts >= 6) drivers.push('your deficit is running deep relative to your TDEE');
-    if (t.monotonyPts >= 12) drivers.push(`variety is low — only ${t.uniqueFoodCount} unique food${t.uniqueFoodCount === 1 ? '' : 's'} across ${t.totalMealsLogged} logged meal${t.totalMealsLogged === 1 ? '' : 's'} this week`);
-    if (t.satietyPts >= 10) drivers.push("protein is running under your target, so hunger keeps building");
-    if (t.fatPts >= 5) drivers.push("fat's well under 20% of calories, which tends to hit mood and sleep");
+    if (t.satietyPts >= 16) drivers.push("protein is running under your target, so hunger keeps building");
+    if (t.fatPts >= 8) drivers.push("fat's well under 20% of calories, which tends to hit mood and sleep");
     if (t.volatilityPts >= 10) drivers.push('calories are swinging a lot day to day — binge-restrict pattern, not a steady deficit');
-    if (!drivers.length) return 'Deficit, variety, protein, fat, and day-to-day consistency are all in a sustainable range this week.';
+    if (!drivers.length) return 'Deficit, protein, fat, and day-to-day consistency are all in a sustainable range this week.';
     return `This week: ${drivers.join('; ')}.`;
   }, [burnout]);
 
@@ -451,11 +450,10 @@ const InsightsTab = ({
       const ranked = [
         { pts: t.satietyPts, action: proteinGoal ? `you're averaging ${t.avgProtein}g protein against a ${proteinGoal}g target this week — add a protein-forward food to your next meal` : 'protein has been running low this week — add a protein-forward food to your next meal' },
         { pts: t.deficitPts, action: `your deficit is running deep relative to your TDEE — bring today's calories closer to target rather than cutting further` },
-        { pts: t.monotonyPts, action: `variety is low — only ${t.uniqueFoodCount} unique food${t.uniqueFoodCount === 1 ? '' : 's'} across ${t.totalMealsLogged} meals this week — swap in a different protein or side today` },
         { pts: t.fatPts, action: "fat's well under 20% of calories — add a source of healthy fat like avocado, nuts, or oil to a meal" },
         { pts: t.volatilityPts, action: 'calories are swinging a lot day to day — try to land close to your recent daily average today' },
       ].sort((a, b) => b.pts - a.pts);
-      const top = ranked[0].pts > 0 ? ranked[0].action : 'this usually eases once deficit, variety, and protein settle back to your normal range';
+      const top = ranked[0].pts > 0 ? ranked[0].action : 'this usually eases once deficit and protein settle back to your normal range';
       return `Leading indicator: satiety is at ${today.satietySubscore}%, usually what precedes a crash-out — ${top}.`;
     }
 
@@ -487,9 +485,7 @@ const InsightsTab = ({
       proteinGoal: proteinGoal || null,
       avgCalories: burnout.today.avgCalories,
       tdee: tdee || null,
-      uniqueFoodCount: burnout.today.uniqueFoodCount,
-      totalMealsLogged: burnout.today.totalMealsLogged,
-      points: { deficit: burnout.today.deficitPts, monotony: burnout.today.monotonyPts, protein: burnout.today.satietyPts, fat: burnout.today.fatPts, volatility: burnout.today.volatilityPts },
+      points: { deficit: burnout.today.deficitPts, protein: burnout.today.satietyPts, fat: burnout.today.fatPts, volatility: burnout.today.volatilityPts },
     },
     movement: {
       subscore: today.movementSubscore,
