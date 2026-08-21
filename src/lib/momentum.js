@@ -115,7 +115,7 @@ export function computeMomentumTimeline({
   };
 
   const timeline = [];
-  let calEwma = null, moveEwma = null, weightEwma = null, loggedStreak7 = [];
+  let calEwma = null, moveEwma = null, weightEwma = null, weightEwmaTs = null, loggedStreak7 = [];
 
   for (let i = windowDays - 1; i >= 0; i--) {
     const day = new Date(now - i * DAY_MS);
@@ -125,11 +125,22 @@ export function computeMomentumTimeline({
     const caloriesToday = mealsByDate[ds] || 0;
     const loggedToday = caloriesToday > 0;
 
-    // Weight EWMA — smooths day-to-day water-weight noise. Only emitted on real weigh-in days,
-    // but also used internally as the body-weight input to today's movement calc.
+    // Weight EWMA — smooths water-weight noise, but decay is scaled by elapsed *days* since the
+    // last weigh-in, not by sample count: a reading 3 weeks after the last one is close to a true
+    // measurement (mostly real tissue change, negligible water noise averaged out) and should
+    // dominate the trend almost completely, not get smoothed as gently as a next-day reading.
+    // Only emitted on real weigh-in days, but also used internally as the body-weight input to
+    // today's movement calc.
     const rawWeighInToday = sortedWeights.find((w) => new Date(w.ts).toDateString() === ds);
     if (rawWeighInToday) {
-      weightEwma = weightEwma == null ? rawWeighInToday.weightKg : ALPHA * rawWeighInToday.weightKg + (1 - ALPHA) * weightEwma;
+      if (weightEwma == null) {
+        weightEwma = rawWeighInToday.weightKg;
+      } else {
+        const gapDays = Math.max(0, (rawWeighInToday.ts - weightEwmaTs) / DAY_MS);
+        const decay = Math.pow(1 - ALPHA, gapDays);
+        weightEwma = decay * weightEwma + (1 - decay) * rawWeighInToday.weightKg;
+      }
+      weightEwmaTs = rawWeighInToday.ts;
     }
     const daysSinceWeighIn = daysSinceLastWeighIn(cutoffTs);
     const weightForToday = weightEwma != null ? weightEwma : fallbackWeightKg;

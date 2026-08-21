@@ -19,9 +19,15 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
  * @param weightEwmaTodayKg - anchor weight for projection (EWMA-smoothed), or null
  * @param confidence - 0-1, from the Momentum engine's logging-based confidence
  * @param daysSinceWeighIn - integer days since last scale log (Infinity if none ever)
+ * @param activityKcalByDate - { [dateString]: kcal } measured gym+steps energy for recent days.
+ *   On a day with real movement data, expenditure is BMR + that measured activity instead of the
+ *   PAL-multiplier guess baked into `tdee` -- more accurate, and it's exactly the "real logs feed
+ *   the prediction" idea. Days with no movement data logged (map entry missing/0) fall back to
+ *   `tdee`, since a silent 0 there usually means "didn't sync," not "didn't move."
  */
 export function computeWeeklyPace({
-  tdee, bmr, recentMeals = [], pacePreference, weightEwmaTodayKg, confidence, daysSinceWeighIn, now = Date.now(),
+  tdee, bmr, recentMeals = [], pacePreference, weightEwmaTodayKg, confidence, daysSinceWeighIn,
+  activityKcalByDate = {}, now = Date.now(),
 }) {
   const dTarget = PACE_TARGET_DEFICIT[pacePreference] || null;
 
@@ -31,8 +37,11 @@ export function computeWeeklyPace({
   let d7d = 0;
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now - i * DAY_MS);
-    const logged = mealsByDate[d.toDateString()] || 0;
-    const deficit = tdee != null ? tdee - logged : 0;
+    const ds = d.toDateString();
+    const logged = mealsByDate[ds] || 0;
+    const activityKcal = activityKcalByDate[ds] || 0;
+    const expenditure = (activityKcal > 0 && bmr != null) ? bmr + activityKcal : tdee;
+    const deficit = expenditure != null ? expenditure - logged : 0;
     d7d += deficit;
   }
   const dBar = d7d / 7; // average daily deficit
@@ -69,10 +78,12 @@ export function computeWeeklyPace({
   // (weeklyWeightChangeKg, requiredWeeklyRateKg, etc: negative delta = weight went down).
   const dailyRateKg = tdee != null ? -dBar / KCAL_PER_KG : null;
 
+  // k is days from today -- positive for a forward forecast, negative to backfill a day this
+  // week that has no real weigh-in yet. Margin widens with distance from today in either direction.
   const projectDay = (k) => {
     if (weightEwmaTodayKg == null || dailyRateKg == null) return null;
     const projectedKg = weightEwmaTodayKg + dailyRateKg * k;
-    const marginKg = k * 0.15 * (2 - clamp(confidence ?? 0.5, 0, 1));
+    const marginKg = Math.abs(k) * 0.15 * (2 - clamp(confidence ?? 0.5, 0, 1));
     return { projectedKg, upperKg: projectedKg + marginKg, lowerKg: projectedKg - marginKg };
   };
 

@@ -120,13 +120,22 @@ const InsightsTab = ({
     return !isNaN(h) && h > 0 ? toCm(h, heightUnit) : null;
   }, [height, heightUnit]);
 
-  // Today's EWMA-smoothed weight — same alpha=0.3 recurrence as momentum.js, computed
-  // independently here (only depends on raw weight logs) so BMR/TDEE can react to it
-  // without waiting on the full momentum timeline. Mathematically identical to
-  // momentumTimeline's last entry, since the recurrence only advances on logged days either way.
+  // Today's EWMA-smoothed weight — same time-decayed alpha=0.3 recurrence as momentum.js,
+  // computed independently here (only depends on raw weight logs) so BMR/TDEE can react to it
+  // without waiting on the full momentum timeline. Mathematically identical to momentumTimeline's
+  // last entry. Decay scales with elapsed days between weigh-ins, not sample count -- a weigh-in
+  // after a long gap should snap the trend close to itself, not get smoothed as gently as a
+  // next-day reading would be.
   const weightEwmaKg = useMemo(() => {
-    let ewma = null;
-    sortedWeights.forEach((w) => { ewma = ewma == null ? w.weightKg : 0.3 * w.weightKg + 0.7 * ewma; });
+    let ewma = null, ewmaTs = null;
+    sortedWeights.forEach((w) => {
+      if (ewma == null) { ewma = w.weightKg; } else {
+        const gapDays = Math.max(0, (w.ts - ewmaTs) / DAY_MS);
+        const decay = Math.pow(0.7, gapDays);
+        ewma = decay * ewma + (1 - decay) * w.weightKg;
+      }
+      ewmaTs = w.ts;
+    });
     return ewma;
   }, [sortedWeights]);
 
@@ -142,7 +151,25 @@ const InsightsTab = ({
   }, [age, sex, heightCm, weightEwmaKg, currentWeightKg]);
 
   const activityMultiplier = ACTIVITY_MULTIPLIERS[activityLevel] || ACTIVITY_MULTIPLIERS.light;
-  const tdee = bmr != null ? bmr * activityMultiplier : null;
+  const formulaTdee = bmr != null ? bmr * activityMultiplier : null; // Mifflin-St Jeor x PAL -- the starting guess
+
+  // Observed TDEE — calibrates real energy expenditure from actual weigh-ins + actual logged
+  // calories over the same window, instead of trusting the Mifflin-St Jeor formula alone. Needs
+  // at least 2 weeks between first/last weigh-in and at least 40% of that window logged; returns
+  // { available: false, reason } otherwise.
+  const observedTdee = useMemo(() => computeObservedTdee({
+    weightLogs, recentMeals, toKg: (w) => toKg(w, weightUnit), now,
+  }), [weightLogs, recentMeals, weightUnit, now]);
+
+  // The TDEE used everywhere below (calorie goal, burnout, momentum, pace, forecast) -- once
+  // there's enough real history, it blends toward the observed value, weighted by how much that
+  // observation is actually worth trusting (span length + logging coverage). Before that, or if
+  // observedTdee can't be computed yet, it's just the formula guess.
+  const tdee = useMemo(() => {
+    if (!observedTdee.available || formulaTdee == null) return formulaTdee;
+    const c = observedTdee.confidence;
+    return c * observedTdee.observedTdee + (1 - c) * formulaTdee;
+  }, [observedTdee, formulaTdee]);
 
   // Required Weekly Rate (kg/week, negative = need to lose)
   const requiredWeeklyRateKg = useMemo(() => {
@@ -245,14 +272,27 @@ const InsightsTab = ({
     return { classification, gymKcal14d: gymKcal, stepsKcal14d: stepsKcal };
   }, [activities, stepLogs, currentWeightKg, now]);
 
-  // Observed TDEE — calibrates real energy expenditure from actual weigh-ins + actual logged
-  // calories over the same window, instead of trusting the Mifflin-St Jeor formula alone. Needs
-  // at least 2 weeks between first/last weigh-in and at least 40% of that window logged; returns
-  // { available: false, reason } otherwise. Purely informational for now -- doesn't feed the
-  // formula-based `tdee` used elsewhere yet.
-  const observedTdee = useMemo(() => computeObservedTdee({
-    weightLogs, recentMeals, toKg: (w) => toKg(w, weightUnit), now,
-  }), [weightLogs, recentMeals, weightUnit, now]);
+  // Measured gym+steps kcal per day, last 7 days -- lets Weekly Pace use BMR + real activity
+  // instead of the PAL guess on days that actually have movement data logged.
+  const activityKcalLast7ByDate = useMemo(() => {
+    const map = {};
+    const weightKg = currentWeightKg || 70;
+    for (let i = 0; i <= 6; i++) map[new Date(now - i * DAY_MS).toDateString()] = 0;
+    activities.forEach((a) => {
+      const ts = a.timestamp || new Date(a.date).getTime();
+      const ds = new Date(ts).toDateString();
+      if (!(ds in map)) return;
+      const met = MET[a.type] || MET.other;
+      map[ds] += (a.durationMin || 0) * met * 3.5 * weightKg / 200;
+    });
+    stepLogs.forEach((s) => {
+      const ts = s.timestamp || new Date(s.date).getTime();
+      const ds = new Date(ts).toDateString();
+      if (!(ds in map)) return;
+      map[ds] += (s.steps || 0) * weightKg * 0.0005;
+    });
+    return map;
+  }, [activities, stepLogs, currentWeightKg, now]);
 
   // Weekly Pace & Trajectory Engine — purely calorie-driven (are you eating at the deficit you
   // signed up for), distinct from Momentum's scale-weight-driven Pace subscore above.
@@ -261,8 +301,9 @@ const InsightsTab = ({
     weightEwmaTodayKg: today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg,
     confidence: today.confidence,
     daysSinceWeighIn: today.daysSinceWeighIn,
+    activityKcalByDate: activityKcalLast7ByDate,
     now,
-  }), [tdee, bmr, recentMeals, pacePreference, today, currentWeightKg, now]);
+  }), [tdee, bmr, recentMeals, pacePreference, today, currentWeightKg, activityKcalLast7ByDate, now]);
 
   // Trajectory Status — bucketed off Deviation relative to Required Rate
   const trajectory = useMemo(() => {
@@ -501,11 +542,11 @@ const InsightsTab = ({
 
   const nudgeText = aiNudge || momentumNudge;
 
-  // Trajectory chart: history is the EWMA-smoothed weight (kills water-weight noise, only
-  // plotted on days with a real weigh-in — no fake flat-lining across gaps). The projection
-  // is anchored to the rolling energy deficit rather than the observed scale trend, so it
-  // still works when weigh-ins are stale (as long as calories are being logged) — and its
-  // confidence cone widens based on the same `confidence` score the Momentum engine uses.
+  // Trajectory chart: this is a PREDICTION, not a log -- every day of the week gets a guess
+  // (anchored to today's EWMA weight, extrapolated via the rolling energy-deficit rate), so a day
+  // without a weigh-in still shows an estimate instead of a gap. Real weigh-ins overlay as solid
+  // "actual" points wherever they exist and correct the guess for that day; everything else stays
+  // a predicted point. Confidence cone widens the further a day sits from today in either direction.
   const chart = useMemo(() => {
     const W = 320, top = 10, bot = 100, padX = 16;
 
@@ -530,24 +571,28 @@ const InsightsTab = ({
       const dayDiff = Math.round((d.getTime() - startOfToday.getTime()) / DAY_MS);
       const label = dayLabel(d);
 
-      if (dayDiff <= 0) {
-        const entry = timelineByDs[d.toDateString()];
-        data.push({ label, actual: entry?.hasWeighInToday ? fromKg(entry.weightEwmaKg, weightUnit) : null });
-      } else if (anchorKg != null && dailyRateKg != null) {
+      const entry = dayDiff <= 0 ? timelineByDs[d.toDateString()] : null;
+      const actual = entry?.hasWeighInToday ? fromKg(entry.weightEwmaKg, weightUnit) : null;
+
+      if (anchorKg != null && dailyRateKg != null) {
         const projectedKg = anchorKg + dailyRateKg * dayDiff;
-        const marginKg = dayDiff * 0.15 * (2 - confidence);
+        const marginKg = Math.abs(dayDiff) * 0.15 * (2 - confidence);
         const projected = fromKg(projectedKg, weightUnit);
         const margin = fromKg(marginKg, weightUnit);
-        data.push({ label, proj: projected, upper: projected + margin, lower: projected - margin });
+        data.push({ label, actual, proj: projected, upper: projected + margin, lower: projected - margin });
       } else {
-        data.push({ label });
+        data.push({ label, actual });
       }
     }
 
-    // "This week" headline stat: projected total change from Sunday to Saturday (end of week),
-    // not a rolling week-over-week comparison.
-    const weekStartVal = data.find((p) => p.actual != null)?.actual
-      ?? (anchorKg != null ? fromKg(anchorKg, weightUnit) : null);
+    // "This week" headline stat: predicted total change from Sunday to Saturday (end of week),
+    // not a rolling week-over-week comparison. Sunday itself may be a predicted point too, if
+    // there was no weigh-in that day -- that's fine, it's still the best guess for where the
+    // week started from.
+    const weekStartEntry = data[0];
+    const weekStartVal = weekStartEntry.actual != null ? weekStartEntry.actual
+      : weekStartEntry.proj != null ? weekStartEntry.proj
+      : (anchorKg != null ? fromKg(anchorKg, weightUnit) : null);
     const weekEndEntry = data[data.length - 1];
     const weekEndVal = weekEndEntry.actual != null ? weekEndEntry.actual : weekEndEntry.proj != null ? weekEndEntry.proj : null;
     const weekChange = (weekStartVal != null && weekEndVal != null) ? weekEndVal - weekStartVal : null;
@@ -836,7 +881,7 @@ const InsightsTab = ({
                   )}
                   {observedTdee.available && (
                     <Text style={[styles.mutedBody, { marginTop: 6 }]}>
-                      Your own history says something different: over the last {observedTdee.spanDays} days you averaged {observedTdee.avgDailyCalories.toLocaleString()} kcal/day and your weight changed {observedTdee.weightChangeKg > 0 ? '+' : ''}{observedTdee.weightChangeKg} kg — working backward from that, your real TDEE looks closer to {observedTdee.observedTdee.toLocaleString()} kcal (vs {Math.round(tdee).toLocaleString()} from the formula above){observedTdee.confidence < 0.6 ? ', though this is still a rough estimate — more consistent logging will sharpen it' : ''}.
+                      The TDEE above already leans on your own history: over the last {observedTdee.spanDays} days you averaged {observedTdee.avgDailyCalories.toLocaleString()} kcal/day and your weight changed {observedTdee.weightChangeKg > 0 ? '+' : ''}{observedTdee.weightChangeKg} kg — working backward from that, your real TDEE looks closer to {observedTdee.observedTdee.toLocaleString()} kcal, against {Math.round(formulaTdee).toLocaleString()} from the formula alone{observedTdee.confidence < 0.6 ? '. Still a rough estimate — more consistent logging will sharpen it' : ''}.
                     </Text>
                   )}
                 </>
