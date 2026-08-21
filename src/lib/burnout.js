@@ -1,10 +1,12 @@
 // Burnout / Crash-Out Risk engine — predicts diet abandonment risk from statistical ratios
 // relative to the person's own TDEE/protein target, not hardcoded kcal/gram cutoffs that don't
 // scale with body size or account for simple, repetitive-but-healthy traditional meals.
-// Computed client-side, day-by-day: most factors use a rolling 7-day window ENDING that day, so
-// the score evolves as the week plays out rather than being fixed once computed. Deficit Depth is
-// the exception -- it looks back 28 days, since real under-eating burnout is a multi-week
-// phenomenon a 7-day snapshot can't distinguish from a single hard week.
+// Computed client-side, day-by-day: Protein and Fat use a rolling 7-day window ENDING that day, so
+// the score evolves as the week plays out rather than being fixed once computed. Deficit Depth
+// looks back 28 days (real under-eating burnout is a multi-week phenomenon a 7-day snapshot can't
+// distinguish from a single hard week), and Calorie Volatility looks back 14 (long enough that one
+// unusual day doesn't masquerade as a pattern, short enough to still catch a new problem within
+// two weeks instead of needing a full month).
 //
 // No longer tracks food repetition as its own factor -- eating the same staple combo repeatedly
 // isn't inherently a crash-out signal (that assumption came from Western fad-diet psychology and
@@ -19,6 +21,7 @@ import { PACE_TARGET_DEFICIT, BMR_SAFETY_FLOOR_RATIO } from './trajectory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFICIT_DEPTH_WINDOW_DAYS = 28;
+const VOLATILITY_WINDOW_DAYS = 14;
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -119,6 +122,30 @@ function buildScorer({ recentMeals = [], tdee, bmr, pacePreference, proteinGoal,
     return clamp(Math.round(pointsSum / loggedCount + backToBackBonus), 0, 10);
   };
 
+  // Calorie Volatility (max 25) -- coefficient of variation over a 14-day window, not 7. A single
+  // unusual day (a one-off celebration, a bad day) has outsized influence over just 7 days --
+  // widening to 14 dilutes a genuine one-off down to a minor nudge instead of a false "erratic
+  // eating" flag, while a truly sustained binge-restrict pattern scores just as high regardless of
+  // window size, since it keeps recurring either way -- so this loses no real detection power.
+  // Unlogged days still count as 0 here (unlike Deficit Depth's 28-day average, which excludes
+  // them) -- deliberately: the prediction is only as good as what's actually logged, and silently
+  // excluding unlogged days would let someone dodge this signal just by not logging a bad stretch.
+  const volatilityScore = (endDate) => {
+    const calArr = [];
+    for (let i = VOLATILITY_WINDOW_DAYS - 1; i >= 0; i--) {
+      const d = new Date(endDate.getTime() - i * DAY_MS);
+      const dMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      if (dMidnight.getTime() > startOfToday.getTime()) continue; // can't classify a future day
+      calArr.push(dayTotals(d.toDateString()).calories);
+    }
+    if (!calArr.length) return 0;
+    const mean = calArr.reduce((s, v) => s + v, 0) / calArr.length;
+    if (mean <= 0) return 0;
+    const variance = calArr.reduce((s, v) => s + (v - mean) ** 2, 0) / calArr.length;
+    const cv = Math.sqrt(variance) / mean;
+    return cv <= 0.15 ? 0 : clamp(Math.round(25 * ((cv - 0.15) / 0.20)), 0, 25);
+  };
+
   const scoreWindowEnding = (endDate) => {
     const window = [];
     for (let i = 6; i >= 0; i--) {
@@ -161,18 +188,11 @@ function buildScorer({ recentMeals = [], tdee, bmr, pacePreference, proteinGoal,
       fatPts = sF >= 0.20 ? 0 : clamp(Math.round(25 * (1 - sF / 0.20)), 0, 25);
     }
 
-    // 4. Calorie Volatility (max 25) -- coefficient of variation. This is the actual signature of
-    // a binge-restrict loop (e.g. 1,400kcal days alternating with 3,500+kcal days), which a
-    // simple 7-day average calorie figure hides completely even though it's what precedes giving
-    // up, not just running a steady deficit.
-    let volatilityPts = 0;
-    const calArr = days.map((d) => d.calories);
-    const mean = calArr.reduce((s, v) => s + v, 0) / 7;
-    if (mean > 0) {
-      const variance = calArr.reduce((s, v) => s + (v - mean) ** 2, 0) / 7;
-      const cv = Math.sqrt(variance) / mean;
-      volatilityPts = cv <= 0.15 ? 0 : clamp(Math.round(25 * ((cv - 0.15) / 0.20)), 0, 25);
-    }
+    // 4. Calorie Volatility (max 25) -- see volatilityScore above (14-day window, not this
+    // window's 7 days). This is the actual signature of a binge-restrict loop (e.g. 1,400kcal
+    // days alternating with 3,500+kcal days), which a simple average calorie figure hides
+    // completely even though it's what precedes giving up, not just running a steady deficit.
+    const volatilityPts = volatilityScore(endDate);
 
     const score = Math.round(clamp(deficitPts + satietyPts + fatPts + volatilityPts, 0, 100));
     return {
