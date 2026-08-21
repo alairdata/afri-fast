@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
@@ -7,7 +7,6 @@ import { computeMomentumTimeline, MET } from '../lib/momentum';
 import { computeWeeklyPace } from '../lib/trajectory';
 import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
-import { getCachedMomentumNudge, getMomentumNudge } from '../lib/momentumNudge';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WARN = '#F59E0B';
@@ -419,143 +418,34 @@ const InsightsTab = ({
     return `This week: ${drivers.join('; ')}.`;
   }, [burnout]);
 
-  // Momentum nudge — the "why" line under the gauge. Context-aware rather than a canned
-  // platitude: Movement recommends the kind of activity this person actually does (gym vs
-  // steps) with the exact active-kcal gap, Satiety cites the real protein/driver numbers behind
-  // that day's Burnout score, and Calorie states the exact kcal over/under today's target.
-  const momentumNudge = useMemo(() => {
-    if (today.band.tone === 'stalled') {
-      return "Momentum has stalled. Don't try to fix everything at once — just log today's meals and today's weigh-in if you have one.";
-    }
-    if (today.band.tone !== 'drifting') return null;
-
-    if (today.movementSubscore != null && today.movementSubscore < 50) {
-      const gap = today.movementTargetKcal != null
-        ? Math.round(today.movementTargetKcal - today.movementGymKcal - today.movementStepsKcal)
-        : null;
-      if (gap != null && gap <= 0) {
-        return `Leading indicator: movement is at ${today.movementSubscore}% overall, but you've already hit today's active-energy target — a few more days like this brings the average back up.`;
-      }
-      if (gap != null) {
-        const weightKg = currentWeightKg || 70;
-        if (movementModality.classification === 'gym') {
-          const minutesNeeded = Math.max(10, Math.round(gap / (MET.strength * 3.5 * weightKg / 200)));
-          return `Leading indicator: movement is at ${today.movementSubscore}% of your active-energy target — you're about ${gap} active kcal short today, roughly a ${minutesNeeded}-min gym session or bodyweight circuit.`;
-        }
-        if (movementModality.classification === 'steps') {
-          const stepsNeeded = Math.round(gap / (weightKg * 0.0005));
-          return `Leading indicator: movement is at ${today.movementSubscore}% of your active-energy target — about ${stepsNeeded.toLocaleString()} more steps today closes the gap.`;
-        }
-        return `Leading indicator: movement is at ${today.movementSubscore}% of your active-energy target — you're about ${gap} active kcal short today, via a gym session or extra steps.`;
-      }
-      return `Leading indicator: movement is at ${today.movementSubscore}% of your active-energy target this week — log a walk, gym session, or your steps today to start closing it.`;
-    }
-
-    if (today.satietySubscore < 50) {
-      const t = burnout.today;
-      // Pick the single biggest driver behind today's Burnout score and give the one action
-      // that actually moves it, instead of listing every contributing factor.
-      const ranked = [
-        { pts: t.proteinPts, action: proteinGoal ? `you're averaging ${t.avgProtein}g protein against a ${proteinGoal}g target this week — add a protein-forward food to your next meal` : 'protein has been running low this week — add a protein-forward food to your next meal' },
-        { pts: t.waterPts, action: `you're averaging ${(t.avgWaterMl / 1000).toFixed(1)}L a day this week — get more water in today` },
-        { pts: t.deficitPts, action: `your deficit is running deep relative to your TDEE — bring today's calories closer to target rather than cutting further` },
-        { pts: t.fiberPts, action: `you're averaging ${t.avgFiber}g fiber this week — add vegetables, beans, or whole grains to fill meals out more` },
-        { pts: t.carbsPts, action: 'carbs are running under your floor this week — add a starch or fruit to a meal' },
-        { pts: t.fatPts, action: "fat's under your floor — add a source of healthy fat like avocado, nuts, or oil to a meal" },
-        { pts: t.volatilityPts, action: 'calories are swinging a lot day to day — try to land close to your recent daily average today' },
-      ].sort((a, b) => b.pts - a.pts);
-      const top = ranked[0].pts > 0 ? ranked[0].action : 'this usually eases once deficit and protein settle back to your normal range';
-      return `Leading indicator: satiety is at ${today.satietySubscore}%, usually what precedes a crash-out — ${top}.`;
-    }
-
-    if (today.caloriesLoggedToday) {
-      const gapKcal = Math.round(Math.abs(today.caloriesLoggedToday - dailyCalorieGoal));
-      const over = today.caloriesLoggedToday > dailyCalorieGoal;
-      if (gapKcal > 0) {
-        const action = over
-          ? "no need to compensate by cutting tomorrow — just get back to target"
-          : "worth topping up if you're still hungry rather than treating it as a win";
-        return `Leading indicator: calorie consistency is at ${today.calorieSubscore}%, down from where it's been — you're ${gapKcal} kcal ${over ? 'over' : 'under'} today's target, ${action}.`;
-      }
-    }
-    return `Leading indicator: calorie consistency is at ${today.calorieSubscore}%, down from where it's been — log today's meals as close to on-target as you can to start bringing it back up.`;
-  }, [today, movementModality, burnout, proteinGoal, dailyCalorieGoal, currentWeightKg]);
-
-  // Structured facts for the AI nudge — the exact same numbers the template above uses, just
-  // handed to the model directly instead of pre-picked through the if/else waterfall, so it can
-  // reason over all three pillars (and the raw gym/steps split) at once rather than being locked
-  // into one rigid driver + one rigid movement-modality bucket.
-  const momentumFacts = useMemo(() => ({
-    todayBand: today.band.label,
-    momentumScore: today.momentum,
-    calorie: { subscore: today.calorieSubscore, loggedToday: today.caloriesLoggedToday, targetToday: dailyCalorieGoal },
-    satiety: {
-      subscore: today.satietySubscore,
-      burnoutScore: burnout.today.score,
-      avgProtein: burnout.today.avgProtein,
-      proteinGoal: proteinGoal || null,
-      avgCarbs: burnout.today.avgCarbs,
-      avgFats: burnout.today.avgFats,
-      avgFiber: burnout.today.avgFiber,
-      avgWaterMl: burnout.today.avgWaterMl,
-      avgCalories: burnout.today.avgCalories,
-      tdee: tdee || null,
-      points: {
-        deficit: burnout.today.deficitPts, protein: burnout.today.proteinPts, water: burnout.today.waterPts,
-        carbs: burnout.today.carbsPts, fiber: burnout.today.fiberPts, fat: burnout.today.fatPts,
-        volatility: burnout.today.volatilityPts,
+  // Momentum "See why" — replaced the AI/template-generated nudge sentence entirely. That text
+  // could describe stale or simply wrong state (e.g. "log a meal" after one was already logged),
+  // whether from cache staleness or the underlying facts not being fresh at generation time. This
+  // shows the same real numbers directly instead of a generated sentence trying to summarize them
+  // -- always accurate, since it's just formatting values already computed live everywhere else on
+  // this page, not describing them through an extra generation step that can drift from the truth.
+  const momentumWhy = useMemo(() => {
+    const t = burnout.today;
+    return {
+      calorie: { subscore: today.calorieSubscore, loggedToday: today.caloriesLoggedToday, targetToday: dailyCalorieGoal },
+      satiety: {
+        subscore: today.satietySubscore, burnoutScore: t.score,
+        rows: [
+          { label: 'Deficit Depth', pts: t.deficitPts, max: 20 },
+          { label: 'Calorie Volatility', pts: t.volatilityPts, max: 20 },
+          { label: 'Protein', pts: t.proteinPts, max: 15, detail: proteinGoal ? `${t.avgProtein}g avg vs ${proteinGoal}g goal` : `${t.avgProtein}g avg` },
+          { label: 'Water', pts: t.waterPts, max: 20, detail: `${(t.avgWaterMl / 1000).toFixed(1)}L avg` },
+          { label: 'Carbs', pts: t.carbsPts, max: 10, detail: carbsGoal ? `${t.avgCarbs}g avg vs ${carbsGoal}g goal` : `${t.avgCarbs}g avg` },
+          { label: 'Fiber', pts: t.fiberPts, max: 10, detail: `${t.avgFiber}g avg` },
+          { label: 'Fat', pts: t.fatPts, max: 5, detail: fatsGoal ? `${t.avgFats}g avg vs ${fatsGoal}g goal` : `${t.avgFats}g avg` },
+        ],
       },
-    },
-    movement: {
-      subscore: today.movementSubscore,
-      gymKcalToday: today.movementGymKcal,
-      stepsKcalToday: today.movementStepsKcal,
-      targetKcalToday: today.movementTargetKcal,
-      trailing14Days: { gymKcal: Math.round(movementModality.gymKcal14d), stepsKcal: Math.round(movementModality.stepsKcal14d) },
-    },
-    userName: userName || null,
-  }), [today, burnout, proteinGoal, tdee, dailyCalorieGoal, movementModality, userName]);
-
-  // Coarse fingerprint of the facts above — rounded enough that a single gram of protein or one
-  // extra step doesn't force a regenerate, only a materially different picture does.
-  const momentumFingerprint = useMemo(() => {
-    const r5 = (n) => (n == null ? 'x' : Math.round(n / 5) * 5);
-    const r25 = (n) => (n == null ? 'x' : Math.round(n / 25) * 25);
-    return [
-      today.band.label,
-      r5(today.calorieSubscore), r25(today.caloriesLoggedToday),
-      r5(today.satietySubscore),
-      r5(today.movementSubscore), r25(today.movementGymKcal), r25(today.movementStepsKcal),
-    ].join('|');
-  }, [today]);
-
-  // AI-generated nudge — shows the deterministic template instantly (zero latency, zero cost),
-  // then swaps in the AI line once it loads. Falls back to the template forever if the call
-  // fails or the user is offline; never blank, never stuck on a spinner.
-  //
-  // The 1-hour cap in momentumNudge.js is meant to bound passive drift (reopening the app,
-  // EWMA decay rolling into a new day) — it should NOT delay feedback on something the user just
-  // did. logCountRef tracks the total number of logged entries across meals/steps/activities/
-  // weigh-ins; when that total goes UP since the last run of this effect, it's a deliberate log
-  // action, so `force` bypasses the hourly cap for that one call.
-  const [aiNudge, setAiNudge] = useState(null);
-  const logCountRef = useRef(null);
-  useEffect(() => {
-    let cancelled = false;
-    if (!userId || today.band.tone === 'strong') { setAiNudge(null); return; }
-
-    const logCount = (recentMeals?.length || 0) + (stepLogs?.length || 0) + (activities?.length || 0) + (weightLogs?.length || 0);
-    const justLogged = logCountRef.current != null && logCount > logCountRef.current;
-    logCountRef.current = logCount;
-
-    getCachedMomentumNudge(userId).then((cached) => { if (!cancelled && cached) setAiNudge(cached); });
-    getMomentumNudge({ userId, facts: momentumFacts, fingerprint: momentumFingerprint, force: justLogged }).then((nudge) => {
-      if (!cancelled && nudge) setAiNudge(nudge);
-    });
-    return () => { cancelled = true; };
-  }, [userId, momentumFingerprint, recentMeals, stepLogs, activities, weightLogs]);
-
-  const nudgeText = aiNudge || momentumNudge;
+      movement: {
+        subscore: today.movementSubscore,
+        gymKcalToday: today.movementGymKcal, stepsKcalToday: today.movementStepsKcal, targetKcalToday: today.movementTargetKcal,
+      },
+    };
+  }, [today, burnout, proteinGoal, carbsGoal, fatsGoal, dailyCalorieGoal]);
 
   // Trajectory chart: this is a PREDICTION, not a log -- every day of the week gets a guess
   // (anchored to today's EWMA weight, extrapolated via the rolling energy-deficit rate), so a day
@@ -758,12 +648,11 @@ const InsightsTab = ({
                 {'  ·  '}Satiety {today.satietySubscore}%
                 {'  ·  '}Movement {today.movementSubscore != null ? `${today.movementSubscore}%` : '--'}
               </Text>
-              {nudgeText && (
-                <View style={[styles.nudgeBox, today.band.tone === 'stalled' && styles.nudgeBoxUrgent]}>
-                  <Text style={[styles.nudgeText, today.band.tone === 'stalled' && styles.nudgeTextUrgent]}>
-                    {nudgeText}
-                  </Text>
-                </View>
+              {today.band.tone !== 'strong' && (
+                <TouchableOpacity style={[styles.detailsBtn, { width: '100%' }]} onPress={() => setView('momentum')}>
+                  <Text style={styles.detailsBtnText}>See why</Text>
+                  <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                </TouchableOpacity>
               )}
               {today.staleWeighIn && (
                 <Text style={styles.mutedSmall}>No weigh-in in over a week — pace confidence is lower until you log one.</Text>
@@ -1055,6 +944,63 @@ const InsightsTab = ({
           </ScrollView>
         </View>
       )}
+
+      {view === 'momentum' && (
+        <View style={styles.wrapper}>
+          <View style={styles.headerCompact}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => setView('main')}>
+              <Ionicons name="chevron-back" size={20} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Why {momentumScore}?</Text>
+          </View>
+          <ScrollView style={styles.scrollContainer} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+            <View style={styles.card}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.cardTitleSmall}>CALORIE — 40%</Text>
+                <Text style={styles.cardTitleSmall}>{momentumWhy.calorie.subscore}%</Text>
+              </View>
+              <Text style={[styles.mutedBody, { marginTop: 6 }]}>
+                {momentumWhy.calorie.loggedToday
+                  ? `${momentumWhy.calorie.loggedToday.toLocaleString()} kcal logged today, against a ${momentumWhy.calorie.targetToday.toLocaleString()} kcal target.`
+                  : `Nothing logged yet today, against a ${momentumWhy.calorie.targetToday.toLocaleString()} kcal target.`}
+              </Text>
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.cardTitleSmall}>SATIETY — 35%</Text>
+                <Text style={styles.cardTitleSmall}>{momentumWhy.satiety.subscore}%</Text>
+              </View>
+              <Text style={[styles.mutedBody, { marginTop: 4, marginBottom: 8 }]}>
+                Burnout Risk {momentumWhy.satiety.burnoutScore}/100 — lower is better. Each row below is a point of risk, out of its own max.
+              </Text>
+              {momentumWhy.satiety.rows.map((r) => (
+                <View key={r.label} style={styles.whyRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.whyRowLabel}>{r.label}</Text>
+                    {r.detail && <Text style={styles.whyRowDetail}>{r.detail}</Text>}
+                  </View>
+                  <Text style={[styles.whyRowPts, r.pts > 0 && { color: r.pts >= r.max * 0.5 ? DANGER : WARN }]}>
+                    {r.pts}/{r.max}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.cardTitleSmall}>MOVEMENT — 25%</Text>
+                <Text style={styles.cardTitleSmall}>{momentumWhy.movement.subscore != null ? `${momentumWhy.movement.subscore}%` : '--'}</Text>
+              </View>
+              <Text style={[styles.mutedBody, { marginTop: 6 }]}>
+                {momentumWhy.movement.targetKcalToday != null
+                  ? `${Math.round(momentumWhy.movement.gymKcalToday || 0)} kcal gym + ${Math.round(momentumWhy.movement.stepsKcalToday || 0)} kcal steps today, against a ${Math.round(momentumWhy.movement.targetKcalToday).toLocaleString()} kcal active-energy target.`
+                  : 'Not enough profile data (age, sex, height, activity level) to compute an active-energy target yet.'}
+              </Text>
+            </View>
+          </ScrollView>
+        </View>
+      )}
     </View>
   );
 };
@@ -1111,6 +1057,10 @@ const makeStyles = (colors) => StyleSheet.create({
   recRow: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 13, flexDirection: 'row', alignItems: 'center' },
   recTitle: { color: colors.text, fontSize: 13.5, fontWeight: '700' },
   recSub: { color: colors.textSecondary, fontSize: 12, fontWeight: '500', marginTop: 2 },
+  whyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderTopWidth: 1, borderTopColor: colors.border },
+  whyRowLabel: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
+  whyRowDetail: { color: colors.textSecondary, fontSize: 11.5, fontWeight: '500', marginTop: 1 },
+  whyRowPts: { color: colors.textMuted, fontSize: 12.5, fontWeight: '700' },
 });
 
 export default InsightsTab;
