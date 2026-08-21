@@ -122,7 +122,13 @@ export function computeObservedTdee({ weightLogs = [], recentMeals = [], toKg, n
 
     weightedSum += beta * impliedTdee;
     weightTotal += beta;
-    lastGap = { impliedTdee: Math.round(impliedTdee), spanDays: Math.round(gapSpanDays * 10) / 10, weightChangeKg: Math.round(weightChangeKg * 10) / 10, beta: Math.round(beta * 100) / 100 };
+    lastGap = {
+      impliedTdee: Math.round(impliedTdee),
+      spanDays: Math.round(gapSpanDays * 10) / 10,
+      weightChangeKg: Math.round(weightChangeKg * 10) / 10,
+      avgDailyCalories: Math.round(avgDailyCalories),
+      beta: Math.round(beta * 100) / 100,
+    };
   }
 
   if (weightTotal === 0) {

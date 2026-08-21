@@ -557,71 +557,49 @@ const InsightsTab = ({
     const startOfWeek = new Date(startOfToday);
     startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
 
-    const timelineByDs = {};
-    momentumTimeline.forEach((entry) => { timelineByDs[entry.ds] = entry; });
-
     const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
     const confidence = today.confidence;
     const dailyRateKg = weeklyPace.dailyRateKg;
+    if (anchorKg == null || dailyRateKg == null) return null;
 
+    // Every day gets exactly one predicted point -- real weigh-ins already feed this as
+    // parameters (they set today's live EWMA anchor and the observed-TDEE-driven rate), they
+    // just aren't plotted as a separate "actual" marker. This is a prediction, not a log.
     const data = [];
     for (let offset = 0; offset <= 6; offset++) {
       const d = new Date(startOfWeek);
       d.setDate(startOfWeek.getDate() + offset);
       const dayDiff = Math.round((d.getTime() - startOfToday.getTime()) / DAY_MS);
-      const label = dayLabel(d);
-
-      const entry = dayDiff <= 0 ? timelineByDs[d.toDateString()] : null;
-      const actual = entry?.hasWeighInToday ? fromKg(entry.weightEwmaKg, weightUnit) : null;
-
-      if (anchorKg != null && dailyRateKg != null) {
-        const projectedKg = anchorKg + dailyRateKg * dayDiff;
-        const marginKg = Math.abs(dayDiff) * 0.15 * (2 - confidence);
-        const projected = fromKg(projectedKg, weightUnit);
-        const margin = fromKg(marginKg, weightUnit);
-        data.push({ label, actual, proj: projected, upper: projected + margin, lower: projected - margin });
-      } else {
-        data.push({ label, actual });
-      }
+      const projectedKg = anchorKg + dailyRateKg * dayDiff;
+      const marginKg = Math.abs(dayDiff) * 0.15 * (2 - confidence);
+      const proj = fromKg(projectedKg, weightUnit);
+      const margin = fromKg(marginKg, weightUnit);
+      data.push({ label: dayLabel(d), proj, upper: proj + margin, lower: proj - margin });
     }
 
     // "This week" headline stat: predicted total change from Sunday to Saturday (end of week),
-    // not a rolling week-over-week comparison. Sunday itself may be a predicted point too, if
-    // there was no weigh-in that day -- that's fine, it's still the best guess for where the
-    // week started from.
-    const weekStartEntry = data[0];
-    const weekStartVal = weekStartEntry.actual != null ? weekStartEntry.actual
-      : weekStartEntry.proj != null ? weekStartEntry.proj
-      : (anchorKg != null ? fromKg(anchorKg, weightUnit) : null);
-    const weekEndEntry = data[data.length - 1];
-    const weekEndVal = weekEndEntry.actual != null ? weekEndEntry.actual : weekEndEntry.proj != null ? weekEndEntry.proj : null;
-    const weekChange = (weekStartVal != null && weekEndVal != null) ? weekEndVal - weekStartVal : null;
+    // not a rolling week-over-week comparison.
+    const weekStartVal = data[0].proj;
+    const weekEndVal = data[data.length - 1].proj;
+    const weekChange = weekEndVal - weekStartVal;
     const weekEndDate = new Date(startOfWeek);
     weekEndDate.setDate(startOfWeek.getDate() + 6);
 
     const vals = [];
-    data.forEach((p) => ['actual', 'proj', 'upper', 'lower'].forEach((k) => p[k] != null && vals.push(p[k])));
-    if (vals.length < 2) return null;
+    data.forEach((p) => ['proj', 'upper', 'lower'].forEach((k) => vals.push(p[k])));
     const min = Math.min(...vals) - 0.15, max = Math.max(...vals) + 0.15;
     const x = (i) => padX + (i * (W - padX * 2)) / (data.length - 1);
     const y = (v) => bot - ((v - min) / (max - min || 1)) * (bot - top);
-    const pts = (k) => data.map((p, i) => (p[k] != null ? [x(i), y(p[k])] : null)).filter(Boolean);
+    const pts = (k) => data.map((p, i) => [x(i), y(p[k])]);
     const ups = pts('upper'), los = pts('lower').reverse();
-    const band = ups.length > 1 ? smooth(ups) + ` L ${los[0][0]} ${los[0][1]} ` + smooth(los).replace(/^M [^C]*/, '') + ' Z' : '';
-    const dots = [];
-    data.forEach((p, i) => {
-      if (p.actual != null) dots.push({ cx: x(i), cy: y(p.actual), fill: accent, stroke: accent });
-      else if (p.proj != null) dots.push({ cx: x(i), cy: y(p.proj), fill: colors.card, stroke: accent });
-    });
-    // Per-day tap targets — value + predicted/actual change from Sunday's reference weight.
-    const points = data.map((p, i) => {
-      const value = p.actual != null ? p.actual : p.proj != null ? p.proj : null;
-      const isProjected = p.actual == null && p.proj != null;
-      const changeFromStart = (value != null && weekStartVal != null) ? value - weekStartVal : null;
-      return { label: p.label, value, isProjected, changeFromStart, xFrac: data.length > 1 ? i / (data.length - 1) : 0 };
-    });
-    return { actual: smooth(pts('actual')), proj: smooth(pts('proj')), band, dots, points, labels: data.map((p) => p.label), weekChange, weekEndDate };
-  }, [momentumTimeline, today, currentWeightKg, weeklyPace, accent, colors.card, now, weightUnit]);
+    const band = smooth(ups) + ` L ${los[0][0]} ${los[0][1]} ` + smooth(los).replace(/^M [^C]*/, '') + ' Z';
+    const dots = data.map((p, i) => ({ cx: x(i), cy: y(p.proj), fill: colors.card, stroke: accent }));
+    // Per-day tap targets — value + predicted change from Sunday's reference weight.
+    const points = data.map((p, i) => ({
+      label: p.label, value: p.proj, changeFromStart: p.proj - weekStartVal, xFrac: i / 6,
+    }));
+    return { proj: smooth(pts('proj')), band, dots, points, labels: data.map((p) => p.label), weekChange, weekEndDate };
+  }, [today, currentWeightKg, weeklyPace, accent, colors.card, now, weightUnit]);
 
   // Trajectory card badge — reflects input fidelity before it reflects pace, per spec:
   // a stale/absent weigh-in shouldn't get badged as "off pace" when the scale just hasn't been used.
@@ -810,7 +788,6 @@ const InsightsTab = ({
                   <Svg width="100%" height={104} viewBox="0 0 320 104" preserveAspectRatio="none">
                     {!!chart.band && <Path d={chart.band} fill={accent} fillOpacity={0.1} />}
                     <Path d={chart.proj} fill="none" stroke={accent} strokeWidth={2} strokeDasharray="4 4" />
-                    <Path d={chart.actual} fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="round" />
                     {chart.dots.map((p, i) => <Circle key={i} cx={p.cx} cy={p.cy} r={3.2} fill={p.fill} stroke={p.stroke} strokeWidth={1.6} />)}
                   </Svg>
                   <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -829,7 +806,7 @@ const InsightsTab = ({
                 <View style={styles.chartInfoRow}>
                   <Text style={styles.chartInfoText}>
                     {chartTooltip
-                      ? `${chartTooltip.label}${chartTooltip.isProjected ? ' (predicted)' : ''}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.changeFromStart != null ? `  ·  ${Math.abs(chartTooltip.changeFromStart).toFixed(1)} ${weightUnit} ${chartTooltip.changeFromStart > 0 ? 'gain' : chartTooltip.changeFromStart < 0 ? 'loss' : 'change'} vs Sun` : ''}`
+                      ? `${chartTooltip.label}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.changeFromStart != null ? `  ·  ${Math.abs(chartTooltip.changeFromStart).toFixed(1)} ${weightUnit} ${chartTooltip.changeFromStart > 0 ? 'gain' : chartTooltip.changeFromStart < 0 ? 'loss' : 'change'} vs Sun` : ''}`
                       : 'Tap a point for that day’s number'}
                   </Text>
                 </View>
@@ -881,7 +858,7 @@ const InsightsTab = ({
                   )}
                   {observedTdee.available && (
                     <Text style={[styles.mutedBody, { marginTop: 6 }]}>
-                      The TDEE above already leans on your own history: over the last {observedTdee.spanDays} days you averaged {observedTdee.avgDailyCalories.toLocaleString()} kcal/day and your weight changed {observedTdee.weightChangeKg > 0 ? '+' : ''}{observedTdee.weightChangeKg} kg — working backward from that, your real TDEE looks closer to {observedTdee.observedTdee.toLocaleString()} kcal, against {Math.round(formulaTdee).toLocaleString()} from the formula alone{observedTdee.confidence < 0.6 ? '. Still a rough estimate — more consistent logging will sharpen it' : ''}.
+                      The TDEE above already leans on your own history: since your last weigh-in before this one ({observedTdee.lastGap.spanDays} day{observedTdee.lastGap.spanDays === 1 ? '' : 's'} ago), you averaged {observedTdee.lastGap.avgDailyCalories.toLocaleString()} kcal/day and your weight changed {observedTdee.lastGap.weightChangeKg > 0 ? '+' : ''}{observedTdee.lastGap.weightChangeKg} kg — working backward from that, your real TDEE looks closer to {observedTdee.observedTdee.toLocaleString()} kcal, against {Math.round(formulaTdee).toLocaleString()} from the formula alone{observedTdee.confidence < 0.6 ? '. Still a rough estimate — more consistent logging will sharpen it' : ''}.
                     </Text>
                   )}
                 </>
