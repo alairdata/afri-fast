@@ -1,13 +1,18 @@
 // Burnout / Crash-Out Risk engine — predicts diet abandonment risk from statistical ratios
 // relative to the person's own TDEE/protein target, not hardcoded kcal/gram cutoffs that don't
 // scale with body size or account for simple, repetitive-but-healthy traditional meals.
-// Computed client-side, day-by-day: each day's score uses a rolling 7-day window ENDING that
-// day, so it evolves as the week plays out rather than being fixed once computed.
+// Computed client-side, day-by-day: most factors use a rolling 7-day window ENDING that day, so
+// the score evolves as the week plays out rather than being fixed once computed. Deficit Depth is
+// the exception -- it looks back 28 days, since real under-eating burnout is a multi-week
+// phenomenon a 7-day snapshot can't distinguish from a single hard week.
 //
 // Also used as a building block by momentum.js (Satiety pillar = 100 - burnout score for that
 // day) via the exported computeBurnoutScore single-day function.
 
+import { PACE_TARGET_DEFICIT, BMR_SAFETY_FLOOR_RATIO } from './trajectory';
+
 const DAY_MS = 24 * 60 * 60 * 1000;
+const DEFICIT_DEPTH_WINDOW_DAYS = 28;
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -23,7 +28,7 @@ const EMPTY_DAY = { calories: 0, protein: 0, fats: 0, foods: [], mealCount: 0 };
 // Shared setup: builds the per-day meal lookup, the "if this keeps up" projection pattern for
 // future dates, and a scoreWindowEnding(endDate) closure that computes the 5-vector score for
 // the 7-day window ending at any date. Used by both exported functions below.
-function buildScorer({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) {
+function buildScorer({ recentMeals = [], tdee, bmr, pacePreference, proteinGoal, now = Date.now() }) {
   const mealsByDate = {};
   recentMeals.forEach((m) => {
     if (!m.date) return;
@@ -63,6 +68,53 @@ function buildScorer({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) 
     };
   })();
 
+  // Deficit Depth (max 10) -- looks back 28 days, not 7: real metabolic/satiety burnout from
+  // under-eating is a multi-week phenomenon, and a 7-day average can't tell "day 4 of a diet"
+  // from "day 60." Classifies each logged day into a zone relative to the person's own BMR/TDEE:
+  //   Red    -- below the 80%-BMR safety floor (outright violation)
+  //   Yellow -- above the floor but still under full BMR (never crosses the line, but never
+  //             actually eats enough either -- chronically "not satiety happy")
+  //   Green  -- BMR up to their own pace-deficit target (a normal, sustainable cut)
+  //   (anything above target isn't counted as strain at all)
+  // Unlogged days are skipped entirely rather than counted as Red -- silence isn't under-eating.
+  // Red counts more than Yellow, and a recent (last-7-of-the-28) run of 4+ Red/Yellow days in a
+  // row adds an extra bump, since satiety debt compounds fast once it's back-to-back.
+  const deficitDepthScore = (endDate) => {
+    if (bmr == null || tdee == null) return 0;
+    const floor = bmr * BMR_SAFETY_FLOOR_RATIO;
+    const paceDeficit = PACE_TARGET_DEFICIT[pacePreference] || PACE_TARGET_DEFICIT.moderate;
+    const greenTop = Math.max(bmr, tdee - paceDeficit); // guard against a target more aggressive than BMR itself
+
+    const zoneFor = (cal) => {
+      if (cal < floor) return 'red';
+      if (cal < bmr) return 'yellow';
+      if (cal <= greenTop) return 'green';
+      return null; // at/above their own target -- not strain
+    };
+
+    let nRed = 0, nYellow = 0;
+    const recentZones = []; // last 7 of the 28, oldest first -- for the back-to-back check
+    for (let i = DEFICIT_DEPTH_WINDOW_DAYS - 1; i >= 0; i--) {
+      const d = new Date(endDate.getTime() - i * DAY_MS);
+      const dMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      if (dMidnight.getTime() > startOfToday.getTime()) continue; // can't classify a future day
+      const cal = dayTotals(d.toDateString()).calories;
+      const zone = cal > 0 ? zoneFor(cal) : null; // unlogged day -- skip, don't count as strain
+      if (zone === 'red') nRed++;
+      if (zone === 'yellow') nYellow++;
+      if (i < 7) recentZones.push(zone);
+    }
+
+    let longestRun = 0, currentRun = 0;
+    recentZones.forEach((z) => {
+      currentRun = (z === 'red' || z === 'yellow') ? currentRun + 1 : 0;
+      longestRun = Math.max(longestRun, currentRun);
+    });
+    const backToBackBonus = longestRun >= 4 ? 2 : 0;
+
+    return clamp(Math.round(nRed * 0.5 + nYellow * 0.3 + backToBackBonus), 0, 10);
+  };
+
   const scoreWindowEnding = (endDate) => {
     const window = [];
     for (let i = 6; i >= 0; i--) {
@@ -77,15 +129,12 @@ function buildScorer({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) 
     }
     const days = window.map((ds) => (ds != null ? dayTotals(ds) : (recentPattern || { ...EMPTY_DAY, foods: [] })));
 
-    // 1. Deficit Depth (max 10) -- deficit as a % of TDEE, not a fixed kcal cliff. Weighted
-    // down from an earlier max of 35: an isolated deep-deficit week matters less to crash-out
-    // risk than day-to-day binge-restrict volatility (below), which is the sharper predictor.
-    let deficitPts = 0;
+    // 1. Deficit Depth (max 10) -- see deficitDepthScore above (28-day zone-based, not this
+    // window's 7-day average). Weighted down from an earlier max of 35: an isolated deep-deficit
+    // week matters less to crash-out risk than day-to-day binge-restrict volatility (below),
+    // which is the sharper predictor.
+    const deficitPts = deficitDepthScore(endDate);
     const avgCaloriesAll = days.reduce((s, d) => s + d.calories, 0) / 7;
-    if (tdee) {
-      const rD = (tdee - avgCaloriesAll) / tdee;
-      deficitPts = rD <= 0 ? 0 : clamp(Math.round(10 * (rD / 0.35)), 0, 10);
-    }
 
     // 2. Food Monotony (max 25) -- unique ingredients as a ratio of total meals logged.
     const uniqueFoods = new Set(days.flatMap((d) => d.foods));
@@ -140,14 +189,14 @@ function buildScorer({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) 
 }
 
 /** Single-day entry point -- used by momentum.js's Satiety pillar. */
-export function computeBurnoutScore({ recentMeals = [], tdee, proteinGoal, endDate, now = Date.now() }) {
-  const { scoreWindowEnding } = buildScorer({ recentMeals, tdee, proteinGoal, now });
+export function computeBurnoutScore({ recentMeals = [], tdee, bmr, pacePreference, proteinGoal, endDate, now = Date.now() }) {
+  const { scoreWindowEnding } = buildScorer({ recentMeals, tdee, bmr, pacePreference, proteinGoal, now });
   return scoreWindowEnding(endDate);
 }
 
 /** Full-week entry point -- used by the Burnout Likelihood card. */
-export function computeBurnoutTimeline({ recentMeals = [], tdee, proteinGoal, now = Date.now() }) {
-  const { scoreWindowEnding, startOfToday, recentPattern } = buildScorer({ recentMeals, tdee, proteinGoal, now });
+export function computeBurnoutTimeline({ recentMeals = [], tdee, bmr, pacePreference, proteinGoal, now = Date.now() }) {
+  const { scoreWindowEnding, startOfToday, recentPattern } = buildScorer({ recentMeals, tdee, bmr, pacePreference, proteinGoal, now });
 
   const startOfWeek = new Date(startOfToday);
   startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());

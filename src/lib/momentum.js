@@ -94,6 +94,7 @@ export function computeMomentumTimeline({
   dailyCalorieGoal,
   tdee,
   bmr,
+  pacePreference,
   proteinGoal,
   fallbackWeightKg, // used for the movement calc on days before any weigh-in exists
   toKg,
@@ -164,7 +165,7 @@ export function computeMomentumTimeline({
 
     // Pillar 2: Satiety (35%) = 100 - that day's Burnout Risk score. No separate EWMA layer --
     // Burnout is already a rolling 7-day-window calculation, so it's inherently smoothed.
-    const burnout = computeBurnoutScore({ recentMeals, tdee, proteinGoal, endDate: day, now });
+    const burnout = computeBurnoutScore({ recentMeals, tdee, bmr, pacePreference, proteinGoal, endDate: day, now });
     const satietyScore = clamp(100 - burnout.score, 0, 100);
 
     // Pillar 3: Movement (25%) — MET-based active energy vs a physiological target (TDEE - BMR)

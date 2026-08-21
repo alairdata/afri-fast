@@ -233,11 +233,11 @@ const InsightsTab = ({
   // Computed client-side from existing logs, no persisted state.
   const momentumTimeline = useMemo(() => computeMomentumTimeline({
     weightLogs, recentMeals, stepLogs, activities,
-    dailyCalorieGoal, tdee, bmr, proteinGoal,
+    dailyCalorieGoal, tdee, bmr, pacePreference, proteinGoal,
     fallbackWeightKg: currentWeightKg,
     toKg: (w) => toKg(w, weightUnit),
     now,
-  }), [weightLogs, recentMeals, stepLogs, activities, dailyCalorieGoal, tdee, bmr, proteinGoal, currentWeightKg, weightUnit, now]);
+  }), [weightLogs, recentMeals, stepLogs, activities, dailyCalorieGoal, tdee, bmr, pacePreference, proteinGoal, currentWeightKg, weightUnit, now]);
 
   const today = momentumTimeline[momentumTimeline.length - 1];
   const momentumScore = today.momentum;
@@ -393,8 +393,8 @@ const InsightsTab = ({
   // Burnout / Crash-Out Risk — 4-vector model (deficit depth, food monotony, protein/fiber
   // satiety, dietary fat) computed day-by-day over the current week. See src/lib/burnout.js.
   const burnout = useMemo(() => computeBurnoutTimeline({
-    recentMeals, tdee, proteinGoal, now,
-  }), [recentMeals, tdee, proteinGoal, now]);
+    recentMeals, tdee, bmr, pacePreference, proteinGoal, now,
+  }), [recentMeals, tdee, bmr, pacePreference, proteinGoal, now]);
 
   const burnoutScore = burnout.today.score;
   const burnoutBand = burnout.today.band;
