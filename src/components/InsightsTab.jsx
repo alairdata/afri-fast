@@ -70,6 +70,7 @@ const InsightsTab = ({
   userName = '',
   weightLogs = [],
   recentMeals = [],
+  waterLogs = [],
   startingWeight = null,
   targetWeight = null,
   weightUnit = 'kg',
@@ -86,6 +87,8 @@ const InsightsTab = ({
   activities = [],
   pacePreference = null,
   proteinGoal = null,
+  carbsGoal = null,
+  fatsGoal = null,
 }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -232,12 +235,12 @@ const InsightsTab = ({
   // Pace lives on its own "Pace to Goal" card below instead of feeding Momentum directly.
   // Computed client-side from existing logs, no persisted state.
   const momentumTimeline = useMemo(() => computeMomentumTimeline({
-    weightLogs, recentMeals, stepLogs, activities,
-    dailyCalorieGoal, tdee, bmr, pacePreference, proteinGoal,
+    weightLogs, recentMeals, waterLogs, stepLogs, activities,
+    dailyCalorieGoal, tdee, bmr, pacePreference, proteinGoal, carbsGoal, fatsGoal,
     fallbackWeightKg: currentWeightKg,
     toKg: (w) => toKg(w, weightUnit),
     now,
-  }), [weightLogs, recentMeals, stepLogs, activities, dailyCalorieGoal, tdee, bmr, pacePreference, proteinGoal, currentWeightKg, weightUnit, now]);
+  }), [weightLogs, recentMeals, waterLogs, stepLogs, activities, dailyCalorieGoal, tdee, bmr, pacePreference, proteinGoal, carbsGoal, fatsGoal, currentWeightKg, weightUnit, now]);
 
   const today = momentumTimeline[momentumTimeline.length - 1];
   const momentumScore = today.momentum;
@@ -390,11 +393,13 @@ const InsightsTab = ({
   const spikeDays = loggedDays.filter((d) => d.total > dailyCalorieGoal * 1.5);
   const crashDays = loggedDays.filter((d) => d.total > 0 && d.total < dailyCalorieGoal * 0.5);
 
-  // Burnout / Crash-Out Risk — 4-vector model (deficit depth, protein satiety, dietary fat,
-  // calorie volatility) computed day-by-day over the current week. See src/lib/burnout.js.
+  // Burnout / Crash-Out Risk — deficit depth, calorie volatility, and Nutrition (protein, water,
+  // carbs, fiber, fat -- each a pure floor check) computed day-by-day over the current week.
+  // See src/lib/burnout.js.
   const burnout = useMemo(() => computeBurnoutTimeline({
-    recentMeals, tdee, bmr, pacePreference, proteinGoal, now,
-  }), [recentMeals, tdee, bmr, pacePreference, proteinGoal, now]);
+    recentMeals, waterLogs, tdee, bmr, weightKg: currentWeightKg, pacePreference,
+    dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, now,
+  }), [recentMeals, waterLogs, tdee, bmr, currentWeightKg, pacePreference, dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, now]);
 
   const burnoutScore = burnout.today.score;
   const burnoutBand = burnout.today.band;
@@ -403,11 +408,14 @@ const InsightsTab = ({
   const burnoutWhy = useMemo(() => {
     const t = burnout.today;
     const drivers = [];
-    if (t.deficitPts >= 6) drivers.push('your deficit is running deep relative to your TDEE');
-    if (t.satietyPts >= 16) drivers.push("protein is running under your target, so hunger keeps building");
-    if (t.fatPts >= 8) drivers.push("fat's well under 20% of calories, which tends to hit mood and sleep");
-    if (t.volatilityPts >= 10) drivers.push('calories are swinging a lot day to day — binge-restrict pattern, not a steady deficit');
-    if (!drivers.length) return 'Deficit, protein, fat, and day-to-day consistency are all in a sustainable range this week.';
+    if (t.deficitPts >= 12) drivers.push('your deficit is running deep relative to your TDEE');
+    if (t.proteinPts >= 6) drivers.push("protein is running under your floor, so hunger keeps building");
+    if (t.waterPts >= 8) drivers.push("water intake is running under your floor");
+    if (t.carbsPts >= 4) drivers.push('carbs are running under your floor');
+    if (t.fiberPts >= 4) drivers.push('fiber is running low, which tends to leave meals feeling less filling');
+    if (t.fatPts >= 2) drivers.push("fat's under your floor, which tends to hit mood and sleep");
+    if (t.volatilityPts >= 8) drivers.push('calories are swinging a lot day to day — binge-restrict pattern, not a steady deficit');
+    if (!drivers.length) return 'Deficit, nutrition, and day-to-day consistency are all in a sustainable range this week.';
     return `This week: ${drivers.join('; ')}.`;
   }, [burnout]);
 
@@ -448,9 +456,12 @@ const InsightsTab = ({
       // Pick the single biggest driver behind today's Burnout score and give the one action
       // that actually moves it, instead of listing every contributing factor.
       const ranked = [
-        { pts: t.satietyPts, action: proteinGoal ? `you're averaging ${t.avgProtein}g protein against a ${proteinGoal}g target this week — add a protein-forward food to your next meal` : 'protein has been running low this week — add a protein-forward food to your next meal' },
+        { pts: t.proteinPts, action: proteinGoal ? `you're averaging ${t.avgProtein}g protein against a ${proteinGoal}g target this week — add a protein-forward food to your next meal` : 'protein has been running low this week — add a protein-forward food to your next meal' },
+        { pts: t.waterPts, action: `you're averaging ${(t.avgWaterMl / 1000).toFixed(1)}L a day this week — get more water in today` },
         { pts: t.deficitPts, action: `your deficit is running deep relative to your TDEE — bring today's calories closer to target rather than cutting further` },
-        { pts: t.fatPts, action: "fat's well under 20% of calories — add a source of healthy fat like avocado, nuts, or oil to a meal" },
+        { pts: t.fiberPts, action: `you're averaging ${t.avgFiber}g fiber this week — add vegetables, beans, or whole grains to fill meals out more` },
+        { pts: t.carbsPts, action: 'carbs are running under your floor this week — add a starch or fruit to a meal' },
+        { pts: t.fatPts, action: "fat's under your floor — add a source of healthy fat like avocado, nuts, or oil to a meal" },
         { pts: t.volatilityPts, action: 'calories are swinging a lot day to day — try to land close to your recent daily average today' },
       ].sort((a, b) => b.pts - a.pts);
       const top = ranked[0].pts > 0 ? ranked[0].action : 'this usually eases once deficit and protein settle back to your normal range';
@@ -483,9 +494,17 @@ const InsightsTab = ({
       burnoutScore: burnout.today.score,
       avgProtein: burnout.today.avgProtein,
       proteinGoal: proteinGoal || null,
+      avgCarbs: burnout.today.avgCarbs,
+      avgFats: burnout.today.avgFats,
+      avgFiber: burnout.today.avgFiber,
+      avgWaterMl: burnout.today.avgWaterMl,
       avgCalories: burnout.today.avgCalories,
       tdee: tdee || null,
-      points: { deficit: burnout.today.deficitPts, protein: burnout.today.satietyPts, fat: burnout.today.fatPts, volatility: burnout.today.volatilityPts },
+      points: {
+        deficit: burnout.today.deficitPts, protein: burnout.today.proteinPts, water: burnout.today.waterPts,
+        carbs: burnout.today.carbsPts, fiber: burnout.today.fiberPts, fat: burnout.today.fatPts,
+        volatility: burnout.today.volatilityPts,
+      },
     },
     movement: {
       subscore: today.movementSubscore,

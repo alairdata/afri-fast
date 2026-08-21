@@ -1844,6 +1844,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           userName={userName}
           weightLogs={weightLogs}
           recentMeals={recentMeals}
+          waterLogs={waterLogs}
           startingWeight={startingWeight}
           targetWeight={targetWeight}
           weightUnit={weightUnit}
@@ -1860,6 +1861,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           activities={activities}
           pacePreference={pacePreference}
           proteinGoal={proteinGoal}
+          carbsGoal={carbsGoal}
+          fatsGoal={fatsGoal}
         />
       )}
 
