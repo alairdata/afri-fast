@@ -13,6 +13,7 @@ import { BMR_SAFETY_FLOOR_RATIO } from './trajectory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ALPHA = 0.3; // EWMA decay factor (~7-day half-life)
+const TEF_RATIO = 0.10; // Thermic Effect of Food -- ~10% of TDEE spent digesting, regardless of activity
 
 const WEIGHTS = { calorie: 0.40, satiety: 0.35, movement: 0.25 };
 
@@ -46,13 +47,16 @@ function calorieRawScore(actual, target, bmr) {
 }
 
 // E_active (kcal) for the day: gym/activity sessions via MET formula, steps via a flat
-// per-step-per-kg estimate. R_M = E_active / E_target, where E_target = TDEE - BMR
-// (the "activity" slice of TDEE implied by the person's PAL/activity multiplier). Returns the
-// gym/steps split too, not just the score -- the Movement nudge needs it to recommend the kind
-// of activity the person actually does, and the exact kcal short of target, not just a walk.
+// per-step-per-kg estimate. R_M = E_active / E_target, where E_target = TDEE - BMR - TEF.
+// Not just TDEE - BMR: that gap also includes the Thermic Effect of Food (~10% of TDEE spent
+// digesting), which happens regardless of how active someone is and can never be "earned" through
+// movement -- leaving it in the target made the target mathematically unreachable even for someone
+// doing exactly the right amount of activity for their profile. Returns the gym/steps split too,
+// not just the score -- the Movement nudge needs it to recommend the kind of activity the person
+// actually does, and the exact kcal short of target, not just a walk.
 function movementBreakdown({ dayActivities, steps, weightKg, bmr, tdee }) {
   if (!weightKg || !bmr || !tdee) return null;
-  const eTarget = tdee - bmr;
+  const eTarget = tdee - bmr - tdee * TEF_RATIO;
   if (eTarget <= 0) return null;
   let eGym = 0;
   dayActivities.forEach((a) => {
