@@ -440,7 +440,7 @@ const ProgressTab = ({
                           decimalPlaces: 1,
                           color: (opacity = 1) => `rgba(5, 150, 105, ${opacity})`,
                           labelColor: () => '#888',
-                          propsForDots: { r: '0' },
+                          propsForDots: { r: '3.5', strokeWidth: '1.5', stroke: colors.card, fill: '#059669' },
                           propsForBackgroundLines: { stroke: 'transparent' },
                           fillShadowGradient: '#059669',
                           fillShadowGradientFrom: '#059669',
