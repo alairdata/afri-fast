@@ -14,6 +14,12 @@ export const PACE_TARGET_RATE_KG = { slow: 0.25, moderate: 0.5, aggressive: 0.75
 // deficits as dangerous. Shared with momentum.js's Calorie pillar for the same reason.
 export const BMR_SAFETY_FLOOR_RATIO = 0.80;
 
+// Thermic Effect of Food -- ~10% of TDEE spent digesting, regardless of activity. Shared with
+// momentum.js's Movement target for the same reason: BMR + measured activity alone omits it, and
+// TEF can never be "earned" through movement, so leaving it out understates real expenditure on
+// any day where activity data is available.
+export const TEF_RATIO = 0.10;
+
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 /**
@@ -39,19 +45,26 @@ export function computeWeeklyPace({
   const mealsByDate = {};
   recentMeals.forEach((m) => { if (m.date) mealsByDate[m.date] = (mealsByDate[m.date] || 0) + (m.calories || 0); });
 
-  let d7d = 0;
+  // Unlogged days are excluded entirely, not counted as a fake full-expenditure deficit -- a day
+  // with nothing logged isn't "ate zero calories," it's "we don't know," and averaging it in as a
+  // 2,000+kcal deficit would falsely crater the projected line every time a day goes unlogged.
+  let d7d = 0, loggedDaysCount = 0;
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now - i * DAY_MS);
     const ds = d.toDateString();
     const logged = mealsByDate[ds] || 0;
+    if (logged <= 0) continue;
     const activityKcal = activityKcalByDate[ds] || 0;
-    const expenditure = (activityKcal > 0 && bmr != null) ? bmr + activityKcal : tdee;
+    // + TEF: BMR + measured activity alone omits the Thermic Effect of Food (~10% of TDEE spent
+    // digesting regardless of activity) -- same gap, same fix, as Momentum's Movement target.
+    const expenditure = (activityKcal > 0 && bmr != null) ? bmr + bmr * TEF_RATIO + activityKcal : tdee;
     const deficit = expenditure != null ? expenditure - logged : 0;
     d7d += deficit;
+    loggedDaysCount++;
   }
-  const dBar = d7d / 7; // average daily deficit
-  const vEnergyKg = d7d / KCAL_PER_KG; // expected 7-day loss from food energy alone (positive = loss)
-  const pRatio = (tdee != null && dTarget) ? dBar / dTarget : null;
+  const dBar = loggedDaysCount > 0 ? d7d / loggedDaysCount : null; // average daily deficit, over days actually logged
+  const vEnergyKg = dBar != null ? (dBar * 7) / KCAL_PER_KG : null; // expected 7-day loss if this average holds for a full week
+  const pRatio = (dBar != null && tdee != null && dTarget) ? dBar / dTarget : null;
 
   // Safety floor: a 3-day rolling AVERAGE (only counting days actually logged) below 80% of BMR,
   // not a single-day or full-BMR threshold. BMR formulas are population estimates -- flagging
@@ -80,8 +93,9 @@ export function computeWeeklyPace({
   }
 
   // Negative = losing weight, to match the sign convention used everywhere else in this app
-  // (weeklyWeightChangeKg, requiredWeeklyRateKg, etc: negative delta = weight went down).
-  const dailyRateKg = tdee != null ? -dBar / KCAL_PER_KG : null;
+  // (weeklyWeightChangeKg, requiredWeeklyRateKg, etc: negative delta = weight went down). null
+  // (not 0) when nothing was logged this week -- a flat-line guess would be worse than no guess.
+  const dailyRateKg = (tdee != null && dBar != null) ? -dBar / KCAL_PER_KG : null;
 
   // k is days from today -- positive for a forward forecast, negative to backfill a day this
   // week that has no real weigh-in yet. Margin widens with distance from today in either direction.

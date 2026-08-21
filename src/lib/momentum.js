@@ -9,11 +9,10 @@
 // unlogged days decay the Calorie/Movement EWMA by 5% instead of injecting a raw-zero score.
 
 import { computeBurnoutScore } from './burnout';
-import { BMR_SAFETY_FLOOR_RATIO } from './trajectory';
+import { BMR_SAFETY_FLOOR_RATIO, TEF_RATIO } from './trajectory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ALPHA = 0.3; // EWMA decay factor (~7-day half-life)
-const TEF_RATIO = 0.10; // Thermic Effect of Food -- ~10% of TDEE spent digesting, regardless of activity
 
 const WEIGHTS = { calorie: 0.40, satiety: 0.35, movement: 0.25 };
 
