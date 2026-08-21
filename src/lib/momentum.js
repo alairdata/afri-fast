@@ -9,6 +9,7 @@
 // unlogged days decay the Calorie/Movement EWMA by 5% instead of injecting a raw-zero score.
 
 import { computeBurnoutScore } from './burnout';
+import { BMR_SAFETY_FLOOR_RATIO } from './trajectory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ALPHA = 0.3; // EWMA decay factor (~7-day half-life)
@@ -22,14 +23,26 @@ export const MET = { walking: 3.5, running: 9.8, cycling: 7.5, swimming: 6, stre
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-// R_C = 1 - |logged - target| / target. Unclamped below zero (down to -100): eating at
-// maintenance (0 pts) and eating 2,000kcal past maintenance are not the same event -- the
-// latter actively erodes the deficit banked on previous days, and the EWMA needs a genuinely
-// negative input to drag the smoothed score down instead of just gently coasting to a floor.
-function calorieRawScore(actual, target) {
+// One-sided: only overeating and true under-fueling get punished -- eating less than your target
+// is not, by itself, a bad thing here (it's still progress toward a deficit). Full marks anywhere
+// from the BMR safety floor (what your organs need at rest, not TDEE -- TDEE includes activity, so
+// it's the wrong number to treat as a survival line) up to target. Above target: penalized by how
+// far over, unclamped below zero (down to -100) -- eating at maintenance and blowing 2,000kcal past
+// it are not the same event, and the EWMA needs a genuinely negative input to drag the smoothed
+// score down instead of just gently coasting to a floor. Below the BMR floor: same shape, penalized
+// by how far under the floor -- true under-eating is exactly as serious as overeating, just rare.
+function calorieRawScore(actual, target, bmr) {
   if (!target) return 0;
-  const rC = 1 - Math.abs(actual - target) / target;
-  return Math.max(-100, Math.round(100 * rC));
+  if (actual > target) {
+    const rC = 1 - (actual - target) / target;
+    return Math.max(-100, Math.round(100 * rC));
+  }
+  const floor = bmr != null ? bmr * BMR_SAFETY_FLOOR_RATIO : null;
+  if (floor != null && actual < floor) {
+    const rC = 1 - (floor - actual) / floor;
+    return Math.max(-100, Math.round(100 * rC));
+  }
+  return 100;
 }
 
 // E_active (kcal) for the day: gym/activity sessions via MET formula, steps via a flat
@@ -146,7 +159,7 @@ export function computeMomentumTimeline({
     const weightForToday = weightEwma != null ? weightEwma : fallbackWeightKg;
 
     // Pillar 1: Calorie (40%)
-    const calRaw = calorieRawScore(caloriesToday, dailyCalorieGoal);
+    const calRaw = calorieRawScore(caloriesToday, dailyCalorieGoal, bmr);
     calEwma = ewmaStep(calEwma, calRaw, loggedToday);
 
     // Pillar 2: Satiety (35%) = 100 - that day's Burnout Risk score. No separate EWMA layer --

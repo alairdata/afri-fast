@@ -9,6 +9,11 @@ const KCAL_PER_KG = 7700;
 export const PACE_TARGET_DEFICIT = { slow: 275, moderate: 550, aggressive: 825, extreme: 1100 };
 export const PACE_TARGET_RATE_KG = { slow: 0.25, moderate: 0.5, aggressive: 0.75, extreme: 1.0 };
 
+// Organ-survival floor as a fraction of BMR, not the raw number -- BMR formulas are population
+// estimates, not a lab measurement, so a small buffer avoids flagging perfectly normal high-protein
+// deficits as dangerous. Shared with momentum.js's Calorie pillar for the same reason.
+export const BMR_SAFETY_FLOOR_RATIO = 0.80;
+
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 /**
@@ -59,7 +64,7 @@ export function computeWeeklyPace({
     if (logged > 0) { recentLoggedTotal += logged; recentLoggedCount++; }
   }
   const threeDayAvgCalories = recentLoggedCount > 0 ? recentLoggedTotal / recentLoggedCount : null;
-  const bmrSafetyFloor = bmr != null ? bmr * 0.80 : null;
+  const bmrSafetyFloor = bmr != null ? bmr * BMR_SAFETY_FLOOR_RATIO : null;
   const belowBmrFloor = threeDayAvgCalories != null && bmrSafetyFloor != null && threeDayAvgCalories < bmrSafetyFloor;
 
   const unsafe = belowBmrFloor || (pRatio != null && pRatio > 1.30);
