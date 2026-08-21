@@ -68,50 +68,56 @@ function buildScorer({ recentMeals = [], tdee, bmr, pacePreference, proteinGoal,
     };
   })();
 
-  // Deficit Depth (max 10) -- looks back 28 days, not 7: real metabolic/satiety burnout from
-  // under-eating is a multi-week phenomenon, and a 7-day average can't tell "day 4 of a diet"
-  // from "day 60." Deliberately has no fixed "% of BMR" cutoff above the floor -- someone running
-  // a bigger deficit than average isn't doing anything wrong, and a flat line (e.g. "100% of BMR")
-  // would flag plenty of people for correctly hitting their own, more aggressive, intentional
-  // target. Instead each logged day gets a severity from 0 to 1 based on where it falls in THIS
-  // person's own floor-to-target range: right at their target = 0 (no strain, that's the plan
-  // working), right at (or below) the 80%-BMR floor = 1 (max strain), linear in between. Eating
-  // at or above target isn't strain at all, whatever the number is.
-  // Unlogged days are skipped entirely rather than counted as strain -- silence isn't under-eating.
-  // A recent (last-7-of-the-28) run of 4+ days at 0.5+ severity adds an extra bump, since satiety
-  // debt compounds fast once it's back-to-back.
+  // Deficit Depth (max 10) -- looks back 28 days, not 7: real burnout from under- or over-eating
+  // is a multi-week pattern, and a 7-day average can't tell "day 4 of a diet" from "day 60."
+  // Despite the name, it now scores BOTH directions -- eating way over target is just as much a
+  // sign of being "off the bandwagon" as eating dangerously under it, and both should raise
+  // crash-out risk, not just one of them. Each logged day gets 0-10+ points:
+  //   - Anywhere from the 80%-BMR floor up to target: 0 points, flat, no gradient. There's
+  //     nothing wrong with running a bigger deficit than average -- someone eating right at their
+  //     own floor isn't in worse shape than someone eating right at their own target, as long as
+  //     neither crosses the line.
+  //   - Under the floor: flat 10 (max), however far under -- this is the hard safety line.
+  //   - Over target: scales with how far over, same shape as the Momentum Calorie pillar's
+  //     overeating penalty (e.g. 50% over target = 5 points), uncapped per-day so a real binge
+  //     shows up, though the final score is still clamped to 10 overall.
+  // Unlogged days are excluded from the average entirely -- silence isn't a signal either way.
+  // A recent (last-7-of-the-28) run of 4+ days scoring 5+ (from either direction) adds a bonus,
+  // since going off-plan several days running compounds faster than the same days scattered out.
   const deficitDepthScore = (endDate) => {
     if (bmr == null || tdee == null) return 0;
     const floor = bmr * BMR_SAFETY_FLOOR_RATIO;
     const paceDeficit = PACE_TARGET_DEFICIT[pacePreference] || PACE_TARGET_DEFICIT.moderate;
     const target = Math.max(floor + 1, tdee - paceDeficit); // guard divide-by-zero if the pace itself asks for less than the floor
 
-    const severityFor = (cal) => {
-      if (cal >= target) return 0;
-      if (cal <= floor) return 1;
-      return (target - cal) / (target - floor);
+    const pointsFor = (cal) => {
+      if (cal < floor) return 10;
+      if (cal <= target) return 0;
+      return 10 * (cal - target) / target;
     };
 
-    let strainSum = 0;
-    const recentSeverities = []; // last 7 of the 28, oldest first -- for the back-to-back check
+    let pointsSum = 0, loggedCount = 0;
+    const recentPoints = []; // last 7 of the 28, oldest first -- for the back-to-back check
     for (let i = DEFICIT_DEPTH_WINDOW_DAYS - 1; i >= 0; i--) {
       const d = new Date(endDate.getTime() - i * DAY_MS);
       const dMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
       if (dMidnight.getTime() > startOfToday.getTime()) continue; // can't classify a future day
       const cal = dayTotals(d.toDateString()).calories;
-      const severity = cal > 0 ? severityFor(cal) : 0; // unlogged day -- skip, don't count as strain
-      strainSum += severity * 0.5;
-      if (i < 7) recentSeverities.push(severity);
+      const logged = cal > 0;
+      const points = logged ? pointsFor(cal) : null;
+      if (logged) { pointsSum += points; loggedCount++; }
+      if (i < 7) recentPoints.push(points);
     }
+    if (loggedCount === 0) return 0;
 
     let longestRun = 0, currentRun = 0;
-    recentSeverities.forEach((s) => {
-      currentRun = s >= 0.5 ? currentRun + 1 : 0;
+    recentPoints.forEach((p) => {
+      currentRun = (p != null && p >= 5) ? currentRun + 1 : 0;
       longestRun = Math.max(longestRun, currentRun);
     });
     const backToBackBonus = longestRun >= 4 ? 2 : 0;
 
-    return clamp(Math.round(strainSum + backToBackBonus), 0, 10);
+    return clamp(Math.round(pointsSum / loggedCount + backToBackBonus), 0, 10);
   };
 
   const scoreWindowEnding = (endDate) => {
