@@ -536,12 +536,12 @@ const InsightsTab = ({
   const chart = useMemo(() => {
     const W = 320, top = 10, bot = 100, padX = 16;
 
-    // Fixed calendar week (Sun-Sat), not a rolling window — history for days up to today,
-    // projection for whatever's left of the week.
+    // Rolling 7-day window, not a fixed Sun-Sat calendar week -- always today through 6 days
+    // from now. Today slides in as day 0 every day; no past days ever appear in this chart at
+    // all (that's the point -- it's a PREDICTION, not a log), so there's nothing here that could
+    // retroactively change the way a fixed week briefly showed past days within it.
     const nowDate = new Date(now);
     const startOfToday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
-    const startOfWeek = new Date(startOfToday);
-    startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
 
     const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
     const confidence = today.confidence;
@@ -553,23 +553,21 @@ const InsightsTab = ({
     // just aren't plotted as a separate "actual" marker. This is a prediction, not a log.
     const data = [];
     for (let offset = 0; offset <= 6; offset++) {
-      const d = new Date(startOfWeek);
-      d.setDate(startOfWeek.getDate() + offset);
-      const dayDiff = Math.round((d.getTime() - startOfToday.getTime()) / DAY_MS);
-      const projectedKg = anchorKg + dailyRateKg * dayDiff;
-      const marginKg = Math.abs(dayDiff) * 0.15 * (2 - confidence);
+      const d = new Date(startOfToday);
+      d.setDate(startOfToday.getDate() + offset);
+      const projectedKg = anchorKg + dailyRateKg * offset;
+      const marginKg = offset * 0.15 * (2 - confidence);
       const proj = fromKg(projectedKg, weightUnit);
       const margin = fromKg(marginKg, weightUnit);
       data.push({ label: dayLabel(d), proj, upper: proj + margin, lower: proj - margin });
     }
 
-    // "This week" headline stat: predicted total change from Sunday to Saturday (end of week),
-    // not a rolling week-over-week comparison.
+    // Headline stat: predicted total change from today through 6 days out.
     const weekStartVal = data[0].proj;
     const weekEndVal = data[data.length - 1].proj;
     const weekChange = weekEndVal - weekStartVal;
-    const weekEndDate = new Date(startOfWeek);
-    weekEndDate.setDate(startOfWeek.getDate() + 6);
+    const weekEndDate = new Date(startOfToday);
+    weekEndDate.setDate(startOfToday.getDate() + 6);
 
     const vals = [];
     data.forEach((p) => ['proj', 'upper', 'lower'].forEach((k) => vals.push(p[k])));
@@ -580,7 +578,7 @@ const InsightsTab = ({
     const ups = pts('upper'), los = pts('lower').reverse();
     const band = smooth(ups) + ` L ${los[0][0]} ${los[0][1]} ` + smooth(los).replace(/^M [^C]*/, '') + ' Z';
     const dots = data.map((p, i) => ({ cx: x(i), cy: y(p.proj), fill: colors.card, stroke: accent }));
-    // Per-day tap targets — value + predicted change from Sunday's reference weight.
+    // Per-day tap targets — value + predicted change from today's reference weight.
     const points = data.map((p, i) => ({
       label: p.label, value: p.proj, changeFromStart: p.proj - weekStartVal, xFrac: i / 6,
     }));
@@ -791,7 +789,7 @@ const InsightsTab = ({
                 <View style={styles.chartInfoRow}>
                   <Text style={styles.chartInfoText}>
                     {chartTooltip
-                      ? `${chartTooltip.label}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.changeFromStart != null ? `  ·  ${Math.abs(chartTooltip.changeFromStart).toFixed(1)} ${weightUnit} ${chartTooltip.changeFromStart > 0 ? 'gain' : chartTooltip.changeFromStart < 0 ? 'loss' : 'change'} vs Sun` : ''}`
+                      ? `${chartTooltip.label}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.changeFromStart != null ? `  ·  ${Math.abs(chartTooltip.changeFromStart).toFixed(1)} ${weightUnit} ${chartTooltip.changeFromStart > 0 ? 'gain' : chartTooltip.changeFromStart < 0 ? 'loss' : 'change'} vs today` : ''}`
                       : 'Tap a point for that day’s number'}
                   </Text>
                 </View>
