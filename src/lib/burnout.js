@@ -252,10 +252,19 @@ export function computeBurnoutScore({
   return scoreWindowEnding(endDate);
 }
 
-/** Full-week entry point -- used by the Burnout Likelihood card. */
+/**
+ * Full-week entry point -- used by the Burnout Likelihood card.
+ * @param savedDays - { [dateString]: dayResult } previously-finalized scores (see
+ *   src/lib/burnoutHistory.js). Any day strictly before today that has a saved entry uses it
+ *   verbatim instead of recalculating -- once a day is over, its number is permanent, and no
+ *   later change (a new weigh-in, a backdated log, a goal edit) can move it again. Days without a
+ *   saved entry yet (never seen as "past" before, or from before this existed) fall back to a
+ *   live calculation -- it's the caller's job to then persist that result via saveBurnoutDay so
+ *   it's frozen from here on.
+ */
 export function computeBurnoutTimeline({
   recentMeals = [], waterLogs = [], tdee, bmr, weightKg, pacePreference,
-  dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, now = Date.now(),
+  dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, savedDays = {}, now = Date.now(),
 }) {
   const { scoreWindowEnding, startOfToday, recentPattern } = buildScorer({
     recentMeals, waterLogs, tdee, bmr, weightKg, pacePreference,
@@ -270,7 +279,10 @@ export function computeBurnoutTimeline({
     const d = new Date(startOfWeek);
     d.setDate(startOfWeek.getDate() + offset);
     const isFuture = d.getTime() > startOfToday.getTime();
-    week.push({ date: d, isFuture, isProjected: isFuture && !!recentPattern, ...scoreWindowEnding(d) });
+    const isPast = d.getTime() < startOfToday.getTime();
+    const ds = d.toDateString();
+    const saved = isPast ? savedDays[ds] : null;
+    week.push({ date: d, ds, isFuture, isPast, isFinalized: !!saved, isProjected: isFuture && !!recentPattern, ...(saved || scoreWindowEnding(d)) });
   }
 
   const today = scoreWindowEnding(startOfToday);

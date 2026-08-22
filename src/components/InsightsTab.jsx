@@ -8,6 +8,7 @@ import { computeMomentumTimeline, MET } from '../lib/momentum';
 import { computeWeeklyPace } from '../lib/trajectory';
 import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
+import { fetchSavedBurnoutDays, saveBurnoutDay } from '../lib/burnoutHistory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WARN = '#F59E0B';
@@ -442,13 +443,43 @@ const InsightsTab = ({
   const spikeDays = loggedDays.filter((d) => d.total > dailyCalorieGoal * 1.5);
   const crashDays = loggedDays.filter((d) => d.total > 0 && d.total < dailyCalorieGoal * 0.5);
 
+  // Saved (finalized) past-day Burnout scores -- fetched once per user, then kept in sync locally
+  // as new days get finalized below. See src/lib/burnoutHistory.js.
+  const [savedBurnoutDays, setSavedBurnoutDays] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId) { setSavedBurnoutDays({}); return; }
+    fetchSavedBurnoutDays(userId).then((days) => { if (!cancelled) setSavedBurnoutDays(days); });
+    return () => { cancelled = true; };
+  }, [userId]);
+
   // Burnout / Crash-Out Risk — deficit depth, calorie volatility, and Nutrition (protein, water,
-  // carbs, fiber, fat -- each a pure floor check) computed day-by-day over the current week.
-  // See src/lib/burnout.js.
+  // carbs, fiber, fat -- each a pure floor check) computed day-by-day over the current week. Past
+  // days use savedBurnoutDays where available instead of recalculating -- see src/lib/burnout.js.
   const burnout = useMemo(() => computeBurnoutTimeline({
     recentMeals, waterLogs, tdee, bmr, weightKg: currentWeightKg, pacePreference,
-    dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, now,
-  }), [recentMeals, waterLogs, tdee, bmr, currentWeightKg, pacePreference, dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, now]);
+    dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, savedDays: savedBurnoutDays, now,
+  }), [recentMeals, waterLogs, tdee, bmr, currentWeightKg, pacePreference, dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, savedBurnoutDays, now]);
+
+  // Finalize any past day in this week that hasn't been saved yet -- the moment a day is first
+  // seen as "no longer today," lock its score in permanently. Runs after every render of the
+  // week above; harmless to re-check already-finalized days (isFinalized short-circuits them),
+  // and saveBurnoutDay itself no-ops if another tab/session already wrote that date first.
+  useEffect(() => {
+    if (!userId) return;
+    const toFinalize = burnout.week.filter((d) => d.isPast && !d.isFinalized);
+    if (!toFinalize.length) return;
+    let cancelled = false;
+    Promise.all(toFinalize.map((d) => saveBurnoutDay(userId, d.ds, d))).then(() => {
+      if (cancelled) return;
+      setSavedBurnoutDays((prev) => {
+        const next = { ...prev };
+        toFinalize.forEach((d) => { next[d.ds] = d; });
+        return next;
+      });
+    });
+    return () => { cancelled = true; };
+  }, [userId, burnout.week]);
 
   const burnoutScore = burnout.today.score;
   const burnoutBand = burnout.today.band;
