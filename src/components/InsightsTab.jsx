@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../lib/theme';
 import { computeMomentumTimeline, MET } from '../lib/momentum';
 import { computeWeeklyPace } from '../lib/trajectory';
@@ -171,6 +172,35 @@ const InsightsTab = ({
     if (sex === 'Female') return base - 161;
     return base - 78; // unspecified — midpoint of the two offsets
   }, [age, sex, heightCm, bmrCheckpointWeightKg, currentWeightKg]);
+
+  // Checkpoint-change notice — dismissable, fires once per new checkpoint. Detects a real BMR
+  // checkpoint shift (see bmrCheckpointWeightKg above) by comparing against the last checkpoint
+  // the person has already seen, persisted locally since this is just UI-acknowledgment state,
+  // not data worth syncing. First-ever load silently records a baseline instead of announcing
+  // one, so this doesn't fire for every existing user the moment the feature ships.
+  const [checkpointNotice, setCheckpointNotice] = useState(null); // { newKg, prevKg } | null
+  useEffect(() => {
+    if (!userId || bmrCheckpointWeightKg == null) return;
+    let cancelled = false;
+    const key = `bmr_checkpoint_seen_${userId}`;
+    AsyncStorage.getItem(key).then((raw) => {
+      if (cancelled) return;
+      const prevKg = raw != null ? parseFloat(raw) : null;
+      if (prevKg == null) {
+        AsyncStorage.setItem(key, String(bmrCheckpointWeightKg));
+        return;
+      }
+      if (Math.abs(bmrCheckpointWeightKg - prevKg) > 0.05) {
+        setCheckpointNotice({ newKg: bmrCheckpointWeightKg, prevKg });
+      }
+    });
+    return () => { cancelled = true; };
+  }, [userId, bmrCheckpointWeightKg]);
+
+  const dismissCheckpointNotice = () => {
+    if (checkpointNotice && userId) AsyncStorage.setItem(`bmr_checkpoint_seen_${userId}`, String(checkpointNotice.newKg));
+    setCheckpointNotice(null);
+  };
 
   const activityMultiplier = ACTIVITY_MULTIPLIERS[activityLevel] || ACTIVITY_MULTIPLIERS.light;
   const formulaTdee = bmr != null ? bmr * activityMultiplier : null; // Mifflin-St Jeor x PAL -- the starting guess
@@ -756,6 +786,22 @@ const InsightsTab = ({
               </View>
             )}
 
+            {/* BMR checkpoint change notice */}
+            {checkpointNotice && (
+              <View style={[styles.card, { backgroundColor: colors.accentLight, borderColor: accent }]}>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.cardTitleSmall}>TDEE re-adjusted</Text>
+                  <TouchableOpacity onPress={dismissCheckpointNotice} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="close" size={18} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={[styles.mutedBody, { marginTop: 6 }]}>
+                  You've {checkpointNotice.newKg < checkpointNotice.prevKg ? 'lost' : 'gained'} enough for your TDEE to be recalculated —
+                  {pacePreference ? ` worth updating your daily calorie target in Settings to stay on your ${pacePreference} pace.` : ' worth updating your daily calorie target in Settings to keep it matched to your goal.'}
+                </Text>
+              </View>
+            )}
+
             {/* Energy balance */}
             <View style={styles.card}>
               <Text style={styles.kicker}>ENERGY BALANCE</Text>
@@ -778,11 +824,6 @@ const InsightsTab = ({
                   {weeklyPace.dailyRateKg != null && (
                     <Text style={[styles.mutedBody, { marginTop: 10 }]}>
                       At this week's average intake, your calories alone predict about {weeklyPace.dailyRateKg <= 0 ? '-' : '+'}{Math.abs(fromKg(weeklyPace.dailyRateKg * 7, weightUnit)).toFixed(2)} {weightUnit}/week.
-                    </Text>
-                  )}
-                  {observedTdee.available && (
-                    <Text style={[styles.mutedBody, { marginTop: 6 }]}>
-                      The TDEE above already leans on your own history: since your last weigh-in before this one ({observedTdee.lastGap.spanDays} day{observedTdee.lastGap.spanDays === 1 ? '' : 's'} ago), you averaged {observedTdee.lastGap.avgDailyCalories.toLocaleString()} kcal/day and your weight changed {observedTdee.lastGap.weightChangeKg > 0 ? '+' : ''}{observedTdee.lastGap.weightChangeKg} kg — working backward from that, your real TDEE looks closer to {observedTdee.observedTdee.toLocaleString()} kcal, against {Math.round(formulaTdee).toLocaleString()} from the formula alone{observedTdee.confidence < 0.6 ? '. Still a rough estimate — more consistent logging will sharpen it' : ''}.
                     </Text>
                   )}
                 </>
