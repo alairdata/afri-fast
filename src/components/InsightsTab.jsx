@@ -127,8 +127,10 @@ const InsightsTab = ({
   // without waiting on the full momentum timeline. Mathematically identical to momentumTimeline's
   // last entry. Decay scales with elapsed days between weigh-ins, not sample count -- a weigh-in
   // after a long gap should snap the trend close to itself, not get smoothed as gently as a
-  // next-day reading would be.
-  const weightEwmaKg = useMemo(() => {
+  // next-day reading would be. Also returns the full series (not just the latest value) -- the
+  // BMR checkpoint below needs to walk the whole smoothed trend, not just today's point.
+  const weightEwmaSeries = useMemo(() => {
+    const series = [];
     let ewma = null, ewmaTs = null;
     sortedWeights.forEach((w) => {
       if (ewma == null) { ewma = w.weightKg; } else {
@@ -137,20 +139,38 @@ const InsightsTab = ({
         ewma = decay * ewma + (1 - decay) * w.weightKg;
       }
       ewmaTs = w.ts;
+      series.push(ewma);
     });
-    return ewma;
+    return series;
   }, [sortedWeights]);
 
-  // BMR — Mifflin-St Jeor, recalculated off the smoothed *current* weight (not starting
-  // weight) so the calorie budget scales down as you actually lose weight, instead of going stale.
+  // BMR checkpoint weight — BMR (and everything downstream: TDEE, Momentum, Burnout, the
+  // Prediction chart's rate) intentionally does NOT react to the live EWMA weight day to day.
+  // Recalculating on every weigh-in makes the displayed TDEE visibly jitter, which reads as
+  // untrustworthy even though it's technically more precise. Instead it holds at a fixed anchor
+  // -- starting at the person's starting weight -- until the smoothed trend has moved a full 6kg
+  // away from that anchor, in either direction, at which point it "checkpoints" onto the new
+  // smoothed value and holds there until the next 6kg move. Stateless: walks the full EWMA series
+  // fresh every render rather than persisting which checkpoint is "current."
+  const CHECKPOINT_STEP_KG = 6;
+  const bmrCheckpointWeightKg = useMemo(() => {
+    if (!weightEwmaSeries.length) return null;
+    let anchor = startingWeightKg != null ? startingWeightKg : weightEwmaSeries[0];
+    weightEwmaSeries.forEach((e) => { if (Math.abs(e - anchor) >= CHECKPOINT_STEP_KG) anchor = e; });
+    return anchor;
+  }, [weightEwmaSeries, startingWeightKg]);
+
+  // BMR — Mifflin-St Jeor, recalculated off the checkpointed weight (not the live day-to-day
+  // trend, and not starting weight forever either) so the calorie budget steps down as real
+  // milestones are hit, instead of either going stale or jittering constantly.
   const bmr = useMemo(() => {
-    const weightForBmr = weightEwmaKg != null ? weightEwmaKg : currentWeightKg;
+    const weightForBmr = bmrCheckpointWeightKg != null ? bmrCheckpointWeightKg : currentWeightKg;
     if (!age || !sex || !heightCm || weightForBmr == null) return null;
     const base = 10 * weightForBmr + 6.25 * heightCm - 5 * age;
     if (sex === 'Male') return base + 5;
     if (sex === 'Female') return base - 161;
     return base - 78; // unspecified — midpoint of the two offsets
-  }, [age, sex, heightCm, weightEwmaKg, currentWeightKg]);
+  }, [age, sex, heightCm, bmrCheckpointWeightKg, currentWeightKg]);
 
   const activityMultiplier = ACTIVITY_MULTIPLIERS[activityLevel] || ACTIVITY_MULTIPLIERS.light;
   const formulaTdee = bmr != null ? bmr * activityMultiplier : null; // Mifflin-St Jeor x PAL -- the starting guess
