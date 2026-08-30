@@ -222,10 +222,14 @@ const ProgressTab = ({
     const loggedCalDays = dailyCalData.filter(d => d.calories > 0);
 
     // Weight -- group multiple same-day logs by averaging, then carry-forward fill gaps.
+    // Keyed off the reliable timestamp (converted to the same toDateString() shape fillDaysCarryForward
+    // looks up by), not the raw date string -- that string's format depends on whichever screen wrote
+    // it and has drifted before (see WeightLogPage's old custom format), silently breaking this lookup.
     const weightsByDate = {};
     rangeWeights.forEach(w => {
-      if (!weightsByDate[w.date]) weightsByDate[w.date] = { ...w, weights: [] };
-      weightsByDate[w.date].weights.push(w.weight);
+      const key = new Date(w.timestamp || w.date).toDateString();
+      if (!weightsByDate[key]) weightsByDate[key] = { ...w, weights: [] };
+      weightsByDate[key].weights.push(w.weight);
     });
     Object.values(weightsByDate).forEach(g => {
       g.weight = parseFloat((g.weights.reduce((a, b) => a + b, 0) / g.weights.length).toFixed(1));
