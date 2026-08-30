@@ -28,7 +28,10 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
     if (!newWeight) return;
     Keyboard.dismiss();
     const newLog = { date: selectedDate.toDateString(), timestamp: selectedDate.getTime(), weight: parseFloat(newWeight), unit: weightUnit };
-    setWeightLogs([newLog, ...weightLogs]);
+    // Insert in date order, not always at the front -- logging a past date (via the calendar picker
+    // above) must not make it look like your most recent weigh-in everywhere weightLogs[0] is read
+    // as "current weight" (BMI card, weight stats, activity calorie estimates).
+    setWeightLogs([...weightLogs, newLog].sort((a, b) => b.timestamp - a.timestamp));
     onWeightSaved && onWeightSaved(newLog);
     setNewWeight('');
   };

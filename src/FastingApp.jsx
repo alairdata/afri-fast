@@ -980,7 +980,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .limit(50)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch weight_logs]', error); }
-        if (data) setWeightLogs(data.map(r => ({ id: r.id, date: r.date, timestamp: r.id, weight: r.weight, unit: r.unit })));
+        // Sorted by the weigh-in's actual date (timestamp), not logged_at (when the row was saved) --
+        // logging an old date via the calendar picker must not make it look like the current weight.
+        if (data) setWeightLogs(data.map(r => ({ id: r.id, date: r.date, timestamp: r.id, weight: r.weight, unit: r.unit })).sort((a, b) => b.timestamp - a.timestamp));
         setDataLoadCount(prev => prev + 1);
       });
   }, [session]);
