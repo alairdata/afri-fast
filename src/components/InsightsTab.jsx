@@ -503,7 +503,7 @@ const InsightsTab = ({
       predictions,
       bmr, tdee, pacePreference, dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal,
       weightKg: currentWeightKg,
-      daysToCrash: burnout.daysToCrash, crashDate: burnout.crashDate.toDateString(),
+      daysToCrash: burnout.daysToCrash, crashDate: burnout.crashDate ? burnout.crashDate.toDateString() : null,
     };
   }, [burnout, bmr, tdee, pacePreference, dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, currentWeightKg]);
 
@@ -1007,16 +1007,18 @@ const InsightsTab = ({
                   );
                 })}
               </View>
-              {burnoutScore > 25 && (
+              {burnout.daysToCrash != null && (
                 <View style={styles.nextWeekRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.nextWeekTitle}>Estimated crash risk window</Text>
                     <Text style={styles.nextWeekNote}>
-                      At this rate, off-plan eating or a crash-out becomes likely around {fmtShort(burnout.crashDate)} — {burnout.daysToCrash} day{burnout.daysToCrash === 1 ? '' : 's'} out — if nothing changes.
+                      {burnout.daysToCrash === 0
+                        ? "Your score is already in Critical territory — this isn't a forecast, it's where you are right now."
+                        : `Your risk score has been climbing — at that rate, off-plan eating or a crash-out becomes likely around ${fmtShort(burnout.crashDate)}, ${burnout.daysToCrash} day${burnout.daysToCrash === 1 ? '' : 's'} out, if nothing changes.`}
                     </Text>
                   </View>
                   <View style={[styles.nextWeekBadge, { backgroundColor: burnoutBg }]}>
-                    <Text style={[styles.nextWeekBadgeText, { color: burnoutColor }]}>{burnout.daysToCrash}d</Text>
+                    <Text style={[styles.nextWeekBadgeText, { color: burnoutColor }]}>{burnout.daysToCrash === 0 ? 'Now' : `${burnout.daysToCrash}d`}</Text>
                   </View>
                 </View>
               )}

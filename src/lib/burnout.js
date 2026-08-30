@@ -33,6 +33,12 @@ const FLOOR_RATIO = 0.80; // same "80% of the real number" methodology as the BM
 const FIBER_G_PER_1000_KCAL = 14; // Dietary Guidelines / EFSA baseline
 const WATER_ML_PER_KG = 35; // EFSA baseline total water intake
 
+// Crash-risk window: trend-projected, not a static score->days lookup. See computeBurnoutTimeline.
+const CRASH_TREND_WINDOW_DAYS = 7;
+const CRASH_THRESHOLD_SCORE = 80; // where "Critical Crash Risk" starts, per bandFor
+const MIN_TREND_SAMPLE_DAYS = 4;  // of the trend window, before trusting the slope enough to warn
+const MAX_DAYS_TO_CRASH = 30;     // beyond this the trend isn't meaningfully headed toward crisis
+
 // Water logs store amount + whatever unit the person picked -- mirrors FastingApp.jsx's own
 // HYDRATION_UNIT_TO_ML table so a sachet/bottle/oz log converts to the same ml everywhere.
 const HYDRATION_UNIT_TO_ML = { oz: 29.574, mL: 1, ml: 1, sachet: 500, bottle: 750 };
@@ -237,7 +243,7 @@ function buildScorer({
     };
   };
 
-  return { scoreWindowEnding, startOfToday, recentPattern };
+  return { scoreWindowEnding, startOfToday, recentPattern, dayTotals };
 }
 
 /** Single-day entry point -- used by momentum.js's Satiety pillar. */
@@ -266,7 +272,7 @@ export function computeBurnoutTimeline({
   recentMeals = [], waterLogs = [], tdee, bmr, weightKg, pacePreference,
   dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, savedDays = {}, now = Date.now(),
 }) {
-  const { scoreWindowEnding, startOfToday, recentPattern } = buildScorer({
+  const { scoreWindowEnding, startOfToday, recentPattern, dayTotals } = buildScorer({
     recentMeals, waterLogs, tdee, bmr, weightKg, pacePreference,
     dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, now,
   });
@@ -288,8 +294,47 @@ export function computeBurnoutTimeline({
 
   const today = scoreWindowEnding(startOfToday);
   const band = bandFor(today.score);
-  const daysToCrash = Math.max(1, Math.round(14 * (1 - today.score / 100)));
-  const crashDate = new Date(now + daysToCrash * DAY_MS);
+
+  // "If this keeps up" for the crash-risk window means the actual recent TREND in your score, not
+  // just today's single level -- a score of 60 that's been climbing all week is headed somewhere
+  // very different from a 60 that's falling from 90. Least-squares slope (points/day) over the
+  // last CRASH_TREND_WINDOW_DAYS, projected forward to when it would cross into Critical territory.
+  const trendScores = []; // oldest first
+  let loggedTrendDays = 0;
+  for (let i = CRASH_TREND_WINDOW_DAYS - 1; i >= 0; i--) {
+    const d = new Date(startOfToday);
+    d.setDate(startOfToday.getDate() - i);
+    const ds = d.toDateString();
+    if (dayTotals(ds).calories > 0) loggedTrendDays++;
+    const isPastDay = d.getTime() < startOfToday.getTime();
+    const saved = isPastDay ? savedDays[ds] : null;
+    trendScores.push((saved || scoreWindowEnding(d)).score);
+  }
+  const n = trendScores.length;
+  const xBar = (n - 1) / 2;
+  const yBar = trendScores.reduce((s, v) => s + v, 0) / n;
+  const num = trendScores.reduce((s, v, i) => s + (i - xBar) * (v - yBar), 0);
+  const den = trendScores.reduce((s, _, i) => s + (i - xBar) ** 2, 0);
+  const scoreSlopePerDay = den > 0 ? num / den : 0;
+  // Requires real logged days behind the trend, not a mix of mostly-fallback guesses -- an
+  // unreliable trend shouldn't produce a confident-sounding "crash in N days" figure at all.
+  const trendReliable = loggedTrendDays >= MIN_TREND_SAMPLE_DAYS;
+
+  let daysToCrash = null, crashDate = null;
+  if (trendReliable) {
+    if (today.score >= CRASH_THRESHOLD_SCORE) {
+      daysToCrash = 0; // already in Critical territory
+      crashDate = new Date(now);
+    } else if (scoreSlopePerDay > 0) {
+      // Flat or improving (slope <= 0) means no warning at all -- a score that isn't trending
+      // toward crisis has no "days until crash" to report, not a stale one left over from before.
+      const projected = Math.ceil((CRASH_THRESHOLD_SCORE - today.score) / scoreSlopePerDay);
+      if (projected <= MAX_DAYS_TO_CRASH) {
+        daysToCrash = Math.max(1, projected);
+        crashDate = new Date(now + daysToCrash * DAY_MS);
+      }
+    }
+  }
 
   return { week, today: { ...today, band }, daysToCrash, crashDate };
 }
