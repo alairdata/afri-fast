@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AfriFast Admin — Fix Weight Log Dates</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+    #gate { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 16px; }
+    #gate .logo { font-size: 32px; font-weight: 800; color: #059669; }
+    #gate .sub  { font-size: 14px; color: #64748b; }
+    #gate input { width: 320px; padding: 12px 16px; border-radius: 10px; border: 1.5px solid #1e293b; background: #1e293b; color: #e2e8f0; font-size: 15px; outline: none; text-align: center; }
+    #gate input#pin { letter-spacing: 2px; }
+    #gate input:focus { border-color: #059669; }
+    #gate button { width: 320px; padding: 12px; border-radius: 10px; border: none; background: #059669; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+    #gate button:hover { background: #047857; }
+    #gate .err { font-size: 13px; color: #ef4444; }
+    #gate .hint { font-size: 12px; color: #475569; text-align: center; max-width: 320px; line-height: 1.5; }
+
+    #panel { display: none; max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .topbar .logo { font-size: 22px; font-weight: 800; color: #059669; }
+    .topbar .badge { font-size: 11px; background: #1e293b; color: #94a3b8; padding: 4px 10px; border-radius: 20px; }
+
+    .stats-bar { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat-card { background: #1e293b; border-radius: 12px; padding: 16px 20px; flex: 1; min-width: 140px; }
+    .stat-card .label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .stat-card .value { font-size: 24px; font-weight: 800; color: #e2e8f0; }
+
+    .controls { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+    .btn { padding: 10px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.15s; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #059669; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #047857; }
+    .btn-orange { background: #ea580c; color: #fff; }
+    .btn-orange:hover:not(:disabled) { background: #c2410c; }
+    .btn-ghost { background: #1e293b; color: #94a3b8; }
+    .btn-ghost:hover:not(:disabled) { background: #334155; color: #e2e8f0; }
+
+    .log { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #64748b; max-height: 200px; overflow-y: auto; margin-bottom: 20px; font-family: monospace; }
+    .log .ok   { color: #22c55e; }
+    .log .warn { color: #f59e0b; }
+    .log .err  { color: #ef4444; font-weight: 700; }
+
+    .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid #1e293b; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #1e293b; padding: 10px 14px; text-align: left; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; white-space: nowrap; }
+    td { padding: 10px 14px; border-top: 1px solid #1e293b; vertical-align: middle; white-space: nowrap; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .date-old { color: #f59e0b; font-family: monospace; }
+    .date-new { color: #34d399; font-family: monospace; }
+    .date-ok  { color: #64748b; font-family: monospace; }
+    .arrow { color: #64748b; margin: 0 8px; }
+
+    .status-badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .s-ok      { background: #1e293b; color: #64748b; }
+    .s-needsfix{ background: #451a03; color: #fbbf24; }
+    .s-fixed   { background: #1e3a29; color: #4ade80; }
+    .s-error   { background: #450a0a; color: #fca5a5; }
+
+    .empty { text-align: center; padding: 40px; color: #475569; }
+  </style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="logo">AfriFast</div>
+  <div class="sub">Fix Weight Log Dates</div>
+  <input type="password" id="pin" placeholder="Admin password" onkeydown="if(event.key==='Enter')login()" autofocus />
+  <input type="text" id="serviceKey" placeholder="Supabase service_role key" onkeydown="if(event.key==='Enter')login()" style="font-size:12px;letter-spacing:0" />
+  <div class="hint">This normalizes weight_logs.date to the same toDateString() format used everywhere else (meals, water, steps), so old entries saved with the "Aug 30, 2026" format start showing up in the Weight Trend chart again.</div>
+  <button onclick="login()">Enter</button>
+  <div class="err" id="gateErr"></div>
+</div>
+
+<div id="panel">
+  <div class="topbar">
+    <div class="logo">AfriFast — Weight Date Fix</div>
+    <div class="badge">Admin Tool</div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-card"><div class="label">Total Rows</div><div class="value" id="statTotal">—</div></div>
+    <div class="stat-card"><div class="label">Already OK</div><div class="value" id="statOk" style="color:#64748b">0</div></div>
+    <div class="stat-card"><div class="label">Needs Fix</div><div class="value" id="statNeedsFix" style="color:#fbbf24">0</div></div>
+    <div class="stat-card"><div class="label">Fixed</div><div class="value" id="statFixed" style="color:#059669">0</div></div>
+    <div class="stat-card"><div class="label">Errors</div><div class="value" id="statErrors" style="color:#ef4444">0</div></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-orange" id="fixAllBtn" onclick="fixAll()" disabled>⚡ Fix All Bad Dates</button>
+    <button class="btn btn-ghost" onclick="loadRows()">↻ Reload</button>
+  </div>
+
+  <div class="log" id="log">Waiting…</div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Weight</th>
+          <th>Stored date</th>
+          <th>Corrected date</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const { createClient } = supabase;
+const SUPABASE_URL = 'https://exvbplhajnvuhanykumm.supabase.co';
+const ADMIN_PASSWORD = 'AFRIFAST@ADMIN2026';
+
+// Matches the toDateString() shape every other table uses, e.g. "Sun Aug 30 2026".
+const GOOD_DATE_RE = /^[A-Za-z]{3} [A-Za-z]{3} \d{2} \d{4}$/;
+
+let sb = null;
+let rows = [];
+
+function login() {
+  const pin = document.getElementById('pin').value;
+  const serviceKey = document.getElementById('serviceKey').value.trim();
+
+  if (pin !== ADMIN_PASSWORD) {
+    document.getElementById('gateErr').textContent = 'Incorrect password.';
+    return;
+  }
+  if (!serviceKey || serviceKey.length < 100) {
+    document.getElementById('gateErr').textContent = 'Paste the service_role key from your Supabase dashboard.';
+    return;
+  }
+
+  sb = createClient(SUPABASE_URL, serviceKey);
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('panel').style.display = 'block';
+  loadRows();
+}
+
+async function loadRows() {
+  rows = [];
+  logLine('Connecting to Supabase…');
+
+  try {
+    const { data, error } = await sb
+      .from('weight_logs')
+      .select('id, user_id, date, weight, unit')
+      .order('id', { ascending: false });
+
+    if (error) {
+      logLine('Fetch error: ' + error.message, 'err');
+      return;
+    }
+
+    rows = (data || []).map(r => {
+      const isGood = GOOD_DATE_RE.test(r.date || '');
+      let corrected = r.date;
+      let parseError = null;
+      if (!isGood) {
+        const d = new Date(r.date);
+        if (isNaN(d.getTime())) {
+          parseError = `Could not parse "${r.date}"`;
+        } else {
+          corrected = d.toDateString();
+        }
+      }
+      return {
+        row: r,
+        isGood,
+        corrected,
+        status: parseError ? 'error' : (isGood ? 'ok' : 'needsfix'),
+        error: parseError,
+      };
+    });
+
+    logLine(`Loaded ${rows.length} weight log rows.`, 'ok');
+  } catch (e) {
+    logLine('Unexpected error: ' + e.message, 'err');
+  }
+
+  updateStats();
+  renderTable();
+  document.getElementById('fixAllBtn').disabled = rows.filter(r => r.status === 'needsfix').length === 0;
+}
+
+async function fixAll() {
+  const needsFix = rows.filter(r => r.status === 'needsfix');
+  document.getElementById('fixAllBtn').disabled = true;
+  logLine(`Fixing ${needsFix.length} rows…`);
+
+  for (const entry of needsFix) {
+    try {
+      const { error } = await sb
+        .from('weight_logs')
+        .update({ date: entry.corrected })
+        .eq('id', entry.row.id);
+      if (error) throw new Error(error.message);
+      entry.status = 'fixed';
+      logLine(`Fixed row ${entry.row.id}: "${entry.row.date}" → "${entry.corrected}"`, 'ok');
+    } catch (e) {
+      entry.status = 'error';
+      entry.error = e.message;
+      logLine(`Failed row ${entry.row.id}: ${e.message}`, 'err');
+    }
+    renderRow(entry);
+    updateStats();
+  }
+
+  logLine('Done.', 'ok');
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent     = rows.length;
+  document.getElementById('statOk').textContent         = rows.filter(r => r.status === 'ok').length;
+  document.getElementById('statNeedsFix').textContent   = rows.filter(r => r.status === 'needsfix').length;
+  document.getElementById('statFixed').textContent      = rows.filter(r => r.status === 'fixed').length;
+  document.getElementById('statErrors').textContent     = rows.filter(r => r.status === 'error').length;
+}
+
+function statusBadge(status) {
+  const map = { ok: ['s-ok','Already OK'], needsfix: ['s-needsfix','Needs fix'], fixed: ['s-fixed','Fixed ✓'], error: ['s-error','Error'] };
+  const [cls, label] = map[status] || ['s-ok', status];
+  return `<span class="status-badge ${cls}">${label}</span>`;
+}
+
+function renderRow(entry) {
+  const el = document.getElementById('row-' + entry.row.id);
+  if (!el) return;
+  el.innerHTML = buildRowHTML(entry);
+}
+
+function buildRowHTML(entry) {
+  const r = entry.row;
+  const oldClass = entry.status === 'ok' ? 'date-ok' : 'date-old';
+  const showArrow = entry.status !== 'ok';
+  return `
+    <td><div style="font-family:monospace;font-size:11px;color:#475569">${r.user_id}</div></td>
+    <td>${r.weight} ${r.unit || ''}</td>
+    <td><span class="${oldClass}">${escHtml(r.date || '')}</span></td>
+    <td>${showArrow ? `<span class="date-new">${escHtml(entry.corrected || entry.error || '')}</span>` : '<span class="date-ok">—</span>'}</td>
+    <td>${statusBadge(entry.status)}</td>
+  `;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tbody');
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">No weight log rows found.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(entry => `<tr id="row-${entry.row.id}">${buildRowHTML(entry)}</tr>`).join('');
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let logBuffer = [];
+function logLine(msg, cls = '') {
+  const logEl = document.getElementById('log');
+  logBuffer.push(`<div class="${cls}">${escHtml(msg)}</div>`);
+  if (logBuffer.length > 50) logBuffer.shift();
+  logEl.innerHTML = logBuffer.join('');
+  logEl.scrollTop = logEl.scrollHeight;
+}
+</script>
+</body>
+</html>

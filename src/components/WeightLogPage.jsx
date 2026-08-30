@@ -7,10 +7,6 @@ const CELL_SIZE = Math.floor((SCREEN_WIDTH - 40 - 24) / 7);
 
 const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAY_LABELS = ['S','M','T','W','T','F','S'];
-const LOG_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-const toDateStr = (d) =>
-  `${LOG_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 
 const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, setWeightUnit, onWeightSaved, onWeightDeleted }) => {
   const [newWeight, setNewWeight] = useState('');
@@ -31,7 +27,7 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
   const saveWeight = () => {
     if (!newWeight) return;
     Keyboard.dismiss();
-    const newLog = { date: toDateStr(selectedDate), timestamp: selectedDate.getTime(), weight: parseFloat(newWeight), unit: weightUnit };
+    const newLog = { date: selectedDate.toDateString(), timestamp: selectedDate.getTime(), weight: parseFloat(newWeight), unit: weightUnit };
     setWeightLogs([newLog, ...weightLogs]);
     onWeightSaved && onWeightSaved(newLog);
     setNewWeight('');
