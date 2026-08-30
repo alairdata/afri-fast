@@ -10,6 +10,7 @@ import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
 import { fetchSavedBurnoutDays, saveBurnoutDay } from '../lib/burnoutHistory';
 import { savePredictionSnapshot } from '../lib/predictionHistory';
+import { saveBurnoutPredictionSnapshot } from '../lib/burnoutPredictionHistory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WARN = '#F59E0B';
@@ -481,6 +482,35 @@ const InsightsTab = ({
     });
     return () => { cancelled = true; };
   }, [userId, burnout.week]);
+
+  // Snapshot of the Burnout chart's forward-looking half (today through 3 days out) plus the
+  // params that produced it -- mirrors predictionSnapshot below for the weight Prediction chart.
+  // The past-day half is already frozen by saveBurnoutDay above; this is only the forecast.
+  const burnoutPredictionSnapshot = useMemo(() => {
+    const predictions = burnout.week
+      .filter((d) => !d.isPast)
+      .map((d) => ({
+        targetDate: d.ds, daysOut: Math.round((d.date.getTime() - burnout.week[3].date.getTime()) / DAY_MS),
+        score: d.score, deficitPts: d.deficitPts, volatilityPts: d.volatilityPts,
+        proteinPts: d.proteinPts, waterPts: d.waterPts, carbsPts: d.carbsPts,
+        fiberPts: d.fiberPts, fatPts: d.fatPts,
+        avgCalories: d.avgCalories, avgProtein: d.avgProtein, avgCarbs: d.avgCarbs,
+        avgFats: d.avgFats, avgFiber: d.avgFiber, avgWaterMl: d.avgWaterMl,
+      }));
+    if (!predictions.length) return null;
+    return {
+      date: burnout.week[3].ds,
+      predictions,
+      bmr, tdee, pacePreference, dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal,
+      weightKg: currentWeightKg,
+      daysToCrash: burnout.daysToCrash, crashDate: burnout.crashDate.toDateString(),
+    };
+  }, [burnout, bmr, tdee, pacePreference, dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, currentWeightKg]);
+
+  useEffect(() => {
+    if (!userId || !burnoutPredictionSnapshot) return;
+    saveBurnoutPredictionSnapshot(userId, burnoutPredictionSnapshot.date, burnoutPredictionSnapshot);
+  }, [userId, burnoutPredictionSnapshot]);
 
   const burnoutScore = burnout.today.score;
   const burnoutBand = burnout.today.band;

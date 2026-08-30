@@ -271,15 +271,16 @@ export function computeBurnoutTimeline({
     dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, now,
   });
 
-  const startOfWeek = new Date(startOfToday);
-  startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
-
+  // Rolling window, not a fixed Sun-Sat calendar week -- always 3 days back through 3 days
+  // forward of today, sliding by one day every day (today is always the middle bar). Past days
+  // stay visible (using the frozen score once finalized, same as before); the window itself just
+  // never resets to Sunday.
   const week = [];
-  for (let offset = 0; offset <= 6; offset++) {
-    const d = new Date(startOfWeek);
-    d.setDate(startOfWeek.getDate() + offset);
-    const isFuture = d.getTime() > startOfToday.getTime();
-    const isPast = d.getTime() < startOfToday.getTime();
+  for (let offset = -3; offset <= 3; offset++) {
+    const d = new Date(startOfToday);
+    d.setDate(startOfToday.getDate() + offset);
+    const isFuture = offset > 0;
+    const isPast = offset < 0;
     const ds = d.toDateString();
     const saved = isPast ? savedDays[ds] : null;
     week.push({ date: d, ds, isFuture, isPast, isFinalized: !!saved, isProjected: isFuture && !!recentPattern, ...(saved || scoreWindowEnding(d)) });
