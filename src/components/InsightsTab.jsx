@@ -836,7 +836,7 @@ const InsightsTab = ({
                     <Text style={styles.kicker}>PREDICTION THIS WEEK</Text>
                     <Text style={styles.bigStat}>
                       {chart.weekChange != null
-                        ? `${Math.abs(chart.weekChange).toFixed(1)} ${weightUnit} ${chart.weekChange > 0 ? 'gain' : chart.weekChange < 0 ? 'loss' : 'change'}`
+                        ? `${Math.abs(chart.weekChange).toFixed(2)} ${weightUnit} ${chart.weekChange > 0 ? 'gain' : chart.weekChange < 0 ? 'loss' : 'change'}`
                         : '--'}
                       <Text style={styles.bigStatSub}> by {fmtShort(chart.weekEndDate)}</Text>
                     </Text>
@@ -869,7 +869,7 @@ const InsightsTab = ({
                 <View style={styles.chartInfoRow}>
                   <Text style={styles.chartInfoText}>
                     {chartTooltip
-                      ? `${chartTooltip.label}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.changeFromStart != null ? `  ·  ${Math.abs(chartTooltip.changeFromStart).toFixed(1)} ${weightUnit} ${chartTooltip.changeFromStart > 0 ? 'gain' : chartTooltip.changeFromStart < 0 ? 'loss' : 'change'} vs Sun` : ''}`
+                      ? `${chartTooltip.label}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.changeFromStart != null ? `  ·  ${Math.abs(chartTooltip.changeFromStart).toFixed(2)} ${weightUnit} ${chartTooltip.changeFromStart > 0 ? 'gain' : chartTooltip.changeFromStart < 0 ? 'loss' : 'change'} vs Sun` : ''}`
                       : 'Tap a point for that day’s number'}
                   </Text>
                 </View>
