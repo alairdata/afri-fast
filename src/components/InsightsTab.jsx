@@ -648,16 +648,17 @@ const InsightsTab = ({
   }, [weeklyPace, accent, colors.accentLight, colors.textSecondary, colors.cardAlt]);
 
   // Plain-language explanation for the trend badge — stays quiet when things are fine
-  // (matches the Momentum nudge pattern), but "Too Aggressive" especially needs unpacking:
-  // it reads like a pace warning when it's actually about under-eating.
+  // (matches the Momentum nudge pattern). "Too Aggressive" is now exclusively the BMR-floor
+  // safety signal (see trajectory.js) -- outrunning your chosen pace on its own is "Faster Than
+  // Planned" instead, a calm heads-up rather than a warning, since a pace preference is just a
+  // setting someone can drift away from without it meaning anything is actually wrong.
   const trendNote = useMemo(() => {
     const label = trendBadge?.label;
     if (!label || label === 'On Pace') return null;
     if (label === 'Too Aggressive') {
-      return weeklyPace.belowBmrFloor
-        ? `This isn't about going too fast — your last 3 logged days are averaging ${Math.round(weeklyPace.threeDayAvgCalories).toLocaleString()} kcal, under the safe floor for what your organs need at rest (~${weeklyPace.bmrSafetyFloor ? Math.round(weeklyPace.bmrSafetyFloor).toLocaleString() : ''} kcal). That's under-eating, not overachieving. Bring your calories back up.`
-        : "Your average deficit is running well past your target for this pace — that's more aggressive than intended, not a sign it's working better.";
+      return `This isn't about going too fast — your last 3 logged days are averaging ${Math.round(weeklyPace.threeDayAvgCalories).toLocaleString()} kcal, under the safe floor for what your organs need at rest (~${weeklyPace.bmrSafetyFloor ? Math.round(weeklyPace.bmrSafetyFloor).toLocaleString() : ''} kcal). That's under-eating, not overachieving. Bring your calories back up.`;
     }
+    if (label === 'Faster Than Planned') return "You're running a bigger deficit than your chosen pace calls for, but it's still within a safe range for your body — nothing to fix, unless you'd rather update your pace in Settings to match.";
     if (label === 'Needs Weigh-in') return "It's been over a week since your last weigh-in — log one so this pace reading actually means something.";
     if (label === 'Tracking Only') return "No weigh-in in over two weeks. This is running on your meal logs alone, so treat the projection as a rough guess, not a forecast.";
     if (label === 'Off Pace') return "You're behind the deficit your chosen pace needs — nothing urgent, just a nudge to close the gap.";

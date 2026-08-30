@@ -107,14 +107,21 @@ export function computeWeeklyPace({
   // flipping the badge to "danger" and back again the next day.
   const belowBmrFloor = isBelowFloor(todayCalWindow) && isBelowFloor(priorCalWindow);
 
-  const unsafe = belowBmrFloor || (pRatio != null && pRatioReliable && pRatio > 1.30);
+  // "Unsafe" means exactly one thing: under-eating relative to YOUR body (the BMR floor), never
+  // "eating less than the pace label you happen to have set." A pace preference is a setting
+  // someone can pick once and drift away from without ever coming back to update it -- treating
+  // "ran a bigger deficit than that old setting says" as a safety issue penalizes normal human
+  // inconsistency, not anything actually unsafe. Only the floor breach gets the alarming badge;
+  // outsizing your chosen pace (still above the floor) gets a calm, informational one instead.
+  const unsafe = belowBmrFloor;
 
   let badge = null;
   if (daysSinceWeighIn > 14) badge = { label: 'Tracking Only', tone: 'neutral' };
   else if (daysSinceWeighIn > 7) badge = { label: 'Needs Weigh-in', tone: 'warn' };
   else if (unsafe) badge = { label: 'Too Aggressive', tone: 'danger' };
   else if (pRatio != null && pRatioReliable) {
-    if (pRatio >= 0.90 && pRatio <= 1.30) badge = { label: 'On Pace', tone: 'good' };
+    if (pRatio > 1.30) badge = { label: 'Faster Than Planned', tone: 'neutral' };
+    else if (pRatio >= 0.90) badge = { label: 'On Pace', tone: 'good' };
     else if (pRatio >= 0.50) badge = { label: 'Off Pace', tone: 'warn' };
     else badge = { label: 'Stalled', tone: 'danger' };
   }
