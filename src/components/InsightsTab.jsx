@@ -9,6 +9,7 @@ import { computeWeeklyPace } from '../lib/trajectory';
 import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
 import { fetchSavedBurnoutDays, saveBurnoutDay } from '../lib/burnoutHistory';
+import { savePredictionSnapshot } from '../lib/predictionHistory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WARN = '#F59E0B';
@@ -586,6 +587,52 @@ const InsightsTab = ({
     }));
     return { proj: smooth(pts('proj')), band, dots, points, labels: data.map((p) => p.label), weekChange, weekEndDate };
   }, [today, currentWeightKg, weeklyPace, accent, colors.card, now, weightUnit]);
+
+  // Raw (kg, not display-unit/pixel) version of the same week of predictions, plus every parameter
+  // that fed into them -- reuses weeklyPace.projectDay so the numbers always match what the chart
+  // above shows. Saved once per calendar day so predicted-vs-actual accuracy can be checked later
+  // against real weigh-ins on each target date (see predictionHistory.js).
+  const predictionSnapshot = useMemo(() => {
+    const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
+    if (anchorKg == null || weeklyPace.dailyRateKg == null) return null;
+
+    const nowDate = new Date(now);
+    const startOfToday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
+    const startOfWeek = new Date(startOfToday);
+    startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+
+    const predictions = [];
+    for (let offset = 0; offset <= 6; offset++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + offset);
+      const dayDiff = Math.round((d.getTime() - startOfToday.getTime()) / DAY_MS);
+      const proj = weeklyPace.projectDay(dayDiff);
+      if (!proj) continue;
+      predictions.push({
+        targetDate: d.toDateString(), daysOut: dayDiff,
+        predictedKg: proj.projectedKg, marginKg: proj.upperKg - proj.projectedKg,
+      });
+    }
+    if (predictions.length === 0) return null;
+
+    return {
+      date: startOfToday.toDateString(),
+      predictions,
+      anchorWeightKg: anchorKg,
+      dailyRateKg: weeklyPace.dailyRateKg,
+      confidence: today.confidence,
+      daysSinceWeighIn: today.daysSinceWeighIn,
+      tdee, bmr, pacePreference,
+      avgDailyDeficitKcal: weeklyPace.dBar,
+      paceRatio: weeklyPace.pRatio,
+      badgeLabel: weeklyPace.badge?.label ?? null,
+    };
+  }, [today, currentWeightKg, weeklyPace, now, tdee, bmr, pacePreference]);
+
+  useEffect(() => {
+    if (!userId || !predictionSnapshot) return;
+    savePredictionSnapshot(userId, predictionSnapshot.date, predictionSnapshot);
+  }, [userId, predictionSnapshot]);
 
   // Trajectory card badge — reflects input fidelity before it reflects pace, per spec:
   // a stale/absent weigh-in shouldn't get badged as "off pace" when the scale just hasn't been used.
