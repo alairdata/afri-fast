@@ -6,10 +6,39 @@ import { LineChart } from 'react-native-chart-kit';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+// Activities always show "this week" (Mon-Sun), independent of the chart period selector above --
+// matches the "This Week" check-in style strip on the Today tab, not the 7/14/30/90-day ranges.
+const getWeekActivityData = (activities) => {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset);
+  monday.setHours(0, 0, 0, 0);
+
+  const loggedDates = new Set((activities || []).map(a => a.date));
+  const weekActivityHistory = WEEK_DAY_LABELS.map((_, i) => {
+    const day = new Date(monday);
+    day.setDate(monday.getDate() + i);
+    if (day > today) return null;
+    return loggedDates.has(day.toDateString());
+  });
+
+  const weekActivities = (activities || [])
+    .filter(a => {
+      const t = a.timestamp || new Date(a.date).getTime();
+      return !isNaN(t) && t >= monday.getTime();
+    })
+    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+  return { weekActivityHistory, weekActivities };
+};
 
 const ProgressTab = ({
   onShowWeightModal, onShowFastingDetails, onShowBMIDetails, onShowCalorieDetails, onShowHydrationDetails,
-  onShowStepsDetails, onShowAddActivity,
+  onShowStepsDetails, onShowAddActivity, onShowActivityLog,
   fastingSessions = [], recentMeals = [], weightLogs = [], waterLogs = [], stepLogs = [], activities = [], checkInHistory = [],
   height = '', heightUnit = 'cm', weightUnit = 'kg', volumeUnit = 'oz', targetWeight = null, startingWeight = null,
   dailyCalorieGoal = 2000, hydrationGoal = 0, stepGoal = 10000,
@@ -282,7 +311,7 @@ const ProgressTab = ({
       avgSteps,
       hasLoggedSteps: loggedStepsDays.length > 0,
       stepsGoalMet: `${uniqueSteps.filter(s => s.totalSteps >= stepGoal).length}/${uniqueSteps.length}`,
-      recentActivities: [...(activities || [])].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 5),
+      ...getWeekActivityData(activities),
       // Labels
       formatLabel,
       buildLabels,
@@ -784,24 +813,38 @@ const ProgressTab = ({
 
         {/* Section 8: Activities */}
         <View style={styles.progressSectionCompact}>
-          <View style={styles.progressSectionHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="barbell-outline" size={14} color="#1F1F1F" />
-              <Text style={styles.progressSectionTitleCompact}>Activities</Text>
-            </View>
-            <TouchableOpacity onPress={() => onShowAddActivity && onShowAddActivity()}>
-              <Text style={styles.seeAllBtnSmall}>+ Add</Text>
-            </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="barbell-outline" size={14} color="#1F1F1F" />
+            <Text style={styles.progressSectionTitleCompact}>Activities</Text>
           </View>
           <View style={styles.chartCardCompact}>
-            {progressData.recentActivities.length === 0 ? (
-              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                <Text style={styles.chartPlaceholderText}>No activities logged</Text>
+            <Text style={styles.weekActivitySubtitle}>Days you logged an activity this week</Text>
+            <View style={styles.weekDots}>
+              {WEEK_DAY_LABELS.map((label, i) => (
+                <View key={i} style={styles.weekDay}>
+                  <View style={[
+                    styles.weekDot,
+                    {
+                      backgroundColor: progressData.weekActivityHistory[i] === true ? '#F97316' : 'rgba(249,115,22,0.06)',
+                      borderWidth: progressData.weekActivityHistory[i] === false ? 2 : 0,
+                      borderColor: 'rgba(249,115,22,0.25)',
+                    },
+                  ]}>
+                    {progressData.weekActivityHistory[i] === true && <Text style={styles.weekDotCheck}>{'✓'}</Text>}
+                  </View>
+                  <Text style={styles.weekDayLabel}>{label}</Text>
+                </View>
+              ))}
+            </View>
+
+            {progressData.weekActivities.length === 0 ? (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <Text style={styles.chartPlaceholderText}>No activities logged this week</Text>
                 <Text style={styles.chartPlaceholderSubtext}>Log a walk, run, or workout to start</Text>
               </View>
             ) : (
-              <View style={{ gap: 8 }}>
-                {progressData.recentActivities.map((a) => {
+              <View style={{ gap: 8, marginTop: 14 }}>
+                {progressData.weekActivities.map((a) => {
                   const icon = a.type === 'walking' ? 'walk-outline' : a.type === 'running' ? 'body-outline'
                     : a.type === 'cycling' ? 'bicycle-outline' : a.type === 'swimming' ? 'water-outline'
                     : a.type === 'strength' ? 'barbell-outline' : a.type === 'sports' ? 'football-outline' : 'ellipsis-horizontal-circle-outline';
@@ -824,7 +867,10 @@ const ProgressTab = ({
             )}
             <View style={styles.weightActionsCompact}>
               <TouchableOpacity style={[styles.weightActionBtnCompact, { backgroundColor: '#F97316', shadowColor: 'rgba(249, 115, 22, 1)' }]} onPress={() => onShowAddActivity && onShowAddActivity()}>
-                <Text style={styles.weightActionBtnText}>Add activity</Text>
+                <Text style={styles.weightActionBtnText}>Log activity</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.weightActionLinkCompact} onPress={() => onShowActivityLog && onShowActivityLog()}>
+                <Text style={[styles.weightActionLinkText, { color: '#F97316' }]}>View all logs</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -848,6 +894,12 @@ const makeStyles = (c) => StyleSheet.create({
   },
   activityName: { fontSize: 13, fontWeight: '700', color: c.text },
   activityMeta: { fontSize: 11.5, color: c.textMuted, marginTop: 1 },
+  weekActivitySubtitle: { fontSize: 12, color: c.textMuted, marginBottom: 12 },
+  weekDots: { flexDirection: 'row', justifyContent: 'space-between' },
+  weekDay: { flexDirection: 'column', alignItems: 'center', gap: 6 },
+  weekDot: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  weekDotCheck: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  weekDayLabel: { fontSize: 11, fontWeight: '500', color: c.textMuted },
   progressTab: {
     flex: 1,
     backgroundColor: c.appBg,

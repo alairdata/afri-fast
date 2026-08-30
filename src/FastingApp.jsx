@@ -42,6 +42,7 @@ import WeightLogPage from './components/WeightLogPage';
 import HydrationDetailsPage from './components/HydrationDetailsPage';
 import StepsDetailsPage from './components/StepsDetailsPage';
 import AddActivityModal from './components/AddActivityModal';
+import ActivityLogPage from './components/ActivityLogPage';
 import CalorieDetailsPage from './components/CalorieDetailsPage';
 import BMIDetailsPage from './components/BMIDetailsPage';
 import FastingDetailsPage from './components/FastingDetailsPage';
@@ -182,6 +183,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [showHydrationDetails, setShowHydrationDetails] = useState(false);
   const [showStepsDetails, setShowStepsDetails] = useState(false);
   const [showAddActivity, setShowAddActivity] = useState(false);
+  const [showActivityLog, setShowActivityLog] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [whisperPosts, setWhisperPosts] = useState([]);
   const [showFastingQuiz, setShowFastingQuiz] = useState(false);
@@ -1819,6 +1821,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           onShowHydrationDetails={() => setShowHydrationDetails(true)}
           onShowStepsDetails={() => setShowStepsDetails(true)}
           onShowAddActivity={() => setShowAddActivity(true)}
+          onShowActivityLog={() => setShowActivityLog(true)}
           fastingSessions={fastingSessions}
           height={height}
           heightUnit={heightUnit}
@@ -2075,6 +2078,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
             session_type: entry.sessionType, estimated_calories: entry.estimatedCalories,
           }), 'save activity', (msg) => showToast(msg, 'error'));
         }}
+      />
+
+      <ActivityLogPage
+        show={showActivityLog}
+        onClose={() => setShowActivityLog(false)}
+        activities={activities}
+        setActivities={setActivities}
+        onActivityDeleted={(log) => dbSave(supabase.from('activities').delete().eq('id', log.id).eq('user_id', session?.user?.id), 'delete activity', (msg) => showToast(msg, 'error'))}
       />
 
       <CalorieDetailsPage
