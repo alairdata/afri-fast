@@ -139,3 +139,17 @@ select cron.schedule(
 -- Populate it immediately so there's data to look at without waiting up to an hour for the
 -- first scheduled run.
 select refresh_daily_goal_ledger();
+
+-- RLS is on for this table (project default), but with no policy every client read was silently
+-- returning zero rows -- the app fell back to live computation everywhere, unnoticed until the
+-- share card's goal number didn't match the ledger's known-correct value for a past date. The
+-- write side (refresh_daily_goal_ledger via pg_cron) was never affected -- that runs with
+-- elevated privileges that bypass RLS -- so this went undetected until reads were checked
+-- directly. Read-only: nothing but the owning row's user should ever need to write here client-side.
+-- CREATE POLICY has no IF NOT EXISTS clause, so drop-then-create keeps this migration safe to
+-- re-run, matching the same pattern used for the cron job above.
+drop policy if exists "Users can view their own goal ledger" on daily_goal_ledger;
+
+create policy "Users can view their own goal ledger"
+  on daily_goal_ledger for select
+  using (auth.uid() = user_id);
