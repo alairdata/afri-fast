@@ -28,3 +28,36 @@ export const resolveGoalForDate = (goalHistory, dateStr, currentValue, field = '
   // earliest known value (first in array order) is the closest approximation available.
   return withField[0][field];
 };
+
+// daily_goal_ledger (see supabase/migrations/20260910_add_daily_goal_ledger.sql) is the
+// precomputed, hourly-refreshed source of truth for "what was the calorie goal on this day" —
+// it mirrors resolveGoalForDate's own logic server-side, so it should agree with it, but reading
+// a flat table beats every consumer independently re-deriving the same answer and risking a
+// different bug in each place, which is exactly what kept happening across this fix.
+//
+// log_date comes back from Supabase as a Postgres `date` in "YYYY-MM-DD" form — never parse that
+// with `new Date(iso)` directly, it's interpreted as UTC midnight and can silently land on the
+// wrong calendar day once converted to local time. The (year, monthIndex, day) constructor form
+// is always local, matching normalizeMealDate's same precaution elsewhere in this app.
+export const isoDateToDateString = (iso) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toDateString();
+};
+
+export const buildLedgerGoalMap = (dailyGoalLedger) => {
+  const map = new Map();
+  (dailyGoalLedger || []).forEach(r => {
+    if (r.calorie_goal != null) map.set(isoDateToDateString(r.log_date), r.calorie_goal);
+  });
+  return map;
+};
+
+// Ledger takes priority when it has an entry for this date; falls back to the live resolver only
+// for a date the ledger hasn't caught up to yet (today, before the next hourly refresh, or
+// before any meal is logged today at all). Calorie-goal only — the ledger doesn't track
+// protein/carbs/fats, so those still go through resolveGoalForDate directly.
+export const resolveCalorieGoal = (ledgerGoalMap, goalHistory, dateStr, currentValue) => {
+  const fromLedger = ledgerGoalMap?.get(dateStr);
+  if (fromLedger != null) return fromLedger;
+  return resolveGoalForDate(goalHistory, dateStr, currentValue, 'dailyCalorieGoal');
+};

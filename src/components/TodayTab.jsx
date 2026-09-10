@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, Animated, RefreshControl } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
@@ -7,7 +7,7 @@ import { getJustForYou, getCachedJustForYou } from '../lib/claudeInsights';
 import FormattedText from '../lib/FormattedText';
 import { AFRICAN_RECIPES } from '../lib/africanRecipes';
 import { RecipeDetailModal, RecipeCard } from './MakeRecipePage';
-import { resolveGoalForDate } from '../lib/goalHistory';
+import { resolveCalorieGoal, buildLedgerGoalMap } from '../lib/goalHistory';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -333,6 +333,7 @@ const TodayTab = ({
   isRestoringFast,
   dataReady,
   goalHistory,
+  dailyGoalLedger,
   goalSource,
   pendingInsightIndex,
   onClearPendingInsight,
@@ -345,6 +346,8 @@ const TodayTab = ({
 }) => {
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
+  // Precomputed daily_goal_ledger, keyed for O(1) lookup by date -- see lib/goalHistory.js.
+  const ledgerGoalMap = useMemo(() => buildLedgerGoalMap(dailyGoalLedger), [dailyGoalLedger]);
 
   const [timeSinceFast, setTimeSinceFast] = useState(null);
   const [justForYouInsight, setJustForYouInsight] = useState(null);
@@ -513,7 +516,7 @@ const TodayTab = ({
         return acc;
       }, {})
     )
-      .filter(([d, total]) => total > 0 && total <= resolveGoalForDate(goalHistory, d, dailyCalorieGoal, 'dailyCalorieGoal'))
+      .filter(([d, total]) => total > 0 && total <= resolveCalorieGoal(ledgerGoalMap, goalHistory, d, dailyCalorieGoal))
       .map(([d]) => d)
   );
   let streak = 0;
@@ -910,7 +913,7 @@ const TodayTab = ({
             // goal — otherwise changing your goal retroactively repaints the past week.
             const daysOnTarget = Object.entries(byDate7).filter(([ds, dc]) => {
               if (!dc || !dailyCalorieGoal) return false;
-              const dayGoal = resolveGoalForDate(goalHistory, ds, dailyCalorieGoal, 'dailyCalorieGoal');
+              const dayGoal = resolveCalorieGoal(ledgerGoalMap, goalHistory, ds, dailyCalorieGoal);
               const r = dc / dayGoal; return r >= 0.7 && r <= 1.15;
             }).length;
             // "On track"/"High" is judged against the average of each logged day's own goal,
@@ -918,7 +921,7 @@ const TodayTab = ({
             // graded against whatever the goal was just changed to.
             const loggedDates7 = Object.keys(byDate7);
             const avgGoal7 = loggedDates7.length
-              ? loggedDates7.reduce((s, ds) => s + resolveGoalForDate(goalHistory, ds, dailyCalorieGoal, 'dailyCalorieGoal'), 0) / loggedDates7.length
+              ? loggedDates7.reduce((s, ds) => s + resolveCalorieGoal(ledgerGoalMap, goalHistory, ds, dailyCalorieGoal), 0) / loggedDates7.length
               : dailyCalorieGoal;
 
             return (

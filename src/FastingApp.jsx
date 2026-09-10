@@ -263,6 +263,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   // === Weight state ===
   const [weightUnit, setWeightUnit] = useState('kg');
   const [weightLogs, setWeightLogs] = useState([]);
+  // Precomputed per-day calorie-goal ledger (see supabase/migrations/20260910_add_daily_goal_ledger.sql)
+  // -- the source of truth for Days on Target / streaks / Momentum's calorie scoring, refreshed
+  // hourly server-side. Fetched fresh on every session start same as everything else here.
+  const [dailyGoalLedger, setDailyGoalLedger] = useState([]);
   const [targetWeight, setTargetWeight] = useState(null);
   const [startingWeight, setStartingWeight] = useState(null);
   const [userGoal, setUserGoal] = useState('');
@@ -1011,6 +1015,20 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch step_logs]', error); }
         if (data) setStepLogs(data.map(r => ({ id: r.id, date: r.date, displayDate: r.display_date, steps: r.steps })));
+        setDataLoadCount(prev => prev + 1);
+      });
+  }, [session]);
+
+  // Fetch the precomputed daily goal ledger (see lib/goalHistory.js's resolveCalorieGoal)
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    supabase.from('daily_goal_ledger')
+      .select('log_date, calories_eaten, calorie_goal, status')
+      .eq('user_id', session.user.id)
+      .order('log_date', { ascending: true })
+      .then(({ data, error }) => {
+        if (error) { console.error('[DB Error - fetch daily_goal_ledger]', error); }
+        if (data) setDailyGoalLedger(data);
         setDataLoadCount(prev => prev + 1);
       });
   }, [session]);
@@ -1771,6 +1789,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           fatsGoal={fatsGoal}
           dataReady={dataLoadCount >= 8}
           goalHistory={goalHistory}
+          dailyGoalLedger={dailyGoalLedger}
           goalSource={goalSource}
           onOpenSettings={() => setActiveTab('settings')}
           pendingInsightIndex={pendingInsightIndex}
@@ -1838,6 +1857,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           dailyCalorieGoal={dailyCalorieGoal}
           hydrationGoal={hydrationGoal}
           goalHistory={goalHistory}
+          dailyGoalLedger={dailyGoalLedger}
           userId={session?.user?.id}
           userName={userName}
           goalDate={goalDate}

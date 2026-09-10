@@ -10,7 +10,7 @@
 
 import { computeBurnoutScore } from './burnout';
 import { BMR_SAFETY_FLOOR_RATIO, TEF_RATIO } from './trajectory';
-import { resolveGoalForDate } from './goalHistory';
+import { resolveCalorieGoal } from './goalHistory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ALPHA = 0.3; // EWMA decay factor (~7-day half-life)
@@ -98,6 +98,7 @@ export function computeMomentumTimeline({
   activities = [],
   dailyCalorieGoal,
   goalHistory = [],
+  ledgerGoalMap = null, // precomputed daily_goal_ledger lookup, see lib/goalHistory.js
   tdee,
   bmr,
   pacePreference,
@@ -167,9 +168,11 @@ export function computeMomentumTimeline({
     const daysSinceWeighIn = daysSinceLastWeighIn(cutoffTs);
     const weightForToday = weightEwma != null ? weightEwma : fallbackWeightKg;
 
-    // Pillar 1: Calorie (40%) — graded against the goal that was active on THIS day, not
-    // today's live goal, so a later goal change can't retroactively re-grade the EWMA history.
-    const dayCalorieGoal = resolveGoalForDate(goalHistory, ds, dailyCalorieGoal, 'dailyCalorieGoal');
+    // Pillar 1: Calorie (40%) — graded against the daily_goal_ledger's precomputed goal for
+    // this day (falling back to the live resolver only for a day the ledger hasn't caught up to
+    // yet), not today's live goal, so a later goal change can't retroactively re-grade the EWMA
+    // history.
+    const dayCalorieGoal = resolveCalorieGoal(ledgerGoalMap, goalHistory, ds, dailyCalorieGoal);
     const calRaw = calorieRawScore(caloriesToday, dayCalorieGoal, bmr);
     calEwma = ewmaStep(calEwma, calRaw, loggedToday);
 
