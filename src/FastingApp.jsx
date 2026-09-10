@@ -319,16 +319,28 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       return;
     }
 
+    const snapshot = {
+      from: new Date().toDateString(),
+      dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal,
+      hydrationGoal, selectedPlan,
+      ...changes,
+    };
+
+    // The field patch (daily_calorie_goal, protein_goal, ...) is always the real new value being
+    // set right now, so a normal upsert is safe. The history append is NOT safe to build
+    // client-side: this component's local goalHistory state can be stale relative to the server
+    // (an out-of-band SQL change, a second tab, a fetch that hasn't resolved yet), and pushing a
+    // client-built array back as the new goal_history silently overwrites -- not merges -- real
+    // history. That happened for real: a backfilled goal_history got replaced by a single stale
+    // entry this way. append_goal_history() appends atomically against whatever the server
+    // actually has right now, so the client never has to read-modify-write the array itself.
+    if (dbPatch) upsertProfile({ ...dbPatch, goal_source: 'custom' }, 'update goal fields');
+    supabase.rpc('append_goal_history', { p_snapshot: snapshot }).then(({ error }) => {
+      if (error) console.error('[DB Error - append_goal_history]', error);
+    });
+
     setGoalHistory(prev => {
-      const snapshot = {
-        from: new Date().toDateString(),
-        dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal,
-        hydrationGoal, selectedPlan,
-        ...changes,
-      };
       const updated = [...prev, snapshot];
-      // Persist to Supabase + AsyncStorage
-      upsertProfile({ ...dbPatch, goal_history: updated, goal_source: 'custom' }, 'save goal_history');
       AsyncStorage.getItem('afri-fast-settings').then(raw => {
         const s = raw ? JSON.parse(raw) : {};
         AsyncStorage.setItem('afri-fast-settings', JSON.stringify({ ...s, goalHistory: updated, goalSource: 'custom' }));
