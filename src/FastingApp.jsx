@@ -883,7 +883,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .select('id, user_id, name, calories, protein, carbs, fats, fiber, date, logged_at, method, image_url, notes, photo, detected_name, foods')
       .eq('user_id', session.user.id)
       .order('logged_at', { ascending: false })
-      .limit(200)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch meals]', error); }
         if (data) setRecentMeals(data.map(m => ({
@@ -910,7 +909,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .select('id, start_time, end_time, duration_hours, duration_minutes, plan, date')
       .eq('user_id', session.user.id)
       .order('logged_at', { ascending: false })
-      .limit(100)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch fasting_sessions]', error); }
         if (data) setFastingSessions(data.map(r => ({
@@ -929,7 +927,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .select('id, date, logged_at, feelings, fasting_status, hunger_level, moods, symptoms, fast_break, activities, other_factors, water_count, volume_unit, notes, fasting_hours, fasting_minutes, v2_data')
       .eq('user_id', session.user.id)
       .order('logged_at', { ascending: false })
-      .limit(100)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch check_ins]', error); }
         if (data) {
@@ -981,7 +978,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .select('id, date, weight, unit')
       .eq('user_id', session.user.id)
       .order('logged_at', { ascending: false })
-      .limit(50)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch weight_logs]', error); }
         // Sorted by the weigh-in's actual date (timestamp), not logged_at (when the row was saved) --
@@ -998,7 +994,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .select('id, date, display_date, amount, unit')
       .eq('user_id', session.user.id)
       .order('logged_at', { ascending: false })
-      .limit(100)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch water_logs]', error); }
         if (data) setWaterLogs(data.map(r => ({ id: r.id, date: r.date, displayDate: r.display_date, amount: r.amount, unit: r.unit })));
@@ -1013,7 +1008,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .select('id, date, display_date, steps')
       .eq('user_id', session.user.id)
       .order('logged_at', { ascending: false })
-      .limit(100)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch step_logs]', error); }
         if (data) setStepLogs(data.map(r => ({ id: r.id, date: r.date, displayDate: r.display_date, steps: r.steps })));
@@ -1028,7 +1022,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       .select('id, type, name, date, timestamp, duration_min, distance, distance_unit, session_type, estimated_calories')
       .eq('user_id', session.user.id)
       .order('logged_at', { ascending: false })
-      .limit(100)
       .then(({ data, error }) => {
         if (error) { console.error('[DB Error - fetch activities]', error); }
         if (data) setActivities(data.map(r => ({

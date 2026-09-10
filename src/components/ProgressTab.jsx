@@ -22,9 +22,18 @@ const DANGER = '#EF4444';
 const WARN_BG = '#FFF7ED';
 const DANGER_BG = '#FEF2F2';
 const ACTIVITY_MULTIPLIERS = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 };
-const RANGE_OPTIONS = ['7 days', '14 days', '30 days', '90 days'];
-const RANGE_SHORT = { '7 days': '7D', '14 days': '14D', '30 days': '30D', '90 days': '90D' };
+const RANGE_OPTIONS = ['7 days', '14 days', '30 days', '90 days', 'All time'];
+const RANGE_SHORT = { '7 days': '7D', '14 days': '14D', '30 days': '30D', '90 days': '90D', 'All time': 'All' };
 const RANGE_DAYS = { '7 days': 7, '14 days': 14, '30 days': 30, '90 days': 90 };
+
+// "All time" doesn't have a fixed day count -- it spans from today back to that data source's
+// actual earliest entry, so a brand-new logger gets a small chart and a two-year user gets a
+// real two-year one, instead of both being arbitrarily capped at the same number.
+const daysSinceEarliest = (logs, getTs) => {
+  const timestamps = (logs || []).map(getTs).filter(t => t != null && !isNaN(t));
+  if (!timestamps.length) return 7;
+  return Math.max(7, Math.ceil((Date.now() - Math.min(...timestamps)) / DAY_MS) + 1);
+};
 // Only used for the Streaks tile's "current weight" lookup (BMI) and Activities' week data
 // below — the four Streaks numbers themselves (Current/Best streak, Days on target/logged) are
 // all-time, computed separately from the full recentMeals array with no window at all.
@@ -58,37 +67,59 @@ const getWeekActivityData = (activities) => {
   return { weekActivityHistory, weekActivities };
 };
 
-// Small per-chart range control (7D/14D/30D/90D) — replaces the single global selector that
+// Small per-chart range control (7D/14D/30D/90D/All) — replaces the single global selector that
 // used to drive every chart at once. Each chart that has one owns its own value/onChange so
-// picking "30 days" on Calorie Intake doesn't also change what Weight trend is showing.
+// picking "30 days" on Calorie Intake doesn't also change what Weight trend is showing. Styled
+// to match the small anchored dropdown already used for the range picker on the Hydration Log
+// page (dropdownWrap/dropdownBtn/dropdownMenu there) rather than a heavy full-screen sheet.
 //
-// Built on RN's Modal rather than an inline absolute-positioned popover: a popover nested deep
-// inside a ScrollView relies on zIndex/elevation lifting it above every *later* sibling section
-// in that scroll list, which React Native does not reliably do (worst on Android, but also
-// broken on web here) -- the menu would silently render underneath whatever section came next
-// and eat no taps. Modal renders as a true top-level overlay above everything, sidestepping
-// that whole class of stacking bugs. Same pattern already used for the share-scope prompt in
-// LogMealModal.jsx.
+// The menu itself still renders through RN's Modal, not as an inline absolute-positioned child —
+// a popover nested this deep inside a ScrollView relies on zIndex/elevation lifting it above
+// every *later* sibling section in that scroll list, which React Native does not reliably do
+// (it would silently render underneath whatever section comes next and eat no taps — this is
+// exactly what broke the first version of this control). Modal is a true top-level overlay, so
+// it's positioned using the button's own on-screen coordinates (measured on open) to look and
+// sit exactly like an anchored dropdown, while still actually catching taps reliably.
 const RangeDropdown = ({ value, onChange, styles }) => {
   const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState(null);
+  const btnRef = useRef(null);
+
+  const openMenu = () => {
+    btnRef.current?.measureInWindow((x, y, width, height) => {
+      setAnchor({ x, y, width, height });
+      setOpen(true);
+    });
+  };
+
   return (
     <>
-      <TouchableOpacity style={styles.rangeDropdownBtn} onPress={() => setOpen(true)} activeOpacity={0.7}>
+      <TouchableOpacity ref={btnRef} style={styles.rangeDropdownBtn} onPress={openMenu} activeOpacity={0.7}>
         <Text style={styles.rangeDropdownBtnText}>{RANGE_SHORT[value]}</Text>
-        <Ionicons name="chevron-down" size={11} color="#059669" />
+        <Ionicons name="chevron-down" size={10} color="#059669" />
       </TouchableOpacity>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <TouchableOpacity style={styles.rangeModalBackdrop} activeOpacity={1} onPress={() => setOpen(false)}>
-          <TouchableOpacity activeOpacity={1} style={styles.rangeModalCard} onPress={() => {}}>
-            <View style={styles.rangeModalHandle} />
-            <Text style={styles.rangeModalTitle}>Show</Text>
-            {RANGE_OPTIONS.map(opt => (
-              <TouchableOpacity key={opt} style={styles.rangeModalItem} onPress={() => { onChange(opt); setOpen(false); }}>
-                <Text style={[styles.rangeModalItemText, value === opt && styles.rangeModalItemTextActive]}>{opt}</Text>
-                {value === opt && <Ionicons name="checkmark" size={17} color="#059669" />}
-              </TouchableOpacity>
-            ))}
-          </TouchableOpacity>
+        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setOpen(false)}>
+          {anchor && (
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => {}}
+              style={[
+                styles.rangeDropdownMenu,
+                { top: anchor.y + anchor.height + 4, right: Math.max(12, SCREEN_WIDTH - (anchor.x + anchor.width)) },
+              ]}
+            >
+              {RANGE_OPTIONS.map(opt => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.rangeDropdownItem, value === opt && styles.rangeDropdownItemActive]}
+                  onPress={() => { onChange(opt); setOpen(false); }}
+                >
+                  <Text style={[styles.rangeDropdownItemText, value === opt && styles.rangeDropdownItemTextActive]}>{opt}</Text>
+                </TouchableOpacity>
+              ))}
+            </TouchableOpacity>
+          )}
         </TouchableOpacity>
       </Modal>
     </>
@@ -414,10 +445,18 @@ const ProgressTab = ({
 
     return { bestStreak, daysOnTarget, totalDaysLogged: loggedDates.size };
   }, [recentMeals, dailyCalorieGoal]);
-  const weightData = getRangeData(RANGE_DAYS[weightRange]);
-  const calorieData = getRangeData(RANGE_DAYS[calorieRange]);
-  const waterData = getRangeData(RANGE_DAYS[waterRange]);
-  const stepsData = getRangeData(RANGE_DAYS[stepsRange]);
+  const weightData = getRangeData(weightRange === 'All time'
+    ? daysSinceEarliest(weightLogs, w => w.timestamp || new Date(w.date).getTime())
+    : RANGE_DAYS[weightRange]);
+  const calorieData = getRangeData(calorieRange === 'All time'
+    ? daysSinceEarliest(recentMeals, m => m.timestamp || new Date(m.date).getTime())
+    : RANGE_DAYS[calorieRange]);
+  const waterData = getRangeData(waterRange === 'All time'
+    ? daysSinceEarliest(waterLogs, w => w.timestamp || new Date(w.date).getTime())
+    : RANGE_DAYS[waterRange]);
+  const stepsData = getRangeData(stepsRange === 'All time'
+    ? daysSinceEarliest(stepLogs, s => new Date(s.date).getTime())
+    : RANGE_DAYS[stepsRange]);
 
   // ══════════════════════════════════════════════════════════════════════
   // INSIGHTS — momentum / burnout / pace engines (profile & goals baseline)
@@ -1943,33 +1982,28 @@ const makeStyles = (c) => StyleSheet.create({
   whyRowDetail: { color: c.textSecondary, fontSize: 11.5, fontWeight: '500', marginTop: 1 },
   whyRowPts: { color: c.textMuted, fontSize: 12.5, fontWeight: '700' },
 
-  // ── Range picker (new) ──────────────────────────────────────────────────
+  // ── Range picker (new) — matches the small anchored dropdown style already used for the
+  // range picker on the Hydration Log page (dropdownWrap/dropdownBtn/dropdownMenu there).
   rangeDropdownBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingVertical: 5, paddingHorizontal: 9,
-    borderRadius: 8, backgroundColor: 'rgba(5, 150, 105, 0.08)',
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingVertical: 6, paddingHorizontal: 12,
+    backgroundColor: 'rgba(5,150,105,0.08)',
+    borderWidth: 1, borderColor: 'rgba(5,150,105,0.15)',
+    borderRadius: 8,
   },
-  rangeDropdownBtnText: { color: '#059669', fontSize: 11.5, fontWeight: '700' },
-  rangeModalBackdrop: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center', justifyContent: 'flex-end',
+  rangeDropdownBtnText: { color: '#059669', fontSize: 12, fontWeight: '600' },
+  rangeDropdownMenu: {
+    position: 'absolute',
+    backgroundColor: c.card, borderRadius: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15, shadowRadius: 24, elevation: 10,
+    borderWidth: 1, borderColor: 'rgba(5,150,105,0.1)',
+    minWidth: 120,
   },
-  rangeModalCard: {
-    width: '100%', backgroundColor: c.card,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 20, paddingTop: 10, paddingBottom: 32,
-  },
-  rangeModalHandle: {
-    alignSelf: 'center', width: 36, height: 4, borderRadius: 2,
-    backgroundColor: 'rgba(0,0,0,0.12)', marginBottom: 14,
-  },
-  rangeModalTitle: { fontSize: 13, fontWeight: '700', color: c.textMuted, marginBottom: 6 },
-  rangeModalItem: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 13, borderTopWidth: 1, borderTopColor: c.border,
-  },
-  rangeModalItemText: { fontSize: 15, color: c.text, fontWeight: '600' },
-  rangeModalItemTextActive: { color: '#059669', fontWeight: '700' },
+  rangeDropdownItem: { paddingVertical: 10, paddingHorizontal: 16 },
+  rangeDropdownItemActive: { backgroundColor: 'rgba(5,150,105,0.08)' },
+  rangeDropdownItemText: { fontSize: 13, color: c.textSecondary },
+  rangeDropdownItemTextActive: { color: '#059669', fontWeight: '700' },
 
   // ── Activities check-in-style add row (new) ─────────────────────────────
   activityCheckInRow: {
