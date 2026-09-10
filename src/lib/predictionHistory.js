@@ -1,5 +1,5 @@
 // Persisted daily snapshots of the Prediction chart -- the chart itself is always recomputed live
-// from current data (see InsightsTab's `chart`/`predictionSnapshot`), so without this there'd be no
+// from current data (see ProgressTab's `chart`/`predictionSnapshot`), so without this there'd be no
 // record of what was actually predicted on a given day once tomorrow's numbers overwrite it. Each
 // snapshot also carries the parameters that produced it (anchor weight, rate, confidence, TDEE/BMR,
 // pace), so a later predicted-vs-actual comparison can also explain *why* a prediction was off, not

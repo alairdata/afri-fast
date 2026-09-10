@@ -24,7 +24,7 @@
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const KCAL_PER_KG = 7700;
-const ALPHA = 0.3; // same EWMA decay used everywhere else in this app (momentum.js, InsightsTab.jsx)
+const ALPHA = 0.3; // same EWMA decay used everywhere else in this app (momentum.js, ProgressTab.jsx)
 const BETA_FULL_CONFIDENCE_DAYS = 21; // a 3-week+ gap gets full weight if it's well-logged
 
 const MIN_SPAN_DAYS = 14; // need at least 2 weeks between first and last weigh-in to mean anything

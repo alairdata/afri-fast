@@ -3,11 +3,13 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Vibration } from 'react-native';
 import { useTheme } from '../lib/theme';
 
+// 'progress' now renders the merged Progress+Insights tab (see ProgressTab.jsx) — kept the
+// internal id as 'progress' so every existing setActiveTab('progress') / onNavigateToProgress
+// call elsewhere in the app still works untouched; only the visible label changed.
 const ALL_TABS = [
   { id: 'today', label: 'Today', icon: 'home-outline', iconActive: 'home' },
   { id: 'meals', label: 'Meals', icon: 'restaurant-outline', iconActive: 'restaurant' },
-  { id: 'progress', label: 'Progress', icon: 'bar-chart-outline', iconActive: 'bar-chart' },
-  { id: 'insights', label: 'Insights', icon: 'analytics-outline', iconActive: 'analytics' },
+  { id: 'progress', label: 'Insights', icon: 'analytics-outline', iconActive: 'analytics' },
 ];
 
 const BottomTabBar = ({ activeTab, onTabChange }) => {
