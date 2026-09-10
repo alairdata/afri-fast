@@ -1014,9 +1014,6 @@ const ProgressTab = ({
 
             {/* Momentum gauge */}
             <View style={[styles.card, { alignItems: 'center', paddingTop: 18 }]}>
-              <Text style={styles.cardHeadline}>
-                {momentumScore >= 80 ? `Looking good this week, ${userName || 'there'}.` : `Bit of a rocky week, ${userName || 'there'}. Nothing you can't fix.`}
-              </Text>
               <View style={{ width: 220, height: 132, marginTop: 4 }}>
                 <Svg width={220} height={132} viewBox="0 0 220 132">
                   {gauge.segments.map((s, i) => (
@@ -1032,11 +1029,6 @@ const ProgressTab = ({
               <View style={[styles.pill, { backgroundColor: momentumBg }]}>
                 <Text style={[styles.pillText, { color: momentumColor }]}>{momentumLabel}</Text>
               </View>
-              <Text style={styles.mutedSmall}>
-                Calorie {today.calorieSubscore}%
-                {'  ·  '}Satiety {today.satietySubscore}%
-                {'  ·  '}Movement {today.movementSubscore != null ? `${today.movementSubscore}%` : '--'}
-              </Text>
               {today.band.tone !== 'strong' && (
                 <TouchableOpacity style={[styles.detailsBtn, { width: '100%' }]} onPress={() => setView('momentum')}>
                   <Text style={styles.detailsBtnText}>See why</Text>
@@ -1902,7 +1894,6 @@ const makeStyles = (c) => StyleSheet.create({
   backBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: c.cardAlt, alignItems: 'center', justifyContent: 'center' },
   scrollContainer: { flex: 1 },
   card: { backgroundColor: c.card, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 16, marginHorizontal: 16, marginTop: 12 },
-  cardHeadline: { color: c.text, fontSize: 17, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
   cardTitleSmall: { fontSize: 13.5, fontWeight: '700' },
   gaugeCenter: { position: 'absolute', left: 0, right: 0, top: 44, alignItems: 'center', gap: 2 },
   gaugeKicker: { color: c.textMuted, fontSize: 10.5, fontWeight: '700', letterSpacing: 1.4 },
