@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Modal, Dimensions, Image, Platform, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FastingQuizPage from './FastingQuizPage';
@@ -122,6 +122,20 @@ const SettingsTab = ({
   // ─── Milestone config state ───
   const [showMilestoneConfig, setShowMilestoneConfig] = useState(false);
   const [milestoneDraft, setMilestoneDraft] = useState(milestoneConfig || { streak: true, streakDays: 7, hydration: false, weight: false });
+
+  // ─── Goal input drafts ───
+  // These numeric fields (calorie/macro/hydration goals) commit on every keystroke via
+  // setDailyCalorieGoal etc., which write to Supabase and append a goal_history entry each time
+  // (see FastingApp.jsx recordGoalChange). Typing "1600" digit-by-digit was firing 4 separate
+  // saves — 1, 16, 160, 1600 — briefly showing "1 cal" as the live goal and littering
+  // goal_history with keystroke junk instead of one real change. Local draft state lets typing
+  // stay purely local; the real commit (and the DB write it triggers) only fires on blur.
+  const [calorieDraft, setCalorieDraft] = useState(String(dailyCalorieGoal));
+  useEffect(() => { setCalorieDraft(String(dailyCalorieGoal)); }, [dailyCalorieGoal]);
+  const [macroDrafts, setMacroDrafts] = useState({ protein: String(proteinGoal), carbs: String(carbsGoal), fats: String(fatsGoal) });
+  useEffect(() => { setMacroDrafts({ protein: String(proteinGoal), carbs: String(carbsGoal), fats: String(fatsGoal) }); }, [proteinGoal, carbsGoal, fatsGoal]);
+  const [hydrationDraft, setHydrationDraft] = useState(String(hydrationGoal));
+  useEffect(() => { setHydrationDraft(String(hydrationGoal)); }, [hydrationGoal]);
 
   const fmt12 = (h24, m) => {
     const isPM = h24 >= 12;
@@ -627,8 +641,9 @@ const SettingsTab = ({
                 <View style={styles.settingsInputWrapper}>
                   <TextInput
                     style={styles.settingsInput}
-                    value={String(dailyCalorieGoal)}
-                    onChangeText={(text) => setDailyCalorieGoal(Number(text) || 0)}
+                    value={calorieDraft}
+                    onChangeText={setCalorieDraft}
+                    onBlur={() => setDailyCalorieGoal(Number(calorieDraft) || 0)}
                     keyboardType="numeric"
                   />
                   <Text style={styles.settingsInputUnit}>cal</Text>
@@ -654,14 +669,15 @@ const SettingsTab = ({
                 </View>
               </View>
               <View style={styles.settingsMacroRow}>
-                {[{ label: 'Protein', val: proteinGoal, set: setProteinGoal }, { label: 'Carbs', val: carbsGoal, set: setCarbsGoal }, { label: 'Fats', val: fatsGoal, set: setFatsGoal }].map(({ label, val, set }) => (
+                {[{ label: 'Protein', key: 'protein', set: setProteinGoal }, { label: 'Carbs', key: 'carbs', set: setCarbsGoal }, { label: 'Fats', key: 'fats', set: setFatsGoal }].map(({ label, key, set }) => (
                   <View key={label} style={styles.settingsMacroItem}>
                     <Text style={styles.settingsMacroLabel}>{label}</Text>
                     <View style={styles.settingsMacroInputWrapper}>
                       <TextInput
                         style={[styles.settingsMacroInput, !macrosEditable && styles.settingsMacroInputDisabled]}
-                        value={String(val)}
-                        onChangeText={(text) => set(Number(text) || 0)}
+                        value={macroDrafts[key]}
+                        onChangeText={(text) => setMacroDrafts((prev) => ({ ...prev, [key]: text }))}
+                        onBlur={() => set(Number(macroDrafts[key]) || 0)}
                         keyboardType="numeric"
                         editable={macrosEditable}
                       />
@@ -678,8 +694,9 @@ const SettingsTab = ({
                 <View style={styles.settingsInputWrapper}>
                   <TextInput
                     style={styles.settingsInput}
-                    value={String(hydrationGoal)}
-                    onChangeText={(text) => setHydrationGoal(Number(text) || 0)}
+                    value={hydrationDraft}
+                    onChangeText={setHydrationDraft}
+                    onBlur={() => setHydrationGoal(Number(hydrationDraft) || 0)}
                     keyboardType="numeric"
                   />
                   <View style={styles.settingsDropdownWrap}>
