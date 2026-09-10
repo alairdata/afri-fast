@@ -2146,15 +2146,32 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       <Modal visible={showSharePrompt} transparent animationType="fade" onRequestClose={() => setShowSharePrompt(false)}>
         <TouchableOpacity style={styles.sharePromptBackdrop} activeOpacity={1} onPress={() => setShowSharePrompt(false)}>
           <TouchableOpacity activeOpacity={1} style={styles.sharePromptCard} onPress={() => {}}>
-            <Text style={styles.sharePromptTitle}>What do you want to share?</Text>
-            <TouchableOpacity style={styles.sharePromptOption} onPress={() => handleShareChoice(false)}>
-              <Text style={styles.sharePromptOptionTitle}>This meal only</Text>
-              <Text style={styles.sharePromptOptionSub}>Photo, calories and today's progress</Text>
+            <View style={styles.sharePromptHandle} />
+            <Text style={styles.sharePromptTitle}>Share this meal</Text>
+            <Text style={styles.sharePromptSub}>Choose what shows up on the card</Text>
+
+            <TouchableOpacity style={styles.sharePromptOption} activeOpacity={0.6} onPress={() => handleShareChoice(false)}>
+              <View style={[styles.sharePromptIcon, { backgroundColor: 'rgba(5,150,105,0.1)' }]}>
+                <Ionicons name="fast-food-outline" size={20} color="#059669" />
+              </View>
+              <View style={styles.sharePromptOptionText}>
+                <Text style={styles.sharePromptOptionTitle}>This meal only</Text>
+                <Text style={styles.sharePromptOptionSub}>Photo, calories and today's progress</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.sharePromptOption} onPress={() => handleShareChoice(true)}>
-              <Text style={styles.sharePromptOptionTitle}>Meal + ingredients</Text>
-              <Text style={styles.sharePromptOptionSub}>Also adds the detected foods and macro breakdown</Text>
+
+            <TouchableOpacity style={styles.sharePromptOption} activeOpacity={0.6} onPress={() => handleShareChoice(true)}>
+              <View style={[styles.sharePromptIcon, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
+                <Ionicons name="list-outline" size={20} color="#3B82F6" />
+              </View>
+              <View style={styles.sharePromptOptionText}>
+                <Text style={styles.sharePromptOptionTitle}>Meal + ingredients</Text>
+                <Text style={styles.sharePromptOptionSub}>Adds the detected foods and macro breakdown</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
             </TouchableOpacity>
+
             <TouchableOpacity style={styles.sharePromptCancel} onPress={() => setShowSharePrompt(false)}>
               <Text style={styles.sharePromptCancelText}>Cancel</Text>
             </TouchableOpacity>
@@ -2635,29 +2652,59 @@ const styles = StyleSheet.create({
   sharePromptCard: {
     width: '100%',
     backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     padding: 20,
-    paddingBottom: 32,
+    paddingTop: 10,
+    paddingBottom: 34,
     gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+  },
+  sharePromptHandle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E5E7EB',
+    marginBottom: 14,
   },
   sharePromptTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: '#111',
-    marginBottom: 4,
+    letterSpacing: -0.3,
+  },
+  sharePromptSub: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    marginBottom: 10,
   },
   sharePromptOption: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 14,
-    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 12,
+  },
+  sharePromptIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sharePromptOptionText: {
+    flex: 1,
   },
   sharePromptOptionTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: '#111',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   sharePromptOptionSub: {
     fontSize: 12,
@@ -2666,12 +2713,12 @@ const styles = StyleSheet.create({
   sharePromptCancel: {
     alignItems: 'center',
     paddingVertical: 12,
-    marginTop: 4,
+    marginTop: 2,
   },
   sharePromptCancelText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#9CA3AF',
   },
   shareCardFoodsList: {
     alignSelf: 'stretch',
