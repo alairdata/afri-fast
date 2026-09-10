@@ -820,17 +820,156 @@ const ProgressTab = ({
     },
   }), [today, dailyCalorieGoal]);
 
+  // "See why" copy — plain, coach-style sentences, not a numbers dump. The score itself already
+  // sits right above each sentence in the UI, so these don't restate it; they just say what's
+  // actually going on in a few real words. Each has a mild/medium/strong ladder per direction —
+  // word choice carries how far off it is instead of a percentage ever being shown.
   const momentumWhySentences = useMemo(() => {
     const c = momentumWhy.calorie;
     const m = momentumWhy.movement;
-    const calorieSentence = c.loggedToday
-      ? `You've logged ${c.loggedToday.toLocaleString()} kcal today against a ${c.targetToday.toLocaleString()} kcal target — that's what's putting Calorie at ${c.subscore}%.`
-      : `Nothing logged yet today against a ${c.targetToday.toLocaleString()} kcal target, which is why Calorie is sitting at ${c.subscore}%.`;
-    const movementSentence = m.targetKcalToday != null
-      ? `${Math.round(m.gymKcalToday || 0)} kcal from workouts plus ${Math.round(m.stepsKcalToday || 0)} kcal from steps today, against a ${Math.round(m.targetKcalToday).toLocaleString()} kcal active-energy target — that's the ${m.subscore}% here.`
-      : 'Add your age, sex, height, and activity level in Settings so Movement can be measured properly.';
+
+    let calorieSentence;
+    if (!c.loggedToday) {
+      calorieSentence = "Nothing logged yet today. We don't punish that — this just holds steady until you're back.";
+    } else {
+      const ratio = c.targetToday > 0 ? c.loggedToday / c.targetToday : 1;
+      if (ratio > 1.8) calorieSentence = "Today was a real outlier for you, calorie-wise. No judgment — just something to notice.";
+      else if (ratio > 1.4) calorieSentence = "You went noticeably over today.";
+      else if (ratio > 1.15) calorieSentence = "You went a touch over today — it happens. Tomorrow's a clean slate.";
+      else if (ratio < 0.15) calorieSentence = "You've barely eaten anything today — that's a real outlier. Your body needs real fuel to keep this sustainable.";
+      else if (ratio < 0.3) calorieSentence = "You ate quite a bit less than you need today.";
+      else if (ratio < 0.5) calorieSentence = "You ate less than usual today.";
+      else calorieSentence = "You're eating right where you want to be today — steady and on track.";
+    }
+
+    let movementSentence;
+    if (m.targetKcalToday == null) {
+      movementSentence = 'Add your age, sex, height, and activity level in Settings so this can actually track you properly.';
+    } else {
+      const activeKcal = (m.gymKcalToday || 0) + (m.stepsKcalToday || 0);
+      const ratio = m.targetKcalToday > 0 ? activeKcal / m.targetKcalToday : 0;
+      if (ratio >= 1) movementSentence = 'You crushed your movement today, between your workout and your steps.';
+      else if (ratio >= 0.6) movementSentence = "You got some movement in today, but not quite enough to hit where you'd usually land.";
+      else if (ratio >= 0.3) movementSentence = "Movement's been light today.";
+      else movementSentence = "Barely any movement today — a real outlier for you. Even a short walk would help.";
+    }
+
     return { calorieSentence, movementSentence };
   }, [momentumWhy]);
+
+  // Historical pattern signals — looks back across the same 60-day timeline already computed
+  // for the gauge, to describe SHAPE (better/worse than usual, a recurring bounce-back, a
+  // weekday that usually runs rough for you) instead of a raw delta or percentage. Every signal
+  // here is a plain boolean/category derived from real history; nothing is invented, no AI call.
+  const momentumHistory = useMemo(() => {
+    const n = momentumTimeline.length;
+    const todayEntry = momentumTimeline[n - 1];
+    const history = momentumTimeline.slice(0, n - 1); // everything before today
+
+    const yesterdayEntry = history[history.length - 1] || null;
+    const vsYesterday = yesterdayEntry
+      ? (todayEntry.momentum - yesterdayEntry.momentum >= 6 ? 'better'
+        : yesterdayEntry.momentum - todayEntry.momentum >= 6 ? 'worse' : 'same')
+      : null;
+
+    // Best-in-a-while: today's score is a clear, unique high among the last 14 days.
+    const last14 = momentumTimeline.slice(Math.max(0, n - 14));
+    const maxRecent = Math.max(...last14.map((d) => d.momentum));
+    const isBestInWhile = last14.length >= 5 && todayEntry.momentum === maxRecent
+      && last14.filter((d) => d.momentum === maxRecent).length === 1;
+
+    // vs the trailing 7-day average (excluding today).
+    const last7ExclToday = history.slice(Math.max(0, history.length - 7));
+    const avgRecent = last7ExclToday.length ? last7ExclToday.reduce((s, d) => s + d.momentum, 0) / last7ExclToday.length : null;
+    const vsRecentAvg = avgRecent == null ? null
+      : (todayEntry.momentum - avgRecent >= 8 ? 'above' : avgRecent - todayEntry.momentum >= 8 ? 'below' : 'normal');
+
+    // Bounce-back: today follows a STALLED day with a real jump (+15). Counted over the last 7
+    // days for the "third time this week" framing.
+    const last7 = momentumTimeline.slice(Math.max(0, n - 7));
+    let bounceBackCount = 0;
+    for (let i = 1; i < last7.length; i++) {
+      if (last7[i - 1].band.tone === 'stalled' && last7[i].momentum - last7[i - 1].momentum >= 15) bounceBackCount++;
+    }
+    const todayIsBounceBack = yesterdayEntry?.band.tone === 'stalled' && todayEntry.momentum - yesterdayEntry.momentum >= 15;
+
+    // Weekday rhythm: historical average momentum for today's specific weekday vs the overall
+    // historical average (both excluding today) — "usually strong/weak on [day]".
+    const byWeekday = Array.from({ length: 7 }, () => ({ sum: 0, count: 0 }));
+    history.forEach((d) => {
+      const wd = d.date.getDay();
+      byWeekday[wd].sum += d.momentum;
+      byWeekday[wd].count += 1;
+    });
+    const overallAvg = history.length ? history.reduce((s, d) => s + d.momentum, 0) / history.length : null;
+    const todayWd = todayEntry.date.getDay();
+    const wdStat = byWeekday[todayWd];
+    const weekdayAvg = wdStat.count >= 3 ? wdStat.sum / wdStat.count : null;
+    const weekdayRhythm = (weekdayAvg == null || overallAvg == null) ? null
+      : (overallAvg - weekdayAvg >= 8 ? 'usually-weak' : weekdayAvg - overallAvg >= 8 ? 'usually-strong' : 'typical');
+    const heldStrongOnUsuallyWeakDay = weekdayRhythm === 'usually-weak' && todayEntry.momentum >= overallAvg;
+    const strongAsUsual = weekdayRhythm === 'usually-strong' && todayEntry.momentum >= weekdayAvg - 5;
+
+    // Weekend dip + recovery pattern.
+    const weekendDays = history.filter((d) => [0, 6].includes(d.date.getDay()));
+    const weekdayOnlyDays = history.filter((d) => ![0, 6].includes(d.date.getDay()));
+    const weekendAvg = weekendDays.length >= 2 ? weekendDays.reduce((s, d) => s + d.momentum, 0) / weekendDays.length : null;
+    const weekdayOnlyAvg = weekdayOnlyDays.length >= 2 ? weekdayOnlyDays.reduce((s, d) => s + d.momentum, 0) / weekdayOnlyDays.length : null;
+    const hasWeekendDipPattern = weekendAvg != null && weekdayOnlyAvg != null && (weekdayOnlyAvg - weekendAvg) >= 8;
+    const todayIsWeekend = [0, 6].includes(todayWd);
+
+    return {
+      vsYesterday, isBestInWhile, vsRecentAvg,
+      bounceBackCount, todayIsBounceBack,
+      weekdayRhythm, heldStrongOnUsuallyWeakDay, strongAsUsual,
+      hasWeekendDipPattern, todayIsWeekend,
+    };
+  }, [momentumTimeline]);
+
+  // Picks the single most specific, interesting pattern to lead with — showing every signal at
+  // once would be the same "overwhelming" problem as a numbers dump, just in sentence form.
+  const momentumPatternSentence = useMemo(() => {
+    const h = momentumHistory;
+    if (h.todayIsBounceBack && h.bounceBackCount >= 3) return "Third day this week you've bounced back after a rough one — that's a real pattern, not luck.";
+    if (h.todayIsBounceBack) return "You bounced back today after a rough one — that's exactly the recovery that keeps momentum alive.";
+    if (h.hasWeekendDipPattern && h.todayIsWeekend) return "You tend to dip on weekends and recover fast — today's no different.";
+    if (h.heldStrongOnUsuallyWeakDay) return "This is usually where it gets harder for you, and you held steady.";
+    if (h.strongAsUsual) return "Usually a strong day for you — and it was.";
+    if (h.isBestInWhile) return "Your steadiest stretch in a while.";
+    if (h.vsYesterday === 'better') return 'Better than yesterday.';
+    if (h.vsYesterday === 'worse') return 'A little off your usual rhythm.';
+    if (h.vsRecentAvg === 'above') return 'Running ahead of your usual pace lately.';
+    if (h.vsRecentAvg === 'below') return "A step behind where you've been lately.";
+    return 'Right back to your normal pace.';
+  }, [momentumHistory]);
+
+  // Cross-pillar connector — only fires when one pillar is clearly out of step with the other
+  // two (a real gap, not noise), framed as an observation about balance, not a report.
+  const crossPillarConnector = useMemo(() => {
+    const scores = [
+      { name: 'eating', value: momentumWhy.calorie.subscore },
+      { name: 'appetite', value: momentumWhy.satiety.subscore },
+      { name: 'movement', value: momentumWhy.movement.subscore },
+    ].filter((s) => s.value != null);
+    if (scores.length < 3) return null;
+    const sorted = [...scores].sort((a, b) => a.value - b.value);
+    const weakest = sorted[0];
+    const gap = sorted[2].value - weakest.value;
+    if (gap < 20) return null;
+    const others = scores.filter((s) => s.name !== weakest.name).map((s) => s.name);
+    if (weakest.value >= 60) {
+      return `Your ${others.join(' and ')} held steady even though ${weakest.name} was a bit behind — that balance is what's keeping things on track.`;
+    }
+    return `${weakest.name[0].toUpperCase()}${weakest.name.slice(1)}'s been the shaky one this week, not ${others.join(' or ')}.`;
+  }, [momentumWhy]);
+
+  // What's shown at the top of "See why" — the pattern line always leads (it's the most
+  // specific, most "someone's actually paying attention" observation available), with the
+  // cross-pillar note as an optional second line only when there's a real gap to call out.
+  const momentumWhySummary = useMemo(() => ({
+    headline: momentumPatternSentence,
+    connector: crossPillarConnector,
+  }), [momentumPatternSentence, crossPillarConnector]);
 
   // Trajectory chart: a PREDICTION, not a log -- every day of the week gets a guess.
   const chart = useMemo(() => {
@@ -1915,9 +2054,16 @@ const ProgressTab = ({
             <Text style={styles.headerTitle}>Why {momentumScore}?</Text>
           </View>
           <ScrollView style={styles.scrollContainer} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-            <View style={styles.card}>
+            <Text style={[styles.mutedBody, { fontSize: 14.5, fontWeight: '700', color: colors.text, lineHeight: 21 }]}>
+              {momentumWhySummary.headline}
+            </Text>
+            {momentumWhySummary.connector && (
+              <Text style={[styles.mutedBody, { marginTop: 6, marginBottom: 4 }]}>{momentumWhySummary.connector}</Text>
+            )}
+
+            <View style={[styles.card, { marginTop: momentumWhySummary.connector ? 8 : 16 }]}>
               <View style={styles.rowBetween}>
-                <Text style={styles.cardTitleSmall}>CALORIE — 40%</Text>
+                <Text style={styles.cardTitleSmall}>Eating</Text>
                 <Text style={styles.cardTitleSmall}>{momentumWhy.calorie.subscore}%</Text>
               </View>
               <Text style={[styles.mutedBody, { marginTop: 6 }]}>{momentumWhySentences.calorieSentence}</Text>
@@ -1925,7 +2071,7 @@ const ProgressTab = ({
 
             <View style={styles.card}>
               <View style={styles.rowBetween}>
-                <Text style={styles.cardTitleSmall}>SATIETY — 35%</Text>
+                <Text style={styles.cardTitleSmall}>Staying Satisfied</Text>
                 <Text style={styles.cardTitleSmall}>{momentumWhy.satiety.subscore}%</Text>
               </View>
               <Text style={[styles.mutedBody, { marginTop: 6 }]}>{burnoutWhy}</Text>
@@ -1933,7 +2079,7 @@ const ProgressTab = ({
 
             <View style={styles.card}>
               <View style={styles.rowBetween}>
-                <Text style={styles.cardTitleSmall}>MOVEMENT — 25%</Text>
+                <Text style={styles.cardTitleSmall}>Moving</Text>
                 <Text style={styles.cardTitleSmall}>{momentumWhy.movement.subscore != null ? `${momentumWhy.movement.subscore}%` : '--'}</Text>
               </View>
               <Text style={[styles.mutedBody, { marginTop: 6 }]}>{momentumWhySentences.movementSentence}</Text>
