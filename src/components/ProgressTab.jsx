@@ -25,9 +25,9 @@ const ACTIVITY_MULTIPLIERS = { sedentary: 1.2, light: 1.375, moderate: 1.55, act
 const RANGE_OPTIONS = ['7 days', '14 days', '30 days', '90 days'];
 const RANGE_SHORT = { '7 days': '7D', '14 days': '14D', '30 days': '30D', '90 days': '90D' };
 const RANGE_DAYS = { '7 days': 7, '14 days': 14, '30 days': 30, '90 days': 90 };
-// Streaks has no user-facing range control — it always looks back this far so "current streak"
-// and "best streak" read as real streaks, not values silently capped by whichever chart's
-// dropdown happened to be selected last (now that each chart has its own).
+// Only used for the Streaks tile's "current weight" lookup (BMI) and Activities' week data
+// below — the four Streaks numbers themselves (Current/Best streak, Days on target/logged) are
+// all-time, computed separately from the full recentMeals array with no window at all.
 const STREAK_WINDOW_DAYS = 90;
 
 // Activities always show "this week" (Mon-Sun), independent of any chart's range dropdown --
@@ -232,30 +232,6 @@ const ProgressTab = ({
       return !isNaN(t) && t >= cutoff;
     });
 
-    const allLoggedDates = new Set(rangeMeals.map(m => new Date(m.date).toDateString()).filter(Boolean));
-
-    // Best logging streak within window
-    const sortedDates = [...allLoggedDates].map(s => new Date(s)).sort((a, b) => a - b);
-    let bestStreak = 0, runStreak = 0;
-    for (let i = 0; i < sortedDates.length; i++) {
-      if (i === 0) { runStreak = 1; }
-      else {
-        const diff = (sortedDates[i] - sortedDates[i - 1]) / (1000 * 60 * 60 * 24);
-        runStreak = diff === 1 ? runStreak + 1 : 1;
-      }
-      if (runStreak > bestStreak) bestStreak = runStreak;
-    }
-
-    // Days on target in window — calories within 70–115% of daily goal
-    const daysOnTarget = [...new Set(rangeMeals.map(m => m.date))].filter(date => {
-      const total = rangeMeals.filter(m => m.date === date).reduce((s, m) => s + (m.calories || 0), 0);
-      const ratio = total / dailyCalorieGoal;
-      return ratio >= 0.7 && ratio <= 1.15;
-    }).length;
-
-    // Total unique days logged in window
-    const totalDaysLogged = new Set(rangeMeals.map(m => m.date)).size;
-
     // Convert water to litres
     const toL = (amount, u) => {
       const ml = u === 'mL' ? amount : u === 'oz' ? amount * 29.574 : u === 'sachet' ? amount * 500 : u === 'bottle' ? amount * 750 : amount * 237;
@@ -372,9 +348,6 @@ const ProgressTab = ({
       isLongRange,
       // Fasting
       avgFastLength: totalSessions > 0 ? `${avgH}h ${avgM}m` : '0h 0m',
-      bestStreak,
-      daysOnTarget,
-      totalDaysLogged,
       // Weight
       rangeWeights,
       uniqueWeights,
@@ -414,6 +387,33 @@ const ProgressTab = ({
   // otherwise a real streak longer than 90 days would silently read differently here than
   // everywhere else in the app that shows it.
   const currentMealStreak = useMemo(() => computeCurrentMealStreak(recentMeals), [recentMeals]);
+
+  // Best Streak / Days on Target / Days Logged — all-time, not windowed to any fixed number of
+  // days. (Note: "all-time" here means as far back as recentMeals actually reaches, which is the
+  // last 200 logged meals per the fetch in FastingApp.jsx — not literally the account's full
+  // history for a very long-time user. Best Streak in particular can't exceed however many
+  // distinct days that 200-meal window happens to span.)
+  const allTimeStreakStats = useMemo(() => {
+    const loggedDates = new Set((recentMeals || []).map(m => m.date));
+    const sortedDates = [...loggedDates].map(s => new Date(s)).sort((a, b) => a - b);
+    let bestStreak = 0, runStreak = 0;
+    for (let i = 0; i < sortedDates.length; i++) {
+      if (i === 0) { runStreak = 1; }
+      else {
+        const diff = (sortedDates[i] - sortedDates[i - 1]) / DAY_MS;
+        runStreak = diff === 1 ? runStreak + 1 : 1;
+      }
+      if (runStreak > bestStreak) bestStreak = runStreak;
+    }
+
+    const daysOnTarget = [...loggedDates].filter(date => {
+      const total = (recentMeals || []).filter(m => m.date === date).reduce((s, m) => s + (m.calories || 0), 0);
+      const ratio = dailyCalorieGoal > 0 ? total / dailyCalorieGoal : 0;
+      return ratio >= 0.7 && ratio <= 1.15;
+    }).length;
+
+    return { bestStreak, daysOnTarget, totalDaysLogged: loggedDates.size };
+  }, [recentMeals, dailyCalorieGoal]);
   const weightData = getRangeData(RANGE_DAYS[weightRange]);
   const calorieData = getRangeData(RANGE_DAYS[calorieRange]);
   const waterData = getRangeData(RANGE_DAYS[waterRange]);
@@ -997,15 +997,15 @@ const ProgressTab = ({
                     <Text style={styles.streakLabelCompact}>Current streak</Text>
                   </View>
                   <View style={styles.streakItemCompact}>
-                    <Text style={styles.streakValueCompact}>{streakData.bestStreak > 0 ? streakData.bestStreak : '--'}</Text>
+                    <Text style={styles.streakValueCompact}>{allTimeStreakStats.bestStreak > 0 ? allTimeStreakStats.bestStreak : '--'}</Text>
                     <Text style={styles.streakLabelCompact}>Best streak</Text>
                   </View>
                   <View style={styles.streakItemCompact}>
-                    <Text style={styles.streakValueCompact}>{streakData.daysOnTarget > 0 ? streakData.daysOnTarget : '--'}</Text>
+                    <Text style={styles.streakValueCompact}>{allTimeStreakStats.daysOnTarget > 0 ? allTimeStreakStats.daysOnTarget : '--'}</Text>
                     <Text style={styles.streakLabelCompact}>Days on target</Text>
                   </View>
                   <View style={styles.streakItemCompact}>
-                    <Text style={styles.streakValueCompact}>{streakData.totalDaysLogged > 0 ? streakData.totalDaysLogged : '--'}</Text>
+                    <Text style={styles.streakValueCompact}>{allTimeStreakStats.totalDaysLogged > 0 ? allTimeStreakStats.totalDaysLogged : '--'}</Text>
                     <Text style={styles.streakLabelCompact}>Days logged</Text>
                   </View>
                 </View>
