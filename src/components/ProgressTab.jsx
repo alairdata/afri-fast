@@ -1025,7 +1025,9 @@ const ProgressTab = ({
             <View style={styles.progressSectionCompact}>
               <View style={styles.progressSectionHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="flame-outline" size={14} color={colors.text} />
+                  <View style={styles.sectionIconBox}>
+                    <Ionicons name="flame-outline" size={14} color={colors.text} />
+                  </View>
                   <Text style={styles.progressSectionTitleCompact}>Streaks</Text>
                 </View>
               </View>
@@ -1444,7 +1446,9 @@ const ProgressTab = ({
             <View style={styles.progressSectionCompact}>
               <View style={styles.progressSectionHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="flame-outline" size={14} color={colors.text} />
+                  <View style={styles.sectionIconBox}>
+                    <Ionicons name="flame-outline" size={14} color={colors.text} />
+                  </View>
                   <Text style={styles.progressSectionTitleCompact}>Calorie Intake</Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -1577,15 +1581,12 @@ const ProgressTab = ({
             <View style={styles.progressSectionCompact}>
               <View style={styles.progressSectionHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="water-outline" size={14} color={colors.text} />
+                  <View style={styles.sectionIconBox}>
+                    <Ionicons name="water-outline" size={14} color={colors.text} />
+                  </View>
                   <Text style={styles.progressSectionTitleCompact}>Hydration</Text>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <RangeDropdown value={waterRange} onChange={setWaterRange} styles={styles} />
-                  <TouchableOpacity onPress={() => onShowHydrationDetails && onShowHydrationDetails()}>
-                    <Text style={styles.seeAllBtnSmall}>See all</Text>
-                  </TouchableOpacity>
-                </View>
+                <RangeDropdown value={waterRange} onChange={setWaterRange} styles={styles} />
               </View>
               <View style={styles.chartCardCompact}>
                 {(() => {
@@ -1675,15 +1676,12 @@ const ProgressTab = ({
             <View style={styles.progressSectionCompact}>
               <View style={styles.progressSectionHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="footsteps-outline" size={14} color={colors.text} />
+                  <View style={styles.sectionIconBox}>
+                    <Ionicons name="footsteps-outline" size={14} color={colors.text} />
+                  </View>
                   <Text style={styles.progressSectionTitleCompact}>Steps</Text>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <RangeDropdown value={stepsRange} onChange={setStepsRange} styles={styles} />
-                  <TouchableOpacity onPress={() => onShowStepsDetails && onShowStepsDetails()}>
-                    <Text style={styles.seeAllBtnSmall}>See all</Text>
-                  </TouchableOpacity>
-                </View>
+                <RangeDropdown value={stepsRange} onChange={setStepsRange} styles={styles} />
               </View>
               <View style={styles.chartCardCompact}>
                 {(() => {
@@ -1772,7 +1770,9 @@ const ProgressTab = ({
             {/* Activities — "Log an activity" now mirrors the meal check-in tap-to-add card */}
             <View style={styles.progressSectionCompact}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="barbell-outline" size={14} color={colors.text} />
+                <View style={styles.sectionIconBox}>
+                  <Ionicons name="barbell-outline" size={14} color={colors.text} />
+                </View>
                 <Text style={styles.progressSectionTitleCompact}>Activities</Text>
               </View>
               <View style={styles.chartCardCompact}>
@@ -2048,6 +2048,15 @@ const makeStyles = (c) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  // Fixed-size centering box for section-header icons — different Ionicons glyphs (flame,
+  // water, footsteps, barbell) carry different internal padding within their own bounding box
+  // even at the same `size`, so identical alignItems:'center' rows could still render each
+  // glyph sitting at a slightly different visual height next to the title text. Wrapping every
+  // one in the same fixed box normalizes that away instead of nudging each icon individually.
+  sectionIconBox: {
+    width: 16, height: 16,
+    alignItems: 'center', justifyContent: 'center',
   },
   progressSectionTitleCompact: {
     fontSize: 14,
