@@ -12,6 +12,7 @@ import { computeBurnoutTimeline } from '../lib/burnout';
 import { fetchSavedBurnoutDays, saveBurnoutDay } from '../lib/burnoutHistory';
 import { savePredictionSnapshot } from '../lib/predictionHistory';
 import { saveBurnoutPredictionSnapshot } from '../lib/burnoutPredictionHistory';
+import { computeCurrentMealStreak } from '../lib/mealStreak';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -231,18 +232,7 @@ const ProgressTab = ({
       return !isNaN(t) && t >= cutoff;
     });
 
-    // Calorie tracking streak — within window
     const allLoggedDates = new Set(rangeMeals.map(m => new Date(m.date).toDateString()).filter(Boolean));
-    const today = new Date();
-    const todayStr = today.toDateString();
-    const hasLoggedToday = allLoggedDates.has(todayStr);
-    const streakStart = hasLoggedToday ? 0 : 1;
-    let streak = 0;
-    for (let i = streakStart; i < days + 1; i++) {
-      const d = new Date(today); d.setDate(d.getDate() - i);
-      if (allLoggedDates.has(d.toDateString())) streak++;
-      else break;
-    }
 
     // Best logging streak within window
     const sortedDates = [...allLoggedDates].map(s => new Date(s)).sort((a, b) => a - b);
@@ -382,7 +372,6 @@ const ProgressTab = ({
       isLongRange,
       // Fasting
       avgFastLength: totalSessions > 0 ? `${avgH}h ${avgM}m` : '0h 0m',
-      currentStreak: streak,
       bestStreak,
       daysOnTarget,
       totalDaysLogged,
@@ -420,6 +409,11 @@ const ProgressTab = ({
   };
 
   const streakData = getRangeData(STREAK_WINDOW_DAYS);
+  // Current streak specifically must match the Meals tab banner and the meal share card, so it
+  // uses the same shared, uncapped calculation rather than streakData's 90-day-windowed one —
+  // otherwise a real streak longer than 90 days would silently read differently here than
+  // everywhere else in the app that shows it.
+  const currentMealStreak = useMemo(() => computeCurrentMealStreak(recentMeals), [recentMeals]);
   const weightData = getRangeData(RANGE_DAYS[weightRange]);
   const calorieData = getRangeData(RANGE_DAYS[calorieRange]);
   const waterData = getRangeData(RANGE_DAYS[waterRange]);
@@ -999,7 +993,7 @@ const ProgressTab = ({
               <View style={styles.chartCardCompact}>
                 <View style={styles.streaksGridFour}>
                   <View style={styles.streakItemCompact}>
-                    <Text style={styles.streakValueCompact}>{streakData.currentStreak > 0 ? streakData.currentStreak : '--'}</Text>
+                    <Text style={styles.streakValueCompact}>{currentMealStreak > 0 ? currentMealStreak : '--'}</Text>
                     <Text style={styles.streakLabelCompact}>Current streak</Text>
                   </View>
                   <View style={styles.streakItemCompact}>

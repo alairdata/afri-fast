@@ -14,6 +14,7 @@ import { collectCheckInIcons } from '../lib/checkinIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { uploadMealPhoto, enqueuePendingMealPhoto } from '../lib/mealPhotoUpload';
+import { computeCurrentMealStreak } from '../lib/mealStreak';
 
 // Web-safe helper: convert a URI (blob URL or data URL) to base64 string
 const readUriAsBase64 = async (uri) => {
@@ -230,17 +231,10 @@ const ShareCardImage = ({ uri, height, style }) => {
 const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, goalHistory = [], recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, chatMealToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
   // Anchored on the meal's own date, not "today" — sharing an old meal should show the
   // streak as it stood on that day, not whatever the streak happens to be right now.
-  const streak = useMemo(() => {
-    let s = 0;
-    const anchor = selectedMealDate ? new Date(selectedMealDate) : new Date();
-    for (let i = 0; i < 365; i++) {
-      const d = new Date(anchor);
-      d.setDate(d.getDate() - i);
-      if (recentMeals.some(m => m.date === d.toDateString())) s++;
-      else break;
-    }
-    return s;
-  }, [recentMeals, selectedMealDate]);
+  const streak = useMemo(
+    () => computeCurrentMealStreak(recentMeals, selectedMealDate ? new Date(selectedMealDate) : new Date()),
+    [recentMeals, selectedMealDate]
+  );
 
   // Same reasoning as streak above — the share card's goal/progress numbers should reflect
   // what the goal was on the meal's date, not today's live goal (fix for goal changes

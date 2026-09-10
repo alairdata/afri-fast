@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, Animated, Image, Modal } from 'react-native';
 import { useTheme } from '../lib/theme';
 import { TAB_BAR_HEIGHT } from '../lib/tokens';
+import { computeCurrentMealStreak } from '../lib/mealStreak';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -21,21 +22,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
-  const mealLogStreak = useMemo(() => {
-    let s = 0;
-    const now = new Date();
-    const todayStr = now.toDateString();
-    // Count consecutive days from yesterday backwards
-    for (let i = 1; i < 365; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      if (recentMeals.some(m => m.date === d.toDateString())) s++;
-      else break;
-    }
-    // Add today if already logged
-    if (recentMeals.some(m => m.date === todayStr)) s++;
-    return s;
-  }, [recentMeals]);
+  const mealLogStreak = useMemo(() => computeCurrentMealStreak(recentMeals), [recentMeals]);
 
   const [mealsActiveSection, setMealsActiveSection] = useState('meals');
   const [showHistory, setShowHistory] = useState(false);
