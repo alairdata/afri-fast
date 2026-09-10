@@ -15,6 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { uploadMealPhoto, enqueuePendingMealPhoto } from '../lib/mealPhotoUpload';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
+import { resolveGoalForDate } from '../lib/goalHistory';
 
 // Web-safe helper: convert a URI (blob URL or data URL) to base64 string
 const readUriAsBase64 = async (uri) => {
@@ -40,19 +41,6 @@ const DOT_COLORS = ['#4ade80', '#f59e0b', '#60a5fa', '#f472b6', '#a78bfa'];
 // goalHistory entry is a snapshot of what the goal became as of its `from` date. To render a
 // share card that reflects what the goal actually was on the meal's date (not today's live
 // goal), find the snapshot in effect on that date instead of using the current value.
-const resolveGoalForDate = (goalHistory, dateStr, currentGoal) => {
-  const withGoal = (goalHistory || []).filter(e => e.dailyCalorieGoal != null);
-  if (!withGoal.length) return currentGoal;
-  const targetTime = new Date(dateStr).getTime();
-  const inEffectBy = withGoal.filter(e => new Date(e.from).getTime() <= targetTime);
-  if (inEffectBy.length) {
-    return inEffectBy.reduce((latest, e) => (new Date(e.from) > new Date(latest.from) ? e : latest)).dailyCalorieGoal;
-  }
-  // Meal predates every recorded goal change — no record of what the goal was before the
-  // first change, so the earliest known value is the closest approximation available.
-  return withGoal.reduce((earliest, e) => (new Date(e.from) < new Date(earliest.from) ? e : earliest)).dailyCalorieGoal;
-};
-
 // A share is only a failure if something actually broke. Both web (navigator.share) and
 // native (Share.share) surface the user backing out of the share sheet without picking
 // anything — that's not an error and shouldn't show one.

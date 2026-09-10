@@ -10,6 +10,7 @@
 
 import { computeBurnoutScore } from './burnout';
 import { BMR_SAFETY_FLOOR_RATIO, TEF_RATIO } from './trajectory';
+import { resolveGoalForDate } from './goalHistory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ALPHA = 0.3; // EWMA decay factor (~7-day half-life)
@@ -96,6 +97,7 @@ export function computeMomentumTimeline({
   stepLogs = [],
   activities = [],
   dailyCalorieGoal,
+  goalHistory = [],
   tdee,
   bmr,
   pacePreference,
@@ -165,15 +167,19 @@ export function computeMomentumTimeline({
     const daysSinceWeighIn = daysSinceLastWeighIn(cutoffTs);
     const weightForToday = weightEwma != null ? weightEwma : fallbackWeightKg;
 
-    // Pillar 1: Calorie (40%)
-    const calRaw = calorieRawScore(caloriesToday, dailyCalorieGoal, bmr);
+    // Pillar 1: Calorie (40%) — graded against the goal that was active on THIS day, not
+    // today's live goal, so a later goal change can't retroactively re-grade the EWMA history.
+    const dayCalorieGoal = resolveGoalForDate(goalHistory, ds, dailyCalorieGoal, 'dailyCalorieGoal');
+    const calRaw = calorieRawScore(caloriesToday, dayCalorieGoal, bmr);
     calEwma = ewmaStep(calEwma, calRaw, loggedToday);
 
     // Pillar 2: Satiety (35%) = 100 - that day's Burnout Risk score. No separate EWMA layer --
     // Burnout is already a rolling 7-day-window calculation, so it's inherently smoothed.
+    // goalHistory flows through so Burnout resolves its own protein/carbs/fats/calorie floors
+    // as of `day` too, same reasoning as dayCalorieGoal above.
     const burnout = computeBurnoutScore({
       recentMeals, waterLogs, tdee, bmr, weightKg: weightForToday, pacePreference,
-      dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, endDate: day, now,
+      dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, goalHistory, endDate: day, now,
     });
     const satietyScore = clamp(100 - burnout.score, 0, 100);
 

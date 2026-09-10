@@ -25,6 +25,7 @@
 // day) via the exported computeBurnoutScore single-day function.
 
 import { PACE_TARGET_DEFICIT, BMR_SAFETY_FLOOR_RATIO } from './trajectory';
+import { resolveGoalForDate } from './goalHistory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFICIT_DEPTH_WINDOW_DAYS = 28;
@@ -68,7 +69,7 @@ const EMPTY_DAY = { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, mealCo
 // the 7-day window ending at any date. Used by both exported functions below.
 function buildScorer({
   recentMeals = [], waterLogs = [], tdee, bmr, weightKg, pacePreference,
-  dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, now = Date.now(),
+  dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, goalHistory = [], now = Date.now(),
 }) {
   const mealsByDate = {};
   recentMeals.forEach((m) => {
@@ -220,10 +221,19 @@ function buildScorer({
     const avgFats = days.reduce((s, d) => s + d.fats, 0) / 7;
     const avgFiber = days.reduce((s, d) => s + d.fiber, 0) / 7;
 
-    const proteinFloor = proteinGoal ? proteinGoal * FLOOR_RATIO : null;
-    const carbsFloor = carbsGoal ? carbsGoal * FLOOR_RATIO : null;
-    const fatsFloor = fatsGoal ? fatsGoal * FLOOR_RATIO : null;
-    const fiberFloor = Math.max(20, ((dailyCalorieGoal || 0) / 1000) * FIBER_G_PER_1000_KCAL);
+    // Floors are graded against the goal that was actually active on endDate, not today's live
+    // goal — otherwise editing your goal retroactively re-grades every past day's nutrition
+    // floors, which is exactly the bug this resolves (see lib/goalHistory.js).
+    const endDs = endDate.toDateString();
+    const dayProteinGoal = resolveGoalForDate(goalHistory, endDs, proteinGoal, 'proteinGoal');
+    const dayCarbsGoal = resolveGoalForDate(goalHistory, endDs, carbsGoal, 'carbsGoal');
+    const dayFatsGoal = resolveGoalForDate(goalHistory, endDs, fatsGoal, 'fatsGoal');
+    const dayCalorieGoal = resolveGoalForDate(goalHistory, endDs, dailyCalorieGoal, 'dailyCalorieGoal');
+
+    const proteinFloor = dayProteinGoal ? dayProteinGoal * FLOOR_RATIO : null;
+    const carbsFloor = dayCarbsGoal ? dayCarbsGoal * FLOOR_RATIO : null;
+    const fatsFloor = dayFatsGoal ? dayFatsGoal * FLOOR_RATIO : null;
+    const fiberFloor = Math.max(20, ((dayCalorieGoal || 0) / 1000) * FIBER_G_PER_1000_KCAL);
     const waterFloorMl = weightKg ? weightKg * WATER_ML_PER_KG * FLOOR_RATIO : null;
 
     const proteinPts = floorScore(avgProtein, proteinFloor, 15);
@@ -249,11 +259,11 @@ function buildScorer({
 /** Single-day entry point -- used by momentum.js's Satiety pillar. */
 export function computeBurnoutScore({
   recentMeals = [], waterLogs = [], tdee, bmr, weightKg, pacePreference,
-  dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, endDate, now = Date.now(),
+  dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, goalHistory = [], endDate, now = Date.now(),
 }) {
   const { scoreWindowEnding } = buildScorer({
     recentMeals, waterLogs, tdee, bmr, weightKg, pacePreference,
-    dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, now,
+    dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, goalHistory, now,
   });
   return scoreWindowEnding(endDate);
 }
@@ -270,11 +280,11 @@ export function computeBurnoutScore({
  */
 export function computeBurnoutTimeline({
   recentMeals = [], waterLogs = [], tdee, bmr, weightKg, pacePreference,
-  dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, savedDays = {}, now = Date.now(),
+  dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, goalHistory = [], savedDays = {}, now = Date.now(),
 }) {
   const { scoreWindowEnding, startOfToday, recentPattern, dayTotals } = buildScorer({
     recentMeals, waterLogs, tdee, bmr, weightKg, pacePreference,
-    dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, now,
+    dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, goalHistory, now,
   });
 
   // Rolling window, not a fixed Sun-Sat calendar week -- always 3 days back through 3 days

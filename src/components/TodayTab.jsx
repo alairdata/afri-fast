@@ -7,6 +7,7 @@ import { getJustForYou, getCachedJustForYou } from '../lib/claudeInsights';
 import FormattedText from '../lib/FormattedText';
 import { AFRICAN_RECIPES } from '../lib/africanRecipes';
 import { RecipeDetailModal, RecipeCard } from './MakeRecipePage';
+import { resolveGoalForDate } from '../lib/goalHistory';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -501,7 +502,8 @@ const TodayTab = ({
     .filter(w => w.date === todayStr)
     .reduce((sum, w) => sum + (w.amount || 1), 0);
 
-  // Streak = days where meals were logged and calories stayed within goal
+  // Streak = days where meals were logged and calories stayed within goal — each day judged
+  // against the goal active on that day, not today's live goal.
   const onGoalDates = new Set(
     Object.entries(
       (recentMeals || []).reduce((acc, m) => {
@@ -511,7 +513,7 @@ const TodayTab = ({
         return acc;
       }, {})
     )
-      .filter(([, total]) => dailyCalorieGoal && total > 0 && total <= dailyCalorieGoal)
+      .filter(([d, total]) => total > 0 && total <= resolveGoalForDate(goalHistory, d, dailyCalorieGoal, 'dailyCalorieGoal'))
       .map(([d]) => d)
   );
   let streak = 0;
@@ -904,10 +906,20 @@ const TodayTab = ({
             const avgCals = daysLogged > 0 ? Math.round(totalCals7 / daysLogged) : 0;
             const byDate7 = {};
             week7Meals.forEach(m => { byDate7[m.date] = (byDate7[m.date] || 0) + (m.calories || 0); });
-            const daysOnTarget = Object.values(byDate7).filter(dc => {
+            // Each day judged against the goal that was active THAT day, not today's live
+            // goal — otherwise changing your goal retroactively repaints the past week.
+            const daysOnTarget = Object.entries(byDate7).filter(([ds, dc]) => {
               if (!dc || !dailyCalorieGoal) return false;
-              const r = dc / dailyCalorieGoal; return r >= 0.7 && r <= 1.15;
+              const dayGoal = resolveGoalForDate(goalHistory, ds, dailyCalorieGoal, 'dailyCalorieGoal');
+              const r = dc / dayGoal; return r >= 0.7 && r <= 1.15;
             }).length;
+            // "On track"/"High" is judged against the average of each logged day's own goal,
+            // not today's live goal — a week mostly logged under an old goal shouldn't get
+            // graded against whatever the goal was just changed to.
+            const loggedDates7 = Object.keys(byDate7);
+            const avgGoal7 = loggedDates7.length
+              ? loggedDates7.reduce((s, ds) => s + resolveGoalForDate(goalHistory, ds, dailyCalorieGoal, 'dailyCalorieGoal'), 0) / loggedDates7.length
+              : dailyCalorieGoal;
 
             return (
               <View style={styles.statsGrid}>
@@ -916,7 +928,7 @@ const TodayTab = ({
                   <Text style={styles.statLabel}>Avg daily cal</Text>
                   {daysLogged > 0 && dailyCalorieGoal > 0 && (
                     <View style={styles.statBadge}>
-                      <Text style={styles.statBadgeText}>{avgCals <= dailyCalorieGoal * 1.1 ? 'On track' : 'High'}</Text>
+                      <Text style={styles.statBadgeText}>{avgCals <= avgGoal7 * 1.1 ? 'On track' : 'High'}</Text>
                     </View>
                   )}
                 </View>
