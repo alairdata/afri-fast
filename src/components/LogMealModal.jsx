@@ -1689,10 +1689,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                               style={[styles.shareCardProgressFill, { width: `${Math.round(barPct * 100)}%` }]}
                             />
                           </View>
-                          {/* TEMP DEBUG — remove once the goal-mismatch bug is found */}
-                          <Text selectable style={{ color: '#ff2d55', fontSize: 9, marginTop: 8, fontFamily: 'monospace' }}>
-                            {`DEBUG date="${mealAnchorDate.toDateString()}" ledgerRows=${dailyGoalLedger.length} ledgerMapSize=${ledgerMap.size} ledgerHit=${JSON.stringify(ledgerMap.get(mealAnchorDate.toDateString()) || null)} goalHistoryLen=${goalHistory.length} liveDailyCalorieGoal=${dailyCalorieGoal} cardGoal=${cardGoal} cardDayTotal=${cardDayTotal}`}
-                          </Text>
                         </View>
                       </View>
                     </View>
