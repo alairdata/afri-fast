@@ -14,9 +14,17 @@ export const resolveGoalForDate = (goalHistory, dateStr, currentValue, field = '
   const withField = (goalHistory || []).filter(e => e[field] != null);
   if (!withField.length) return currentValue;
   const targetTime = new Date(dateStr).getTime();
-  const inEffectBy = withField.filter(e => new Date(e.from).getTime() <= targetTime);
-  if (inEffectBy.length) {
-    return inEffectBy.reduce((latest, e) => (new Date(e.from) > new Date(latest.from) ? e : latest))[field];
+  // Entries are appended in chronological order (recordGoalChange always does [...prev, snapshot]),
+  // so walking forward and keeping the LAST entry that still qualifies naturally resolves same-day
+  // ties to the most recent edit of that day, not whichever tied entry happened to come first — a
+  // real bug the previous min/max-reduce version had (`>` never replaces on an exact tie, so it
+  // silently kept the first of several same-day changes instead of the last).
+  let resolved = null;
+  for (const e of withField) {
+    if (new Date(e.from).getTime() <= targetTime) resolved = e;
   }
-  return withField.reduce((earliest, e) => (new Date(e.from) < new Date(earliest.from) ? e : earliest))[field];
+  if (resolved) return resolved[field];
+  // Date predates every recorded change — no record of what came before the first one, so the
+  // earliest known value (first in array order) is the closest approximation available.
+  return withField[0][field];
 };
