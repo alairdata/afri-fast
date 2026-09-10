@@ -217,20 +217,31 @@ const ShareCardImage = ({ uri, height, style }) => {
 };
 
 const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, goalHistory = [], recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, chatMealToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
+  // The one true "what date is this card about" anchor, used everywhere below (streak, goal
+  // lookup, footer date, share text). viewingMeal — set only when opening an EXISTING logged
+  // meal from history — carries that meal's real date and takes priority. selectedMealDate is a
+  // *different* piece of state (which day a brand-new meal is being logged TO) that opening an
+  // old meal never touches, so anchoring on it instead silently pointed every past meal's card
+  // at today. Falls back to selectedMealDate (then today) only when there's no existing meal
+  // being viewed, i.e. a meal just scanned/written/said right now.
+  const mealAnchorDate = useMemo(() => {
+    if (viewingMeal?.date) return new Date(viewingMeal.date);
+    return selectedMealDate ? new Date(selectedMealDate) : new Date();
+  }, [viewingMeal, selectedMealDate]);
+
   // Anchored on the meal's own date, not "today" — sharing an old meal should show the
   // streak as it stood on that day, not whatever the streak happens to be right now.
   const streak = useMemo(
-    () => computeCurrentMealStreak(recentMeals, selectedMealDate ? new Date(selectedMealDate) : new Date()),
-    [recentMeals, selectedMealDate]
+    () => computeCurrentMealStreak(recentMeals, mealAnchorDate),
+    [recentMeals, mealAnchorDate]
   );
 
   // Same reasoning as streak above — the share card's goal/progress numbers should reflect
   // what the goal was on the meal's date, not today's live goal (fix for goal changes
   // retroactively making old, over-goal days look on-target).
   const cardGoal = useMemo(() => {
-    const dateStr = selectedMealDate ? new Date(selectedMealDate).toDateString() : new Date().toDateString();
-    return resolveGoalForDate(goalHistory, dateStr, dailyCalorieGoal);
-  }, [goalHistory, selectedMealDate, dailyCalorieGoal]);
+    return resolveGoalForDate(goalHistory, mealAnchorDate.toDateString(), dailyCalorieGoal);
+  }, [goalHistory, mealAnchorDate, dailyCalorieGoal]);
   const openMiniCheckIn = () => {
     onOpenCheckIn?.();
   };
@@ -615,7 +626,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     try {
       // Build text details to share alongside the card image — anchored on the meal's own
       // date (not "today"), same as the numbers rendered on the card itself.
-      const shareDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
+      const shareDate = mealAnchorDate;
       const shareDayStr = shareDate.toDateString();
       const dayMeals = recentMeals.filter(m => m.date === shareDayStr);
       const totalCal = dayMeals.reduce((s, m) => s + (m.calories || 0), 0);
@@ -1614,7 +1625,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   {/* Top row: on track label (left) + streak (right) */}
                   <View style={styles.shareCardTopRow}>
                     {(() => {
-                      const dateStr = selectedMealDate ? new Date(selectedMealDate).toDateString() : new Date().toDateString();
+                      const dateStr = mealAnchorDate.toDateString();
                       const dayCal = recentMeals.filter(m => m.date === dateStr).reduce((s, m) => s + (m.calories || 0), 0);
                       const over = dayCal > cardGoal;
                       return (
@@ -1634,7 +1645,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
                 {/* KCAL + PROGRESS */}
                 {(() => {
-                  const dateStr = selectedMealDate ? new Date(selectedMealDate).toDateString() : new Date().toDateString();
+                  const dateStr = mealAnchorDate.toDateString();
                   const dayTotal = recentMeals.filter(m => m.date === dateStr).reduce((s, m) => s + (m.calories || 0), 0);
                   const mealCal = detectedFoods.length > 0
                     ? detectedFoods.reduce((s, f) => s + (f.cal || 0), 0)
@@ -1678,7 +1689,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
                 {/* FOOTER */}
                 {(() => {
-                  const footerDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
+                  const footerDate = mealAnchorDate;
                   const mealType = selectedMealType;
                   const dateStr = footerDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
                   return (
