@@ -797,27 +797,8 @@ const TodayTab = ({
         </View>
 
 
-        {/* What to Eat Next */}
-        {suggestedRecipes.length > 0 && slotBudget > 0 && (
-          <View style={[styles.sectionTight, { marginTop: 8 }]}>
-            <Text style={styles.sectionTitleTight}>
-              {isCalOver ? "You've hit your goal \u2014 light options only" : mealContext.label}
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
-              {suggestedRecipes.map((recipe, i) => (
-                <RecipeCard
-                  key={i}
-                  recipe={recipe}
-                  userCountry={userCountry}
-                  onPress={() => setSelectedSuggestedRecipe(recipe)}
-                />
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
         {/* Just for You — daily AI coach insight */}
-        <View style={[styles.sectionTight, { marginTop: 36 }]}>
+        <View style={[styles.sectionTight, { marginTop: 8 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Text style={[styles.sectionTitleTight, { marginBottom: 0, flex: 1 }]}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
             {jfyRefreshing ? (
@@ -853,6 +834,25 @@ const TodayTab = ({
             </TouchableOpacity>
           ) : null}
         </View>
+
+        {/* What to Eat Next */}
+        {suggestedRecipes.length > 0 && slotBudget > 0 && (
+          <View style={[styles.sectionTight, { marginTop: 36 }]}>
+            <Text style={styles.sectionTitleTight}>
+              {isCalOver ? "You've hit your goal \u2014 light options only" : mealContext.label}
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
+              {suggestedRecipes.map((recipe, i) => (
+                <RecipeCard
+                  key={i}
+                  recipe={recipe}
+                  userCountry={userCountry}
+                  onPress={() => setSelectedSuggestedRecipe(recipe)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* This Week */}
         <View style={[styles.sectionTight, { marginTop: 36 }]}>
