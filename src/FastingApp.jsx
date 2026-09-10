@@ -2206,6 +2206,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         }}
         dailyCalorieGoal={dailyCalorieGoal}
         goalHistory={goalHistory}
+        dailyGoalLedger={dailyGoalLedger}
         recentMeals={recentMeals}
         checkInHistory={checkInHistory}
         mealCheckInSnapshot={mealCheckInSnapshot}

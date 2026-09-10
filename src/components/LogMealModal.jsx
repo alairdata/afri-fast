@@ -15,7 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { uploadMealPhoto, enqueuePendingMealPhoto } from '../lib/mealPhotoUpload';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
-import { resolveGoalForDate } from '../lib/goalHistory';
+import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 
 // Web-safe helper: convert a URI (blob URL or data URL) to base64 string
 const readUriAsBase64 = async (uri) => {
@@ -216,7 +216,7 @@ const ShareCardImage = ({ uri, height, style }) => {
   );
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, goalHistory = [], recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, chatMealToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, goalHistory = [], dailyGoalLedger = [], recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, chatMealToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
   // The one true "what date is this card about" anchor, used everywhere below (streak, goal
   // lookup, footer date, share text). viewingMeal — set only when opening an EXISTING logged
   // meal from history — carries that meal's real date and takes priority. selectedMealDate is a
@@ -229,6 +229,9 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     return selectedMealDate ? new Date(selectedMealDate) : new Date();
   }, [viewingMeal, selectedMealDate]);
 
+  // Precomputed daily_goal_ledger, keyed for O(1) lookup by date -- see lib/goalHistory.js.
+  const ledgerMap = useMemo(() => buildDailyLedgerMap(dailyGoalLedger), [dailyGoalLedger]);
+
   // Anchored on the meal's own date, not "today" — sharing an old meal should show the
   // streak as it stood on that day, not whatever the streak happens to be right now.
   const streak = useMemo(
@@ -238,10 +241,20 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
   // Same reasoning as streak above — the share card's goal/progress numbers should reflect
   // what the goal was on the meal's date, not today's live goal (fix for goal changes
-  // retroactively making old, over-goal days look on-target).
+  // retroactively making old, over-goal days look on-target). Ledger first, live resolver only
+  // as a fallback for a date the ledger hasn't caught up to yet.
   const cardGoal = useMemo(() => {
-    return resolveGoalForDate(goalHistory, mealAnchorDate.toDateString(), dailyCalorieGoal);
-  }, [goalHistory, mealAnchorDate, dailyCalorieGoal]);
+    return resolveCalorieGoal(ledgerMap, goalHistory, mealAnchorDate.toDateString(), dailyCalorieGoal);
+  }, [ledgerMap, goalHistory, mealAnchorDate, dailyCalorieGoal]);
+
+  // Same reasoning — the day's actual eaten total should be the ledger's own snapshot for that
+  // date too, not a live recompute, so both halves of "X of Y daily goal" agree with each other
+  // and with everywhere else in the app that reads this same table.
+  const cardDayTotal = useMemo(() => {
+    const dateStr = mealAnchorDate.toDateString();
+    const liveTotal = recentMeals.filter(m => m.date === dateStr).reduce((s, m) => s + (m.calories || 0), 0);
+    return resolveCaloriesEaten(ledgerMap, dateStr, liveTotal);
+  }, [ledgerMap, mealAnchorDate, recentMeals]);
   const openMiniCheckIn = () => {
     onOpenCheckIn?.();
   };
@@ -627,9 +640,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       // Build text details to share alongside the card image — anchored on the meal's own
       // date (not "today"), same as the numbers rendered on the card itself.
       const shareDate = mealAnchorDate;
-      const shareDayStr = shareDate.toDateString();
-      const dayMeals = recentMeals.filter(m => m.date === shareDayStr);
-      const totalCal = dayMeals.reduce((s, m) => s + (m.calories || 0), 0);
+      const totalCal = cardDayTotal; // ledger's own snapshot for this date, same number the card itself shows
       const hasFoods = detectedFoods.length > 0;
       const mealCal = hasFoods ? detectedFoods.reduce((s, f) => s + (f.cal || 0), 0) : (viewingMeal?.calories || 0);
       const foodLines = hasFoods
@@ -1625,9 +1636,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   {/* Top row: on track label (left) + streak (right) */}
                   <View style={styles.shareCardTopRow}>
                     {(() => {
-                      const dateStr = mealAnchorDate.toDateString();
-                      const dayCal = recentMeals.filter(m => m.date === dateStr).reduce((s, m) => s + (m.calories || 0), 0);
-                      const over = dayCal > cardGoal;
+                      const over = cardDayTotal > cardGoal;
                       return (
                         <View style={[styles.shareCardTrackBadge, over && { backgroundColor: 'rgba(249,115,22,0.2)', borderColor: 'rgba(249,115,22,0.35)' }]}>
                           <Text style={[styles.shareCardTrackText, over && { color: '#f97316' }]}>
@@ -1645,8 +1654,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
                 {/* KCAL + PROGRESS */}
                 {(() => {
-                  const dateStr = mealAnchorDate.toDateString();
-                  const dayTotal = recentMeals.filter(m => m.date === dateStr).reduce((s, m) => s + (m.calories || 0), 0);
+                  const dayTotal = cardDayTotal;
                   const mealCal = detectedFoods.length > 0
                     ? detectedFoods.reduce((s, f) => s + (f.cal || 0), 0)
                     : (viewingMeal?.calories || 0);

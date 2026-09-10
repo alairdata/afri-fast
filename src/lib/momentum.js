@@ -10,7 +10,7 @@
 
 import { computeBurnoutScore } from './burnout';
 import { BMR_SAFETY_FLOOR_RATIO, TEF_RATIO } from './trajectory';
-import { resolveCalorieGoal } from './goalHistory';
+import { resolveCalorieGoal, resolveCaloriesEaten } from './goalHistory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ALPHA = 0.3; // EWMA decay factor (~7-day half-life)
@@ -98,7 +98,7 @@ export function computeMomentumTimeline({
   activities = [],
   dailyCalorieGoal,
   goalHistory = [],
-  ledgerGoalMap = null, // precomputed daily_goal_ledger lookup, see lib/goalHistory.js
+  ledgerMap = null, // precomputed daily_goal_ledger lookup (eaten + goal per day), see lib/goalHistory.js
   tdee,
   bmr,
   pacePreference,
@@ -145,7 +145,9 @@ export function computeMomentumTimeline({
     const ds = day.toDateString();
     const cutoffTs = day.getTime();
 
-    const caloriesToday = mealsByDate[ds] || 0;
+    // Ledger's real eaten total for this day, not the live recompute -- falls back to live only
+    // for a day the ledger hasn't caught up to yet (today, before the next hourly refresh).
+    const caloriesToday = resolveCaloriesEaten(ledgerMap, ds, mealsByDate[ds] || 0);
     const loggedToday = caloriesToday > 0;
 
     // Weight EWMA — smooths water-weight noise, but decay is scaled by elapsed *days* since the
@@ -172,7 +174,7 @@ export function computeMomentumTimeline({
     // this day (falling back to the live resolver only for a day the ledger hasn't caught up to
     // yet), not today's live goal, so a later goal change can't retroactively re-grade the EWMA
     // history.
-    const dayCalorieGoal = resolveCalorieGoal(ledgerGoalMap, goalHistory, ds, dailyCalorieGoal);
+    const dayCalorieGoal = resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal);
     const calRaw = calorieRawScore(caloriesToday, dayCalorieGoal, bmr);
     calEwma = ewmaStep(calEwma, calRaw, loggedToday);
 

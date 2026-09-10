@@ -30,10 +30,11 @@ export const resolveGoalForDate = (goalHistory, dateStr, currentValue, field = '
 };
 
 // daily_goal_ledger (see supabase/migrations/20260910_add_daily_goal_ledger.sql) is the
-// precomputed, hourly-refreshed source of truth for "what was the calorie goal on this day" —
-// it mirrors resolveGoalForDate's own logic server-side, so it should agree with it, but reading
-// a flat table beats every consumer independently re-deriving the same answer and risking a
-// different bug in each place, which is exactly what kept happening across this fix.
+// precomputed, hourly-refreshed source of truth for a given day's calorie goal AND calories
+// eaten — both fields, not just the goal. Everywhere that used to compute "calories eaten" live
+// from recentMeals while only borrowing the goal from the ledger was inconsistent: the ledger is
+// supposed to be the one trustworthy snapshot, so both halves of "was this day on target" should
+// come from it, with live computation only as a fallback for a date it hasn't caught up to yet.
 //
 // log_date comes back from Supabase as a Postgres `date` in "YYYY-MM-DD" form — never parse that
 // with `new Date(iso)` directly, it's interpreted as UTC midnight and can silently land on the
@@ -44,10 +45,14 @@ export const isoDateToDateString = (iso) => {
   return new Date(y, m - 1, d).toDateString();
 };
 
-export const buildLedgerGoalMap = (dailyGoalLedger) => {
+// date -> { calorieGoal, caloriesEaten }
+export const buildDailyLedgerMap = (dailyGoalLedger) => {
   const map = new Map();
   (dailyGoalLedger || []).forEach(r => {
-    if (r.calorie_goal != null) map.set(isoDateToDateString(r.log_date), r.calorie_goal);
+    map.set(isoDateToDateString(r.log_date), {
+      calorieGoal: r.calorie_goal,
+      caloriesEaten: r.calories_eaten,
+    });
   });
   return map;
 };
@@ -56,8 +61,16 @@ export const buildLedgerGoalMap = (dailyGoalLedger) => {
 // for a date the ledger hasn't caught up to yet (today, before the next hourly refresh, or
 // before any meal is logged today at all). Calorie-goal only — the ledger doesn't track
 // protein/carbs/fats, so those still go through resolveGoalForDate directly.
-export const resolveCalorieGoal = (ledgerGoalMap, goalHistory, dateStr, currentValue) => {
-  const fromLedger = ledgerGoalMap?.get(dateStr);
-  if (fromLedger != null) return fromLedger;
+export const resolveCalorieGoal = (ledgerMap, goalHistory, dateStr, currentValue) => {
+  const row = ledgerMap?.get(dateStr);
+  if (row?.calorieGoal != null) return row.calorieGoal;
   return resolveGoalForDate(goalHistory, dateStr, currentValue, 'dailyCalorieGoal');
+};
+
+// Ledger's actual eaten total for this date if present, else whatever the caller computed live
+// (the caller sums recentMeals for that date the same way it always has — this only decides
+// which number wins).
+export const resolveCaloriesEaten = (ledgerMap, dateStr, liveFallback) => {
+  const row = ledgerMap?.get(dateStr);
+  return row?.caloriesEaten != null ? row.caloriesEaten : liveFallback;
 };

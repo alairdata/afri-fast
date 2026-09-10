@@ -13,7 +13,7 @@ import { fetchSavedBurnoutDays, saveBurnoutDay } from '../lib/burnoutHistory';
 import { savePredictionSnapshot } from '../lib/predictionHistory';
 import { saveBurnoutPredictionSnapshot } from '../lib/burnoutPredictionHistory';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
-import { buildLedgerGoalMap, resolveCalorieGoal } from '../lib/goalHistory';
+import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -193,7 +193,7 @@ const ProgressTab = ({
   const { colors } = useTheme();
   const styles = makeStyles(colors);
   // Precomputed daily_goal_ledger, keyed for O(1) lookup by date -- see lib/goalHistory.js.
-  const ledgerGoalMap = useMemo(() => buildLedgerGoalMap(dailyGoalLedger), [dailyGoalLedger]);
+  const ledgerMap = useMemo(() => buildDailyLedgerMap(dailyGoalLedger), [dailyGoalLedger]);
   const [view, setView] = useState('main');
   const [guardrailDismissed, setGuardrailDismissed] = useState(false);
   const [chartTooltip, setChartTooltip] = useState(null);
@@ -440,18 +440,19 @@ const ProgressTab = ({
       if (runStreak > bestStreak) bestStreak = runStreak;
     }
 
-    // Graded against the daily_goal_ledger's precomputed goal for that day (falling back to the
-    // live resolver only for a day the ledger hasn't caught up to yet) -- not today's live goal,
-    // otherwise changing your goal retroactively repaints old days as on/off target.
+    // Graded against the daily_goal_ledger's precomputed eaten/goal for that day (falling back
+    // to a live computation only for a day the ledger hasn't caught up to yet) -- not today's
+    // live goal, otherwise changing your goal retroactively repaints old days as on/off target.
     const daysOnTarget = [...loggedDates].filter(date => {
-      const total = (recentMeals || []).filter(m => m.date === date).reduce((s, m) => s + (m.calories || 0), 0);
-      const dayGoal = resolveCalorieGoal(ledgerGoalMap, goalHistory, date, dailyCalorieGoal);
+      const liveTotal = (recentMeals || []).filter(m => m.date === date).reduce((s, m) => s + (m.calories || 0), 0);
+      const total = resolveCaloriesEaten(ledgerMap, date, liveTotal);
+      const dayGoal = resolveCalorieGoal(ledgerMap, goalHistory, date, dailyCalorieGoal);
       const ratio = dayGoal > 0 ? total / dayGoal : 0;
       return ratio >= 0.7 && ratio <= 1.15;
     }).length;
 
     return { bestStreak, daysOnTarget, totalDaysLogged: loggedDates.size };
-  }, [recentMeals, dailyCalorieGoal, goalHistory, ledgerGoalMap]);
+  }, [recentMeals, dailyCalorieGoal, goalHistory, ledgerMap]);
   const weightData = getRangeData(weightRange === 'All time'
     ? daysSinceEarliest(weightLogs, w => w.timestamp || new Date(w.date).getTime())
     : RANGE_DAYS[weightRange]);
@@ -608,11 +609,11 @@ const ProgressTab = ({
   // (= 100 - that day's Burnout risk) + 25% Movement.
   const momentumTimeline = useMemo(() => computeMomentumTimeline({
     weightLogs, recentMeals, waterLogs, stepLogs, activities,
-    dailyCalorieGoal, goalHistory, ledgerGoalMap, tdee, bmr, pacePreference, proteinGoal, carbsGoal, fatsGoal,
+    dailyCalorieGoal, goalHistory, ledgerMap, tdee, bmr, pacePreference, proteinGoal, carbsGoal, fatsGoal,
     fallbackWeightKg: currentWeightKg,
     toKg: (w) => toKg(w, weightUnit),
     now,
-  }), [weightLogs, recentMeals, waterLogs, stepLogs, activities, dailyCalorieGoal, goalHistory, ledgerGoalMap, tdee, bmr, pacePreference, proteinGoal, carbsGoal, fatsGoal, currentWeightKg, weightUnit, now]);
+  }), [weightLogs, recentMeals, waterLogs, stepLogs, activities, dailyCalorieGoal, goalHistory, ledgerMap, tdee, bmr, pacePreference, proteinGoal, carbsGoal, fatsGoal, currentWeightKg, weightUnit, now]);
 
   const today = momentumTimeline[momentumTimeline.length - 1];
   const momentumScore = today.momentum;
@@ -724,9 +725,11 @@ const ProgressTab = ({
     };
   }, [startingWeightKg, targetWeightKg, currentWeightKg, weeklyWeightChangeKg, goalDate, userJoinDate, trajectory, requiredWeeklyRateKg, projectedGoalDate, weightUnit, now]);
 
-  // Each day judged against its own day's goal, not today's live one.
-  const spikeDays = loggedDays.filter((d) => d.total > resolveCalorieGoal(ledgerGoalMap, goalHistory, d.ds, dailyCalorieGoal) * 1.5);
-  const crashDays = loggedDays.filter((d) => d.total > 0 && d.total < resolveCalorieGoal(ledgerGoalMap, goalHistory, d.ds, dailyCalorieGoal) * 0.5);
+  // Ledger's real eaten total for each day, not the live recompute -- falls back to live only
+  // for a day the ledger hasn't caught up to yet. Each day judged against its own day's goal.
+  const ledgerLoggedDays = loggedDays.map((d) => ({ ...d, total: resolveCaloriesEaten(ledgerMap, d.ds, d.total) }));
+  const spikeDays = ledgerLoggedDays.filter((d) => d.total > resolveCalorieGoal(ledgerMap, goalHistory, d.ds, dailyCalorieGoal) * 1.5);
+  const crashDays = ledgerLoggedDays.filter((d) => d.total > 0 && d.total < resolveCalorieGoal(ledgerMap, goalHistory, d.ds, dailyCalorieGoal) * 0.5);
 
   // Saved (finalized) past-day Burnout scores.
   const [savedBurnoutDays, setSavedBurnoutDays] = useState({});
@@ -944,15 +947,16 @@ const ProgressTab = ({
 
   const guardrail = useMemo(() => {
     if (loggedDays.length < 3 || !dailyCalorieGoal) return null;
-    const maxDay = loggedDays.reduce((a, b) => (b.total > a.total ? b : a), loggedDays[0]);
-    const others = loggedDays.filter((d) => d !== maxDay);
+    // ledgerLoggedDays already carries each day's ledger-sourced (not live-recomputed) total.
+    const maxDay = ledgerLoggedDays.reduce((a, b) => (b.total > a.total ? b : a), ledgerLoggedDays[0]);
+    const others = ledgerLoggedDays.filter((d) => d !== maxDay);
     if (!others.length) return null;
     const avgOthers = others.reduce((s, d) => s + d.total, 0) / others.length;
     const swing = maxDay.total - avgOthers;
     // Whether this counts as a "big swing" is judged against the goal that was active on
     // maxDay itself; the "get back to X" advice below still points at today's live goal since
     // that's forward guidance, not a judgment of the past.
-    const maxDayGoal = resolveCalorieGoal(ledgerGoalMap, goalHistory, maxDay.ds, dailyCalorieGoal);
+    const maxDayGoal = resolveCalorieGoal(ledgerMap, goalHistory, maxDay.ds, dailyCalorieGoal);
     if (swing > maxDayGoal * 0.5 && maxDay.total > maxDayGoal * 1.3) {
       return {
         title: 'Big swing this week',
@@ -960,7 +964,7 @@ const ProgressTab = ({
       };
     }
     return null;
-  }, [loggedDays, dailyCalorieGoal, goalHistory, ledgerGoalMap]);
+  }, [loggedDays, ledgerLoggedDays, dailyCalorieGoal, goalHistory, ledgerMap]);
 
   const weeklyHitRates = useMemo(() => {
     const weeks = [];
@@ -971,14 +975,15 @@ const ProgressTab = ({
         const day = new Date(weekEnd.getTime() - d * DAY_MS);
         if (day.getTime() > now) continue;
         const ds = day.toDateString();
-        const total = (recentMeals || []).filter((m) => m.date === ds).reduce((s, m) => s + (m.calories || 0), 0);
-        const dayGoal = resolveCalorieGoal(ledgerGoalMap, goalHistory, ds, dailyCalorieGoal);
+        const liveTotal = (recentMeals || []).filter((m) => m.date === ds).reduce((s, m) => s + (m.calories || 0), 0);
+        const total = resolveCaloriesEaten(ledgerMap, ds, liveTotal);
+        const dayGoal = resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal);
         if (total > 0) results.push(total <= dayGoal * 1.15);
       }
       weeks.push(results.length ? Math.round((results.filter(Boolean).length / results.length) * 100) : null);
     }
     return weeks;
-  }, [recentMeals, dailyCalorieGoal, goalHistory, ledgerGoalMap, now]);
+  }, [recentMeals, dailyCalorieGoal, goalHistory, ledgerMap, now]);
 
   const worstWeekday = useMemo(() => {
     if (!dailyCalorieGoal) return null;
@@ -988,11 +993,12 @@ const ProgressTab = ({
       if (!m.date) return;
       byDate[m.date] = (byDate[m.date] || 0) + (m.calories || 0);
     });
-    Object.entries(byDate).forEach(([ds, total]) => {
+    Object.entries(byDate).forEach(([ds, liveTotal]) => {
       const d = new Date(ds);
       if (isNaN(d.getTime())) return;
       const wd = d.getDay();
-      const dayGoal = resolveCalorieGoal(ledgerGoalMap, goalHistory, ds, dailyCalorieGoal);
+      const total = resolveCaloriesEaten(ledgerMap, ds, liveTotal);
+      const dayGoal = resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal);
       byWeekday[wd].sum += total - dayGoal;
       byWeekday[wd].count += 1;
     });
@@ -1007,7 +1013,7 @@ const ProgressTab = ({
     if (!best) return null;
     const names = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
     return { name: names[best.wd], avgOverage: Math.round(best.avgOverage) };
-  }, [recentMeals, dailyCalorieGoal, goalHistory, ledgerGoalMap]);
+  }, [recentMeals, dailyCalorieGoal, goalHistory, ledgerMap]);
 
   const recs = useMemo(() => {
     const items = [];

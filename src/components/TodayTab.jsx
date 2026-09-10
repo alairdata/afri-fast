@@ -7,7 +7,7 @@ import { getJustForYou, getCachedJustForYou } from '../lib/claudeInsights';
 import FormattedText from '../lib/FormattedText';
 import { AFRICAN_RECIPES } from '../lib/africanRecipes';
 import { RecipeDetailModal, RecipeCard } from './MakeRecipePage';
-import { resolveCalorieGoal, buildLedgerGoalMap } from '../lib/goalHistory';
+import { resolveCalorieGoal, resolveCaloriesEaten, buildDailyLedgerMap } from '../lib/goalHistory';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -347,7 +347,7 @@ const TodayTab = ({
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
   // Precomputed daily_goal_ledger, keyed for O(1) lookup by date -- see lib/goalHistory.js.
-  const ledgerGoalMap = useMemo(() => buildLedgerGoalMap(dailyGoalLedger), [dailyGoalLedger]);
+  const ledgerMap = useMemo(() => buildDailyLedgerMap(dailyGoalLedger), [dailyGoalLedger]);
 
   const [timeSinceFast, setTimeSinceFast] = useState(null);
   const [justForYouInsight, setJustForYouInsight] = useState(null);
@@ -516,7 +516,10 @@ const TodayTab = ({
         return acc;
       }, {})
     )
-      .filter(([d, total]) => total > 0 && total <= resolveCalorieGoal(ledgerGoalMap, goalHistory, d, dailyCalorieGoal))
+      .filter(([d, liveTotal]) => {
+        const total = resolveCaloriesEaten(ledgerMap, d, liveTotal);
+        return total > 0 && total <= resolveCalorieGoal(ledgerMap, goalHistory, d, dailyCalorieGoal);
+      })
       .map(([d]) => d)
   );
   let streak = 0;
@@ -905,15 +908,22 @@ const TodayTab = ({
               return !isNaN(t) && t >= cutoff7;
             });
             const daysLogged = new Set(week7Meals.map(m => m.date)).size;
-            const totalCals7 = week7Meals.reduce((s, m) => s + (m.calories || 0), 0);
-            const avgCals = daysLogged > 0 ? Math.round(totalCals7 / daysLogged) : 0;
+            const byDate7Live = {};
+            week7Meals.forEach(m => { byDate7Live[m.date] = (byDate7Live[m.date] || 0) + (m.calories || 0); });
+            // Ledger's real eaten total per day, not the live recompute -- falls back to live
+            // only for a day the ledger hasn't caught up to yet (today, before the next hourly
+            // refresh).
             const byDate7 = {};
-            week7Meals.forEach(m => { byDate7[m.date] = (byDate7[m.date] || 0) + (m.calories || 0); });
+            Object.entries(byDate7Live).forEach(([ds, liveTotal]) => {
+              byDate7[ds] = resolveCaloriesEaten(ledgerMap, ds, liveTotal);
+            });
+            const totalCals7 = Object.values(byDate7).reduce((s, c) => s + c, 0);
+            const avgCals = daysLogged > 0 ? Math.round(totalCals7 / daysLogged) : 0;
             // Each day judged against the goal that was active THAT day, not today's live
             // goal — otherwise changing your goal retroactively repaints the past week.
             const daysOnTarget = Object.entries(byDate7).filter(([ds, dc]) => {
               if (!dc || !dailyCalorieGoal) return false;
-              const dayGoal = resolveCalorieGoal(ledgerGoalMap, goalHistory, ds, dailyCalorieGoal);
+              const dayGoal = resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal);
               const r = dc / dayGoal; return r >= 0.7 && r <= 1.15;
             }).length;
             // "On track"/"High" is judged against the average of each logged day's own goal,
@@ -921,7 +931,7 @@ const TodayTab = ({
             // graded against whatever the goal was just changed to.
             const loggedDates7 = Object.keys(byDate7);
             const avgGoal7 = loggedDates7.length
-              ? loggedDates7.reduce((s, ds) => s + resolveCalorieGoal(ledgerGoalMap, goalHistory, ds, dailyCalorieGoal), 0) / loggedDates7.length
+              ? loggedDates7.reduce((s, ds) => s + resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal), 0) / loggedDates7.length
               : dailyCalorieGoal;
 
             return (
