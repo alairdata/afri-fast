@@ -640,8 +640,8 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       const hasFoods = detectedFoods.length > 0;
       const mealCal = hasFoods ? detectedFoods.reduce((s, f) => s + (f.cal || 0), 0) : (viewingMeal?.calories || 0);
       const foodLines = hasFoods
-        ? detectedFoods.map(f => `${f.name}${f.qty ? ` (${f.qty})` : ''} - ${f.cal} cal`).join('\n')
-        : (viewingMeal?.name || mealTitle || '').split(',').map(f => f.trim()).filter(Boolean).join('\n');
+        ? detectedFoods.map(f => `• ${f.name}${f.qty ? ` (${f.qty})` : ''} - ${f.cal} cal`).join('\n')
+        : (viewingMeal?.name || mealTitle || '').split(',').map(f => f.trim()).filter(Boolean).map(f => `• ${f}`).join('\n');
       const mealType = selectedMealType.toLowerCase();
       const dateStr = shareDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
       const detailsText = [
