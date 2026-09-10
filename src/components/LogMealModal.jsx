@@ -631,23 +631,24 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const performShare = async (includeIngredients) => {
     setIsSharing(true);
     try {
-      // Build text details to share alongside the card image
-      const todayStr = new Date().toDateString();
-      const todayMeals = recentMeals.filter(m => m.date === todayStr);
-      const totalCal = todayMeals.reduce((s, m) => s + (m.calories || 0), 0);
+      // Build text details to share alongside the card image — anchored on the meal's own
+      // date (not "today"), same as the numbers rendered on the card itself.
+      const shareDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
+      const shareDayStr = shareDate.toDateString();
+      const dayMeals = recentMeals.filter(m => m.date === shareDayStr);
+      const totalCal = dayMeals.reduce((s, m) => s + (m.calories || 0), 0);
       const hasFoods = detectedFoods.length > 0;
       const mealCal = hasFoods ? detectedFoods.reduce((s, f) => s + (f.cal || 0), 0) : (viewingMeal?.calories || 0);
       const foodLines = hasFoods
         ? detectedFoods.map(f => `${f.name}${f.qty ? ` (${f.qty})` : ''} - ${f.cal} cal`).join('\n')
         : (viewingMeal?.name || mealTitle || '').split(',').map(f => f.trim()).filter(Boolean).join('\n');
-      const now2 = new Date();
       const mealType = selectedMealType.toLowerCase();
-      const dateStr = now2.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      const dateStr = shareDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
       const detailsText = [
-        `Today ${dateStr}'s ${mealType} was ${mealTitle || 'my meal'} — ${mealCal} cal`,
+        `${dateStr}'s ${mealType} was ${mealTitle || 'my meal'} — ${mealCal} cal`,
         ...(includeIngredients ? ['', '*Here is the breakdown:*', foodLines] : []),
         '',
-        `Overall Calories for Today: ${totalCal.toLocaleString()} / ${cardGoal.toLocaleString()} kcal`,
+        `Overall Calories: ${totalCal.toLocaleString()} / ${cardGoal.toLocaleString()} kcal`,
         '',
         'Tracked on AfriFast',
       ].join('\n');
@@ -1695,9 +1696,9 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
                 {/* FOOTER */}
                 {(() => {
-                  const now = new Date();
+                  const footerDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
                   const mealType = selectedMealType;
-                  const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                  const dateStr = footerDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
                   return (
                     <View style={styles.shareCardFooter}>
                       <Text style={styles.shareCardFooterDate}>
