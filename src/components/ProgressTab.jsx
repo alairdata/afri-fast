@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, Modal } from 'react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../lib/theme';
@@ -60,27 +60,37 @@ const getWeekActivityData = (activities) => {
 // Small per-chart range control (7D/14D/30D/90D) — replaces the single global selector that
 // used to drive every chart at once. Each chart that has one owns its own value/onChange so
 // picking "30 days" on Calorie Intake doesn't also change what Weight trend is showing.
+//
+// Built on RN's Modal rather than an inline absolute-positioned popover: a popover nested deep
+// inside a ScrollView relies on zIndex/elevation lifting it above every *later* sibling section
+// in that scroll list, which React Native does not reliably do (worst on Android, but also
+// broken on web here) -- the menu would silently render underneath whatever section came next
+// and eat no taps. Modal renders as a true top-level overlay above everything, sidestepping
+// that whole class of stacking bugs. Same pattern already used for the share-scope prompt in
+// LogMealModal.jsx.
 const RangeDropdown = ({ value, onChange, styles }) => {
   const [open, setOpen] = useState(false);
   return (
-    <View style={{ position: 'relative', zIndex: 30 }}>
-      <TouchableOpacity style={styles.rangeDropdownBtn} onPress={() => setOpen(o => !o)} activeOpacity={0.7}>
+    <>
+      <TouchableOpacity style={styles.rangeDropdownBtn} onPress={() => setOpen(true)} activeOpacity={0.7}>
         <Text style={styles.rangeDropdownBtnText}>{RANGE_SHORT[value]}</Text>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={11} color="#059669" />
+        <Ionicons name="chevron-down" size={11} color="#059669" />
       </TouchableOpacity>
-      {open && (
-        <>
-          <TouchableOpacity style={styles.rangeDropdownBackdrop} activeOpacity={1} onPress={() => setOpen(false)} />
-          <View style={styles.rangeDropdownMenu}>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <TouchableOpacity style={styles.rangeModalBackdrop} activeOpacity={1} onPress={() => setOpen(false)}>
+          <TouchableOpacity activeOpacity={1} style={styles.rangeModalCard} onPress={() => {}}>
+            <View style={styles.rangeModalHandle} />
+            <Text style={styles.rangeModalTitle}>Show</Text>
             {RANGE_OPTIONS.map(opt => (
-              <TouchableOpacity key={opt} style={styles.rangeDropdownItem} onPress={() => { onChange(opt); setOpen(false); }}>
-                <Text style={[styles.rangeDropdownItemText, value === opt && styles.rangeDropdownItemTextActive]}>{opt}</Text>
+              <TouchableOpacity key={opt} style={styles.rangeModalItem} onPress={() => { onChange(opt); setOpen(false); }}>
+                <Text style={[styles.rangeModalItemText, value === opt && styles.rangeModalItemTextActive]}>{opt}</Text>
+                {value === opt && <Ionicons name="checkmark" size={17} color="#059669" />}
               </TouchableOpacity>
             ))}
-          </View>
-        </>
-      )}
-    </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    </>
   );
 };
 
@@ -1948,26 +1958,33 @@ const makeStyles = (c) => StyleSheet.create({
   whyRowDetail: { color: c.textSecondary, fontSize: 11.5, fontWeight: '500', marginTop: 1 },
   whyRowPts: { color: c.textMuted, fontSize: 12.5, fontWeight: '700' },
 
-  // ── Range dropdown (new) ────────────────────────────────────────────────
+  // ── Range picker (new) ──────────────────────────────────────────────────
   rangeDropdownBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingVertical: 5, paddingHorizontal: 9,
     borderRadius: 8, backgroundColor: 'rgba(5, 150, 105, 0.08)',
   },
   rangeDropdownBtnText: { color: '#059669', fontSize: 11.5, fontWeight: '700' },
-  rangeDropdownBackdrop: {
-    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
-    top: -1000, left: -1000, right: -1000, bottom: -1000, zIndex: 29,
+  rangeModalBackdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center', justifyContent: 'flex-end',
   },
-  rangeDropdownMenu: {
-    position: 'absolute', top: '100%', right: 0, marginTop: 4,
-    backgroundColor: c.card, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
-    paddingVertical: 4, minWidth: 92, zIndex: 31, elevation: 6,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6,
+  rangeModalCard: {
+    width: '100%', backgroundColor: c.card,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 20, paddingTop: 10, paddingBottom: 32,
   },
-  rangeDropdownItem: { paddingVertical: 8, paddingHorizontal: 12 },
-  rangeDropdownItemText: { fontSize: 12.5, color: c.textSecondary, fontWeight: '500' },
-  rangeDropdownItemTextActive: { color: '#059669', fontWeight: '700' },
+  rangeModalHandle: {
+    alignSelf: 'center', width: 36, height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.12)', marginBottom: 14,
+  },
+  rangeModalTitle: { fontSize: 13, fontWeight: '700', color: c.textMuted, marginBottom: 6 },
+  rangeModalItem: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 13, borderTopWidth: 1, borderTopColor: c.border,
+  },
+  rangeModalItemText: { fontSize: 15, color: c.text, fontWeight: '600' },
+  rangeModalItemTextActive: { color: '#059669', fontWeight: '700' },
 
   // ── Activities check-in-style add row (new) ─────────────────────────────
   activityCheckInRow: {
