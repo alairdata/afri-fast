@@ -2204,23 +2204,12 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           await attemptInsert(meal);
         }}
         dailyCalorieGoal={dailyCalorieGoal}
+        goalHistory={goalHistory}
         recentMeals={recentMeals}
         checkInHistory={checkInHistory}
         mealCheckInSnapshot={mealCheckInSnapshot}
         onOpenCheckIn={() => openCheckInPage('meal')}
         volumeUnit={volumeUnit}
-        streak={(() => {
-          let s = 0;
-          const now = new Date();
-          for (let i = 0; i < 365; i++) {
-            const d = new Date(now);
-            d.setDate(d.getDate() - i);
-            const dayStr = d.toDateString();
-            if (recentMeals.some(m => m.date === dayStr)) s++;
-            else break;
-          }
-          return s;
-        })()}
         viewingMeal={viewingMeal}
         recipes={AFRICAN_RECIPES}
         userEmail={session?.user?.email || null}

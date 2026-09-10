@@ -35,6 +35,32 @@ const readUriAsBase64 = async (uri) => {
 
 const DOT_COLORS = ['#4ade80', '#f59e0b', '#60a5fa', '#f472b6', '#a78bfa'];
 
+// The user's calorie goal changes over time (see recordGoalChange in FastingApp.jsx). Each
+// goalHistory entry is a snapshot of what the goal became as of its `from` date. To render a
+// share card that reflects what the goal actually was on the meal's date (not today's live
+// goal), find the snapshot in effect on that date instead of using the current value.
+const resolveGoalForDate = (goalHistory, dateStr, currentGoal) => {
+  const withGoal = (goalHistory || []).filter(e => e.dailyCalorieGoal != null);
+  if (!withGoal.length) return currentGoal;
+  const targetTime = new Date(dateStr).getTime();
+  const inEffectBy = withGoal.filter(e => new Date(e.from).getTime() <= targetTime);
+  if (inEffectBy.length) {
+    return inEffectBy.reduce((latest, e) => (new Date(e.from) > new Date(latest.from) ? e : latest)).dailyCalorieGoal;
+  }
+  // Meal predates every recorded goal change — no record of what the goal was before the
+  // first change, so the earliest known value is the closest approximation available.
+  return withGoal.reduce((earliest, e) => (new Date(e.from) < new Date(earliest.from) ? e : earliest)).dailyCalorieGoal;
+};
+
+// A share is only a failure if something actually broke. Both web (navigator.share) and
+// native (Share.share) surface the user backing out of the share sheet without picking
+// anything — that's not an error and shouldn't show one.
+const isShareCancellation = (e, nativeResult) => {
+  if (nativeResult?.action === Share.dismissedAction) return true;
+  if (e?.name === 'AbortError') return true;
+  return /cancel/i.test(e?.message || '');
+};
+
 // Match detected food names against recipe library — returns array of matching recipe IDs
 const matchRecipes = (detectedFoods, recipes) => {
   const matched = new Set();
@@ -201,18 +227,28 @@ const ShareCardImage = ({ uri, height, style }) => {
   );
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, chatMealToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, goalHistory = [], recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, chatMealToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
+  // Anchored on the meal's own date, not "today" — sharing an old meal should show the
+  // streak as it stood on that day, not whatever the streak happens to be right now.
   const streak = useMemo(() => {
     let s = 0;
-    const now = new Date();
+    const anchor = selectedMealDate ? new Date(selectedMealDate) : new Date();
     for (let i = 0; i < 365; i++) {
-      const d = new Date(now);
+      const d = new Date(anchor);
       d.setDate(d.getDate() - i);
       if (recentMeals.some(m => m.date === d.toDateString())) s++;
       else break;
     }
     return s;
-  }, [recentMeals]);
+  }, [recentMeals, selectedMealDate]);
+
+  // Same reasoning as streak above — the share card's goal/progress numbers should reflect
+  // what the goal was on the meal's date, not today's live goal (fix for goal changes
+  // retroactively making old, over-goal days look on-target).
+  const cardGoal = useMemo(() => {
+    const dateStr = selectedMealDate ? new Date(selectedMealDate).toDateString() : new Date().toDateString();
+    return resolveGoalForDate(goalHistory, dateStr, dailyCalorieGoal);
+  }, [goalHistory, selectedMealDate, dailyCalorieGoal]);
   const openMiniCheckIn = () => {
     onOpenCheckIn?.();
   };
@@ -298,6 +334,9 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [detectProgress, setDetectProgress] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showSharePrompt, setShowSharePrompt] = useState(false);
+  const [shareIncludeIngredients, setShareIncludeIngredients] = useState(true);
+  const [isSharing, setIsSharing] = useState(false);
   const [sayPhase, setSayPhase] = useState('idle'); // 'idle' | 'recording' | 'detecting' | 'results'
   const [writePhase, setWritePhase] = useState('idle'); // 'idle' | 'detecting' | 'results'
 
@@ -584,6 +623,85 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     } finally {
       setAddingPhoto(false);
     }
+  };
+
+  // includeIngredients is passed explicitly (not read from state) because this runs right
+  // after the share-scope prompt sets shareIncludeIngredients — passing it directly avoids
+  // depending on that state update having flushed by the time this fires.
+  const performShare = async (includeIngredients) => {
+    setIsSharing(true);
+    try {
+      // Build text details to share alongside the card image
+      const todayStr = new Date().toDateString();
+      const todayMeals = recentMeals.filter(m => m.date === todayStr);
+      const totalCal = todayMeals.reduce((s, m) => s + (m.calories || 0), 0);
+      const hasFoods = detectedFoods.length > 0;
+      const mealCal = hasFoods ? detectedFoods.reduce((s, f) => s + (f.cal || 0), 0) : (viewingMeal?.calories || 0);
+      const foodLines = hasFoods
+        ? detectedFoods.map(f => `${f.name}${f.qty ? ` (${f.qty})` : ''} - ${f.cal} cal`).join('\n')
+        : (viewingMeal?.name || mealTitle || '').split(',').map(f => f.trim()).filter(Boolean).join('\n');
+      const now2 = new Date();
+      const mealType = selectedMealType.toLowerCase();
+      const dateStr = now2.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      const detailsText = [
+        `Today ${dateStr}'s ${mealType} was ${mealTitle || 'my meal'} — ${mealCal} cal`,
+        ...(includeIngredients ? ['', '*Here is the breakdown:*', foodLines] : []),
+        '',
+        `Overall Calories for Today: ${totalCal.toLocaleString()} / ${cardGoal.toLocaleString()} kcal`,
+        '',
+        'Tracked on AfriFast',
+      ].join('\n');
+
+      if (Platform.OS === 'web') {
+        const node = shareCardRef.current;
+        if (!node) return;
+        const h2c = (await import('html2canvas')).default;
+        const canvas = await h2c(node, {
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: '#111111',
+          scale: 2,
+        });
+        const dataUrl = canvas.toDataURL('image/png');
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const file = new File([blob], 'afri-fast-meal.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'My Meal — AfriFast', text: detailsText });
+        } else {
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = 'afri-fast-meal.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      } else {
+        const uri = await captureRef(shareCardRef, { format: 'png', quality: 0.95 });
+        const result = await Share.share({
+          title: 'My Meal — AfriFast',
+          message: detailsText,
+          url: uri,
+        });
+        if (isShareCancellation(null, result)) return;
+      }
+    } catch (e) {
+      if (isShareCancellation(e, null)) return;
+      console.warn('Share failed:', e);
+      alert('Could not share. Try a screenshot instead.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  // The ingredients toggle changes what the share card renders (food list + macro
+  // breakdown), so we wait a beat after setting it for that re-render to actually land
+  // before capturing the card image — otherwise the capture can race the old layout.
+  const handleShareChoice = async (includeIngredients) => {
+    setShareIncludeIngredients(includeIngredients);
+    setShowSharePrompt(false);
+    await new Promise(resolve => setTimeout(resolve, 60));
+    await performShare(includeIngredients);
   };
 
   const resetWrite = () => {
@@ -1515,7 +1633,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     {(() => {
                       const dateStr = selectedMealDate ? new Date(selectedMealDate).toDateString() : new Date().toDateString();
                       const dayCal = recentMeals.filter(m => m.date === dateStr).reduce((s, m) => s + (m.calories || 0), 0);
-                      const over = dayCal > dailyCalorieGoal;
+                      const over = dayCal > cardGoal;
                       return (
                         <View style={[styles.shareCardTrackBadge, over && { backgroundColor: 'rgba(249,115,22,0.2)', borderColor: 'rgba(249,115,22,0.35)' }]}>
                           <Text style={[styles.shareCardTrackText, over && { color: '#f97316' }]}>
@@ -1538,21 +1656,30 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   const mealCal = detectedFoods.length > 0
                     ? detectedFoods.reduce((s, f) => s + (f.cal || 0), 0)
                     : (viewingMeal?.calories || 0);
-                  const rawPct = dailyCalorieGoal > 0 ? dayTotal / dailyCalorieGoal : 0;
+                  const rawPct = cardGoal > 0 ? dayTotal / cardGoal : 0;
                   const isOver = rawPct > 1;
                   const barPct = Math.min(rawPct, 1);
+                  const remaining = Math.max(cardGoal - dayTotal, 0);
                   return (
                     <View style={styles.shareCardKcalSection}>
                       <View style={styles.shareCardKcalRow}>
                         <View style={styles.shareCardKcalBig}>
-                          <Text style={[styles.shareCardKcalNumber, mealCal >= 1000 && { fontSize: 40, letterSpacing: -2 }]}>{mealCal}</Text>
-                          <Text style={styles.shareCardKcalUnit}>kcal</Text>
+                          <Text style={styles.shareCardKcalLabel}>This meal</Text>
+                          <View style={styles.shareCardKcalNumberRow}>
+                            <Text style={[styles.shareCardKcalNumber, mealCal >= 1000 && { fontSize: 40, letterSpacing: -2 }]}>{mealCal}</Text>
+                            <Text style={styles.shareCardKcalUnit}>kcal</Text>
+                          </View>
                         </View>
                         <View style={styles.shareCardProgressCol}>
                           <View style={styles.shareCardProgressMeta}>
-                            <Text style={styles.shareCardProgressText}>{dayTotal.toLocaleString()} out of {(dailyCalorieGoal || 0).toLocaleString()} daily goal</Text>
+                            <Text style={styles.shareCardProgressLabel}>Today overall</Text>
                             <Text style={[styles.shareCardProgressPct, isOver && { color: '#f97316' }]}>{Math.round(rawPct * 100)}%</Text>
                           </View>
+                          <Text style={styles.shareCardProgressText}>
+                            {dayTotal.toLocaleString()} of {(cardGoal || 0).toLocaleString()} kcal · {isOver
+                              ? `${(dayTotal - cardGoal).toLocaleString()} over`
+                              : `${remaining.toLocaleString()} left`}
+                          </Text>
                           <View style={styles.shareCardProgressBar}>
                             <LinearGradient
                               colors={isOver ? ['#f97316', '#ef4444'] : ['#22c55e', '#86efac']}
@@ -1585,7 +1712,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
               </View>
 
               {/* Detected food items */}
-              {detectedFoods.length > 0 && (
+              {shareIncludeIngredients && detectedFoods.length > 0 && (
                 <View style={styles.shareCardFoodsList}>
                   <Text style={styles.shareCardFoodsTitle}>Detected Foods</Text>
                   {detectedFoods.map((food, i) => (
@@ -1599,7 +1726,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
               )}
 
               {/* Macro distribution */}
-              {(() => {
+              {shareIncludeIngredients && (() => {
                 const hasFoods = detectedFoods.length > 0;
                 const p = hasFoods ? detectedFoods.reduce((s, f) => s + (f.protein || 0), 0) : (viewingMeal?.protein || 0);
                 const c = hasFoods ? detectedFoods.reduce((s, f) => s + (f.carbs || 0), 0) : (viewingMeal?.carbs || 0);
@@ -1639,76 +1766,19 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
               {/* Action buttons */}
               <View style={styles.shareCardActions}>
-                <TouchableOpacity style={styles.shareCardShareBtn} onPress={async () => {
-                  try {
-                    // Build text details to share alongside the card image
-                    const todayStr = new Date().toDateString();
-                    const todayMeals = recentMeals.filter(m => m.date === todayStr);
-                    const totalCal = todayMeals.reduce((s, m) => s + (m.calories || 0), 0);
-                    const totalProtein = todayMeals.reduce((s, m) => s + (m.protein || 0), 0);
-                    const totalCarbs = todayMeals.reduce((s, m) => s + (m.carbs || 0), 0);
-                    const totalFats = todayMeals.reduce((s, m) => s + (m.fats || 0), 0);
-                    const hasFoods = detectedFoods.length > 0;
-                    const mealCal = hasFoods ? detectedFoods.reduce((s, f) => s + (f.cal || 0), 0) : (viewingMeal?.calories || 0);
-                    const mealProtein = hasFoods ? detectedFoods.reduce((s, f) => s + (f.protein || 0), 0) : (viewingMeal?.protein || 0);
-                    const mealCarbs = hasFoods ? detectedFoods.reduce((s, f) => s + (f.carbs || 0), 0) : (viewingMeal?.carbs || 0);
-                    const mealFats = hasFoods ? detectedFoods.reduce((s, f) => s + (f.fats || 0), 0) : (viewingMeal?.fats || 0);
-                    const foodLines = hasFoods
-                      ? detectedFoods.map(f => `${f.name}${f.qty ? ` (${f.qty})` : ''} - ${f.cal} cal`).join('\n')
-                      : (viewingMeal?.name || mealTitle || '').split(',').map(f => f.trim()).filter(Boolean).join('\n');
-                    const now2 = new Date();
-                    const mealType = selectedMealType.toLowerCase();
-                    const dateStr = now2.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-                    const detailsText = [
-                      `Today ${dateStr}'s ${mealType} was ${mealTitle || 'my meal'} — ${mealCal} cal`,
-                      '',
-                      '*Here is the breakdown:*',
-                      foodLines,
-                      '',
-                      `Overall Calories for Today: ${totalCal.toLocaleString()} / ${dailyCalorieGoal.toLocaleString()} kcal`,
-                      '',
-                      'Tracked on AfriFast',
-                    ].join('\n');
-
-                    if (Platform.OS === 'web') {
-                      const node = shareCardRef.current;
-                      if (!node) return;
-                      const h2c = (await import('html2canvas')).default;
-                      const canvas = await h2c(node, {
-                        useCORS: true,
-                        allowTaint: false,
-                        backgroundColor: '#111111',
-                        scale: 2,
-                      });
-                      const dataUrl = canvas.toDataURL('image/png');
-                      const res = await fetch(dataUrl);
-                      const blob = await res.blob();
-                      const file = new File([blob], 'afri-fast-meal.png', { type: 'image/png' });
-                      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        await navigator.share({ files: [file], title: 'My Meal — AfriFast', text: detailsText });
-                      } else {
-                        const a = document.createElement('a');
-                        a.href = dataUrl;
-                        a.download = 'afri-fast-meal.png';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                      }
-                    } else {
-                      const uri = await captureRef(shareCardRef, { format: 'png', quality: 0.95 });
-                      await Share.share({
-                        title: 'My Meal — AfriFast',
-                        message: detailsText,
-                        url: uri,
-                      });
-                    }
-                  } catch (e) {
-                    console.warn('Share failed:', e);
-                    alert('Could not share. Try a screenshot instead.');
-                  }
-                }}>
-                  <Ionicons name="share-social-outline" size={20} color="#fff" />
-                  <Text style={styles.shareCardShareBtnText}>Share</Text>
+                <TouchableOpacity
+                  style={styles.shareCardShareBtn}
+                  disabled={isSharing}
+                  onPress={() => setShowSharePrompt(true)}
+                >
+                  {isSharing ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="share-social-outline" size={20} color="#fff" />
+                      <Text style={styles.shareCardShareBtnText}>Share</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.shareCardDoneBtn} onPress={() => { resetScan(); onClose(); }}>
                   <Text style={styles.shareCardDoneBtnText}>Done</Text>
@@ -2070,6 +2140,26 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
           )}
         </View>
       )}
+
+      {/* Share-scope prompt — asks whether ingredients should be included before generating the card */}
+      <Modal visible={showSharePrompt} transparent animationType="fade" onRequestClose={() => setShowSharePrompt(false)}>
+        <TouchableOpacity style={styles.sharePromptBackdrop} activeOpacity={1} onPress={() => setShowSharePrompt(false)}>
+          <TouchableOpacity activeOpacity={1} style={styles.sharePromptCard} onPress={() => {}}>
+            <Text style={styles.sharePromptTitle}>What do you want to share?</Text>
+            <TouchableOpacity style={styles.sharePromptOption} onPress={() => handleShareChoice(false)}>
+              <Text style={styles.sharePromptOptionTitle}>This meal only</Text>
+              <Text style={styles.sharePromptOptionSub}>Photo, calories and today's progress</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.sharePromptOption} onPress={() => handleShareChoice(true)}>
+              <Text style={styles.sharePromptOptionTitle}>Meal + ingredients</Text>
+              <Text style={styles.sharePromptOptionSub}>Also adds the detected foods and macro breakdown</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.sharePromptCancel} onPress={() => setShowSharePrompt(false)}>
+              <Text style={styles.sharePromptCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
     </KeyboardAvoidingView>
   );
@@ -2535,6 +2625,53 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  sharePromptBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  sharePromptCard: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 32,
+    gap: 10,
+  },
+  sharePromptTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 4,
+  },
+  sharePromptOption: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 14,
+    padding: 14,
+  },
+  sharePromptOptionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 2,
+  },
+  sharePromptOptionSub: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  sharePromptCancel: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  sharePromptCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
   shareCardFoodsList: {
     alignSelf: 'stretch',
     backgroundColor: '#fff',
@@ -2729,10 +2866,22 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   shareCardKcalBig: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 2,
+    flexShrink: 0,
+  },
+  shareCardKcalLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.35)',
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  shareCardKcalNumberRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 6,
-    flexShrink: 0,
   },
   shareCardKcalNumber: {
     fontFamily: 'Inter',
@@ -2758,9 +2907,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 6,
   },
+  shareCardProgressLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.35)',
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
   shareCardProgressText: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: 'rgba(255,255,255,0.55)',
+    marginBottom: 6,
   },
   shareCardProgressPct: {
     fontSize: 11,
