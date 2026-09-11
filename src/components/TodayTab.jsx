@@ -1,7 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, Animated, RefreshControl } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, Animated, Easing, RefreshControl } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Stop, ClipPath, G, Path } from 'react-native-svg';
+
+const AnimatedG = Animated.createAnimatedComponent(G);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+// Seamless sine wave tile — period 100, repeated 4x across a 400-wide strip
+// so it can loop via translateX by exactly one period (-100) forever.
+const LIQUID_WAVE_D =
+  'M0,0 Q25,-6 50,0 T100,0 T150,0 T200,0 T250,0 T300,0 T350,0 T400,0 L400,400 L0,400 Z';
+const LIQUID_WAVE_PERIOD = 100;
+const LIQUID_TOP_Y = 12;    // wave surface y when calRatio === 1 (near top of r=88 circle)
+const LIQUID_BOTTOM_Y = 200; // wave surface y when calRatio === 0 (fully hidden below clip)
 import { useTheme } from '../lib/theme';
 import { getJustForYou, getCachedJustForYou } from '../lib/claudeInsights';
 import FormattedText from '../lib/FormattedText';
@@ -629,11 +640,37 @@ const TodayTab = ({
   const sessions = fastingSessions || [];
 
   // Calorie ring calculations
-  const CAL_CIRCUMFERENCE = 2 * Math.PI * 90;
   const calRatio = dailyCalorieGoal > 0 ? Math.min(todayCalories / dailyCalorieGoal, 1) : 0;
-  const calOffset = CAL_CIRCUMFERENCE * (1 - calRatio);
   const calRemaining = Math.max((dailyCalorieGoal || 0) - todayCalories, 0);
   const isCalOver = dailyCalorieGoal > 0 && todayCalories > dailyCalorieGoal;
+
+  // Liquid-fill ring animation: waveX loops the wave horizontally forever,
+  // waveY eases the fill level toward calRatio whenever calories/goal change.
+  const waveX = useRef(new Animated.Value(0)).current;
+  const waveY = useRef(new Animated.Value(LIQUID_BOTTOM_Y)).current;
+
+  useEffect(() => {
+    const loopAnim = Animated.loop(
+      Animated.timing(waveX, {
+        toValue: -LIQUID_WAVE_PERIOD,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      })
+    );
+    loopAnim.start();
+    return () => loopAnim.stop();
+  }, []);
+
+  useEffect(() => {
+    const targetY = LIQUID_BOTTOM_Y - calRatio * (LIQUID_BOTTOM_Y - LIQUID_TOP_Y);
+    Animated.timing(waveY, {
+      toValue: targetY,
+      duration: 900,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [calRatio]);
 
   // Today's meals
   const todayDateStr = new Date().toDateString();
@@ -754,21 +791,31 @@ const TodayTab = ({
             <View style={styles.progressRingSmall}>
               <Svg width={200} height={200} viewBox="0 0 200 200">
                 <Defs>
-                  <LinearGradient id="calGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <Stop offset="0%" stopColor={isCalOver ? '#EF4444' : '#059669'} />
-                    <Stop offset="100%" stopColor={isCalOver ? '#F97316' : '#34D399'} />
+                  <LinearGradient id="liquidGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <Stop offset="0%" stopColor={isCalOver ? '#F97316' : '#34D399'} />
+                    <Stop offset="100%" stopColor={isCalOver ? '#EF4444' : '#059669'} />
                   </LinearGradient>
+                  <ClipPath id="liquidClip">
+                    <Circle cx="100" cy="100" r="88" />
+                  </ClipPath>
                 </Defs>
-                <Circle cx="100" cy="100" r="90" stroke={isCalOver ? '#FEE2E2' : '#D1FAE5'} strokeWidth="8" fill="none" />
-                <Circle
-                  cx="100" cy="100" r="90"
-                  stroke={isCalOver ? '#EF4444' : 'url(#calGradient)'}
-                  strokeWidth="10" fill="none"
-                  strokeLinecap="round"
-                  strokeDasharray={CAL_CIRCUMFERENCE}
-                  strokeDashoffset={calOffset}
-                  transform="rotate(-90 100 100)"
-                />
+
+                {/* container background */}
+                <Circle cx="100" cy="100" r="90" fill={isCalOver ? '#FEF2F2' : '#F0FDF4'} />
+
+                {/* liquid fill, clipped to a fixed circle so only the content moves */}
+                <G clipPath="url(#liquidClip)">
+                  <AnimatedG translateY={waveY}>
+                    <AnimatedPath
+                      d={LIQUID_WAVE_D}
+                      fill="url(#liquidGradient)"
+                      translateX={waveX}
+                    />
+                  </AnimatedG>
+                </G>
+
+                {/* outer ring outline */}
+                <Circle cx="100" cy="100" r="90" stroke={isCalOver ? '#FCA5A5' : '#A7F3D0'} strokeWidth="8" fill="none" />
               </Svg>
               <View style={styles.progressInnerSmall}>
                 <Text style={[styles.fastingLabelSmall, isCalOver && { color: '#EF4444' }]}>
