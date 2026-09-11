@@ -835,12 +835,14 @@ const TodayTab = ({
 
             {resourceArticle && (
               <TouchableOpacity
-                style={[styles.patternCardLarge, { width: SCROLL_CARD_WIDTH }]}
+                style={[styles.patternCardLarge, { width: SCROLL_CARD_WIDTH, minHeight: 160, justifyContent: 'space-between' }]}
                 onPress={() => setSelectedArticle(resourceArticle)}
               >
                 <Image source={resourceArticle.image} style={[styles.patternImageArea, { width: SCROLL_CARD_WIDTH }]} resizeMode="cover" />
-                <Text style={styles.patternTitleLarge}>{resourceArticle.title}</Text>
-                <Text style={styles.patternTimeLarge}>{resourceArticle.time}</Text>
+                <View>
+                  <Text style={styles.patternTitleLarge}>{resourceArticle.title}</Text>
+                  <Text style={styles.patternTimeLarge}>{resourceArticle.time}</Text>
+                </View>
               </TouchableOpacity>
             )}
           </ScrollView>
