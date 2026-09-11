@@ -828,20 +828,10 @@ const TodayTab = ({
             ) : null}
 
             {resourceArticle && (
-              <TouchableOpacity
-                activeOpacity={0.88}
-                onPress={() => setSelectedArticle(resourceArticle)}
-                style={{ width: 260, marginRight: 12, backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(5, 150, 105, 0.08)', minHeight: 160 }}
-              >
-                {resourceArticle.image && (
-                  <Image source={resourceArticle.image} style={{ width: '100%', height: 90 }} resizeMode="cover" />
-                )}
-                <View style={{ padding: 14, flex: 1, justifyContent: 'space-between' }}>
-                  <Text numberOfLines={2} style={{ fontSize: 14.5, fontWeight: '700', color: colors.text, lineHeight: 20 }}>
-                    {resourceArticle.title}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 6 }}>{resourceArticle.time}</Text>
-                </View>
+              <TouchableOpacity style={styles.patternCardLarge} onPress={() => setSelectedArticle(resourceArticle)}>
+                <Image source={resourceArticle.image} style={styles.patternImageArea} resizeMode="cover" />
+                <Text style={styles.patternTitleLarge}>{resourceArticle.title}</Text>
+                <Text style={styles.patternTimeLarge}>{resourceArticle.time}</Text>
               </TouchableOpacity>
             )}
           </ScrollView>
