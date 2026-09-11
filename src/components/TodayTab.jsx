@@ -10,6 +10,12 @@ import { resolveCalorieGoal, resolveCaloriesEaten, buildDailyLedgerMap } from '.
 import LiquidCalorieRing from './LiquidCalorieRing';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+// Horizontal-scroll cards: size so the first card nearly fills the viewport
+// and the next one peeks in at the edge, inviting a scroll. 20 = section's
+// side gutter (x2), 28 = how much of the next card shows.
+const SCROLL_CARD_GUTTER = 20;
+const SCROLL_CARD_PEEK = 28;
+const SCROLL_CARD_WIDTH = SCREEN_WIDTH - SCROLL_CARD_GUTTER * 2 - SCROLL_CARD_PEEK;
 
 const getInitials = (name) => {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean);
@@ -811,12 +817,12 @@ const TodayTab = ({
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
             {jfyLoading ? (
-              <JfySkeletonCard style={{ width: 260, marginRight: 12 }} />
+              <JfySkeletonCard style={{ width: SCROLL_CARD_WIDTH, marginRight: 12 }} />
             ) : justForYouInsight ? (
               <TouchableOpacity
                 activeOpacity={0.88}
                 onPress={() => { setJfyExpanded(true); setJfyFreshReady(false); }}
-                style={{ width: 260, marginRight: 12, backgroundColor: '#059669', borderRadius: 16, padding: 16, minHeight: 160, justifyContent: 'space-between' }}
+                style={{ width: SCROLL_CARD_WIDTH, marginRight: 12, backgroundColor: '#059669', borderRadius: 16, padding: 16, minHeight: 160, justifyContent: 'space-between' }}
               >
                 <Text style={{ fontSize: 15, fontWeight: '700', lineHeight: 22, color: 'rgba(255,255,255,0.92)', flex: 1, marginBottom: 16 }} numberOfLines={4}>
                   {justForYouInsight}
@@ -828,8 +834,11 @@ const TodayTab = ({
             ) : null}
 
             {resourceArticle && (
-              <TouchableOpacity style={styles.patternCardLarge} onPress={() => setSelectedArticle(resourceArticle)}>
-                <Image source={resourceArticle.image} style={styles.patternImageArea} resizeMode="cover" />
+              <TouchableOpacity
+                style={[styles.patternCardLarge, { width: SCROLL_CARD_WIDTH }]}
+                onPress={() => setSelectedArticle(resourceArticle)}
+              >
+                <Image source={resourceArticle.image} style={[styles.patternImageArea, { width: SCROLL_CARD_WIDTH }]} resizeMode="cover" />
                 <Text style={styles.patternTitleLarge}>{resourceArticle.title}</Text>
                 <Text style={styles.patternTimeLarge}>{resourceArticle.time}</Text>
               </TouchableOpacity>
