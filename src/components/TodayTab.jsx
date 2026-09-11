@@ -45,7 +45,7 @@ const ARTICLE_POOL = [
   {
     title: 'Sleep is your secret weapon',
     time: '4 min read',
-    image: { uri: 'https://images.unsplash.com/photo-1455642305367-68834a9d4337?w=400' },
+    image: { uri: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Sleeping_baby_%28Unsplash%29.jpg' },
     body: "Poor sleep raises ghrelin (the hunger hormone) by up to 24% and drops leptin (the fullness hormone) by 18%. Those numbers come from controlled studies on otherwise healthy people who slept 5 hours instead of 8. The result is what feels like uncontrollable hunger the next day.\n\nThis is why sticking to your calorie goal feels impossible after a bad night — it's not willpower, it's hormones.\n\nThe relationship runs both ways. Better eating habits and lighter evening meals improve deep sleep. So a consistent calorie routine and a consistent sleep routine reinforce each other.\n\nWhat actually moves the needle on sleep:\n\nFinish eating 2–3 hours before bed. Late eating disrupts deep sleep regardless of what you ate.\n\nKeep your room cool — 18–20°C. The body needs to drop its core temperature to fall asleep.\n\nDim lights an hour before bed. Bright overhead lights, especially blue-spectrum from screens, suppress melatonin.\n\nIf there's one habit that protects everything else — calorie control, weight loss, mood, energy — it's protecting your sleep.",
   },
   {
@@ -117,13 +117,13 @@ const ARTICLE_POOL = [
   {
     title: 'Move more, burn more',
     time: '3 min read',
-    image: { uri: 'https://images.unsplash.com/photo-1502810365585-3a92e3ca1b27?w=400' },
+    image: { uri: 'https://upload.wikimedia.org/wikipedia/commons/6/6b/One_form_of_exercise_social_distancing_Tottenham_style_Covid-19_pandemic_11.jpg' },
     body: "A 10-minute walk after eating does something remarkable: it lowers your blood sugar response by 20–30%. This reduces the insulin spike that drives fat storage and afternoon cravings.\n\nWhen you eat, especially carbs, glucose floods your bloodstream. Insulin rises to clear it into cells. This insulin spike — and the crash that follows — is what makes you hungry an hour after a meal.\n\nWalking activates your muscles, which pull glucose out of your blood without needing as much insulin. The result is smaller blood-sugar swings, smaller hunger swings, and better calorie control throughout the day.\n\nThe science is clear and simple: even a slow, 10-minute walk after each meal beats a single 30-minute walk in the morning, calorie for calorie, when it comes to blood-sugar and appetite control.\n\nNon-exercise activity also adds up fast. Standing instead of sitting, taking stairs, walking to a destination instead of driving — these burn 200–500 extra calories per day without any formal workout. For weight loss, this is often easier to sustain than gym sessions.\n\nAfter your last meal of the day, walk for 10–15 minutes. Don't push the pace — slow walking actually works better for blood-sugar control than fast walking. Most people sleep better too.",
   },
   {
     title: 'Best foods for fat loss',
     time: '5 min read',
-    image: { uri: 'https://estherafricanfoods.com/wp-content/uploads/2023/02/Healthy-foods-1080x675.webp' },
+    image: { uri: 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Healthy_meal_planning_with_fresh_fruits_and_vegetables_in_a_bright_kitchen_setting.jpg' },
     body: "The best weight loss foods are the ones that fill you up the most per calorie. These foods let you hit your calorie goal without feeling deprived — which is what makes a diet sustainable.\n\nLeafy greens (ugwu, bitter leaf, waterleaf, spinach) — virtually calorie-free, high in fibre and micronutrients. Add them generously to every meal.\n\nLegumes (beans, lentils, cowpeas, soybeans) — extremely filling, high in protein and fibre, and cheap. Moimoi and stewed beans are among the best calorie-value meals in African cooking.\n\nEggs — high in protein, moderate in calories, and proven to reduce hunger for hours after eating. Two eggs for breakfast can cut calorie intake at lunch by 400+ calories.\n\nFish and lean meat — high protein, lower calorie density than fatty meat. Grilled or oven-roasted is far better than deep-fried.\n\nFresh fruits — watermelon, pawpaw, oranges, and mangoes are naturally sweet, low-calorie, and filling. They satisfy sugar cravings without the calorie cost of processed sweets.\n\nFoods to watch portions on: palm oil, groundnut oil, peanut butter, and fried snacks. These are not bad foods, but their calorie density is very high — small amounts add up quickly. A tablespoon of oil is 120 calories. Two tablespoons of groundnut paste in a soup is 200 calories. Use with awareness.",
   },
   {

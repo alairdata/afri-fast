@@ -1156,7 +1156,7 @@ export const AFRICAN_RECIPES = [
       "Cool completely — they only get crunchy once cold."
     ],
     "imageFilename": "chin-chin-baked.jpg",
-  "imageUrl": "https://afrokitchennl.ca/wp-content/uploads/2020/11/chinchin.jpg",
+  "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/88/Chin-chin.jpg",
     "fastingFriendly": false
   },
   {
@@ -1354,7 +1354,7 @@ export const AFRICAN_RECIPES = [
       "Cool at least 20 mins; it hardens into crunchy candy as it cools."
     ],
     "imageFilename": "coconut-candy.jpg",
-  "imageUrl": "https://www.nairaland.com/attachments/15479505_fbimg1653472159311_jpegc894a9894b1ff19167cb87f7180377f1",
+  "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/7/74/Coconut_Candy_%2852311610055%29.jpg",
     "fastingFriendly": false
   },
   {
@@ -2399,7 +2399,7 @@ export const AFRICAN_RECIPES = [
       "Serve with 1 slice boiled yam or eat alone for a high protein boost."
     ],
     "imageFilename": "egg-corned-beef.jpg",
-  "imageUrl": "https://realfood.tesco.com/media/images/Corned-beef-hash-1400x919-ed47e2e4-64d4-4fc7-9d38-2bb0d19cb271-0-1400x919.jpg",
+  "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Corned_beef_hash.jpg",
     "fastingFriendly": false
   },
   {
@@ -2526,7 +2526,7 @@ export const AFRICAN_RECIPES = [
     "Plate the whole fish alongside the hot boiled yam."
   ],
   "imageFilename": "grilled-tilapia-yam.jpg",
-  "imageUrl": "https://chopshopgh.com/storage/2025/10/CHOP-SHOP12635-scaled.jpg",
+  "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/8d/Grilled_Tilapia_-_Winneba.jpg",
   "fastingFriendly": false
 },
 {
