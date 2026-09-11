@@ -662,8 +662,11 @@ const TodayTab = ({
   };
   const calHistory = getWeekCalHistory();
 
-  const patternCards = getDailyArticles(5);
-  const resourceArticle = patternCards[0];
+  // Pull 6 so the Just for You resource card and the Based on Your Pattern
+  // row never show the same article on the same day.
+  const dailyArticlePool = getDailyArticles(6);
+  const resourceArticle = dailyArticlePool[0];
+  const patternCards = dailyArticlePool.slice(1);
 
   const [selectedArticle, setSelectedArticle] = useState(null);
 
