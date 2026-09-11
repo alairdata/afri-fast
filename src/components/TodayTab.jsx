@@ -4,8 +4,6 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image
 import { useTheme } from '../lib/theme';
 import { getJustForYou, getCachedJustForYou } from '../lib/claudeInsights';
 import FormattedText from '../lib/FormattedText';
-import { AFRICAN_RECIPES } from '../lib/africanRecipes';
-import { RecipeDetailModal, RecipeCard } from './MakeRecipePage';
 import { resolveCalorieGoal, resolveCaloriesEaten, buildDailyLedgerMap } from '../lib/goalHistory';
 import LiquidCalorieRing from './LiquidCalorieRing';
 
@@ -645,66 +643,6 @@ const TodayTab = ({
   const todayDateStr = new Date().toDateString();
   const todayMeals = (recentMeals || []).filter(m => m.date === todayDateStr);
 
-  // Eating-style-aware meal context
-  const hour = new Date().getHours();
-  const style = eatingStyle || 'flexible';
-  const window = eatingWindow || 'evening';
-
-  const getMealContext = () => {
-    if (style === 'omad') {
-      const windowRanges = { morning: [6, 12], midday: [11, 15], evening: [17, 22], night: [20, 24] };
-      const [wStart, wEnd] = windowRanges[window] || [17, 22];
-      if (hour >= wStart && hour < wEnd)
-        return { label: 'Your meal for today', budgetRatio: 1.0 };
-      return { label: null, budgetRatio: 0 }; // outside window — hide suggestions
-    }
-
-    if (style === '2x') {
-      const isMorning = hour >= 6 && hour < 12;
-      const isEvening = hour >= 17 && hour < 22;
-      if (isMorning) return { label: 'First meal of the day',    budgetRatio: 0.50 };
-      if (isEvening) return { label: 'Second meal of the day',   budgetRatio: 0.50 };
-      return { label: 'Between meals — keep it light', budgetRatio: 0.08, maxCal: 200 };
-    }
-
-    if (style === '3x') {
-      if (hour >= 5  && hour < 11) return { label: 'Try one of these for breakfast', budgetRatio: 0.25 };
-      if (hour >= 11 && hour < 15) return { label: 'Lunch ideas for you',            budgetRatio: 0.35 };
-      if (hour >= 15 && hour < 18) return { label: 'Want a snack? You have options', budgetRatio: 0.12, maxCal: 300 };
-      if (hour >= 18 && hour < 22) return { label: "What's for dinner?",             budgetRatio: 0.30 };
-      return { label: 'Late night snack ideas', budgetRatio: 0.08, maxCal: 200 };
-    }
-
-    if (style === '4x') {
-      if (hour >= 5  && hour < 10) return { label: 'Breakfast ideas',       budgetRatio: 0.20 };
-      if (hour >= 10 && hour < 12) return { label: 'Mid-morning snack',     budgetRatio: 0.10, maxCal: 250 };
-      if (hour >= 12 && hour < 15) return { label: 'Lunch ideas',           budgetRatio: 0.30 };
-      if (hour >= 15 && hour < 17) return { label: 'Afternoon snack',       budgetRatio: 0.10, maxCal: 250 };
-      if (hour >= 17 && hour < 22) return { label: "What's for dinner?",    budgetRatio: 0.25 };
-      return { label: 'Late snack', budgetRatio: 0.05, maxCal: 150 };
-    }
-
-    // flexible — time label only, budget = all remaining
-    if (hour >= 5  && hour < 11) return { label: 'Try one of these for breakfast', budgetRatio: 1.0 };
-    if (hour >= 11 && hour < 15) return { label: 'Lunch ideas for you',            budgetRatio: 1.0 };
-    if (hour >= 15 && hour < 18) return { label: 'Want a snack?',                  budgetRatio: 0.15, maxCal: 400 };
-    if (hour >= 18 && hour < 22) return { label: "What's for dinner?",             budgetRatio: 1.0 };
-    return { label: 'Late night snack ideas', budgetRatio: 0.10, maxCal: 200 };
-  };
-
-  const mealContext = getMealContext();
-  const LIGHT_OPTIONS_CAP = 150; // once over budget, still surface very light snack ideas instead of hiding the section
-  const slotBudget = mealContext.budgetRatio === 0 ? 0
-    : dailyCalorieGoal
-      ? Math.min(
-          mealContext.maxCal ?? Math.round(dailyCalorieGoal * mealContext.budgetRatio),
-          isCalOver ? LIGHT_OPTIONS_CAP : calRemaining
-        )
-      : 600;
-  const suggestedRecipes = (AFRICAN_RECIPES || [])
-    .filter(r => r.calories <= Math.max(slotBudget, 150))
-    .slice(0, 3);
-
   // Logging history this week — checked if any meal was logged that day
   const getWeekCalHistory = () => {
     const today = new Date();
@@ -728,7 +666,6 @@ const TodayTab = ({
   const resourceArticle = patternCards[0];
 
   const [selectedArticle, setSelectedArticle] = useState(null);
-  const [selectedSuggestedRecipe, setSelectedSuggestedRecipe] = useState(null);
 
   return (
     <View style={styles.wrapper}>
@@ -848,24 +785,19 @@ const TodayTab = ({
           </ScrollView>
         </View>
 
-        {/* What to Eat Next */}
-        {suggestedRecipes.length > 0 && slotBudget > 0 && (
-          <View style={[styles.sectionTight, { marginTop: 36 }]}>
-            <Text style={styles.sectionTitleTight}>
-              {isCalOver ? "You've hit your goal \u2014 light options only" : mealContext.label}
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
-              {suggestedRecipes.map((recipe, i) => (
-                <RecipeCard
-                  key={i}
-                  recipe={recipe}
-                  userCountry={userCountry}
-                  onPress={() => setSelectedSuggestedRecipe(recipe)}
-                />
-              ))}
-            </ScrollView>
-          </View>
-        )}
+        {/* Based on Your Pattern */}
+        <View style={[styles.sectionTight, { marginTop: 36 }]}>
+          <Text style={styles.sectionTitleTight}>Based on Your Pattern</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.patternScrollCompact}>
+            {patternCards.map((card, i) => (
+              <TouchableOpacity key={i} style={styles.patternCardLarge} onPress={() => setSelectedArticle(card)}>
+                <Image source={card.image} style={styles.patternImageArea} resizeMode="cover" />
+                <Text style={styles.patternTitleLarge}>{card.title}</Text>
+                <Text style={styles.patternTimeLarge}>{card.time}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* This Week */}
         <View style={[styles.sectionTight, { marginTop: 36 }]}>
@@ -1037,18 +969,6 @@ const TodayTab = ({
           </ScrollView>
         </View>
       </Modal>
-
-      {/* Recipe Detail Modal */}
-      <RecipeDetailModal
-        recipe={selectedSuggestedRecipe}
-        visible={selectedSuggestedRecipe !== null}
-        onClose={() => setSelectedSuggestedRecipe(null)}
-        userCountry={userCountry}
-        onLogMeal={(meal) => {
-          setSelectedSuggestedRecipe(null);
-          onLogMeal?.(meal);
-        }}
-      />
 
       {/* Article Modal */}
       <Modal
