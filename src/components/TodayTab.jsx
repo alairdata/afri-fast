@@ -822,7 +822,7 @@ const TodayTab = ({
               <TouchableOpacity
                 activeOpacity={0.88}
                 onPress={() => { setJfyExpanded(true); setJfyFreshReady(false); }}
-                style={{ width: SCROLL_CARD_WIDTH, marginRight: 12, backgroundColor: '#059669', borderRadius: 16, padding: 16, minHeight: 160, justifyContent: 'space-between' }}
+                style={{ width: SCROLL_CARD_WIDTH, marginRight: 12, backgroundColor: '#047857', borderRadius: 16, padding: 16, minHeight: 160, justifyContent: 'space-between' }}
               >
                 <Text style={{ fontSize: 15, fontWeight: '700', lineHeight: 22, color: 'rgba(255,255,255,0.92)', flex: 1, marginBottom: 16 }} numberOfLines={4}>
                   {justForYouInsight}
