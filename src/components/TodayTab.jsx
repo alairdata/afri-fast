@@ -1465,9 +1465,8 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 20,
   },
   patternCardLarge: {
-    width: 180,
+    width: 260,
     marginRight: 12,
-    marginRight: 10,
     shadowColor: '#059669',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -1475,10 +1474,10 @@ const makeStyles = (c) => StyleSheet.create({
     elevation: 2,
   },
   patternImageArea: {
-    width: 180,
-    height: 140,
+    width: 260,
+    height: 96,
     borderRadius: 16,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   patternTitleLarge: {
     fontSize: 14,
