@@ -200,15 +200,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [showLogMealModal, setShowLogMealModal] = useState(false);
   const [showLogMealOptions, setShowLogMealOptions] = useState(false);
   const [logMealOpenedFromOptions, setLogMealOpenedFromOptions] = useState(false);
-  // "Ask" and "Make it" in the log-meal picker grid hide that grid to show their own
-  // screen — these track that so backing out of either returns to the grid instead of
-  // falling through to whatever's underneath (the plain meals list).
+  // "Ask" in the log-meal picker grid hides that grid to show its own screen —
+  // this tracks that so backing out returns to the grid instead of falling
+  // through to whatever's underneath (the plain meals list).
   const [chatOpenedFromLogMealOptions, setChatOpenedFromLogMealOptions] = useState(false);
-  const [makeRecipeOpenedFromLogMealOptions, setMakeRecipeOpenedFromLogMealOptions] = useState(false);
   const [chatVariant, setChatVariant] = useState('coach');
   const [chatMealToLog, setChatMealToLog] = useState(null);
   const [pendingInsightIndex, setPendingInsightIndex] = useState(null);
-  const [showMakeRecipePage, setShowMakeRecipePage] = useState(false);
   const [showFindRecipePage, setShowFindRecipePage] = useState(false);
   const [showMakeRecipeModal, setShowMakeRecipeModal] = useState(false);
   const [showFindRecipeModal, setShowFindRecipeModal] = useState(false);
@@ -1824,7 +1822,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
             setShowLogMealModal(true);
           }}
           onMealLogBlocked={() => showToast('Log meals only after ending your fast.')}
-          onMakeRecipe={() => { setMakeRecipeOpenedFromLogMealOptions(true); setShowMakeRecipePage(true); }}
           onFindRecipe={() => setShowFindRecipePage(true)}
           onShowChat={(context) => { setChatOpeningContext(context || null); setChatVariant('meals'); setChatOpenedFromLogMealOptions(true); setShowChat(true); }}
           onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setLogMealOpenedFromOptions(false); setShowLogMealModal(true); }}
@@ -2230,16 +2227,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       />
 
       <MakeRecipePage
-        show={showMakeRecipePage}
-        onClose={() => {
-          setShowMakeRecipePage(false);
-          if (makeRecipeOpenedFromLogMealOptions) setShowLogMealOptions(true);
-          setMakeRecipeOpenedFromLogMealOptions(false);
-        }}
+        show={activeTab === 'ideas'}
+        onClose={() => setActiveTab('today')}
         userCountry={userCountry}
         onLogMeal={(recipe) => {
-          setShowMakeRecipePage(false);
-          setMakeRecipeOpenedFromLogMealOptions(false);
+          setActiveTab('meals');
           setRecipeToLog(recipe);
           setLogMealMethod('recipe');
           setLogMealOpenedFromOptions(false);

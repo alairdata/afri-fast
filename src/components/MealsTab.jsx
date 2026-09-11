@@ -18,7 +18,7 @@ const REVIEWS = [
   { name: 'Yemi D.', text: 'Tracked amala and ewedu for a week. The numbers matched what my nutritionist said. Impressive.', stars: 5 },
 ];
 
-const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onMakeRecipe, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked, onShowChat, showLogMealOptions, setShowLogMealOptions }) => {
+const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked, onShowChat, showLogMealOptions, setShowLogMealOptions }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
@@ -353,24 +353,15 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
 
               <TouchableOpacity
                 style={styles.logMealCard}
-                onPress={() => { setShowLogMealOptions(false); onMakeRecipe && onMakeRecipe(); }}
+                onPress={() => { setShowLogMealOptions(false); onShowChat && onShowChat(); }}
               >
                 <View style={[styles.logMealCardIcon, { backgroundColor: colors.cardAlt }]}>
-                  <Ionicons name="restaurant-outline" size={26} color="#8B5CF6" />
+                  <Ionicons name="chatbubble-ellipses-outline" size={26} color="#8B5CF6" />
                 </View>
-                <Text style={styles.logMealCardTitle}>Make it</Text>
-                <Text style={styles.logMealCardDesc}>Build a healthy meal</Text>
+                <Text style={styles.logMealCardTitle}>Ask</Text>
+                <Text style={styles.logMealCardDesc}>Tell our AI what you had</Text>
               </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={styles.logMealCenterCircle}
-              activeOpacity={0.85}
-              onPress={() => { setShowLogMealOptions(false); onShowChat && onShowChat(); }}
-            >
-              <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
-              <Text style={styles.logMealCenterCircleLabel}>Ask</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Reviews — one at a time */}
@@ -717,32 +708,6 @@ const makeStyles = (c) => StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginBottom: 12,
-  },
-  logMealCenterCircle: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    marginTop: -36,
-    marginLeft: -36,
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: c.card,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 6,
-  },
-  logMealCenterCircleLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#fff',
-    marginTop: 1,
   },
   logMealCard: {
     flex: 1,

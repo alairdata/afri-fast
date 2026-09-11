@@ -703,7 +703,10 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   if (!show) return null;
 
   return (
-    <View style={styles.overlay}>
+    // While the camera is open it needs to sit above the bottom tab bar (zIndex
+    // 20) like a true full-screen capture UI; otherwise this sits below it so
+    // the tab bar stays visible, since this now only renders as the Ideas tab.
+    <View style={[styles.overlay, showCamera && { zIndex: 9999 }]}>
       <View style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
@@ -714,7 +717,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
           {/* Action cards */}
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.actionCard} onPress={() => setPaywallVisible(true)}>
@@ -927,7 +930,9 @@ const styles = StyleSheet.create({
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#FAFAFA',
-    zIndex: 9999,
+    // Below BottomTabBar's zIndex (20) — this now only renders as the Ideas
+    // tab, so the tab bar should stay visible on top of it, not be covered.
+    zIndex: 1,
   },
   page: { flex: 1, flexDirection: 'column' },
   header: {

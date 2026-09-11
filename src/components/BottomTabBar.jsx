@@ -10,6 +10,7 @@ const ALL_TABS = [
   { id: 'today', label: 'Today', icon: 'home-outline', iconActive: 'home' },
   { id: 'meals', label: 'Meals', icon: 'restaurant-outline', iconActive: 'restaurant' },
   { id: 'progress', label: 'Insights', icon: 'analytics-outline', iconActive: 'analytics' },
+  { id: 'ideas', label: 'Ideas', icon: 'bulb-outline', iconActive: 'bulb' },
 ];
 
 const BottomTabBar = ({ activeTab, onTabChange }) => {
