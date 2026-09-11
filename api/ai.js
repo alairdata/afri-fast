@@ -85,7 +85,7 @@ Do NOT summarize what the user already sees on their dashboard. They can see the
 Ask yourself before writing: "Would the user already know this just by looking at their data?" If yes, don't say it. Find something deeper.
 
 ## Insight lenses — rotate through these
-Every insight must come from a different lens than the last. The lenses are:
+You must write TWO insights today, each from a different lens than the other and different from recent ones. The lenses are:
 
 - MEAL_COMPOSITION: patterns in what they eat and how it affects them
 - HYDRATION: water intake linked to energy, mood, hunger, or physical feeling
@@ -95,15 +95,15 @@ Every insight must come from a different lens than the last. The lenses are:
 - CONSISTENCY: showing up patterns — streaks, gaps, what changed
 - PROGRESS_REFRAME: zooming out to show how far they've come in a real way
 
-The current lens to use today is passed to you as todayLens. Use it.
+The two lenses to use today are passed to you as todayLenses (an array of 2). Write one insight per lens, in that order.
 
 ## Insight decay rules
-You will be given a list of recent insight topics that have already been surfaced as recentInsights. Do NOT repeat them. If the data does not support a genuinely new insight today, do not force one. Instead return exactly:
-{"insight":"[Name], nothing major to flag today — you're just doing the thing. Show up again tomorrow. 💛","lens":"[todayLens]","topic":"no new insight today"}
+You will be given a list of recent insight topics that have already been surfaced as recentInsights. Do NOT repeat them, for either insight. If the data does not support a genuinely new insight for a given lens, do not force one — for that lens only, return exactly:
+{"insight":"[Name], nothing major to flag here today — you're just doing the thing. Show up again tomorrow. 💛","lens":"[that lens]","topic":"no new insight today"}
 
-## How to structure the insight
+## How to structure EACH insight
 
-1. Open like a friend — greet them by name, casual and warm
+1. Open like a friend — greet them by name, casual and warm (vary the opening between the two so they don't feel copy-pasted)
 2. Name what you noticed — reference specific days, specific meals, specific feelings from their data. Be exact, not vague.
 3. Connect the dots — explain the pattern they missed. This is the heart of the insight.
 4. Teach one concept simply — if there's something worth explaining (like protein, hydration, sleep and hunger), explain it in plain language first before using the word. E.g. "Protein is the kind of food that sits in your stomach and keeps you full for a loooong time — like it holds you down. Eggs have it, chicken has it, fish has it, beans have it."
@@ -127,10 +127,11 @@ You will be given a list of recent insight topics that have already been surface
 - Do not be vague ("eat better", "stay consistent") — be specific always
 - Do not sound like you are reading from a report
 - Do not force an insight if the data doesn't support one
+- The two insights must feel distinct from each other — different angle, different opening, not two versions of the same point
 
 ## Output
-Return ONLY valid JSON, no markdown, no explanation:
-{"insight":"[3 to 5 short paragraphs, flowing, reads like a voice note turned into text — no headers, no bullet points]","lens":"[todayLens value]","topic":"[5-10 word summary of the insight topic for decay tracking]"}`;
+Return ONLY a valid JSON array of exactly 2 objects, no markdown, no explanation:
+[{"insight":"[3 to 5 short paragraphs, flowing, reads like a voice note turned into text — no headers, no bullet points]","lens":"[todayLenses[0]]","topic":"[5-10 word summary of the insight topic for decay tracking]"},{"insight":"[same structure]","lens":"[todayLenses[1]]","topic":"[5-10 word summary]"}]`;
 
 const CARD_GENERATOR_PROMPT = `You are a close friend who also happens to know a lot about food, bodies, and what it actually takes to feel good and reach a goal. You've been paying attention. You're not here to grade them — you're here to tell them what you genuinely noticed, the way a real person would.
 
@@ -547,23 +548,25 @@ or the word: null`;
 
     if (type === 'just_for_you') {
       const processedData = preprocessData(data);
-      const todayLens = data.todayLens || 'MEAL_COMPOSITION';
+      const todayLenses = Array.isArray(data.todayLenses) && data.todayLenses.length
+        ? data.todayLenses
+        : ['MEAL_COMPOSITION', 'HYDRATION'];
       const recentInsights = data.recentInsights || [];
       const recentStr = recentInsights.length
         ? `recentInsights: ${JSON.stringify(recentInsights)}`
         : 'recentInsights: []';
 
-      const fullPrompt = `${DAILY_COACH_PROMPT}\n\nUSER DATA:\n${processedData}\n\ntodayLens: ${todayLens}\n${recentStr}`;
-      const raw = await callClaude(fullPrompt, CLAUDE_KEY, 1000);
+      const fullPrompt = `${DAILY_COACH_PROMPT}\n\nUSER DATA:\n${processedData}\n\ntodayLenses: ${JSON.stringify(todayLenses)}\n${recentStr}`;
+      const raw = await callClaude(fullPrompt, CLAUDE_KEY, 1800);
 
       const stripped = raw.replace(/```json|```/g, '').trim();
-      const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+      const jsonMatch = stripped.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
-        console.error('[/api/ai just_for_you] No JSON in response:', raw.slice(0, 300));
-        return res.status(500).json({ error: 'Could not parse insight' });
+        console.error('[/api/ai just_for_you] No JSON array in response:', raw.slice(0, 300));
+        return res.status(500).json({ error: 'Could not parse insights' });
       }
-      const result = JSON.parse(jsonMatch[0]);
-      return res.status(200).json(result);
+      const insights = JSON.parse(jsonMatch[0]);
+      return res.status(200).json({ insights });
     }
 
     if (type === 'momentum_nudge') {

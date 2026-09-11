@@ -223,7 +223,7 @@ const skeletonStyles = StyleSheet.create({
   },
 });
 
-const JfySkeletonCard = () => {
+const JfySkeletonCard = ({ style }) => {
   const shimmer = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.loop(
@@ -235,7 +235,7 @@ const JfySkeletonCard = () => {
   }, []);
   const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.7] });
   return (
-    <Animated.View style={[jfySkeletonStyles.card, { opacity }]}>
+    <Animated.View style={[jfySkeletonStyles.card, style, { opacity }]}>
       <View style={jfySkeletonStyles.line1} />
       <View style={jfySkeletonStyles.line2} />
       <View style={jfySkeletonStyles.line3} />
@@ -350,11 +350,11 @@ const TodayTab = ({
   const ledgerMap = useMemo(() => buildDailyLedgerMap(dailyGoalLedger), [dailyGoalLedger]);
 
   const [timeSinceFast, setTimeSinceFast] = useState(null);
-  const [justForYouInsight, setJustForYouInsight] = useState(null);
+  const [justForYouCards, setJustForYouCards] = useState(null);
   const [jfyLoading, setJfyLoading] = useState(true);
   const [jfyRefreshing, setJfyRefreshing] = useState(false);
   const [jfyFreshReady, setJfyFreshReady] = useState(false);
-  const [jfyExpanded, setJfyExpanded] = useState(false);
+  const [selectedInsightCard, setSelectedInsightCard] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const buildEnrichedMealLogs = () =>
@@ -406,22 +406,22 @@ const TodayTab = ({
   const fetchInsights = async (payload, forceRefresh = false) => {
     const userId = payload?.profile?.userId;
 
-    // Phase 1 — show cached insight instantly so the screen is never blank
+    // Phase 1 — show cached cards instantly so the screen is never blank
     const cached = await getCachedJustForYou(userId);
-    if (cached?.insight) {
-      setJustForYouInsight(cached.insight);
+    if (cached?.length) {
+      setJustForYouCards(cached);
       setJfyLoading(false);
     }
 
-    // Phase 2 — fetch fresh insight in the background
+    // Phase 2 — fetch fresh cards in the background
     setJfyFreshReady(false);
     setJfyRefreshing(true);
     getJustForYou(payload, forceRefresh)
-      .then(({ insight: freshInsight, fromApi }) => {
-        if (!freshInsight) return;
-        setJustForYouInsight(freshInsight);
+      .then(({ cards: freshCards, fromApi }) => {
+        if (!freshCards?.length) return;
+        setJustForYouCards(freshCards);
         setJfyLoading(false);
-        if (fromApi) { setJfyFreshReady(true); setJfyExpanded(false); }
+        if (fromApi) { setJfyFreshReady(true); setSelectedInsightCard(null); }
       })
       .catch(() => {})
       .finally(() => setJfyRefreshing(false));
@@ -808,22 +808,33 @@ const TodayTab = ({
               </View>
             )}
           </View>
-          {jfyLoading ? (
-            <JfySkeletonCard />
-          ) : justForYouInsight ? (
-            <TouchableOpacity
-              activeOpacity={0.88}
-              onPress={() => { setJfyExpanded(true); setJfyFreshReady(false); }}
-              style={{ backgroundColor: '#059669', borderRadius: 16, padding: 16, minHeight: 160, justifyContent: 'space-between' }}
-            >
-              <Text style={{ fontSize: 15, fontWeight: '700', lineHeight: 22, color: 'rgba(255,255,255,0.92)', flex: 1, marginBottom: 16 }} numberOfLines={4}>
-                {justForYouInsight}
-              </Text>
-              <View style={styles.eduBtn}>
-                <Text style={styles.eduBtnText}>Read more</Text>
-              </View>
-            </TouchableOpacity>
-          ) : null}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
+            {jfyLoading ? (
+              [0, 1].map(i => <JfySkeletonCard key={i} style={{ width: 260, marginRight: 12 }} />)
+            ) : (justForYouCards || []).map((card, i) => (
+              <TouchableOpacity
+                key={i}
+                activeOpacity={0.88}
+                onPress={() => { setSelectedInsightCard(card); setJfyFreshReady(false); }}
+                style={{
+                  width: 260,
+                  marginRight: 12,
+                  backgroundColor: i % 2 === 0 ? '#059669' : '#0F766E',
+                  borderRadius: 16,
+                  padding: 16,
+                  minHeight: 160,
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '700', lineHeight: 22, color: 'rgba(255,255,255,0.92)', flex: 1, marginBottom: 16 }} numberOfLines={4}>
+                  {card.insight}
+                </Text>
+                <View style={styles.eduBtn}>
+                  <Text style={styles.eduBtnText}>Read more</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* What to Eat Next */}
@@ -988,25 +999,25 @@ const TodayTab = ({
 
       {/* Just for You — full insight modal */}
       <Modal
-        visible={jfyExpanded}
+        visible={selectedInsightCard !== null}
         animationType="slide"
         presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
-        onRequestClose={() => setJfyExpanded(false)}
+        onRequestClose={() => setSelectedInsightCard(null)}
       >
         <View style={[styles.articleModal, Platform.OS === 'android' && { paddingTop: 44 }]}>
           <View style={styles.articleHeader}>
-            <TouchableOpacity onPress={() => setJfyExpanded(false)} style={styles.articleCloseBtn}>
+            <TouchableOpacity onPress={() => setSelectedInsightCard(null)} style={styles.articleCloseBtn}>
               <Text style={styles.articleCloseText}>✕</Text>
             </TouchableOpacity>
             <Text style={styles.articleHeaderTitle}>Today's Insight</Text>
             <View style={{ width: 40 }} />
           </View>
           <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20 }}>
-            <FormattedText text={justForYouInsight || ''} bodyStyle={[styles.insightDetailBody, { fontSize: 15.5, lineHeight: 24 }]} />
+            <FormattedText text={selectedInsightCard?.insight || ''} bodyStyle={[styles.insightDetailBody, { fontSize: 15.5, lineHeight: 24 }]} />
             {onShowChat && (
               <TouchableOpacity
                 style={{ marginTop: 28, backgroundColor: '#059669', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}
-                onPress={() => { setJfyExpanded(false); onShowChat(`I just read today's insight — can you tell me more?`); }}
+                onPress={() => { setSelectedInsightCard(null); onShowChat(`I just read today's insight — can you tell me more?`); }}
               >
                 <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Talk to Coach</Text>
               </TouchableOpacity>
