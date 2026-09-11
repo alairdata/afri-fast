@@ -738,7 +738,10 @@ const TodayTab = ({
         {/* Just for You — daily AI coach insight */}
         <View style={[styles.sectionTight, { marginTop: 8 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <Text style={[styles.sectionTitleTight, { marginBottom: 0, flex: 1 }]}>{'\u{1F4A1}'} Just for {userName || 'You'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+              <Ionicons name="bulb-outline" size={16} color={colors.text} />
+              <Text style={[styles.sectionTitleTight, { marginBottom: 0 }]}>Just for {userName || 'You'}</Text>
+            </View>
             {jfyRefreshing ? (
               <Text style={{ fontSize: 12, color: '#059669', fontWeight: '500' }}>Refreshing...</Text>
             ) : (
