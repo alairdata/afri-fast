@@ -1,18 +1,27 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, Animated, Easing, RefreshControl } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop, ClipPath, G, Path } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Stop, ClipPath, G, Path, Ellipse } from 'react-native-svg';
 
 const AnimatedG = Animated.createAnimatedComponent(G);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
 
 // Seamless sine wave tile — period 100, repeated 4x across a 400-wide strip
 // so it can loop via translateX by exactly one period (-100) forever.
 const LIQUID_WAVE_D =
   'M0,0 Q25,-6 50,0 T100,0 T150,0 T200,0 T250,0 T300,0 T350,0 T400,0 L400,400 L0,400 Z';
 const LIQUID_WAVE_PERIOD = 100;
-const LIQUID_TOP_Y = 12;    // wave surface y when calRatio === 1 (near top of r=88 circle)
+const LIQUID_RING_R = 80;   // outer ring radius — shrunk from 90 to leave headroom for overfill spill
+const LIQUID_CLIP_R = 78;   // inset clip circle radius
+const LIQUID_TOP_Y = 100 - LIQUID_CLIP_R;  // wave surface y when calRatio === 1 (rim of clip circle)
 const LIQUID_BOTTOM_Y = 200; // wave surface y when calRatio === 0 (fully hidden below clip)
+// Overfill spill: a bulge above the rim plus two drips clinging to its outer edge,
+// both scaled by how far over the calorie goal today is (capped at 100% over).
+const LIQUID_SPILL_MAX_RY = 16;
+const LIQUID_DRIP_LEFT_D = 'M70,26 C70,23.5 78,23.5 78,26 L78,42 C78,45.5 70,45.5 70,42 Z';
+const LIQUID_DRIP_RIGHT_D = 'M122,26 C122,23.5 130,23.5 130,26 L130,42 C130,45.5 122,45.5 122,42 Z';
+const LIQUID_DRIP_ANCHOR_Y = 26;
 import { useTheme } from '../lib/theme';
 import { getJustForYou, getCachedJustForYou } from '../lib/claudeInsights';
 import FormattedText from '../lib/FormattedText';
@@ -643,11 +652,15 @@ const TodayTab = ({
   const calRatio = dailyCalorieGoal > 0 ? Math.min(todayCalories / dailyCalorieGoal, 1) : 0;
   const calRemaining = Math.max((dailyCalorieGoal || 0) - todayCalories, 0);
   const isCalOver = dailyCalorieGoal > 0 && todayCalories > dailyCalorieGoal;
+  // How far over goal, as a ratio of the goal itself — capped at 100% over, drives the overfill spill
+  const overflowRatio = isCalOver ? Math.min((todayCalories - dailyCalorieGoal) / dailyCalorieGoal, 1) : 0;
 
   // Liquid-fill ring animation: waveX loops the wave horizontally forever,
-  // waveY eases the fill level toward calRatio whenever calories/goal change.
+  // waveY eases the fill level toward calRatio whenever calories/goal change,
+  // overflowAnim eases the rim-spill (bulge + drips) toward overflowRatio.
   const waveX = useRef(new Animated.Value(0)).current;
   const waveY = useRef(new Animated.Value(LIQUID_BOTTOM_Y)).current;
+  const overflowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const loopAnim = Animated.loop(
@@ -671,6 +684,15 @@ const TodayTab = ({
       useNativeDriver: false,
     }).start();
   }, [calRatio]);
+
+  useEffect(() => {
+    Animated.timing(overflowAnim, {
+      toValue: overflowRatio,
+      duration: 900,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [overflowRatio]);
 
   // Today's meals
   const todayDateStr = new Date().toDateString();
@@ -796,12 +818,12 @@ const TodayTab = ({
                     <Stop offset="100%" stopColor={isCalOver ? '#EF4444' : '#059669'} />
                   </LinearGradient>
                   <ClipPath id="liquidClip">
-                    <Circle cx="100" cy="100" r="88" />
+                    <Circle cx="100" cy="100" r={LIQUID_CLIP_R} />
                   </ClipPath>
                 </Defs>
 
                 {/* container background */}
-                <Circle cx="100" cy="100" r="90" fill={isCalOver ? '#FEF2F2' : '#F0FDF4'} />
+                <Circle cx="100" cy="100" r={LIQUID_RING_R} fill="#F0FDF4" />
 
                 {/* liquid fill, clipped to a fixed circle so only the content moves */}
                 <G clipPath="url(#liquidClip)">
@@ -815,7 +837,28 @@ const TodayTab = ({
                 </G>
 
                 {/* outer ring outline */}
-                <Circle cx="100" cy="100" r="90" stroke={isCalOver ? '#FCA5A5' : '#A7F3D0'} strokeWidth="8" fill="none" />
+                <Circle cx="100" cy="100" r={LIQUID_RING_R} stroke="#A7F3D0" strokeWidth="8" fill="none" />
+
+                {/* overfill spill — still green, bulges over the rim and drips down the sides once over goal */}
+                <AnimatedEllipse
+                  cx="100"
+                  cy={LIQUID_TOP_Y}
+                  rx="42"
+                  ry={overflowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, LIQUID_SPILL_MAX_RY] })}
+                  fill="url(#liquidGradient)"
+                />
+                <AnimatedPath
+                  d={LIQUID_DRIP_LEFT_D}
+                  fill="url(#liquidGradient)"
+                  scaleY={overflowAnim}
+                  originY={LIQUID_DRIP_ANCHOR_Y}
+                />
+                <AnimatedPath
+                  d={LIQUID_DRIP_RIGHT_D}
+                  fill="url(#liquidGradient)"
+                  scaleY={overflowAnim}
+                  originY={LIQUID_DRIP_ANCHOR_Y}
+                />
               </Svg>
               <View style={styles.progressInnerSmall}>
                 <Text style={[styles.fastingLabelSmall, isCalOver && { color: '#EF4444' }]}>
