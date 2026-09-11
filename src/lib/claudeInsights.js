@@ -7,17 +7,10 @@ const JFY_CACHE_KEY = 'claude_just_for_you_v3';
 
 const LENSES = ['MEAL_COMPOSITION', 'HYDRATION', 'MOOD_AND_FOOD', 'MOVEMENT', 'WEIGHT_TREND', 'CONSISTENCY', 'PROGRESS_REFRAME'];
 
-// Picks `count` distinct lenses, preferring ones not used in recentInsights.
-function pickLenses(recentInsights, count = 2) {
+function pickLens(recentInsights) {
   const usedRecently = new Set((recentInsights || []).map(r => r.lens));
   const available = LENSES.filter(l => !usedRecently.has(l));
-  const pool = available.length >= count ? available : LENSES;
-  const chosen = [];
-  for (const l of pool) {
-    if (chosen.length >= count) break;
-    if (!chosen.includes(l)) chosen.push(l);
-  }
-  return chosen;
+  return (available.length > 0 ? available : LENSES)[0];
 }
 // Returns the timestamp of the most recent 8:15pm refresh slot
 function lastJfySlot() {
@@ -207,51 +200,44 @@ export async function refreshDailyInsights(data) {
   }
 }
 
-// Fast path — returns cached insight cards immediately (no freshness check).
-// Used to show stale insights instantly while a background refresh runs.
+// Fast path — returns cached insight immediately (no freshness check).
+// Used to show stale insight instantly while a background refresh runs.
 export async function getCachedJustForYou(userId) {
   if (!userId) return null;
   const cached = await getLocalCache(JFY_CACHE_KEY, userId);
-  if (!cached?.cards?.length || !cached.cards[0]?.insight) return null;
-  return cached.cards;
+  if (!cached?.cards?.[0]?.insight) return null;
+  return cached.cards[0];
 }
 
-// Returns { cards, fromApi } — fromApi is true only when a real API call was made.
-// cards is an array of { insight, lens, topic }, one per lens rotated today.
+// Returns { insight, fromApi } — fromApi is true only when a real API call was made.
 export async function getJustForYou(data, forceRefresh = false) {
   const userId = data?.profile?.userId;
-  if (!userId) return { cards: null, fromApi: false };
+  if (!userId) return { insight: null, fromApi: false };
 
   // Load recentInsights from any cached entry (even stale) for lens rotation
   const anyCache = await getLocalCache(JFY_CACHE_KEY, userId);
   const recentInsights = anyCache?.cards?.[0]?.recentInsights || [];
-  const todayLenses = pickLenses(recentInsights, 2);
+  const todayLens = pickLens(recentInsights);
 
   if (!forceRefresh) {
     const cached = await getCached(JFY_CACHE_KEY, userId, 'just_for_you_v3');
-    if (cached?.cards?.length && cached.cards[0]?.insight && cached.timestamp >= lastJfySlot()) {
-      return { cards: cached.cards, fromApi: false };
+    if (cached?.cards?.[0]?.insight && cached.timestamp >= lastJfySlot()) {
+      return { insight: cached.cards[0].insight, fromApi: false };
     }
   }
 
   try {
-    const result = await callApi('just_for_you', { ...data, todayLenses, recentInsights });
-    if (result?.insights?.length) {
+    const result = await callApi('just_for_you', { ...data, todayLens, recentInsights });
+    if (result?.insight) {
       const todayStr = new Date().toISOString().split('T')[0];
-      const newEntries = result.insights.map(i => ({ date: todayStr, lens: i.lens, topic: i.topic || '' }));
-      const updatedRecent = [...newEntries, ...recentInsights].slice(0, 7);
-      const cacheCards = result.insights.map((i, idx) => ({
-        insight: i.insight,
-        lens: i.lens,
-        topic: i.topic,
-        ...(idx === 0 ? { recentInsights: updatedRecent } : {}),
-      }));
-      await saveCache(JFY_CACHE_KEY, userId, 'just_for_you_v3', { cards: cacheCards });
-      return { cards: cacheCards, fromApi: true };
+      const newEntry = { date: todayStr, lens: result.lens || todayLens, topic: result.topic || '' };
+      const updatedRecent = [newEntry, ...recentInsights].slice(0, 7);
+      const cacheCard = { insight: result.insight, lens: result.lens, topic: result.topic, recentInsights: updatedRecent };
+      await saveCache(JFY_CACHE_KEY, userId, 'just_for_you_v3', { cards: [cacheCard] });
     }
-    return { cards: null, fromApi: true };
+    return { insight: result?.insight || null, fromApi: true };
   } catch (e) {
     console.error('[JustForYou error]', e);
-    return { cards: null, fromApi: false };
+    return { insight: null, fromApi: false };
   }
 }
