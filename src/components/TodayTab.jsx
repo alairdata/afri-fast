@@ -775,7 +775,7 @@ const TodayTab = ({
                 style={[styles.patternCardLarge, { width: 260, minHeight: 160, justifyContent: 'space-between' }]}
                 onPress={() => setSelectedArticle(resourceArticle)}
               >
-                <Image source={resourceArticle.image} style={[styles.patternImageArea, { width: 260 }]} resizeMode="cover" />
+                <Image source={resourceArticle.image} style={[styles.patternImageArea, { width: 260, height: 96 }]} resizeMode="cover" />
                 <View>
                   <Text style={styles.patternTitleLarge}>{resourceArticle.title}</Text>
                   <Text style={styles.patternTimeLarge}>{resourceArticle.time}</Text>
@@ -1396,7 +1396,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 20,
   },
   patternCardLarge: {
-    width: 260,
+    width: 180,
     marginRight: 12,
     shadowColor: '#059669',
     shadowOffset: { width: 0, height: 2 },
@@ -1405,10 +1405,10 @@ const makeStyles = (c) => StyleSheet.create({
     elevation: 2,
   },
   patternImageArea: {
-    width: 260,
-    height: 96,
+    width: 180,
+    height: 140,
     borderRadius: 16,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   patternTitleLarge: {
     fontSize: 14,
