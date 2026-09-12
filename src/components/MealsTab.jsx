@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, Animated, Image, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, Animated, PanResponder, Image, Modal } from 'react-native';
 import { useTheme } from '../lib/theme';
 import { TAB_BAR_HEIGHT } from '../lib/tokens';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
@@ -8,6 +8,77 @@ import { computeCurrentMealStreak } from '../lib/mealStreak';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const CARD_WIDTH = (SCREEN_WIDTH - 40 - 12) / 2; // 40 = page padding, 12 = gap
+
+const SWIPE_DELETE_WIDTH = 76;
+
+// Swipe-left-to-delete wrapper for a recent meal row. Reveals a red delete
+// action underneath as the row is dragged left; snaps open/closed on release.
+const SwipeableMealRow = ({ onDelete, itemStyle, baseBackground, children }) => {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const offset = useRef(0);
+
+  const closeSwipe = () => {
+    offset.current = 0;
+    Animated.spring(translateX, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.abs(gesture.dx) > 8 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+      onPanResponderMove: (_, gesture) => {
+        const next = Math.min(0, Math.max(-SWIPE_DELETE_WIDTH, offset.current + gesture.dx));
+        translateX.setValue(next);
+      },
+      onPanResponderRelease: (_, gesture) => {
+        const next = offset.current + gesture.dx;
+        const open = next < -SWIPE_DELETE_WIDTH / 2;
+        offset.current = open ? -SWIPE_DELETE_WIDTH : 0;
+        Animated.spring(translateX, { toValue: offset.current, useNativeDriver: true, bounciness: 0 }).start();
+      },
+      onPanResponderTerminate: closeSwipe,
+    })
+  ).current;
+
+  return (
+    <View style={{ borderRadius: 12, overflow: 'hidden' }}>
+      <View style={swipeStyles.deleteBackground}>
+        <TouchableOpacity
+          style={swipeStyles.deleteAction}
+          onPress={() => { closeSwipe(); onDelete(); }}
+        >
+          <Ionicons name="trash-outline" size={18} color="#fff" />
+          <Text style={swipeStyles.deleteActionText}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+      <Animated.View {...panResponder.panHandlers} style={[{ backgroundColor: baseBackground }, itemStyle, { transform: [{ translateX }] }]}>
+        {children}
+      </Animated.View>
+    </View>
+  );
+};
+
+const swipeStyles = StyleSheet.create({
+  deleteBackground: {
+    position: 'absolute',
+    top: 0, right: 0, bottom: 0,
+    width: SWIPE_DELETE_WIDTH,
+    backgroundColor: '#EF4444',
+    alignItems: 'stretch',
+    justifyContent: 'center',
+  },
+  deleteAction: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteActionText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+});
 
 const REVIEWS = [
   { name: 'Amina O.', text: 'It actually knew the calories in my jollof rice! I was shocked. Even got the portion right.', stars: 5 },
@@ -173,42 +244,43 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
           )}
           {recentMeals.filter(m => m.date === selectedMealDate.toDateString()).map((meal, mi) => {
             return (
-              <TouchableOpacity
+              <SwipeableMealRow
                 key={meal.id ?? `meal-${mi}`}
-                style={styles.recentMealItemClean}
-                onPress={() => onViewMeal ? onViewMeal(meal) : setViewingMeal(meal)}
+                itemStyle={styles.recentMealItemClean}
+                baseBackground={colors.bg}
+                onDelete={() => setDeletingMealId(meal.id)}
               >
-                <View style={styles.recentMealLeftClean}>
-                  <View style={styles.recentMealIconClean}>
-                    {(meal.photo || meal.localPhoto || meal.image_url)
-                      ? <Image source={{ uri: meal.photo || meal.localPhoto || meal.image_url }} style={styles.recentMealPhoto} resizeMode="cover" />
-                      : <Text style={{ fontSize: 16 }}>{'\u{1F37D}\uFE0F'}</Text>
-                    }
-                  </View>
-                  <View style={styles.recentMealInfoClean}>
-                    <Text style={styles.recentMealNameClean} numberOfLines={1} ellipsizeMode="tail">
-                      {meal.name.split(',')[0].trim()}
-                    </Text>
-                    <View style={styles.recentMealMetaRow}>
-                      <Text style={styles.recentMealTimeClean}>{meal.time}</Text>
-                      {meal.name.split(',').length > 1 && (
-                        <View style={styles.recentMealMoreTag}>
-                          <Text style={styles.recentMealMoreText}>+{meal.name.split(',').length - 1} more</Text>
-                        </View>
-                      )}
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                  onPress={() => onViewMeal ? onViewMeal(meal) : setViewingMeal(meal)}
+                >
+                  <View style={styles.recentMealLeftClean}>
+                    <View style={styles.recentMealIconClean}>
+                      {(meal.photo || meal.localPhoto || meal.image_url)
+                        ? <Image source={{ uri: meal.photo || meal.localPhoto || meal.image_url }} style={styles.recentMealPhoto} resizeMode="cover" />
+                        : <Text style={{ fontSize: 16 }}>{'\u{1F37D}\uFE0F'}</Text>
+                      }
+                    </View>
+                    <View style={styles.recentMealInfoClean}>
+                      <Text style={styles.recentMealNameClean} numberOfLines={1} ellipsizeMode="tail">
+                        {meal.name.split(',')[0].trim()}
+                      </Text>
+                      <View style={styles.recentMealMetaRow}>
+                        <Text style={styles.recentMealTimeClean}>{meal.time}</Text>
+                        {meal.name.split(',').length > 1 && (
+                          <View style={styles.recentMealMoreTag}>
+                            <Text style={styles.recentMealMoreText}>+{meal.name.split(',').length - 1} more</Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </View>
-                </View>
-                <View style={styles.recentMealRightClean}>
-                  <Text style={styles.recentMealCaloriesClean}>{meal.calories} cal</Text>
-                  <TouchableOpacity
-                    style={styles.mealDeleteBtn}
-                    onPress={() => setDeletingMealId(meal.id)}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
+                  <View style={styles.recentMealRightClean}>
+                    <Text style={styles.recentMealCaloriesClean}>{meal.calories} cal</Text>
+                  </View>
+                </TouchableOpacity>
+              </SwipeableMealRow>
             );
           })}
         </View>
@@ -925,9 +997,6 @@ const makeStyles = (c) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-  },
-  mealDeleteBtn: {
-    padding: 6,
   },
   deleteOverlay: {
     flex: 1,
