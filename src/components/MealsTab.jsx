@@ -41,7 +41,7 @@ const SwipeableMealRow = ({ onDelete, itemStyle, baseBackground, children }) => 
   ).current;
 
   return (
-    <View style={{ borderRadius: 12, overflow: 'hidden' }}>
+    <View style={{ width: '100%', borderRadius: 12, overflow: 'hidden' }}>
       <View style={swipeStyles.deleteBackground}>
         <TouchableOpacity
           style={swipeStyles.deleteAction}
@@ -51,7 +51,10 @@ const SwipeableMealRow = ({ onDelete, itemStyle, baseBackground, children }) => 
           <Text style={swipeStyles.deleteActionText}>Delete</Text>
         </TouchableOpacity>
       </View>
-      <Animated.View {...panResponder.panHandlers} style={[{ backgroundColor: baseBackground }, itemStyle, { transform: [{ translateX }] }]}>
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={[{ backgroundColor: baseBackground, width: '100%' }, itemStyle, { transform: [{ translateX }] }]}
+      >
         {children}
       </Animated.View>
     </View>
