@@ -53,9 +53,11 @@ const SwipeableMealRow = ({ onDelete, itemStyle, baseBackground, children }) => 
       </View>
       <Animated.View
         {...panResponder.panHandlers}
-        style={[{ backgroundColor: baseBackground, width: '100%' }, itemStyle, { transform: [{ translateX }] }]}
+        style={{ width: '100%', backgroundColor: baseBackground, borderRadius: 12, transform: [{ translateX }] }}
       >
-        {children}
+        <View style={itemStyle}>
+          {children}
+        </View>
       </Animated.View>
     </View>
   );
