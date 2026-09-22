@@ -983,6 +983,7 @@ const ProgressTab = ({
   const momentumWhyFacts = useMemo(() => {
     const t = burnout.today;
     return {
+      userName: userName || null,
       momentumScore, band: today.band.label,
       calorie: { subscore: momentumWhy.calorie.subscore, loggedToday: momentumWhy.calorie.loggedToday, targetToday: momentumWhy.calorie.targetToday },
       satiety: {
@@ -1002,7 +1003,7 @@ const ProgressTab = ({
       },
       history: momentumHistory,
     };
-  }, [momentumScore, today.band.label, momentumWhy, burnout.today, proteinGoal, carbsGoal, fatsGoal, momentumHistory]);
+  }, [userName, momentumScore, today.band.label, momentumWhy, burnout.today, proteinGoal, carbsGoal, fatsGoal, momentumHistory]);
 
   // Coarse enough that trivial noise (a gram, a kcal) doesn't force a regenerate — only a
   // materially different picture does — plus today's date so the "today" framing never goes stale.
