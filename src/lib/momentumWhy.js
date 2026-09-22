@@ -7,8 +7,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
-const CACHE_KEY = 'claude_momentum_why_v1';
-const REMOTE_TYPE = 'momentum_why';
+// CACHE_KEY/CACHE_TYPE carry a version suffix separate from API_TYPE (the value actually sent to
+// /api/gemini, which must stay 'momentum_why' to match its route) -- bump this suffix whenever the
+// prompt's wording changes materially, so cached copies written under the old prompt don't keep
+// serving stale phrasing to someone whose underlying numbers haven't changed today.
+const CACHE_KEY = 'claude_momentum_why_v2';
+const CACHE_TYPE = 'momentum_why_v2';
+const API_TYPE = 'momentum_why';
 const MIN_REFRESH_MS = 60 * 60 * 1000;
 
 const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
@@ -18,7 +23,7 @@ async function callApi(data) {
   const response = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: REMOTE_TYPE, data }),
+    body: JSON.stringify({ type: API_TYPE, data }),
   });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'API error');
@@ -49,7 +54,7 @@ async function getRemoteCache(userId) {
       .from('user_insights')
       .select('cards, refreshed_at')
       .eq('user_id', userId)
-      .eq('type', REMOTE_TYPE)
+      .eq('type', CACHE_TYPE)
       .maybeSingle();
     if (error || !data?.cards?.[0]) return null;
     return { ...data.cards[0], timestamp: new Date(data.refreshed_at).getTime() };
@@ -62,7 +67,7 @@ async function saveRemoteCache(userId, payload) {
   try {
     await supabase.from('user_insights').upsert({
       user_id: userId,
-      type: REMOTE_TYPE,
+      type: CACHE_TYPE,
       cards: [payload],
       refreshed_at: new Date().toISOString(),
     }, { onConflict: 'user_id,type' });
