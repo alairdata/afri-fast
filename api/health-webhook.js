@@ -41,14 +41,14 @@ function webhookRowId(dateStr) {
   return 8000000000000 + daysSinceEpoch;
 }
 
-// Extracts today's steps total from the real payload shape confirmed from a live device:
+// Extracts today's steps total from ONE source's payload shape, confirmed from a live device:
 // Shortcuts coerces the "Find Health Samples" (grouped by Day) list into ONE newline-separated
 // text string when the JSON field's type is Text -- each line is one day's total, oldest first,
 // e.g. "4339\n3423\n...\n440". The shortcut's "last 1 day" filter isn't actually limiting the
 // result set (still sends the full history every run), so this takes the LAST line -- the most
 // recent day, i.e. today -- rather than relying on the filter to have done that already. Still
 // tries a couple of object-shape fallbacks in case a future payload looks different.
-function extractStepsTotal(body) {
+function extractSingleSourceTotal(body) {
   const samples = Array.isArray(body) ? body
     : Array.isArray(body?.samples) ? body.samples
     : Array.isArray(body?.HealthSamples) ? body.HealthSamples
@@ -83,6 +83,31 @@ function extractStepsTotal(body) {
   });
 
   return numbers.length ? Math.round(numbers[numbers.length - 1]) : null;
+}
+
+// Two-device setup (e.g. iPhone + a Watch both tracking steps): Health app's own "Today" total
+// already reconciles overlapping step data between sources so it isn't double-counted, but a raw
+// "Find Health Samples" query in Shortcuts doesn't apply that same reconciliation -- summing both
+// sources' totals double-counts the overlap on any day both devices were worn. Taking the MAX of
+// the two instead of the sum fixes that (whichever device saw more of the walk is closer to the
+// truth), while still working correctly on a day only one device was carried (the other reports 0
+// or is simply omitted, and the max is just that one device's real total, not 0).
+//
+// Payload shape: send each source's "Find Health Samples" output under its own top-level field
+// (any names -- e.g. {"iphone": "...", "watch": "..."}) instead of the old single flat field.
+// Falls back to treating the whole body as one source for anyone still on the older single-source
+// Shortcut setup.
+function extractStepsTotal(body) {
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    const sourceFields = body.sources && typeof body.sources === 'object'
+      ? Object.values(body.sources)
+      : ['iphone', 'watch', 'Iphone', 'Watch', 'phone', 'Phone'].map((k) => body[k]).filter((v) => v !== undefined);
+    if (sourceFields.length) {
+      const totals = sourceFields.map((f) => extractSingleSourceTotal(f)).filter((n) => n != null);
+      if (totals.length) return Math.round(Math.max(...totals));
+    }
+  }
+  return extractSingleSourceTotal(body);
 }
 
 export default async function handler(req, res) {
@@ -152,13 +177,26 @@ SETUP (one-time):
 2. iOS Shortcuts app -> new shortcut:
    a. Add Action: "Find Health Samples" -> type: Steps -> Group By: Day ->
       filter: Start Date is in the last 1 day
-   b. Add Action: "Get Contents of URL"
+      -- If you track steps from more than one device (e.g. iPhone + a watch), add a SECOND
+      filter here: Source Name is <your phone's name, as shown in Health app -> Sources>.
+   b. If you have a second device, duplicate that action and change its Source Name filter to
+      the other device (e.g. your watch's name). Now you have two "Find Health Samples" actions,
+      one per device.
+   c. Add Action: "Get Contents of URL"
       - URL: https://afri-fast.vercel.app/api/health-webhook?metric=steps
       - Method: POST
       - Headers: add one — Key: X-Webhook-Secret, Value: <the secret from step 1>
-      - Request Body: JSON -> Add new field -> Array -> long-press the value ->
-        Insert Variable -> Find Health Samples
-   c. Tap Play to test once manually — iOS will ask for Health + network permission, allow both.
+      - Request Body: JSON ->
+        - One device: Add new field -> Array -> long-press the value -> Insert Variable ->
+          Find Health Samples
+        - Two devices: Add new field named "iphone" -> long-press its value -> Insert Variable ->
+          the first Find Health Samples action. Add a second field named "watch" -> Insert
+          Variable -> the second Find Health Samples action. (Field names just need to be
+          different from each other — "iphone"/"watch" is a convention, not a requirement.) The
+          server takes the larger of the two rather than adding them, so overlapping steps
+          between both devices don't get double-counted, and a day you only wore one still counts
+          correctly.
+   d. Tap Play to test once manually — iOS will ask for Health + network permission, allow both.
 
 3. Automation tab -> Personal Automation -> Time of Day (e.g. 11:30pm nightly) -> run this
    shortcut -> turn OFF "Ask Before Running" so it's silent.
