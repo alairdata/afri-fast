@@ -1,13 +1,13 @@
-// AI-generated "why" line for the Momentum gauge — reuses the same /api/ai + user_insights
-// caching pattern as claudeInsights.js, but instead of a fixed daily refresh slot, it's keyed
-// on a fingerprint of the driving numbers (see InsightsTab.jsx): regenerate when the picture
-// actually changes, not on every render, with a 1-hour floor as a cost safety net regardless.
+// AI-generated "See why" breakdown for the Momentum gauge — reuses the same /api/ai +
+// user_insights caching pattern as claudeInsights.js. Keyed on a fingerprint of the driving
+// numbers (see ProgressTab.jsx's momentumWhyFingerprint): regenerate when the picture actually
+// changes, not on every render, with a 1-hour floor as a cost safety net regardless.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
-const CACHE_KEY = 'claude_momentum_nudge_v1';
-const REMOTE_TYPE = 'momentum_nudge';
+const CACHE_KEY = 'claude_momentum_why_v1';
+const REMOTE_TYPE = 'momentum_why';
 const MIN_REFRESH_MS = 60 * 60 * 1000;
 
 const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
@@ -69,21 +69,21 @@ async function saveRemoteCache(userId, payload) {
 }
 
 // Fast path — whatever's cached locally right now, no network. Callers show this instantly
-// while getMomentumNudge refreshes in the background.
-export async function getCachedMomentumNudge(userId) {
+// (or fall back to the plain-template sentences) while getMomentumWhy refreshes in the background.
+export async function getCachedMomentumWhy(userId) {
   if (!userId) return null;
   const cached = await getLocalCache(userId);
-  return cached?.nudge || null;
+  return cached?.why || null;
 }
 
-// facts: the structured, already-computed numbers (subscores, kcal gaps, burnout drivers, the
-// trailing 14-day gym/steps split) — never anything the model has to infer on its own.
-// fingerprint: a coarse string built from those same facts (see InsightsTab.jsx), rounded enough
+// facts: the structured, already-computed numbers (subscores, kcal gaps, burnout drivers, history
+// pattern flags) — never anything the model has to infer on its own.
+// fingerprint: a coarse string built from those same facts (see ProgressTab.jsx), rounded enough
 // that trivial noise doesn't force a regenerate — only a materially different picture does.
 // force: bypasses the 1-hour safety window (but never the same-fingerprint dedupe — no point
 // re-generating identical facts). Pass this when the user just logged something themselves; the
 // hourly cap is meant to bound passive/ambient drift, not delay feedback on a deliberate action.
-export async function getMomentumNudge({ userId, facts, fingerprint, force = false }) {
+export async function getMomentumWhy({ userId, facts, fingerprint, force = false }) {
   if (!userId) return null;
 
   const [local, remote] = await Promise.all([getLocalCache(userId), getRemoteCache(userId)]);
@@ -94,21 +94,28 @@ export async function getMomentumNudge({ userId, facts, fingerprint, force = fal
     const withinSafetyWindow = !force && (Date.now() - newest.timestamp < MIN_REFRESH_MS);
     if (sameFingerprint || withinSafetyWindow) {
       if (remote && (!local || remote.timestamp > local.timestamp)) {
-        await saveLocalCache(userId, { nudge: remote.nudge, fingerprint: remote.fingerprint });
+        await saveLocalCache(userId, { why: remote.why, fingerprint: remote.fingerprint });
       }
-      return newest.nudge;
+      return newest.why;
     }
   }
 
   try {
     const result = await callApi(facts);
-    if (result?.nudge) {
-      const payload = { nudge: result.nudge, fingerprint };
+    if (result?.headline) {
+      const why = {
+        headline: result.headline,
+        connector: result.connector || null,
+        eating: result.eating || null,
+        satiety: result.satiety || null,
+        movement: result.movement || null,
+      };
+      const payload = { why, fingerprint };
       await Promise.all([saveLocalCache(userId, payload), saveRemoteCache(userId, payload)]);
-      return result.nudge;
+      return why;
     }
   } catch (e) {
-    console.error('[MomentumNudge error]', e);
+    console.error('[MomentumWhy error]', e);
   }
-  return newest?.nudge || null; // stale-but-present beats nothing if the call failed
+  return newest?.why || null; // stale-but-present beats nothing if the call failed
 }

@@ -203,23 +203,24 @@ Return ONLY a valid JSON array, no markdown, no explanation:
   { "feeling": "...", "why": "...", "action": "...", "takeaway": "...", "cta": "..." }
 ]`;
 
-const MOMENTUM_NUDGE_PROMPT = `You are a warm, smart health coach embedded in a calorie-deficit tracking app for African users, writing ONE short line that appears in a small box under a "Momentum Score" gauge on the Insights screen.
+const MOMENTUM_WHY_PROMPT = `You are a warm, sharp health coach embedded in a calorie-deficit tracking app for African users. The person just tapped "See why" on their Momentum Score to understand what's driving it. You're writing the full breakdown they'll read on that screen: one headline, an optional connector line, and one short passage for each of the three pillars behind the score (Eating, Staying Satisfied, Moving).
 
-The Momentum Score blends three pillars: Calorie consistency (40% weight), Satiety/sustainability (35% weight, derived from a Burnout-risk model), and Movement (25% weight, MET-based active energy vs a physiological target). You are given the exact computed numbers behind all three pillars for today, plus the person's trailing 14-day gym-kcal vs steps-kcal split. Your job: explain what's actually dragging the score down right now, in plain warm language, and give ONE small doable action.
+The Momentum Score blends three pillars: Eating (calorie consistency vs target, 40% weight), Staying Satisfied (crash-out/burnout risk from nutrition adequacy and deficit depth — a sustainability signal, not a strictness one, 35% weight), and Moving (MET-based active energy vs a physiological target, 25% weight). You are given the exact computed numbers and history-pattern flags behind all three pillars. Make this feel like a real coach who actually looked at their week is talking to them — not a report generator.
 
 ## Rules
-- Use the person's own numbers exactly as given — kcal gaps, percentages, grams. Never invent, estimate, or round loosely beyond what's provided.
-- For Movement: you're given raw trailing-14-day gymKcal and stepsKcal totals, not a pre-sorted category. Read them yourself and describe how this person actually moves in your own words (e.g. clearly gym-focused, mostly a walker, does a mix, or barely any movement logged at all) — don't force a rigid label, just talk about it naturally like you've noticed their pattern.
-- Pick whichever pillar is the most useful thing to raise right now — usually the lowest subscore, but use judgment if two are close and one has a clearer fix.
-- Speak like a smart, honest friend, not a clinical app or a report. No "macro targets", no "caloric deficit", no jargon — plain everyday language.
-- One sentence, two at most. This is a small box under a gauge, not a paragraph.
-- Do not use a label or prefix like "Leading indicator:" — just talk to them directly.
-- End with one concrete, specific action tied to the real numbers you were given.
-- If todayBand is "STALLED", keep it simple — the action should just be "log something today" (a meal or a weigh-in), not a complex plan.
+- Use the numbers given exactly — kcal, grams, percentages. Never invent or round loosely beyond what's given.
+- headline: ONE sentence, the single most interesting/specific thing true about today. Prefer a real pattern from the history flags when one is present (a bounce-back streak, a weekday rhythm, a weekend dip they recovered from, best-in-a-while) — otherwise just how today compares to their recent pace. This is what they read first; make it feel noticed, not generic.
+- connector: OPTIONAL. Only include as a non-empty string when one pillar is clearly out of step with the other two (a real gap, not noise) — otherwise return null. Frame it as balance, not a report card.
+- eating: 1-2 sentences on today's calorie consistency specifically, using loggedToday vs targetToday. If nothing's logged yet today, say so gently — no judgment, it just holds steady until they're back.
+- satiety: 1-2 sentences on what's actually driving the Staying Satisfied score this week — cite whichever real driver(s) from deficitPts/proteinPts/waterPts/carbsPts/fiberPts/fatPts/volatilityPts are actually elevated, in plain language (e.g. "protein's been running under where you need it," not "proteinPts is 6"). If nothing is elevated, say things are in a sustainable range.
+- movement: 1-2 sentences on today's movement using gymKcalToday/stepsKcalToday vs targetKcalToday. Describe how they actually move (gym-focused, mostly walking, a mix, or barely logged) rather than forcing a rigid label.
+- Speak like a smart, honest, warm friend who's paying attention — never clinical, never "macro targets" or "caloric deficit" jargon.
+- Word choice should carry how far off something is (a little vs a lot) — a number can be cited as a fact ("62g vs your 120g") but shouldn't be the whole sentence.
 - Never say "based on your data" or "your logs show" — you just know them.
 
 ## Output
-Return ONLY valid JSON, no markdown, no explanation: {"nudge": "..."}`;
+Return ONLY valid JSON, no markdown, no explanation:
+{"headline": "...", "connector": "..." or null, "eating": "...", "satiety": "...", "movement": "..."}`;
 
 function getGoalAtDate(goalHistory, dateStr, profile) {
   if (!goalHistory?.length || !dateStr) return profile;
@@ -566,15 +567,15 @@ or the word: null`;
       return res.status(200).json(result);
     }
 
-    if (type === 'momentum_nudge') {
-      const prompt = `${MOMENTUM_NUDGE_PROMPT}\n\nTODAY'S MOMENTUM DATA:\n${JSON.stringify(data)}`;
-      const raw = await callClaude(prompt, CLAUDE_KEY, 300, 'claude-haiku-4-5-20251001');
+    if (type === 'momentum_why') {
+      const prompt = `${MOMENTUM_WHY_PROMPT}\n\nTODAY'S MOMENTUM DATA:\n${JSON.stringify(data)}`;
+      const raw = await callClaude(prompt, CLAUDE_KEY, 500, 'claude-haiku-4-5-20251001');
 
       const stripped = raw.replace(/```json|```/g, '').trim();
       const jsonMatch = stripped.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        console.error('[/api/ai momentum_nudge] No JSON in response:', raw.slice(0, 300));
-        return res.status(500).json({ error: 'Could not parse nudge' });
+        console.error('[/api/ai momentum_why] No JSON in response:', raw.slice(0, 300));
+        return res.status(500).json({ error: 'Could not parse momentum why' });
       }
       const result = JSON.parse(jsonMatch[0]);
       return res.status(200).json(result);

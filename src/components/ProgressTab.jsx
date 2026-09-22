@@ -14,6 +14,7 @@ import { savePredictionSnapshot } from '../lib/predictionHistory';
 import { saveBurnoutPredictionSnapshot } from '../lib/burnoutPredictionHistory';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
+import { getCachedMomentumWhy, getMomentumWhy } from '../lib/momentumWhy';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -965,11 +966,86 @@ const ProgressTab = ({
 
   // What's shown at the top of "See why" — the pattern line always leads (it's the most
   // specific, most "someone's actually paying attention" observation available), with the
-  // cross-pillar note as an optional second line only when there's a real gap to call out.
+  // cross-pillar note as an optional second line only when there's a real gap to call out. This
+  // is the instant, always-available fallback while the AI version below loads (or if it fails) —
+  // never the primary copy once the AI version is in, since fixed template sentences read as
+  // canned rather than like the app actually looked at today.
   const momentumWhySummary = useMemo(() => ({
     headline: momentumPatternSentence,
     connector: crossPillarConnector,
   }), [momentumPatternSentence, crossPillarConnector]);
+
+  // "See why" — AI-written breakdown (see src/lib/momentumWhy.js + api/ai.js's momentum_why
+  // prompt), fed the exact same computed numbers the template sentences above use. Real coach
+  // language instead of a fixed sentence ladder is what makes this screen feel like it's actually
+  // looking at today, not picking from a script. The template sentences above stay as the instant
+  // fallback (first paint, offline, or a failed call) so the screen is never blank.
+  const momentumWhyFacts = useMemo(() => {
+    const t = burnout.today;
+    return {
+      momentumScore, band: today.band.label,
+      calorie: { subscore: momentumWhy.calorie.subscore, loggedToday: momentumWhy.calorie.loggedToday, targetToday: momentumWhy.calorie.targetToday },
+      satiety: {
+        subscore: momentumWhy.satiety.subscore,
+        avgCalories: t.avgCalories,
+        avgProtein: t.avgProtein, proteinGoal,
+        avgCarbs: t.avgCarbs, carbsGoal,
+        avgFats: t.avgFats, fatsGoal,
+        avgFiber: t.avgFiber, avgWaterMl: t.avgWaterMl,
+        deficitPts: t.deficitPts, volatilityPts: t.volatilityPts, proteinPts: t.proteinPts,
+        waterPts: t.waterPts, carbsPts: t.carbsPts, fiberPts: t.fiberPts, fatPts: t.fatPts,
+      },
+      movement: {
+        subscore: momentumWhy.movement.subscore,
+        gymKcalToday: momentumWhy.movement.gymKcalToday, stepsKcalToday: momentumWhy.movement.stepsKcalToday,
+        targetKcalToday: momentumWhy.movement.targetKcalToday,
+      },
+      history: momentumHistory,
+    };
+  }, [momentumScore, today.band.label, momentumWhy, burnout.today, proteinGoal, carbsGoal, fatsGoal, momentumHistory]);
+
+  // Coarse enough that trivial noise (a gram, a kcal) doesn't force a regenerate — only a
+  // materially different picture does — plus today's date so the "today" framing never goes stale.
+  const momentumWhyFingerprint = useMemo(() => {
+    const c = momentumWhy.calorie, s = momentumWhy.satiety, m = momentumWhy.movement, h = momentumHistory;
+    const round5 = (v) => (v == null ? 'x' : Math.round(v / 5) * 5);
+    const round25 = (v) => (v == null ? 'x' : Math.round(v / 25) * 25);
+    return [
+      today.ds, momentumScore, today.band.label,
+      round5(c.subscore), c.loggedToday ? round25(c.loggedToday) : 0, round25(c.targetToday),
+      round5(s.subscore),
+      round5(m.subscore), round25(m.gymKcalToday), round25(m.stepsKcalToday), round25(m.targetKcalToday),
+      h.vsYesterday, h.isBestInWhile, h.vsRecentAvg, h.todayIsBounceBack, h.bounceBackCount,
+      h.weekdayRhythm, h.heldStrongOnUsuallyWeakDay, h.strongAsUsual, h.hasWeekendDipPattern, h.todayIsWeekend,
+    ].join('|');
+  }, [today.ds, momentumScore, today.band.label, momentumWhy, momentumHistory]);
+
+  const [momentumWhyAi, setMomentumWhyAi] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId) { setMomentumWhyAi(null); return; }
+    getCachedMomentumWhy(userId).then((cached) => { if (!cancelled && cached) setMomentumWhyAi(cached); });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  // Only fetch once the "Why {score}?" screen is actually opened — no point paying for a call
+  // the person may never look at.
+  useEffect(() => {
+    if (view !== 'momentum' || !userId) return;
+    let cancelled = false;
+    getMomentumWhy({ userId, facts: momentumWhyFacts, fingerprint: momentumWhyFingerprint }).then((why) => {
+      if (!cancelled && why) setMomentumWhyAi(why);
+    });
+    return () => { cancelled = true; };
+  }, [view, userId, momentumWhyFingerprint]);
+
+  const momentumWhyDisplay = {
+    headline: momentumWhyAi?.headline || momentumWhySummary.headline,
+    connector: momentumWhyAi ? momentumWhyAi.connector : momentumWhySummary.connector,
+    eating: momentumWhyAi?.eating || momentumWhySentences.calorieSentence,
+    satiety: momentumWhyAi?.satiety || burnoutWhy,
+    movement: momentumWhyAi?.movement || momentumWhySentences.movementSentence,
+  };
 
   // Trajectory chart: a PREDICTION, not a log -- every day of the week gets a guess.
   const chart = useMemo(() => {
@@ -2055,18 +2131,18 @@ const ProgressTab = ({
           </View>
           <ScrollView style={styles.scrollContainer} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
             <Text style={[styles.mutedBody, { fontSize: 14.5, fontWeight: '700', color: colors.text, lineHeight: 21 }]}>
-              {momentumWhySummary.headline}
+              {momentumWhyDisplay.headline}
             </Text>
-            {momentumWhySummary.connector && (
-              <Text style={[styles.mutedBody, { marginTop: 6, marginBottom: 4 }]}>{momentumWhySummary.connector}</Text>
+            {momentumWhyDisplay.connector && (
+              <Text style={[styles.mutedBody, { marginTop: 6, marginBottom: 4 }]}>{momentumWhyDisplay.connector}</Text>
             )}
 
-            <View style={[styles.card, { marginTop: momentumWhySummary.connector ? 8 : 16 }]}>
+            <View style={[styles.card, { marginTop: momentumWhyDisplay.connector ? 8 : 16 }]}>
               <View style={styles.rowBetween}>
                 <Text style={styles.cardTitleSmall}>Eating</Text>
                 <Text style={styles.cardTitleSmall}>{momentumWhy.calorie.subscore}%</Text>
               </View>
-              <Text style={[styles.mutedBody, { marginTop: 6 }]}>{momentumWhySentences.calorieSentence}</Text>
+              <Text style={[styles.mutedBody, { marginTop: 6 }]}>{momentumWhyDisplay.eating}</Text>
             </View>
 
             <View style={styles.card}>
@@ -2074,7 +2150,7 @@ const ProgressTab = ({
                 <Text style={styles.cardTitleSmall}>Staying Satisfied</Text>
                 <Text style={styles.cardTitleSmall}>{momentumWhy.satiety.subscore}%</Text>
               </View>
-              <Text style={[styles.mutedBody, { marginTop: 6 }]}>{burnoutWhy}</Text>
+              <Text style={[styles.mutedBody, { marginTop: 6 }]}>{momentumWhyDisplay.satiety}</Text>
             </View>
 
             <View style={styles.card}>
@@ -2082,7 +2158,7 @@ const ProgressTab = ({
                 <Text style={styles.cardTitleSmall}>Moving</Text>
                 <Text style={styles.cardTitleSmall}>{momentumWhy.movement.subscore != null ? `${momentumWhy.movement.subscore}%` : '--'}</Text>
               </View>
-              <Text style={[styles.mutedBody, { marginTop: 6 }]}>{momentumWhySentences.movementSentence}</Text>
+              <Text style={[styles.mutedBody, { marginTop: 6 }]}>{momentumWhyDisplay.movement}</Text>
             </View>
           </ScrollView>
         </View>
