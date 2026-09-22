@@ -1,7 +1,8 @@
-// AI-generated "See why" breakdown for the Momentum gauge — reuses the same /api/ai +
-// user_insights caching pattern as claudeInsights.js. Keyed on a fingerprint of the driving
-// numbers (see ProgressTab.jsx's momentumWhyFingerprint): regenerate when the picture actually
-// changes, not on every render, with a 1-hour floor as a cost safety net regardless.
+// AI-generated "See why" breakdown for the Momentum gauge — calls /api/gemini's momentum_why
+// type (Gemini, not Claude — same key already used for meal scanning elsewhere in the app), and
+// reuses the same user_insights caching pattern as claudeInsights.js. Keyed on a fingerprint of
+// the driving numbers (see ProgressTab.jsx's momentumWhyFingerprint): regenerate when the picture
+// actually changes, not on every render, with a 1-hour floor as a cost safety net regardless.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
@@ -11,7 +12,7 @@ const REMOTE_TYPE = 'momentum_why';
 const MIN_REFRESH_MS = 60 * 60 * 1000;
 
 const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
-const API_URL = `${BASE}/api/ai`;
+const API_URL = `${BASE}/api/gemini`;
 
 async function callApi(data) {
   const response = await fetch(API_URL, {

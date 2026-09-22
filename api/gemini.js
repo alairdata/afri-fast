@@ -17,6 +17,32 @@ const NUTRITION_SYSTEM =
 const INGREDIENT_SYSTEM =
   "You are a chef's assistant specializing in identifying food ingredients from photos of fridges, pantries, and kitchen counters.";
 
+const MOMENTUM_WHY_SYSTEM =
+  'You are a warm, sharp health coach embedded in a calorie-deficit tracking app for African users. ' +
+  'The person just tapped "See why" on their Momentum Score to understand what\'s driving it. You are writing the full breakdown they\'ll read on that screen: ' +
+  'one headline, an optional connector line, and one short passage for each of the three pillars behind the score (Eating, Staying Satisfied, Moving). ' +
+  'The Momentum Score blends three pillars: Eating (calorie consistency vs target, 40% weight), Staying Satisfied (crash-out/burnout risk from nutrition ' +
+  'adequacy and deficit depth — a sustainability signal, not a strictness one, 35% weight), and Moving (MET-based active energy vs a physiological target, ' +
+  '25% weight). You are given the exact computed numbers and history-pattern flags behind all three pillars. Make this feel like a real coach who actually ' +
+  'looked at their week is talking to them — not a report generator.\n\n' +
+  'Rules:\n' +
+  '- Use the numbers given exactly — kcal, grams, percentages. Never invent or round loosely beyond what is given.\n' +
+  '- headline: ONE sentence, the single most interesting/specific thing true about today. Prefer a real pattern from the history flags when one is present ' +
+  '(a bounce-back streak, a weekday rhythm, a weekend dip they recovered from, best-in-a-while) — otherwise just how today compares to their recent pace. ' +
+  'This is what they read first; make it feel noticed, not generic.\n' +
+  '- connector: OPTIONAL. Only fill in when one pillar is clearly out of step with the other two (a real gap, not noise) — leave it an empty string otherwise. ' +
+  'Frame it as balance, not a report card.\n' +
+  '- eating: 1-2 sentences on today\'s calorie consistency specifically, using loggedToday vs targetToday. If nothing\'s logged yet today, say so gently — ' +
+  'no judgment, it just holds steady until they\'re back.\n' +
+  '- satiety: 1-2 sentences on what is actually driving the Staying Satisfied score this week — cite whichever real driver(s) from ' +
+  'deficitPts/proteinPts/waterPts/carbsPts/fiberPts/fatPts/volatilityPts are actually elevated, in plain language (e.g. "protein\'s been running under ' +
+  'where you need it," not "proteinPts is 6"). If nothing is elevated, say things are in a sustainable range.\n' +
+  '- movement: 1-2 sentences on today\'s movement using gymKcalToday/stepsKcalToday vs targetKcalToday. Describe how they actually move (gym-focused, ' +
+  'mostly walking, a mix, or barely logged) rather than forcing a rigid label.\n' +
+  '- Speak like a smart, honest, warm friend who is paying attention — never clinical, never "macro targets" or "caloric deficit" jargon.\n' +
+  '- Word choice should carry how far off something is (a little vs a lot) — a number can be cited as a fact ("62g vs your 120g") but should not be the whole sentence.\n' +
+  '- Never say "based on your data" or "your logs show" — you just know them.';
+
 // ── Response schemas ─────────────────────────────────────────────────────────
 
 const FOOD_ITEM = {
@@ -67,6 +93,18 @@ const INGREDIENTS_SCHEMA = {
     scene:       { type: 'STRING' },
   },
   required: ['ingredients', 'scene'],
+};
+
+const MOMENTUM_WHY_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    headline:  { type: 'STRING', description: 'The single most interesting/specific thing true about today.' },
+    connector: { type: 'STRING', description: 'Cross-pillar balance observation, or empty string if no real gap.' },
+    eating:    { type: 'STRING' },
+    satiety:   { type: 'STRING' },
+    movement:  { type: 'STRING' },
+  },
+  required: ['headline', 'connector', 'eating', 'satiety', 'movement'],
 };
 
 // ── Core fetch helper ────────────────────────────────────────────────────────
@@ -219,6 +257,23 @@ export default async function handler(req, res) {
       const parsed = parseJson(text);
       if (!parsed) return res.status(500).json({ error: 'Could not analyse image' });
       return res.json({ ingredients: parsed.ingredients || [], scene: parsed.scene || '' });
+    }
+
+    // ── Momentum "See why" breakdown ─────────────────────────────────────────
+    if (type === 'momentum_why') {
+      const text = await callGemini(GEMINI_KEY, [
+        { text: `TODAY'S MOMENTUM DATA:\n${JSON.stringify(data)}` },
+      ], { systemInstruction: MOMENTUM_WHY_SYSTEM, schema: MOMENTUM_WHY_SCHEMA });
+
+      const parsed = parseJson(text);
+      if (!parsed) return res.status(500).json({ error: 'Could not parse momentum why' });
+      return res.json({
+        headline: parsed.headline || null,
+        connector: parsed.connector || null,
+        eating: parsed.eating || null,
+        satiety: parsed.satiety || null,
+        movement: parsed.movement || null,
+      });
     }
 
     return res.status(400).json({ error: 'Invalid type' });

@@ -975,7 +975,7 @@ const ProgressTab = ({
     connector: crossPillarConnector,
   }), [momentumPatternSentence, crossPillarConnector]);
 
-  // "See why" — AI-written breakdown (see src/lib/momentumWhy.js + api/ai.js's momentum_why
+  // "See why" — AI-written breakdown (see src/lib/momentumWhy.js + api/gemini.js's momentum_why
   // prompt), fed the exact same computed numbers the template sentences above use. Real coach
   // language instead of a fixed sentence ladder is what makes this screen feel like it's actually
   // looking at today, not picking from a script. The template sentences above stay as the instant
