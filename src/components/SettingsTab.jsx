@@ -780,9 +780,8 @@ const SettingsTab = ({
 
       {/* App Version */}
       <View style={styles.settingsVersion}>
-        <Text style={styles.settingsVersionText}>
-          <Text style={{ fontWeight: '700', color: colors.text }}>Logga</Text> v1.0.0
-        </Text>
+        <Image source={require('../../assets/logga-wordmark.png')} style={styles.settingsVersionLogo} resizeMode="contain" />
+        <Text style={styles.settingsVersionText}>v1.0.0</Text>
         <Text style={styles.settingsVersionSub}>Made by SeedFest Technologies</Text>
       </View>
 
@@ -2264,8 +2263,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
   },
+  settingsVersionLogo: {
+    width: 72,
+    height: 32,
+    marginBottom: 4,
+  },
   settingsVersionText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#888',
   },
   settingsVersionSub: {
