@@ -1063,10 +1063,10 @@ function ActivityScreen(p) {
 function EatingScreen(p) {
   const { d, pick, next } = p;
   const opts = [
-    { v: 'omad',  t: 'OMAD',          s: 'One meal a day',         icon: '🍽️' },
-    { v: '2x',    t: 'Twice a day',   s: 'Two solid meals',        icon: '🍽️🍽️' },
-    { v: '3x',    t: 'Three meals',   s: 'Breakfast, lunch, dinner', icon: '☀️🌤️🌙' },
-    { v: '4x',    t: 'Small & often', s: 'Four-ish small meals',   icon: '🕐' },
+    { v: 'omad',  t: 'OMAD',          s: 'One meal a day',         icon: 'restaurant-outline' },
+    { v: '2x',    t: 'Twice a day',   s: 'Two solid meals',        icon: 'copy-outline' },
+    { v: '3x',    t: 'Three meals',   s: 'Breakfast, lunch, dinner', icon: 'partly-sunny-outline' },
+    { v: '4x',    t: 'Small & often', s: 'Four-ish small meals',   icon: 'apps-outline' },
     { v: 'flex',  t: 'Flexible',      s: 'It changes day to day',  icon: 'swap-vertical-outline' },
   ];
   return (
