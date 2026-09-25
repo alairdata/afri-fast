@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Modal, Dimensions, Image, Platform, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FastingQuizPage from './FastingQuizPage';
+import YourDetails from './YourDetails';
 import { useTheme } from '../lib/theme';
 
 const COUNTRIES = [
@@ -138,6 +139,7 @@ const SettingsTab = ({
   cuisines, setCuisines,
   motivations, setMotivations,
   accountability, setAccountability,
+  latestWeightKg, onSaveDetails,
   onBack,
 }) => {
   const { isDark, colors } = useTheme();
@@ -384,29 +386,35 @@ const SettingsTab = ({
           </View>
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
 
-            {/* Eating Style */}
-            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Eating Style</Text>
-              <View style={styles.settingsItemBlock}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>How often do you eat?</Text>
-                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Tailors meal suggestions to your actual routine</Text>
-                </View>
-                <View>
-                  {[
-                    { value: 'omad',     label: 'OMAD',       desc: 'One meal a day' },
-                    { value: '2x',       label: '2× a day',   desc: 'Two meals' },
-                    { value: '3x',       label: '3× a day',   desc: 'Breakfast, lunch, dinner' },
-                    { value: '4x',       label: '4× a day',   desc: 'Three meals + a snack' },
-                    { value: 'flexible', label: 'Flexible',   desc: 'Varies day to day' },
-                  ].map(({ value, label, desc }) => (
-                    <OptionRow key={value} title={label} desc={desc} active={eatingStyle === value} onPress={() => setEatingStyle(value)} colors={colors} />
-                  ))}
-                </View>
-              </View>
+            {/* Your Details — onboarding answers, edited with the onboarding screens */}
+            <YourDetails
+              colors={colors}
+              goal={userGoal}
+              struggles={struggles}
+              sex={sex}
+              age={age}
+              height={height}
+              heightUnit={heightUnit}
+              targetWeight={targetWeight}
+              startingWeight={startingWeight}
+              weightUnit={weightUnit}
+              latestWeightKg={latestWeightKg}
+              pacePreference={pacePreference}
+              activityLevel={activityLevel}
+              eatingStyle={eatingStyle}
+              foodContext={foodContext}
+              cuisines={cuisines}
+              motivations={motivations}
+              accountability={accountability}
+              dailyCalorieGoal={dailyCalorieGoal}
+              onSaveDetails={onSaveDetails}
+              onApplyCalories={setDailyCalorieGoal}
+            />
 
-              {(eatingStyle === 'omad' || eatingStyle === '2x') && (
-                <View style={[styles.settingsItemBlock, { marginTop: 4 }]}>
+            {(eatingStyle === 'omad' || eatingStyle === '2x') && (
+              <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Eating Window</Text>
+                <View style={styles.settingsItemBlock}>
                   <View style={styles.settingsItemLeft}>
                     <Text style={[styles.settingsItemLabel, { color: colors.text }]}>
                       {eatingStyle === 'omad' ? 'When do you eat?' : 'When are your meals?'}
@@ -414,7 +422,7 @@ const SettingsTab = ({
                     <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>
                       {eatingStyle === 'omad'
                         ? 'Suggestions only show during your eating window'
-                        : 'We\'ll split your calorie budget across both meals'}
+                        : "We'll split your calorie budget across both meals"}
                     </Text>
                   </View>
                   <View>
@@ -428,185 +436,8 @@ const SettingsTab = ({
                     ))}
                   </View>
                 </View>
-              )}
-            </View>
-
-            {/* Personal Details */}
-            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Personal Details</Text>
-              <View style={styles.settingsItem}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Age</Text>
-                </View>
-                <View style={styles.settingsInputWrapper}>
-                  <TextInput
-                    style={styles.settingsInput}
-                    value={age != null ? String(age) : ''}
-                    onChangeText={(text) => {
-                      const val = parseInt(text, 10);
-                      if (!isNaN(val)) setAge(val);
-                      else if (text === '') setAge(null);
-                    }}
-                    keyboardType="numeric"
-                    placeholder="--"
-                  />
-                  <Text style={styles.settingsInputUnit}>yrs</Text>
-                </View>
               </View>
-              <View style={styles.settingsItemBlock}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Sex</Text>
-                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Used in your calorie burn calculation</Text>
-                </View>
-                <View>
-                  {['Male', 'Female', 'Other'].map((s) => (
-                    <OptionRow key={s} title={s} active={sex === s} onPress={() => setSex(s)} colors={colors} compact />
-                  ))}
-                </View>
-              </View>
-              <View style={styles.settingsItemBlock}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Activity Level</Text>
-                </View>
-                <View>
-                  {[
-                    { v: 'sedentary', t: 'Sedentary', d: 'Desk job, drive everywhere, little walking' },
-                    { v: 'light', t: 'Lightly active', d: 'Some walking — to the market, around the office' },
-                    { v: 'moderate', t: 'On my feet a lot', d: 'Trading, errands, carrying loads most days' },
-                    { v: 'active', t: 'Very active', d: 'Hard physical work or training 5–6× a week' },
-                  ].map(({ v, t, d }) => (
-                    <OptionRow key={v} title={t} desc={d} active={activityLevel === v} onPress={() => setActivityLevel(v)} colors={colors} />
-                  ))}
-                </View>
-              </View>
-              <View style={styles.settingsItemBlock}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Pace Preference</Text>
-                </View>
-                <View>
-                  {[
-                    { v: 'slow', t: 'Slow & steady', d: '~0.25 kg a week · easiest to stick with' },
-                    { v: 'moderate', t: 'Balanced', d: '~0.5 kg a week · our recommendation' },
-                    { v: 'aggressive', t: 'All-in', d: '~0.75 kg a week · fastest, needs discipline' },
-                    { v: 'extreme', t: 'All-out', d: '~1.0 kg a week · needs strict discipline' },
-                  ].map(({ v, t, d }) => (
-                    <OptionRow key={v} title={t} desc={d} active={pacePreference === v} onPress={() => setPacePreference(v)} colors={colors} />
-                  ))}
-                </View>
-              </View>
-            </View>
-
-            {/* Your Goal */}
-            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Your Goal</Text>
-              <View style={styles.settingsItemBlock}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>What brings you here?</Text>
-                </View>
-                <View>
-                  {[
-                    { v: 'lose', t: 'Lose weight', d: 'Shed kilos at a healthy, steady pace' },
-                    { v: 'eat', t: 'Eat better', d: 'More balance, less guilt' },
-                    { v: 'consistent', t: 'Stay consistent', d: 'Build a habit that finally sticks' },
-                    { v: 'understand', t: 'Understand my body', d: 'Learn what my meals really do' },
-                  ].map(({ v, t, d }) => (
-                    <OptionRow key={v} title={t} desc={d} active={userGoal === v} onPress={() => setUserGoal(v)} colors={colors} />
-                  ))}
-                </View>
-              </View>
-            </View>
-
-            {/* What You Struggle With */}
-            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.settingsSectionTitleRow}>
-                <Text style={[styles.settingsSectionTitle, { marginBottom: 0, color: colors.textSecondary }]}>What You Struggle With</Text>
-                <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Pick any</Text>
-              </View>
-              <View>
-                {[
-                  { v: 'forget', t: 'I forget to track', d: 'Life gets busy and logging slips' },
-                  { v: 'local', t: "Don't know local food calories", d: 'No app counts a wrap of fufu' },
-                  { v: 'motivation', t: 'I lose motivation', d: 'I start strong, then fade' },
-                  { v: 'eatout', t: 'I eat out a lot', d: 'Buka, mama-put, restaurants' },
-                ].map(({ v, t, d }) => (
-                  <OptionRow key={v} title={t} desc={d} active={(struggles || []).includes(v)} onPress={() => setStruggles((struggles || []).includes(v) ? struggles.filter((x) => x !== v) : [...(struggles || []), v])} colors={colors} />
-                ))}
-              </View>
-            </View>
-
-            {/* Food Context */}
-            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Food Context</Text>
-              <View style={styles.settingsItemBlock}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Where does your food come from?</Text>
-                </View>
-                <View>
-                  {[
-                    { v: 'home', t: 'Mostly home-cooked' },
-                    { v: 'out', t: 'Mostly bought / eating out' },
-                    { v: 'mix', t: 'A mix of both' },
-                  ].map(({ v, t }) => (
-                    <OptionRow key={v} title={t} active={foodContext === v} onPress={() => setFoodContext(v)} colors={colors} compact />
-                  ))}
-                </View>
-              </View>
-              <View style={[styles.settingsItemBlock, { marginTop: 4 }]}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Cuisines you cook/eat</Text>
-                  <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Pick as many as apply</Text>
-                </View>
-                <View style={styles.settingsMacroStyleControl}>
-                  {['Nigerian', 'Ghanaian', 'Kenyan', 'Swahili', 'Ethiopian', 'Senegalese', 'Continental', 'Fast food'].map((c) => (
-                    <TouchableOpacity
-                      key={c}
-                      style={[styles.settingsMacroStyleOption, (cuisines || []).includes(c) && styles.settingsMacroStyleOptionActive]}
-                      onPress={() => setCuisines((cuisines || []).includes(c) ? cuisines.filter((x) => x !== c) : [...(cuisines || []), c])}
-                    >
-                      <Text style={(cuisines || []).includes(c) ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>{c}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </View>
-
-            {/* What's Motivating You */}
-            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.settingsSectionTitleRow}>
-                <Text style={[styles.settingsSectionTitle, { marginBottom: 0, color: colors.textSecondary }]}>What's Motivating You</Text>
-                <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Pick any</Text>
-              </View>
-              <View>
-                {[
-                  { v: 'wedding', t: 'A big event', d: 'Wedding, shoot, reunion' },
-                  { v: 'health', t: 'A health wake-up call', d: 'I want to get ahead of it' },
-                  { v: 'confident', t: 'To feel confident again', d: 'In my clothes, in my skin' },
-                  { v: 'doctor', t: "Doctor's advice", d: 'Following medical guidance' },
-                  { v: 'curious', t: 'Just curious', d: 'Seeing what I can do' },
-                ].map(({ v, t, d }) => (
-                  <OptionRow key={v} title={t} desc={d} active={(motivations || []).includes(v)} onPress={() => setMotivations((motivations || []).includes(v) ? motivations.filter((x) => x !== v) : [...(motivations || []), v])} colors={colors} />
-                ))}
-              </View>
-            </View>
-
-            {/* Accountability Style */}
-            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Accountability Style</Text>
-              <View style={styles.settingsItemBlock}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>How should we keep you on track?</Text>
-                </View>
-                <View>
-                  {[
-                    { v: 'gentle', t: 'Gentle nudges', d: 'Kind, encouraging check-ins' },
-                    { v: 'firm', t: 'Firm reminders', d: "Keep me honest — don't let me slack" },
-                    { v: 'alone', t: 'Leave me alone', d: "I'll come to the app myself" },
-                  ].map(({ v, t, d }) => (
-                    <OptionRow key={v} title={t} desc={d} active={accountability === v} onPress={() => setAccountability(v)} colors={colors} />
-                  ))}
-                </View>
-              </View>
-            </View>
+            )}
 
             {/* Nutrition Goals */}
             <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -633,53 +464,6 @@ const SettingsTab = ({
                     placeholder="--"
                   />
                   <Text style={styles.settingsInputUnit}>{weightUnit}</Text>
-                </View>
-              </View>
-              <View style={styles.settingsItem}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Target Weight</Text>
-                </View>
-                <View style={styles.settingsInputWrapper}>
-                  <TextInput
-                    style={styles.settingsInput}
-                    value={targetWeight != null ? String(targetWeight) : ''}
-                    onChangeText={(text) => {
-                      const val = parseFloat(text);
-                      if (!isNaN(val)) setTargetWeight(val);
-                      else if (text === '') setTargetWeight(null);
-                    }}
-                    keyboardType="numeric"
-                    placeholder="--"
-                  />
-                  <Text style={styles.settingsInputUnit}>{weightUnit}</Text>
-                </View>
-              </View>
-              <View style={styles.settingsItem}>
-                <View style={styles.settingsItemLeft}>
-                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Height</Text>
-                </View>
-                <View style={styles.settingsInputWrapper}>
-                  <TextInput
-                    style={styles.settingsInput}
-                    value={height != null ? String(height) : ''}
-                    onChangeText={(text) => {
-                      const val = parseFloat(text);
-                      if (!isNaN(val)) setHeight(val);
-                      else if (text === '') setHeight(null);
-                    }}
-                    keyboardType="numeric"
-                    placeholder="--"
-                  />
-                  <TouchableOpacity onPress={() => {
-                    const nextUnit = heightUnit === 'cm' ? 'ft' : 'cm';
-                    if (height != null && !isNaN(height)) {
-                      const converted = nextUnit === 'ft' ? height / 30.48 : height * 30.48;
-                      setHeight(Math.round(converted * 10) / 10);
-                    }
-                    setHeightUnit(nextUnit);
-                  }}>
-                    <Text style={[styles.settingsInputUnit, { color: '#059669' }]}>{heightUnit}</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
               <View style={styles.settingsItem}>

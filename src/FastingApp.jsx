@@ -489,6 +489,47 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     upsertProfile({ avatar_url: url }, 'save avatar');
   };
 
+  // "Your Details" (Settings > Make it Yours) edits onboarding answers with the onboarding screens, so
+  // values arrive onboarding-shaped (cm/kg, 'flex'); convert to the app's own units and value names here.
+  const handleSaveDetails = (c) => {
+    const patch = {};
+    if ('goal' in c) { setUserGoal(c.goal); patch.goal = c.goal; }
+    if ('gender' in c) { setSex(c.gender); patch.sex = c.gender; }
+    if ('age' in c) { setAge(c.age); patch.age = c.age; }
+    if ('heightCm' in c) {
+      const val = heightUnit === 'ft' ? Math.round((c.heightCm / 30.48) * 10) / 10 : Math.round(c.heightCm);
+      setHeight(String(val));
+      patch.height = String(val);
+    }
+    if ('targetKg' in c) {
+      const tw = Math.round((weightUnit === 'lb' ? c.targetKg * 2.2046 : c.targetKg) * 10) / 10;
+      setTargetWeight(tw);
+      patch.target_weight = tw;
+    }
+    if ('pace' in c) { setPacePreference(c.pace); patch.pace_preference = c.pace; }
+    if ('activity' in c) { setActivityLevel(c.activity); patch.activity_level = c.activity; }
+    if ('eatingStyle' in c) {
+      const style = c.eatingStyle === 'flex' ? 'flexible' : c.eatingStyle;
+      setEatingStyle(style);
+      patch.eating_style = style;
+    }
+    if ('foodContext' in c) { setFoodContext(c.foodContext); patch.food_context = c.foodContext; }
+    if ('cuisines' in c) { setCuisines(c.cuisines); patch.cuisines = c.cuisines; }
+    if ('whys' in c) { setMotivations(c.whys); patch.motivations = c.whys; }
+    if ('accountability' in c) { setAccountability(c.accountability); patch.accountability = c.accountability; }
+    if ('struggles' in c) { setStruggles(c.struggles); patch.struggles = c.struggles; }
+    if (Object.keys(patch).length > 0) upsertProfile(patch, 'save your details');
+  };
+
+  const latestWeightKg = (() => {
+    if (!weightLogs?.length) return null;
+    const ts = (l) => l.timestamp || new Date(l.date).getTime() || 0;
+    const latest = [...weightLogs].sort((a, b) => ts(b) - ts(a))[0];
+    const w = parseFloat(latest.weight);
+    if (Number.isNaN(w)) return null;
+    return latest.unit === 'lb' ? w / 2.2046 : w;
+  })();
+
   // Separate, best-effort read: a missing avatar_url column must never break the main profile fetch.
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -1969,6 +2010,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           userCountry={userCountry}
           onSetCountry={(c) => { setUserCountry(c); upsertProfile({ country: c }, 'update country'); }}
           profileImage={profileImage}
+          latestWeightKg={latestWeightKg}
+          onSaveDetails={handleSaveDetails}
           onEditProfile={() => setShowEditProfile(true)}
           onShowPlanPage={handleOpenPlanPage}
           onShowFastingQuiz={() => setShowFastingQuiz(true)}

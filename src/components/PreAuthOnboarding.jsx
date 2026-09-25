@@ -25,7 +25,7 @@ const C = {
   green50:     '#ecfdf5',
 };
 
-const DEFAULT_DATA = {
+export const DEFAULT_DATA = {
   goal: '', struggles: [], name: '', country: '', gender: '', age: 28,
   heightCm: 170, weightKg: 82, targetKg: 72, unitH: 'cm', unitW: 'kg',
   pace: 'moderate', activity: '', eatingStyle: '',
@@ -41,7 +41,7 @@ const FULL_BLEED = new Set(['hook', 'bodyIntro', 'building', 'done']);
 const COUNTED = FLOW.filter(id => !FULL_BLEED.has(id)).length;
 
 // ── Calorie calculator (Mifflin-St Jeor → TDEE) ───────────────────────────────
-function calcPlan(d) {
+export function calcPlan(d) {
   const s = d.gender === 'Male' ? 5 : d.gender === 'Female' ? -161 : -78;
   const bmr = 10 * d.weightKg + 6.25 * d.heightCm - 5 * d.age + s;
   const factor = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 }[d.activity] || 1.375;
@@ -674,7 +674,7 @@ function DemoScreen(p) {
   );
 }
 
-function GoalScreen(p) {
+export function GoalScreen(p) {
   const { d, pick, next } = p;
   const opts = [
     { v: 'lose',       t: 'Lose weight',        s: 'Shed kilos at a healthy, steady pace',   icon: 'trending-down-outline' },
@@ -683,9 +683,9 @@ function GoalScreen(p) {
     { v: 'understand', t: 'Understand my body',  s: 'Learn what my meals really do',           icon: 'search-outline' },
   ];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.goal} />}>
+    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.goal} />}>
       <View style={{ marginTop: 32 }}>
-        <Text style={s.eyebrow}>Your goal</Text>
+        {!p.editing && <Text style={s.eyebrow}>Your goal</Text>}
         <Text style={s.headline}>What brings you here?</Text>
         <Text style={s.subline}>Pick the one that matters most right now.</Text>
       </View>
@@ -704,7 +704,7 @@ function GoalScreen(p) {
   );
 }
 
-function StruggleScreen(p) {
+export function StruggleScreen(p) {
   const { d, set, next } = p;
   const opts = [
     { v: 'forget',     t: 'I forget to track',                 s: 'Life gets busy and logging slips',      icon: 'notifications-off-outline' },
@@ -717,8 +717,8 @@ function StruggleScreen(p) {
   return (
     <ScreenShell {...p} footer={
       <>
-        <PrimaryBtn label="Continue" onPress={next} disabled={list.length === 0} />
-        <TextBtn label="Skip" onPress={next} />
+        <PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={list.length === 0} />
+        {!p.editing && <TextBtn label="Skip" onPress={next} />}
       </>
     }>
       <View style={{ marginTop: 32 }}>
@@ -746,9 +746,9 @@ function NameScreen(p) {
   const happy = d.name.trim().length > 0;
   const first = d.name.trim().split(' ')[0];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.name.trim()} />}>
+    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.name.trim()} />}>
       <View style={{ marginTop: 32 }}>
-        <Text style={s.eyebrow}>About you · 1 of 4</Text>
+        {!p.editing && <Text style={s.eyebrow}>About you · 1 of 4</Text>}
         <Text style={s.headline}>First, what should we call you?</Text>
         <Text style={s.subline}>We like to keep things personal — like friends.</Text>
       </View>
@@ -784,9 +784,9 @@ function CountryScreen(p) {
   };
   const list = ['Nigeria','Ghana','Kenya','Tanzania','Uganda','Senegal','Cameroon','Ethiopia','Other'];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.country} />}>
+    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.country} />}>
       <View style={{ marginTop: 32 }}>
-        <Text style={s.eyebrow}>About you · 2 of 4</Text>
+        {!p.editing && <Text style={s.eyebrow}>About you · 2 of 4</Text>}
         <Text style={s.headline}>Where are you{'\n'}cooking from?</Text>
         <Text style={s.subline}>So we match dishes and portions to your kitchen.</Text>
       </View>
@@ -804,7 +804,7 @@ function CountryScreen(p) {
   );
 }
 
-function GenderScreen(p) {
+export function GenderScreen(p) {
   const { d, pick, next } = p;
   const opts = [
     { v: 'Female', t: 'Female',                    icon: 'female-outline' },
@@ -812,9 +812,9 @@ function GenderScreen(p) {
     { v: 'Other',  t: 'Other / prefer not to say', icon: 'transgender-outline' },
   ];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.gender} />}>
+    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.gender} />}>
       <View style={{ marginTop: 32 }}>
-        <Text style={s.eyebrow}>About you · 3 of 4</Text>
+        {!p.editing && <Text style={s.eyebrow}>About you · 3 of 4</Text>}
         <Text style={s.headline}>What's your sex?</Text>
         <Text style={s.subline}>This sharpens your calorie maths — nothing else.</Text>
       </View>
@@ -832,12 +832,12 @@ function GenderScreen(p) {
   );
 }
 
-function AgeScreen(p) {
+export function AgeScreen(p) {
   const { d, set, next } = p;
   return (
-    <ScreenShell {...p} grow footer={<PrimaryBtn label="Continue" onPress={next} />}>
+    <ScreenShell {...p} grow footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} />}>
       <View style={{ marginTop: 32 }}>
-        <Text style={s.eyebrow}>About you · 4 of 4</Text>
+        {!p.editing && <Text style={s.eyebrow}>About you · 4 of 4</Text>}
         <Text style={s.headline}>How old{'\n'}are you?</Text>
         <Text style={s.subline}>Drag the dial to your age.</Text>
       </View>
@@ -867,7 +867,7 @@ function BodyIntroScreen({ d, next }) {
   );
 }
 
-function HeightScreen(p) {
+export function HeightScreen(p) {
   const { d, set, next } = p;
   const inCm = d.unitH === 'cm';
   const rulerMin = inCm ? 130 : 48;
@@ -878,7 +878,7 @@ function HeightScreen(p) {
     return `${Math.floor(totalIn / 12)}′ ${totalIn % 12}″ · ${Math.round(d.heightCm)} cm`;
   })();
   return (
-    <ScreenShell {...p} grow footer={<PrimaryBtn label="Continue" onPress={next} />}>
+    <ScreenShell {...p} grow footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} />}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8 }}>
         <Text style={[s.headline, { flex: 1 }]}>How tall{'\n'}are you?</Text>
         <Seg
@@ -908,7 +908,7 @@ function WeightScreen(p) {
   const rulerVal = inKg ? Math.round(d.weightKg) : Math.round(d.weightKg * 2.2046);
 
   return (
-    <ScreenShell {...p} grow footer={<PrimaryBtn label="Continue" onPress={next} />}>
+    <ScreenShell {...p} grow footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} />}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8 }}>
         <View style={{ flex: 1, marginRight: 8 }}>
           <Text style={s.headline}>What's your{'\n'}weight now?</Text>
@@ -932,7 +932,7 @@ function WeightScreen(p) {
   );
 }
 
-function TargetScreen(p) {
+export function TargetScreen(p) {
   const { d, set, next } = p;
   const inKg = d.unitW === 'kg';
   const rulerMin = inKg ? 40 : 88;
@@ -945,7 +945,7 @@ function TargetScreen(p) {
   const losing = gap > 0.5;
   const gaining = gap < -0.5;
   return (
-    <ScreenShell {...p} grow footer={<PrimaryBtn label="Continue" onPress={next} />}>
+    <ScreenShell {...p} grow footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} />}>
       <View style={{ marginTop: 8 }}>
         <Text style={s.headline}>What's your{'\n'}goal weight?</Text>
         <Text style={s.subline}>Aim for a healthy, reachable number — we'll pace it.</Text>
@@ -974,7 +974,7 @@ function TargetScreen(p) {
   );
 }
 
-function PaceScreen(p) {
+export function PaceScreen(p) {
   const { d, pick, next } = p;
   const gap = Math.max(0, d.weightKg - d.targetKg);
   const opts = [
@@ -984,7 +984,7 @@ function PaceScreen(p) {
     { v: 'extreme',    t: 'All-out',         s: '~1.0 kg a week · needs strict discipline',     rate: 1.0,  bars: 4 },
   ];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.pace} />}>
+    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.pace} />}>
       <View style={{ marginTop: 32 }}>
         <Text style={s.headline}>How fast do you want to go?</Text>
         <Text style={s.subline}>This sets your daily deficit. Change it whenever life shifts.</Text>
@@ -1031,7 +1031,7 @@ function PaceScreen(p) {
   );
 }
 
-function ActivityScreen(p) {
+export function ActivityScreen(p) {
   const { d, pick, next } = p;
   const opts = [
     { v: 'sedentary', t: 'Mostly sitting',        s: 'Desk job, drive everywhere, little walking',     icon: 'laptop-outline' },
@@ -1040,7 +1040,7 @@ function ActivityScreen(p) {
     { v: 'active',    t: 'Very active',             s: 'Hard physical work or training 5–6× a week',     icon: 'barbell-outline' },
   ];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.activity} />}>
+    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.activity} />}>
       <View style={{ marginTop: 32 }}>
         <Text style={s.headline}>How active is your day?</Text>
         <Text style={s.subline}>A normal day, not your best one. This sets your burn.</Text>
@@ -1060,7 +1060,7 @@ function ActivityScreen(p) {
   );
 }
 
-function EatingScreen(p) {
+export function EatingScreen(p) {
   const { d, pick, next } = p;
   const opts = [
     { v: 'omad',  t: 'OMAD',          s: 'One meal a day',         icon: 'restaurant-outline' },
@@ -1070,7 +1070,7 @@ function EatingScreen(p) {
     { v: 'flex',  t: 'Flexible',      s: 'It changes day to day',  icon: 'swap-vertical-outline' },
   ];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.eatingStyle} />}>
+    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.eatingStyle} />}>
       <View style={{ marginTop: 32 }}>
         <Text style={s.headline}>How do you like to eat?</Text>
         <Text style={s.subline}>We'll time your reminders around it.</Text>
@@ -1090,7 +1090,7 @@ function EatingScreen(p) {
   );
 }
 
-function FoodScreen(p) {
+export function FoodScreen(p) {
   const { d, set, next } = p;
   const where = [
     { v: 'home', t: 'Mostly home-cooked',        icon: 'home-outline' },
@@ -1103,7 +1103,7 @@ function FoodScreen(p) {
     set('cuisines', has ? d.cuisines.filter(x => x !== c) : [...d.cuisines, c]);
   };
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.foodContext} />}>
+    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.foodContext} />}>
       <View style={{ marginTop: 32 }}>
         <Text style={s.headline}>Where does your food come from?</Text>
       </View>
@@ -1132,7 +1132,7 @@ function FoodScreen(p) {
   );
 }
 
-function WhyScreen(p) {
+export function WhyScreen(p) {
   const { d, set, next } = p;
   const opts = [
     { v: 'wedding',    t: 'A big event',           s: 'Wedding, shoot, reunion',         icon: 'calendar-outline' },
@@ -1146,8 +1146,8 @@ function WhyScreen(p) {
   return (
     <ScreenShell {...p} footer={
       <>
-        <PrimaryBtn label="Continue" onPress={next} disabled={list.length === 0} />
-        <TextBtn label="Skip" onPress={next} />
+        <PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={list.length === 0} />
+        {!p.editing && <TextBtn label="Skip" onPress={next} />}
       </>
     }>
       <View style={{ marginTop: 32 }}>
@@ -1169,7 +1169,7 @@ function WhyScreen(p) {
   );
 }
 
-function AccountabilityScreen(p) {
+export function AccountabilityScreen(p) {
   const { d, pick, next } = p;
   const opts = [
     { v: 'gentle', t: 'Gentle nudges',   s: 'Kind, encouraging check-ins',            icon: 'heart-outline' },
@@ -1177,7 +1177,7 @@ function AccountabilityScreen(p) {
     { v: 'alone',  t: 'Leave me alone',  s: "I'll come to the app myself",             icon: 'moon-outline' },
   ];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Lock it in" onPress={next} disabled={!d.accountability} />}>
+    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Lock it in'} onPress={next} disabled={!d.accountability} />}>
       <View style={{ marginTop: 32 }}>
         <Text style={s.headline}>How should we keep you on track?</Text>
         <Text style={s.subline}>You can change this anytime in settings.</Text>
