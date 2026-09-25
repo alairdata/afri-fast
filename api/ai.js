@@ -571,16 +571,25 @@ or the word: null`;
         ? `recentInsights: ${JSON.stringify(recentInsights)}`
         : 'recentInsights: []';
 
-      const fullPrompt = `${DAILY_COACH_PROMPT}\n\nUSER DATA:\n${processedData}\n\ntodayLens: ${todayLens}\n${recentStr}`;
-      const raw = await callGeminiJson(fullPrompt, GEMINI_KEY, JUST_FOR_YOU_SCHEMA);
+      const basePrompt = `${DAILY_COACH_PROMPT}\n\nUSER DATA:\n${processedData}\n\ntodayLens: ${todayLens}\n${recentStr}`;
+      const mustWrite = `\n\nIMPORTANT: The "nothing major to flag today" fallback is only for a person with essentially no logged data at all. If they have logged anything (meals, water, weight, check-ins) in the last 14 days, ALWAYS write a genuine insight through today's lens (${todayLens}). If a topic overlaps with recentInsights, pick a different angle on it or a different detail from their data. Never return the fallback.`;
+      const isFallback = (r) => /nothing major to flag/i.test(r?.insight || '') || r?.topic === 'no new insight today';
 
-      const stripped = raw.replace(/```json|```/g, '').trim();
-      const jsonMatch = stripped.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        console.error('[/api/ai just_for_you] No JSON in response:', raw.slice(0, 300));
-        return res.status(500).json({ error: 'Could not parse insight' });
+      const parseInsight = (raw) => {
+        const stripped = raw.replace(/```json|```/g, '').trim();
+        const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          console.error('[/api/ai just_for_you] No JSON in response:', raw.slice(0, 300));
+          return null;
+        }
+        return JSON.parse(jsonMatch[0]);
+      };
+
+      let result = parseInsight(await callGeminiJson(basePrompt + mustWrite, GEMINI_KEY, JUST_FOR_YOU_SCHEMA));
+      if (result && isFallback(result)) {
+        result = parseInsight(await callGeminiJson(basePrompt + mustWrite, GEMINI_KEY, JUST_FOR_YOU_SCHEMA)) || result;
       }
-      const result = JSON.parse(jsonMatch[0]);
+      if (!result) return res.status(500).json({ error: 'Could not parse insight' });
       return res.status(200).json(result);
     }
 

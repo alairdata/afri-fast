@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
 const DAILY_CACHE_KEY = 'claude_daily_insights_v1';
-const JFY_CACHE_KEY = 'claude_just_for_you_v3';
+const JFY_CACHE_KEY = 'claude_just_for_you_v4';
 
 const LENSES = ['MEAL_COMPOSITION', 'HYDRATION', 'MOOD_AND_FOOD', 'MOVEMENT', 'WEIGHT_TREND', 'CONSISTENCY', 'PROGRESS_REFRAME'];
 
@@ -220,7 +220,7 @@ export async function getJustForYou(data, forceRefresh = false) {
   const todayLens = pickLens(recentInsights);
 
   if (!forceRefresh) {
-    const cached = await getCached(JFY_CACHE_KEY, userId, 'just_for_you_v3');
+    const cached = await getCached(JFY_CACHE_KEY, userId, 'just_for_you_v4');
     if (cached?.cards?.[0]?.insight && cached.timestamp >= lastJfySlot()) {
       return { insight: cached.cards[0].insight, fromApi: false };
     }
@@ -233,7 +233,7 @@ export async function getJustForYou(data, forceRefresh = false) {
       const newEntry = { date: todayStr, lens: result.lens || todayLens, topic: result.topic || '' };
       const updatedRecent = [newEntry, ...recentInsights].slice(0, 7);
       const cacheCard = { insight: result.insight, lens: result.lens, topic: result.topic, recentInsights: updatedRecent };
-      await saveCache(JFY_CACHE_KEY, userId, 'just_for_you_v3', { cards: [cacheCard] });
+      await saveCache(JFY_CACHE_KEY, userId, 'just_for_you_v4', { cards: [cacheCard] });
     }
     return { insight: result?.insight || null, fromApi: true };
   } catch (e) {
