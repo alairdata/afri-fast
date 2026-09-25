@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import FastingQuizPage from './FastingQuizPage';
 import YourDetails from './YourDetails';
 import { FaqSheet, ContactSheet, RateSheet, PrivacySheet, ClearHistorySheet } from './SettingsSheets';
-import { exportMyData } from '../lib/exportData';
 import { useTheme } from '../lib/theme';
 
 const COUNTRIES = [
@@ -239,15 +238,7 @@ const SettingsTab = ({
   const [showRate, setShowRate] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showClear, setShowClear] = useState(false);
-  const [exportState, setExportState] = useState('idle'); // idle | busy | done | error
-
-  const handleExport = async () => {
-    if (exportState === 'busy') return;
-    setExportState('busy');
-    const result = await exportMyData(userId);
-    setExportState(result.ok ? 'done' : 'error');
-    if (result.ok) setTimeout(() => setExportState('idle'), 3000);
-  };
+  const [showDataRequest, setShowDataRequest] = useState(false);
   const [deleteText, setDeleteText] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
   const countryRows = (() => {
@@ -725,20 +716,12 @@ const SettingsTab = ({
       <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Data & Privacy</Text>
 
-        <TouchableOpacity style={styles.settingsActionItem} onPress={handleExport}>
+        <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowDataRequest(true)}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="download-outline" size={18} color="#374151" />
-            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Export My Data</Text>
+            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Request My Data</Text>
           </View>
-          {exportState === 'busy' ? (
-            <ActivityIndicator size="small" color="#059669" />
-          ) : exportState === 'done' ? (
-            <Ionicons name="checkmark-circle" size={18} color="#059669" />
-          ) : exportState === 'error' ? (
-            <Text style={{ color: '#DC2626', fontSize: 12 }}>Failed, tap to retry</Text>
-          ) : (
-            <Ionicons name="chevron-forward" size={16} color="#ccc" />
-          )}
+          <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowClear(true)}>
@@ -1059,6 +1042,17 @@ const SettingsTab = ({
         </View>
       )}
       <FaqSheet visible={showFaq} onClose={() => setShowFaq(false)} />
+      <ContactSheet
+        visible={showDataRequest}
+        onClose={() => setShowDataRequest(false)}
+        userId={userId}
+        userEmail={userEmail}
+        title="Request My Data"
+        intro={`Send us this request and we'll email a copy of your data to ${userEmail || 'your account email'}.`}
+        prefill="Hi, please send me a copy of my data."
+        prefix="[Data request] "
+        sendLabel="Send request"
+      />
       <ContactSheet visible={showContact} onClose={() => setShowContact(false)} userId={userId} userEmail={userEmail} />
       <RateSheet visible={showRate} onClose={() => setShowRate(false)} userId={userId} userEmail={userEmail} />
       <PrivacySheet visible={showPrivacy} onClose={() => setShowPrivacy(false)} shareCommunityPhotos={shareCommunityPhotos} onToggleShare={onToggleShareCommunityPhotos} />

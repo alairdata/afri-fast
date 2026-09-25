@@ -43,7 +43,7 @@ const FAQ = [
   { q: 'Can I change my onboarding answers?', a: 'Yes. Go to Make it Yours, then Your Details, and tap any answer to update it. Changes save straight away.' },
   { q: 'How do I change my name, photo or country?', a: 'On the Settings screen, tap the pencil icon at the top to change your username and photo. Tap your country under your name to pick a different one.' },
   { q: 'How do reminders work?', a: "Turn on the meal logging reminder under Notifications and pick a time. Reminders work in the phone app; the website can't send them yet." },
-  { q: 'How do I export or delete my data?', a: 'Both are under Data & Privacy. Export My Data gives you a file of everything you have logged. Clear History wipes your logs but keeps your account. Account Options lets you delete your account for good.' },
+  { q: 'How do I export or delete my data?', a: 'Both are under Data & Privacy. Request My Data lets you ask us for a copy of everything you have logged. Clear History wipes your logs but keeps your account. Account Options lets you delete your account for good.' },
 ];
 
 export function FaqSheet({ visible, onClose }) {
@@ -78,7 +78,14 @@ async function sendFeedback({ userId, email, type, rating = null, message = null
 }
 
 // ── Contact Support ────────────────────────────────────────────────────────────
-export function ContactSheet({ visible, onClose, userId, userEmail }) {
+export function ContactSheet({
+  visible, onClose, userId, userEmail,
+  title = 'Contact Support',
+  intro = null,
+  prefill = '',
+  prefix = '',
+  sendLabel = 'Send message',
+}) {
   const { colors } = useTheme();
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -86,19 +93,19 @@ export function ContactSheet({ visible, onClose, userId, userEmail }) {
   const [sent, setSent] = useState(false);
 
   useEffect(() => {
-    if (visible) { setMessage(''); setError(''); setSent(false); setSending(false); }
+    if (visible) { setMessage(prefill); setError(''); setSent(false); setSending(false); }
   }, [visible]);
 
   const send = async () => {
     if (message.trim().length < 5) { setError('Tell us a little more so we can help.'); return; }
     setSending(true); setError('');
-    const err = await sendFeedback({ userId, email: userEmail, type: 'support', message: message.trim() });
+    const err = await sendFeedback({ userId, email: userEmail, type: 'support', message: `${prefix}${message.trim()}` });
     setSending(false);
     if (err) setError(err); else setSent(true);
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Contact Support">
+    <Sheet visible={visible} onClose={onClose} title={title}>
       {sent ? (
         <View style={st.centerBlock}>
           <Ionicons name="checkmark-circle" size={44} color={GREEN} />
@@ -111,7 +118,7 @@ export function ContactSheet({ visible, onClose, userId, userEmail }) {
       ) : (
         <>
           <Text style={[st.body, { color: colors.textSecondary }]}>
-            Something not working, or an idea to share? Tell us and we'll get back to you{userEmail ? ` at ${userEmail}` : ''}.
+            {intro || `Something not working, or an idea to share? Tell us and we'll get back to you${userEmail ? ` at ${userEmail}` : ''}.`}
           </Text>
           <TextInput
             style={[st.textArea, { color: colors.text, borderColor: colors.border }]}
@@ -125,7 +132,7 @@ export function ContactSheet({ visible, onClose, userId, userEmail }) {
           />
           {error ? <Text style={st.error}>{error}</Text> : null}
           <TouchableOpacity style={[st.primaryBtn, sending && { opacity: 0.6 }]} onPress={send} disabled={sending}>
-            {sending ? <ActivityIndicator color="#fff" /> : <Text style={st.primaryTxt}>Send message</Text>}
+            {sending ? <ActivityIndicator color="#fff" /> : <Text style={st.primaryTxt}>{sendLabel}</Text>}
           </TouchableOpacity>
         </>
       )}
@@ -215,7 +222,7 @@ export function PrivacySheet({ visible, onClose, shareCommunityPhotos, onToggleS
       <View style={[st.infoBox, { backgroundColor: colors.bg }]}>
         <Ionicons name="lock-closed-outline" size={18} color={GREEN} />
         <Text style={[st.infoTxt, { color: colors.textSecondary }]}>
-          Your meals, weight, water and check-ins are only visible to you. You can export or delete everything at any time under Data & Privacy.
+          Your meals, weight, water and check-ins are only visible to you. You can ask for a copy of your data or delete everything at any time under Data & Privacy.
         </Text>
       </View>
     </Sheet>
