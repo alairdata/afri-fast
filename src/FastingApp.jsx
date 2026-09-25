@@ -8,6 +8,7 @@ import { supabase } from './lib/supabase';
 const ACTIVE_FAST_KEY = 'afri_active_fast_v1';
 const LAST_FAST_END_KEY = 'afri_last_fast_end_v1';
 const SETTINGS_KEY = 'afri_user_settings_v2';
+const NOTIF_SETTINGS_KEY = 'afri_notification_settings_v1';
 // Persists the start-time the user manually set so the conflict check doesn't
 // kill the fast on the next page refresh (the ref resets but this survives).
 const CONFLICT_BYPASS_KEY = 'afri_conflict_bypass_v1';
@@ -23,6 +24,10 @@ import {
   scheduleBreakFastReminder,
   scheduleEatingWindowCloseReminder,
   cancelEatingWindowReminder,
+  scheduleWeighInReminder,
+  cancelWeighInReminder,
+  scheduleCalorieCheckReminder,
+  cancelCalorieCheckReminder,
 } from './lib/notifications';
 
 // Tab components
@@ -257,6 +262,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [notifyFastEnd, setNotifyFastEnd] = useState(true);
   const [notifyMealReminder, setNotifyMealReminder] = useState(false);
   const [notifyMilestones, setNotifyMilestones] = useState(true);
+  const [weighInTime, setWeighInTime] = useState({ hour: 7, minute: 0 });
+  const [calorieCheckTime, setCalorieCheckTime] = useState({ hour: 20, minute: 0 });
+  const [mealReminderTime, setMealReminderTime] = useState({ hour: 19, minute: 0 });
+  const [milestoneConfig, setMilestoneConfig] = useState({ streak: true, streakDays: 7, hydration: false, weight: false });
+  const [notifSettingsLoaded, setNotifSettingsLoaded] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
 
   // === Weight state ===
@@ -936,6 +946,43 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
   // Request notification permissions
   useEffect(() => { requestNotificationPermissions(); }, []);
+
+  // Reminder toggles + times persist on the device, and the scheduled notifications are always
+  // derived from them (schedule what's on, cancel what's off), so the Settings screen can never
+  // disagree with what's actually scheduled -- including after an app restart.
+  useEffect(() => {
+    AsyncStorage.getItem(NOTIF_SETTINGS_KEY).then((raw) => {
+      if (raw) {
+        try {
+          const n = JSON.parse(raw);
+          if (n.notifyFastStart != null) setNotifyFastStart(n.notifyFastStart);
+          if (n.notifyFastEnd != null) setNotifyFastEnd(n.notifyFastEnd);
+          if (n.notifyMealReminder != null) setNotifyMealReminder(n.notifyMealReminder);
+          if (n.notifyMilestones != null) setNotifyMilestones(n.notifyMilestones);
+          if (n.weighInTime) setWeighInTime(n.weighInTime);
+          if (n.calorieCheckTime) setCalorieCheckTime(n.calorieCheckTime);
+          if (n.mealReminderTime) setMealReminderTime(n.mealReminderTime);
+          if (n.milestoneConfig) setMilestoneConfig(n.milestoneConfig);
+        } catch (_) {}
+      }
+    }).catch(() => {}).finally(() => setNotifSettingsLoaded(true));
+  }, []);
+
+  useEffect(() => {
+    if (!notifSettingsLoaded) return;
+    AsyncStorage.setItem(NOTIF_SETTINGS_KEY, JSON.stringify({
+      notifyFastStart, notifyFastEnd, notifyMealReminder, notifyMilestones,
+      weighInTime, calorieCheckTime, mealReminderTime, milestoneConfig,
+    })).catch(() => {});
+    if (Platform.OS === 'web') return;
+    (async () => {
+      if (!(await requestNotificationPermissions())) return;
+      if (notifyFastStart) await scheduleWeighInReminder(weighInTime.hour, weighInTime.minute); else await cancelWeighInReminder();
+      if (notifyFastEnd) await scheduleCalorieCheckReminder(calorieCheckTime.hour, calorieCheckTime.minute); else await cancelCalorieCheckReminder();
+      if (notifyMealReminder) await scheduleMealReminder(mealReminderTime.hour, mealReminderTime.minute); else await cancelMealReminder();
+    })().catch((e) => console.log('[Notifications] sync failed:', e?.message));
+  }, [notifSettingsLoaded, notifyFastStart, notifyFastEnd, notifyMealReminder, notifyMilestones,
+      weighInTime, calorieCheckTime, mealReminderTime, milestoneConfig]);
 
   // Handle taps on prediction notifications — navigate to the linked insight card
   useEffect(() => {
@@ -2079,13 +2126,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           eatingWindow={eatingWindow}
           setEatingWindow={(val) => { setEatingWindow(val); upsertProfile({ eating_window: val }, 'update eating_window'); }}
           notifyFastStart={notifyFastStart}
-          onToggleNotifyFastStart={(val) => { setNotifyFastStart(val); val ? scheduleFastStartReminder() : cancelFastStartReminder(); }}
+          onToggleNotifyFastStart={(val, time) => { setNotifyFastStart(val); if (time) setWeighInTime(time); }}
+          fastStartReminderTime={weighInTime}
           notifyFastEnd={notifyFastEnd}
-          onToggleNotifyFastEnd={(val) => { setNotifyFastEnd(val); if (!val) cancelFastingNotifications(); }}
+          onToggleNotifyFastEnd={(val, time) => { setNotifyFastEnd(val); if (time) setCalorieCheckTime(time); }}
+          fastEndReminderTime={calorieCheckTime}
           notifyMealReminder={notifyMealReminder}
-          onToggleNotifyMealReminder={(val) => { setNotifyMealReminder(val); val ? scheduleMealReminder() : cancelMealReminder(); }}
+          onToggleNotifyMealReminder={(val, time) => { setNotifyMealReminder(val); if (time) setMealReminderTime(time); }}
+          mealReminderTime={mealReminderTime}
           notifyMilestones={notifyMilestones}
           onToggleNotifyMilestones={setNotifyMilestones}
+          milestoneConfig={milestoneConfig}
+          onSetMilestoneConfig={setMilestoneConfig}
           userIcon={getUserIcon(session?.user?.id || '')}
           userIconColor={getUserColor(session?.user?.id || '')}
         />

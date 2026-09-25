@@ -270,7 +270,7 @@ const SettingsTab = ({
   };
 
   const openTimePicker = (type, currentTime) => {
-    const h24 = currentTime?.hour ?? (type === 'fastStart' ? 20 : type === 'fastEnd' ? 12 : 19);
+    const h24 = currentTime?.hour ?? (type === 'fastStart' ? 7 : type === 'fastEnd' ? 20 : 19);
     const m = currentTime?.minute ?? 0;
     const isPM = h24 >= 12;
     const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
@@ -1124,7 +1124,7 @@ const SettingsTab = ({
               {timePicker.type === 'fastStart' ? 'Morning Weigh-In Reminder' : timePicker.type === 'fastEnd' ? 'Evening Calorie Check' : 'Meal Logging Reminder'}
             </Text>
             <Text style={styles.tpSubtitle}>
-              {timePicker.type === 'fastStart' ? 'What time should we remind you to start fasting?' : timePicker.type === 'fastEnd' ? 'What time should we remind you to break your fast?' : 'What time should we remind you to log your meals?'}
+              {timePicker.type === 'fastStart' ? 'What time should we remind you to weigh in?' : timePicker.type === 'fastEnd' ? 'What time should we check in on your calories?' : 'What time should we remind you to log your meals?'}
             </Text>
 
             <View style={styles.tpDisplay}>
