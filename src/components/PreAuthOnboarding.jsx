@@ -70,7 +70,7 @@ function RulerPicker({ min, max, value, onChange, unit, accent }) {
   const [liveVal, setLiveVal] = useState(value);
 
   // sync liveVal when parent value changes externally
-  useEffect(() => { setLiveVal(value); }, [value]);
+  useEffect(() => { setLiveVal(value); lastSent.current = value; }, [value]);
 
   useEffect(() => {
     const changed = prevRange.current !== rangeKey;
@@ -88,16 +88,19 @@ function RulerPicker({ min, max, value, onChange, unit, accent }) {
   }, [min, max]);
 
   // live update while dragging — keeps the readout in sync
+  const lastSent = useRef(value);
   const handleScroll = useCallback((e) => {
-    setLiveVal(snapVal(e.nativeEvent.contentOffset.x));
-  }, [snapVal]);
+    const v = snapVal(e.nativeEvent.contentOffset.x);
+    setLiveVal(v);
+    if (v !== lastSent.current) { lastSent.current = v; onChange(v); }
+  }, [snapVal, onChange]);
 
   // commit to parent only when scroll settles
   const handleScrollEnd = useCallback((e) => {
     const v = snapVal(e.nativeEvent.contentOffset.x);
     setLiveVal(v);
-    if (v !== value) onChange(v);
-  }, [snapVal, value, onChange]);
+    if (v !== lastSent.current) { lastSent.current = v; onChange(v); }
+  }, [snapVal, onChange]);
 
   const count = max - min;
   const ac = accent || C.primary;
