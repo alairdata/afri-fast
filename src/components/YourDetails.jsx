@@ -97,16 +97,16 @@ const GROUPS = [
     rows: [
       { key: 'eating', label: 'How you eat', Screen: EatingScreen, fields: ['eatingStyle'], summary: (a) => LABELS.eating[a.eatingStyle === 'flexible' ? 'flex' : a.eatingStyle] || '' },
       {
-        key: 'food', label: 'Where food comes from', Screen: FoodScreen, fields: ['foodContext', 'cuisines'],
-        summary: (a) => [LABELS.food[a.foodContext], (a.cuisines || []).length ? `${a.cuisines.length} cuisine${a.cuisines.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · '),
+        key: 'food', label: 'Where food comes from', Screen: FoodScreen, fields: ['foodContext', 'cuisines'], long: true,
+        summary: (a) => [LABELS.food[a.foodContext], (a.cuisines || []).join(', ')].filter(Boolean).join(' · '),
       },
     ],
   },
   {
     title: 'Coaching',
     rows: [
-      { key: 'struggles', label: 'What you struggle with', Screen: StruggleScreen, fields: ['struggles'], summary: (a) => listLabel(LABELS.struggles, a.struggles) },
-      { key: 'whys', label: 'Your deeper why', Screen: WhyScreen, fields: ['whys'], summary: (a) => listLabel(LABELS.whys, a.motivations) },
+      { key: 'struggles', label: 'What you struggle with', Screen: StruggleScreen, fields: ['struggles'], long: true, summary: (a) => listLabel(LABELS.struggles, a.struggles) },
+      { key: 'whys', label: 'Your deeper why', Screen: WhyScreen, fields: ['whys'], long: true, summary: (a) => listLabel(LABELS.whys, a.motivations) },
       { key: 'accountability', label: 'Keeping you on track', Screen: AccountabilityScreen, fields: ['accountability'], summary: (a) => LABELS.accountability[a.accountability] || '' },
     ],
   },
@@ -120,6 +120,7 @@ export default function YourDetails({
   const [editingKey, setEditingKey] = useState(null);
   const [draft, setDraft] = useState(null);
   const [suggestion, setSuggestion] = useState(null);
+  const [expanded, setExpanded] = useState({});
   const draftRef = useRef(null);
   const editingRef = useRef(null);
   const pickLock = useRef(false);
@@ -193,17 +194,37 @@ export default function YourDetails({
           <Text style={[st.groupTitle, { color: colors.textMuted }]}>{group.title}</Text>
           {group.rows.map((row, i) => {
             const summary = row.summary(app);
+            const isOpen = !!expanded[row.key];
             return (
-              <TouchableOpacity
-                key={row.key}
-                style={[st.row, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
-                activeOpacity={0.6}
-                onPress={() => open(row)}
-              >
-                <Text style={[st.rowLabel, { color: colors.text }]}>{row.label}</Text>
-                <Text style={[st.rowValue, !summary && { color: '#9CA3AF' }]} numberOfLines={1}>{summary || 'Not set'}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#ccc" />
-              </TouchableOpacity>
+              <View key={row.key} style={i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }}>
+                <View style={st.row}>
+                  <TouchableOpacity style={st.rowMain} activeOpacity={0.6} onPress={() => open(row)}>
+                    <Text style={[st.rowLabel, { color: colors.text }]}>{row.label}</Text>
+                    {!row.long && (
+                      <Text style={[st.rowValue, !summary && { color: '#9CA3AF' }]} numberOfLines={1}>{summary || 'Not set'}</Text>
+                    )}
+                  </TouchableOpacity>
+                  {row.long ? (
+                    <TouchableOpacity
+                      style={st.rowArrow}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      onPress={() => setExpanded((prev) => ({ ...prev, [row.key]: !prev[row.key] }))}
+                    >
+                      <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  ) : (
+                    <Ionicons name="chevron-forward" size={16} color="#ccc" />
+                  )}
+                </View>
+                {row.long && isOpen && (
+                  <View style={st.detailBox}>
+                    <Text style={[st.detailTxt, !summary && { color: '#9CA3AF' }]}>{summary || 'Not set'}</Text>
+                    <TouchableOpacity onPress={() => open(row)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Text style={st.detailEdit}>Edit</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
             );
           })}
         </View>
@@ -242,8 +263,13 @@ const st = StyleSheet.create({
   cardTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
   cardSub: { fontSize: 12, marginTop: 4, marginBottom: 6 },
   groupTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 14, marginBottom: 2 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
+  rowArrow: { paddingVertical: 14, paddingLeft: 6 },
   rowLabel: { fontSize: 15, fontWeight: '600', flexShrink: 0 },
+  detailBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: '#F4F4EE', borderRadius: 10, padding: 12, marginBottom: 12 },
+  detailTxt: { flex: 1, fontSize: 13.5, lineHeight: 19, color: '#3a4640' },
+  detailEdit: { fontSize: 13.5, fontWeight: '700', color: '#059669' },
   rowValue: { flex: 1, textAlign: 'right', fontSize: 14, color: '#059669', fontWeight: '600' },
   suggest: { backgroundColor: '#ECFDF5', borderRadius: 12, padding: 14, marginTop: 10, borderWidth: 1, borderColor: '#A7F3D0' },
   suggestTxt: { fontSize: 13.5, lineHeight: 19, color: '#065F46' },
