@@ -139,6 +139,9 @@ export function computeMomentumTimeline({
 
   const timeline = [];
   let calEwma = null, moveEwma = null, weightEwma = null, weightEwmaTs = null, loggedStreak7 = [];
+  // No meal ever logged means nothing to score yet: everything reads 0 instead of the neutral
+  // 50s / "missed every nutrition floor" Satiety that would otherwise add up to ~47 for a new user.
+  let everLoggedMeal = false;
 
   for (let i = windowDays - 1; i >= 0; i--) {
     const day = new Date(now - i * DAY_MS);
@@ -149,6 +152,7 @@ export function computeMomentumTimeline({
     // for a day the ledger hasn't caught up to yet (today, before the next hourly refresh).
     const caloriesToday = resolveCaloriesEaten(ledgerMap, ds, mealsByDate[ds] || 0);
     const loggedToday = caloriesToday > 0;
+    if (loggedToday) everLoggedMeal = true;
 
     // Weight EWMA — smooths water-weight noise, but decay is scaled by elapsed *days* since the
     // last weigh-in, not by sample count: a reading 3 weeks after the last one is close to a true
@@ -195,7 +199,7 @@ export function computeMomentumTimeline({
     const moveBreakdown = movementBreakdown({ dayActivities, steps: stepsToday, weightKg: weightForToday, bmr, tdee });
     moveEwma = moveBreakdown == null ? moveEwma : ewmaStep(moveEwma, moveBreakdown.score, hasMovementDataToday);
 
-    const momentum = Math.round(clamp(
+    const momentum = !everLoggedMeal ? 0 : Math.round(clamp(
       WEIGHTS.calorie * (calEwma ?? 50) + WEIGHTS.satiety * satietyScore + WEIGHTS.movement * (moveEwma ?? 50),
       0, 100,
     ));
@@ -212,8 +216,8 @@ export function computeMomentumTimeline({
       date: day,
       ds,
       caloriesLoggedToday: caloriesToday,
-      calorieSubscore: Math.round(calEwma ?? 50),
-      satietySubscore: Math.round(satietyScore),
+      calorieSubscore: everLoggedMeal ? Math.round(calEwma ?? 50) : 0,
+      satietySubscore: everLoggedMeal ? Math.round(satietyScore) : 0,
       movementSubscore: moveEwma != null ? Math.round(moveEwma) : null,
       // Today's raw (unsmoothed) gym/steps kcal split + target -- for a "you're X kcal short,
       // via a gym session or Y more steps" nudge, since the smoothed subscore alone can't say that.
