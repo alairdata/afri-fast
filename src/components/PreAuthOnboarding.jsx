@@ -1067,7 +1067,7 @@ function EatingScreen(p) {
     { v: '2x',    t: 'Twice a day',   s: 'Two solid meals',        icon: '🍽️🍽️' },
     { v: '3x',    t: 'Three meals',   s: 'Breakfast, lunch, dinner', icon: '☀️🌤️🌙' },
     { v: '4x',    t: 'Small & often', s: 'Four-ish small meals',   icon: '🕐' },
-    { v: 'flex',  t: 'Flexible',      s: 'It changes day to day',  icon: '↕️' },
+    { v: 'flex',  t: 'Flexible',      s: 'It changes day to day',  icon: 'swap-vertical-outline' },
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.eatingStyle} />}>
@@ -1079,7 +1079,7 @@ function EatingScreen(p) {
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 10 }}>
             <OptionCard compact
-              icon={<Text style={{ fontSize: 20 }}>{o.icon}</Text>}
+              icon={<Ionicons name={o.icon} size={22} color={d.eatingStyle === o.v ? C.primary : C.ink700} />}
               title={o.t} subtitle={o.s}
               selected={d.eatingStyle === o.v} onPress={() => pick('eatingStyle', o.v)}
             />
