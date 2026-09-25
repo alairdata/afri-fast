@@ -416,10 +416,10 @@ export function MascotFace({ happy }) {
 }
 
 const HOOK_FOODS = [
-  { src: require('../../assets/hook-jollof.jpg'), mode: 'cover' },
-  { src: require('../../assets/hook-eba.jpg'), mode: 'cover' },
-  { src: require('../../assets/hook-beans.jpg'), mode: 'cover' },
   { src: require('../../assets/hook-waakye.jpg'), mode: 'cover' },
+  { src: require('../../assets/hook-eba.jpg'), mode: 'cover' },
+  { src: require('../../assets/hook-jollof.jpg'), mode: 'cover' },
+  { src: require('../../assets/hook-beans.jpg'), mode: 'cover' },
 ];
 
 function HookScreen({ next, onLogin }) {
