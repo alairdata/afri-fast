@@ -436,7 +436,7 @@ function HookScreen({ next, onLogin }) {
     const runCycle = () => {
       scanY.setValue(0);
       Animated.sequence([
-        Animated.timing(scanY, { toValue: 1, duration: 7500, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(scanY, { toValue: 1, duration: 14000, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
         Animated.delay(700),
       ]).start(() => {
         if (!live) return;
