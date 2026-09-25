@@ -42,8 +42,18 @@ const EditProfileModal = ({ show, onClose, onSave, userName, userEmail, setUserN
         </TouchableOpacity>
 
         <View style={styles.editProfileField}>
-          <Text style={styles.editProfileLabel}>Name</Text>
+          <Text style={styles.editProfileLabel}>Username</Text>
           <TextInput style={styles.editProfileInput} value={userName} onChangeText={setUserName} />
+        </View>
+
+        <View style={styles.editProfileField}>
+          <Text style={styles.editProfileLabel}>Email</Text>
+          <TextInput
+            style={[styles.editProfileInput, { color: '#9CA3AF', backgroundColor: '#F3F4F6' }]}
+            value={userEmail || ''}
+            editable={false}
+            selectTextOnFocus={false}
+          />
         </View>
 
         <TouchableOpacity style={styles.editProfileSaveBtn} onPress={() => { onSave?.(); onClose(); }}>

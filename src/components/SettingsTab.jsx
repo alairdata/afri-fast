@@ -313,7 +313,6 @@ const SettingsTab = ({
         </View>
         <View style={styles.settingsProfileInfo}>
           <Text style={[styles.settingsProfileName, { color: colors.text }]}>{userName}</Text>
-          <Text style={[styles.settingsProfileEmail, { color: colors.textSecondary }]}>{userEmail}</Text>
           <TouchableOpacity onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}>
             <Text style={[styles.settingsProfileCountry, !userCountry && { color: '#9CA3AF' }]}>
               {userCountry || 'Select your country'}
