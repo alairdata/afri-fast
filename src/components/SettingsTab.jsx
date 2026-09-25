@@ -6,26 +6,60 @@ import FastingQuizPage from './FastingQuizPage';
 import { useTheme } from '../lib/theme';
 
 const COUNTRIES = [
-  'Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria',
-  'Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan',
-  'Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cabo Verde','Cambodia',
-  'Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo','Costa Rica',
-  'Croatia','Cuba','Cyprus','Czech Republic','Denmark','Djibouti','Dominica','Dominican Republic','Ecuador','Egypt',
-  'El Salvador','Equatorial Guinea','Eritrea','Estonia','Eswatini','Ethiopia','Fiji','Finland','France','Gabon',
-  'Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana',
-  'Haiti','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel',
-  'Italy','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Kuwait','Kyrgyzstan','Laos',
-  'Latvia','Lebanon','Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi',
-  'Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius','Mexico','Micronesia','Moldova',
-  'Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia','Nauru','Nepal','Netherlands',
-  'New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Oman','Pakistan','Palau',
-  'Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania',
-  'Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino','Sao Tome and Principe','Saudi Arabia','Senegal',
-  'Serbia','Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia','South Africa','South Korea',
-  'South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria','Taiwan','Tajikistan',
-  'Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu',
-  'Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu','Vatican City','Venezuela',
-  'Vietnam','Yemen','Zambia','Zimbabwe',
+  'Algeria',
+  'Angola',
+  'Benin',
+  'Botswana',
+  'Burkina Faso',
+  'Burundi',
+  'Cabo Verde',
+  'Cameroon',
+  'Central African Republic',
+  'Chad',
+  'Comoros',
+  'Democratic Republic of the Congo',
+  'Djibouti',
+  'Egypt',
+  'Equatorial Guinea',
+  'Eritrea',
+  'Eswatini',
+  'Ethiopia',
+  'Gabon',
+  'Gambia',
+  'Ghana',
+  'Guinea',
+  'Guinea-Bissau',
+  'Ivory Coast',
+  'Kenya',
+  'Lesotho',
+  'Liberia',
+  'Libya',
+  'Madagascar',
+  'Malawi',
+  'Mali',
+  'Mauritania',
+  'Mauritius',
+  'Morocco',
+  'Mozambique',
+  'Namibia',
+  'Niger',
+  'Nigeria',
+  'Republic of the Congo',
+  'Rwanda',
+  'Sao Tome and Principe',
+  'Senegal',
+  'Seychelles',
+  'Sierra Leone',
+  'Somalia',
+  'South Africa',
+  'South Sudan',
+  'Sudan',
+  'Tanzania',
+  'Togo',
+  'Tunisia',
+  'Uganda',
+  'Zambia',
+  'Zimbabwe',
 ];
 
 // Full-width row with title + optional context line, used for every choice group that used
@@ -115,6 +149,17 @@ const SettingsTab = ({
   const [showHydrationUnitDropdown, setShowHydrationUnitDropdown] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
+  const countryRows = (() => {
+    const q = countrySearch.trim().toLowerCase();
+    const rows = [];
+    let last = '';
+    COUNTRIES.filter((c) => c.toLowerCase().includes(q)).forEach((name) => {
+      const letter = name[0].toUpperCase();
+      if (!q && letter !== last) { rows.push({ key: `h-${letter}`, header: letter }); last = letter; }
+      rows.push({ key: name, name });
+    });
+    return rows;
+  })();
 
   // ─── Time Picker state ───
   // timePicker: { visible, type ('fastStart'|'fastEnd'|'meal'), hour (1-12), minute (0-55), isPM, onConfirm }
@@ -1161,46 +1206,58 @@ const SettingsTab = ({
         </View>
       )}
       {/* Country Picker Modal */}
-      <Modal visible={showCountryPicker} animationType="slide" transparent={false} onRequestClose={() => setShowCountryPicker(false)}>
-        <View style={styles.countryPickerContainer}>
-          <View style={styles.countryPickerHeader}>
-            <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
-              <Ionicons name="close" size={24} color="#374151" />
-            </TouchableOpacity>
-            <Text style={styles.countryPickerTitle}>Select Country</Text>
-            <View style={{ width: 24 }} />
-          </View>
-          <View style={styles.countrySearchBar}>
-            <Ionicons name="search" size={16} color="#9CA3AF" />
-            <TextInput
-              style={styles.countrySearchInput}
-              placeholder="Search countries..."
-              placeholderTextColor="#9CA3AF"
-              value={countrySearch}
-              onChangeText={setCountrySearch}
-              autoFocus
+      <Modal visible={showCountryPicker} animationType="slide" transparent onRequestClose={() => setShowCountryPicker(false)}>
+        <View style={styles.cpOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowCountryPicker(false)} />
+          <View style={styles.cpSheet}>
+            <View style={styles.cpHandle} />
+            <View style={styles.cpHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cpTitle}>Where are you from?</Text>
+                <Text style={styles.cpSubtitle}>Pick your country so Logga feels like home.</Text>
+              </View>
+              <TouchableOpacity style={styles.cpClose} onPress={() => setShowCountryPicker(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close" size={18} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.cpSearch}>
+              <Ionicons name="search" size={16} color="#9CA3AF" />
+              <TextInput
+                style={styles.cpSearchInput}
+                placeholder="Search countries"
+                placeholderTextColor="#9CA3AF"
+                value={countrySearch}
+                onChangeText={setCountrySearch}
+              />
+              {countrySearch.length > 0 && (
+                <TouchableOpacity onPress={() => setCountrySearch('')}>
+                  <Ionicons name="close-circle" size={16} color="#9CA3AF" />
+                </TouchableOpacity>
+              )}
+            </View>
+            <FlatList
+              data={countryRows}
+              keyExtractor={(item) => item.key}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              ListEmptyComponent={<Text style={styles.cpEmpty}>No country found</Text>}
+              renderItem={({ item }) => item.header ? (
+                <Text style={styles.cpLetter}>{item.header}</Text>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.cpRow, userCountry === item.name && styles.cpRowSelected]}
+                  activeOpacity={0.7}
+                  onPress={() => { onSetCountry?.(item.name); setShowCountryPicker(false); }}
+                >
+                  <Text style={[styles.cpRowText, userCountry === item.name && styles.cpRowTextSelected]}>{item.name}</Text>
+                  <View style={[styles.cpRadio, userCountry === item.name && styles.cpRadioOn]}>
+                    {userCountry === item.name && <Ionicons name="checkmark" size={13} color="#fff" />}
+                  </View>
+                </TouchableOpacity>
+              )}
             />
-            {countrySearch.length > 0 && (
-              <TouchableOpacity onPress={() => setCountrySearch('')}>
-                <Ionicons name="close-circle" size={16} color="#9CA3AF" />
-              </TouchableOpacity>
-            )}
           </View>
-          <FlatList
-            data={COUNTRIES.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()))}
-            keyExtractor={(item) => item}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.countryItem, userCountry === item && styles.countryItemSelected]}
-                onPress={() => { onSetCountry?.(item); setShowCountryPicker(false); }}
-              >
-                <Text style={[styles.countryItemText, userCountry === item && styles.countryItemTextSelected]}>{item}</Text>
-                {userCountry === item && <Ionicons name="checkmark" size={18} color="#059669" />}
-              </TouchableOpacity>
-            )}
-            ItemSeparatorComponent={() => <View style={styles.countryDivider} />}
-          />
         </View>
       </Modal>
 
@@ -2310,62 +2367,121 @@ const styles = StyleSheet.create({
     color: '#aaa',
     marginTop: 4,
   },
-  countryPickerContainer: {
+  cpOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  cpSheet: {
+    height: '85%',
     backgroundColor: '#fff',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    paddingTop: 10,
   },
-  countryPickerHeader: {
+  cpHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E5E7EB',
+    marginBottom: 14,
+  },
+  cpHeader: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 22,
+    marginBottom: 14,
+  },
+  cpTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#16201b',
+    letterSpacing: -0.4,
+  },
+  cpSubtitle: {
+    fontSize: 13,
+    color: '#6c7872',
+    marginTop: 4,
+  },
+  cpClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 48 : 56,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
+    justifyContent: 'center',
+    marginLeft: 12,
   },
-  countryPickerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1F1F1F',
-  },
-  countrySearchBar: {
+  cpSearch: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    margin: 16,
+    marginHorizontal: 22,
+    marginBottom: 8,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
+    paddingVertical: 12,
+    backgroundColor: '#F4F4EE',
+    borderRadius: 14,
   },
-  countrySearchInput: {
+  cpSearchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#1F1F1F',
+    color: '#16201b',
   },
-  countryItem: {
+  cpLetter: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#97a19b',
+    letterSpacing: 1.2,
+    paddingHorizontal: 22,
+    paddingTop: 16,
+    paddingBottom: 6,
+  },
+  cpRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    marginHorizontal: 16,
+    marginVertical: 3,
+    paddingHorizontal: 14,
     paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  countryItemSelected: {
+  cpRowSelected: {
     backgroundColor: '#ECFDF5',
+    borderColor: '#059669',
   },
-  countryItemText: {
-    fontSize: 15,
-    color: '#1F1F1F',
+  cpRowText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#16201b',
   },
-  countryItemTextSelected: {
-    color: '#059669',
-    fontWeight: '600',
+  cpRowTextSelected: {
+    color: '#047857',
+    fontWeight: '700',
   },
-  countryDivider: {
-    height: 1,
-    backgroundColor: 'rgba(0,0,0,0.04)',
-    marginHorizontal: 20,
+  cpRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  cpRadioOn: {
+    backgroundColor: '#059669',
+    borderColor: '#059669',
+  },
+  cpEmpty: {
+    textAlign: 'center',
+    color: '#97a19b',
+    fontSize: 14,
+    paddingTop: 40,
   },
   settingsItemSub: {
     fontSize: 12,

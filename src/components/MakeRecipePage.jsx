@@ -545,6 +545,28 @@ const pw = StyleSheet.create({
   restoreText: { fontSize: 13, color: '#97a19b' },
 });
 
+// Quiet country filter for the Ideas tab: recipes tagged for the user's country (plus "Universal" and
+// region-wide tags) come first, and non-matching ones are hidden -- but only when there are enough
+// matches to fill the page. The recipe library is mostly West African, so a Kenyan or Ethiopian user
+// would otherwise land on an almost empty tab; they get everything, their country's dishes first.
+const WEST_AFRICA = new Set(['Nigeria', 'Ghana', 'Benin', 'Togo', 'Sierra Leone', 'Liberia', 'Gambia', 'Senegal', 'Ivory Coast', 'Niger', 'Burkina Faso', 'Guinea', 'Guinea-Bissau', 'Mali', 'Mauritania', 'Cabo Verde']);
+const MIN_COUNTRY_RECIPES = 8;
+
+const recipeMatchesCountry = (recipe, country) =>
+  !!recipe.countries?.some(c =>
+    c === country ||
+    c.startsWith(`${country} (`) ||
+    c === 'Universal' ||
+    ((c === 'West Africa' || c === 'All West African countries') && WEST_AFRICA.has(country))
+  );
+
+const recipesForCountry = (country) => {
+  if (!country) return AFRICAN_RECIPES;
+  const matched = AFRICAN_RECIPES.filter(r => recipeMatchesCountry(r, country));
+  if (matched.length >= MIN_COUNTRY_RECIPES) return matched;
+  return [...matched, ...AFRICAN_RECIPES.filter(r => !matched.includes(r))];
+};
+
 const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   const [makeRecipeMethod, setMakeRecipeMethod] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -560,16 +582,18 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   const cameraRef = useRef(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
+  const visibleRecipes = useMemo(() => recipesForCountry(userCountry), [userCountry]);
+
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
-    return AFRICAN_RECIPES.filter(r =>
+    return visibleRecipes.filter(r =>
       r.name.toLowerCase().includes(q) ||
       r.category.toLowerCase().includes(q) ||
       r.description.toLowerCase().includes(q) ||
-      r.localNames?.some(n => n.toLowerCase().includes(q))
+      Object.values(r.localNames || {}).some(n => n.toLowerCase().includes(q))
     );
-  }, [searchQuery]);
+  }, [searchQuery, visibleRecipes]);
 
   const openRecipe = (recipe) => {
     setSelectedRecipe(recipe);
@@ -820,7 +844,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
           ) : (
             <>
               {RECIPE_CATEGORIES.map(cat => {
-                const recipes = AFRICAN_RECIPES.filter(r => r.category === cat);
+                const recipes = visibleRecipes.filter(r => r.category === cat);
                 if (recipes.length === 0) return null;
                 const meta = CATEGORY_META[cat] || {};
                 return (
