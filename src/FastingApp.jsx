@@ -2014,20 +2014,20 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           onBack={() => setActiveTab('today')}
           onLogout={() => setShowLogoutModal(true)}
           onDeleteAccount={async () => {
-            const uid = session?.user?.id;
-            if (!uid) return;
+            if (!session?.user?.id) return;
             try {
-              // Delete all user data from tables
-              await Promise.all([
-                supabase.from('meals').delete().eq('user_id', uid),
-                supabase.from('weight_logs').delete().eq('user_id', uid),
-                supabase.from('fasting_sessions').delete().eq('user_id', uid),
-                supabase.from('water_logs').delete().eq('user_id', uid),
-                supabase.from('check_ins').delete().eq('user_id', uid),
-                supabase.from('profiles').delete().eq('id', uid),
-              ]);
+              // The server removes the photos, every row of data and the login itself.
+              const { data: { session: live } } = await supabase.auth.getSession();
+              const resp = await fetch(`${Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app'}/api/delete-account`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${live?.access_token || session.access_token}` },
+              });
+              if (!resp.ok) {
+                const body = await resp.json().catch(() => ({}));
+                throw new Error(body.error || `Delete failed (${resp.status})`);
+              }
               await AsyncStorage.clear();
-              await supabase.auth.signOut();
+              await supabase.auth.signOut({ scope: 'local' });
             } catch (e) {
               console.error('[DeleteAccount]', e);
               showToast('Failed to delete account. Try again.', 'error');
