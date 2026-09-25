@@ -214,6 +214,17 @@ export async function getJustForYou(data, forceRefresh = false) {
   const userId = data?.profile?.userId;
   if (!userId) return { insight: null, fromApi: false };
 
+  // Nothing logged yet (onboarding's starting weight doesn't count): there's no pattern to find, so
+  // skip the AI call and welcome them instead. Not cached, so it flips to a real insight once they log.
+  const hasActivity = (data.recentMeals?.length || 0) + (data.waterLogs?.length || 0) + (data.checkInHistory?.length || 0) > 0;
+  if (!hasActivity) {
+    const first = (data.profile?.userName || '').trim().split(' ')[0];
+    return {
+      insight: `${first ? `Hey ${first}, welcome in!` : 'Hey, welcome in!'} Log your first meal today, even something small, and I'll start noticing the patterns in what you eat and how you feel. The more you show me, the more I can point out things you'd never spot on your own.`,
+      fromApi: false,
+    };
+  }
+
   // Load recentInsights from any cached entry (even stale) for lens rotation
   const anyCache = await getLocalCache(JFY_CACHE_KEY, userId);
   const recentInsights = anyCache?.cards?.[0]?.recentInsights || [];
