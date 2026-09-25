@@ -1310,14 +1310,14 @@ function DoneScreen({ d, onComplete }) {
       {/* Stats grid */}
       <View style={{ flexDirection: 'row', gap: 11, marginTop: 11, alignSelf: 'stretch' }}>
         <View style={s.statCard}>
-          <Ionicons name="heart-outline" size={24} color={C.terra} />
+          <Ionicons name="heart-outline" size={24} color={C.ink} />
           <View style={{ marginLeft: 10 }}>
             <Text style={s.statLabel}>Protein / day</Text>
             <Text style={s.statVal}>{plan.protein} g</Text>
           </View>
         </View>
         <View style={s.statCard}>
-          <Ionicons name="water-outline" size={24} color="#3b9edb" />
+          <Ionicons name="water-outline" size={24} color={C.ink} />
           <View style={{ marginLeft: 10 }}>
             <Text style={s.statLabel}>Water / day</Text>
             <Text style={s.statVal}>{plan.water} L</Text>
@@ -1328,7 +1328,7 @@ function DoneScreen({ d, onComplete }) {
       {/* Projection */}
       {plan.weeks > 0 ? (
         <View style={[s.projCard, { alignSelf: 'stretch' }]}>
-          <Ionicons name="trending-down-outline" size={26} color={C.primary} />
+          <Ionicons name="trending-down-outline" size={26} color={C.ink} />
           <Text style={[s.projTxt, { marginLeft: 12, flex: 1 }]}>
             On track to reach{' '}
             <Text style={{ color: C.primary, fontWeight: '700' }}>{Math.round(d.targetKg)} kg</Text>
