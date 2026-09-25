@@ -191,7 +191,19 @@ function buildScorer({
     return cv <= 0.15 ? 0 : clamp(Math.round(20 * ((cv - 0.15) / 0.20)), 0, 20);
   };
 
+  // No meal logged yet (as of the day being scored) means there's nothing to assess: risk is 0, not
+  // "every nutrition floor missed", which would rate a brand-new person High Risk on day one.
+  const firstMealTs = Object.keys(mealsByDate)
+    .filter((ds) => mealsByDate[ds].calories > 0)
+    .reduce((min, ds) => Math.min(min, new Date(ds).getTime()), Infinity);
+
   const scoreWindowEnding = (endDate) => {
+    if (firstMealTs > endDate.getTime()) {
+      return {
+        score: 0, deficitPts: 0, volatilityPts: 0, proteinPts: 0, waterPts: 0, carbsPts: 0, fiberPts: 0, fatPts: 0,
+        avgCalories: 0, avgProtein: 0, avgCarbs: 0, avgFats: 0, avgFiber: 0, avgWaterMl: 0,
+      };
+    }
     const window = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(endDate.getTime() - i * DAY_MS);
