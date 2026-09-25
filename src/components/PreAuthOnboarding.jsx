@@ -1302,6 +1302,9 @@ function DoneScreen({ d, onComplete }) {
             </View>
           ) : null}
         </View>
+        <Text style={{ fontSize: 13, color: C.ink500, textAlign: 'center', marginTop: 16, lineHeight: 19 }}>
+          Don't let these numbers freak you out — we'll guide you every step of the way.
+        </Text>
       </View>
 
       {/* Stats grid */}
