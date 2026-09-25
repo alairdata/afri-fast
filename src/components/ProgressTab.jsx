@@ -457,6 +457,23 @@ const ProgressTab = ({
   const weightData = getRangeData(weightRange === 'All time'
     ? daysSinceEarliest(weightLogs, w => w.timestamp || new Date(w.date).getTime())
     : RANGE_DAYS[weightRange]);
+  // Weight lost (or gained) so far this calendar month: from the last weigh-in before the 1st (or the
+  // first weigh-in of the month if there wasn't one) to the latest. Independent of the range picker,
+  // so it reads as "this month", not as an average over the whole weight journey.
+  const monthWeightChange = (() => {
+    const logs = (weightLogs || [])
+      .map((w) => ({ ts: w.timestamp || new Date(w.date).getTime(), weight: w.weight }))
+      .filter((w) => !Number.isNaN(w.ts) && w.weight != null)
+      .sort((a, b) => a.ts - b.ts);
+    const monthStart = new Date(now);
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const before = logs.filter((l) => l.ts < monthStart.getTime());
+    const inMonth = logs.filter((l) => l.ts >= monthStart.getTime());
+    if (!inMonth.length || (!before.length && inMonth.length < 2)) return null;
+    const baseline = before.length ? before[before.length - 1].weight : inMonth[0].weight;
+    return Math.round((inMonth[inMonth.length - 1].weight - baseline) * 10) / 10;
+  })();
   const calorieData = getRangeData(calorieRange === 'All time'
     ? daysSinceEarliest(recentMeals, m => m.timestamp || new Date(m.date).getTime())
     : RANGE_DAYS[calorieRange]);
@@ -1458,8 +1475,8 @@ const ProgressTab = ({
                           <Text style={styles.weightStatLabelCompact}>This period</Text>
                         </View>
                         <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(5, 150, 105, 0.08)' }]}>
-                          <Text style={[styles.weightStatValueCompact, { color: '#059669' }]}>{hasMultiple ? (weightData.isLongRange ? weightData.monthlyChange : weightData.weeklyChange) : '--'}</Text>
-                          <Text style={styles.weightStatLabelCompact}>{weightData.isLongRange ? 'Monthly avg' : 'Weekly avg'}</Text>
+                          <Text style={[styles.weightStatValueCompact, { color: '#059669' }]}>{monthWeightChange == null ? '--' : `${monthWeightChange >= 0 ? '+' : ''}${monthWeightChange} kg`}</Text>
+                          <Text style={styles.weightStatLabelCompact}>This month</Text>
                         </View>
                       </View>
                     </>
