@@ -672,7 +672,7 @@ function DemoScreen(p) {
 }
 
 function GoalScreen(p) {
-  const { d, set, next } = p;
+  const { d, pick, next } = p;
   const opts = [
     { v: 'lose',       t: 'Lose weight',        s: 'Shed kilos at a healthy, steady pace',   icon: 'trending-down-outline' },
     { v: 'eat',        t: 'Eat better',          s: 'More balance, less guilt',                icon: 'nutrition-outline' },
@@ -692,7 +692,7 @@ function GoalScreen(p) {
             <OptionCard
               icon={<Ionicons name={o.icon} size={24} color={d.goal === o.v ? C.primary : C.ink700} />}
               title={o.t} subtitle={o.s}
-              selected={d.goal === o.v} onPress={() => set('goal', o.v)}
+              selected={d.goal === o.v} onPress={() => pick('goal', o.v)}
             />
           </View>
         ))}
@@ -774,7 +774,7 @@ function NameScreen(p) {
 }
 
 function CountryScreen(p) {
-  const { d, set, next } = p;
+  const { d, pick, next } = p;
   const FLAGS = {
     Nigeria: '🇳🇬', Ghana: '🇬🇭', Kenya: '🇰🇪', Tanzania: '🇹🇿',
     Uganda: '🇺🇬', Senegal: '🇸🇳', Cameroon: '🇨🇲', Ethiopia: '🇪🇹', Other: '🌍',
@@ -792,7 +792,7 @@ function CountryScreen(p) {
           <View key={c} style={i > 0 && { marginTop: 9 }}>
             <OptionCard compact
               icon={<Text style={{ fontSize: 22 }}>{FLAGS[c]}</Text>}
-              title={c} selected={d.country === c} onPress={() => set('country', c)}
+              title={c} selected={d.country === c} onPress={() => pick('country', c)}
             />
           </View>
         ))}
@@ -802,7 +802,7 @@ function CountryScreen(p) {
 }
 
 function GenderScreen(p) {
-  const { d, set, next } = p;
+  const { d, pick, next } = p;
   const opts = [
     { v: 'Female', t: 'Female',                    icon: 'female-outline' },
     { v: 'Male',   t: 'Male',                      icon: 'male-outline' },
@@ -820,7 +820,7 @@ function GenderScreen(p) {
           <View key={o.v} style={i > 0 && { marginTop: 11 }}>
             <OptionCard
               icon={<Ionicons name={o.icon} size={24} color={d.gender === o.v ? C.primary : C.ink700} />}
-              title={o.t} selected={d.gender === o.v} onPress={() => set('gender', o.v)}
+              title={o.t} selected={d.gender === o.v} onPress={() => pick('gender', o.v)}
             />
           </View>
         ))}
@@ -972,7 +972,7 @@ function TargetScreen(p) {
 }
 
 function PaceScreen(p) {
-  const { d, set, next } = p;
+  const { d, pick, next } = p;
   const gap = Math.max(0, d.weightKg - d.targetKg);
   const opts = [
     { v: 'slow',       t: 'Slow & steady',  s: '~0.25 kg a week · easiest to stick with',     rate: 0.25, bars: 1 },
@@ -992,7 +992,7 @@ function PaceScreen(p) {
           const wk = gap > 0 ? Math.max(1, Math.round(gap / o.rate)) : 0;
           return (
             <TouchableOpacity key={o.v} style={[s.paceCard, on && s.paceCardOn, i > 0 && { marginTop: 11 }]}
-              onPress={() => set('pace', o.v)} activeOpacity={0.8}>
+              onPress={() => pick('pace', o.v)} activeOpacity={0.8}>
               <View style={[s.paceIcon, on && s.paceIconOn]}>
                 {[1, 2, 3, 4].map(level => (
                   <View key={level} style={{
@@ -1029,7 +1029,7 @@ function PaceScreen(p) {
 }
 
 function ActivityScreen(p) {
-  const { d, set, next } = p;
+  const { d, pick, next } = p;
   const opts = [
     { v: 'sedentary', t: 'Mostly sitting',        s: 'Desk job, drive everywhere, little walking',     icon: 'laptop-outline' },
     { v: 'light',     t: 'Lightly active',         s: 'Some walking — to the market, around the office', icon: 'walk-outline' },
@@ -1048,7 +1048,7 @@ function ActivityScreen(p) {
             <OptionCard
               icon={<Ionicons name={o.icon} size={24} color={d.activity === o.v ? C.primary : C.ink700} />}
               title={o.t} subtitle={o.s}
-              selected={d.activity === o.v} onPress={() => set('activity', o.v)}
+              selected={d.activity === o.v} onPress={() => pick('activity', o.v)}
             />
           </View>
         ))}
@@ -1058,7 +1058,7 @@ function ActivityScreen(p) {
 }
 
 function EatingScreen(p) {
-  const { d, set, next } = p;
+  const { d, pick, next } = p;
   const opts = [
     { v: 'omad',  t: 'OMAD',          s: 'One meal a day',         icon: '🍽️' },
     { v: '2x',    t: 'Twice a day',   s: 'Two solid meals',        icon: '🍽️🍽️' },
@@ -1078,7 +1078,7 @@ function EatingScreen(p) {
             <OptionCard compact
               icon={<Text style={{ fontSize: 20 }}>{o.icon}</Text>}
               title={o.t} subtitle={o.s}
-              selected={d.eatingStyle === o.v} onPress={() => set('eatingStyle', o.v)}
+              selected={d.eatingStyle === o.v} onPress={() => pick('eatingStyle', o.v)}
             />
           </View>
         ))}
@@ -1167,7 +1167,7 @@ function WhyScreen(p) {
 }
 
 function AccountabilityScreen(p) {
-  const { d, set, next } = p;
+  const { d, pick, next } = p;
   const opts = [
     { v: 'gentle', t: 'Gentle nudges',   s: 'Kind, encouraging check-ins',            icon: 'heart-outline' },
     { v: 'firm',   t: 'Firm reminders',  s: "Keep me honest — don't let me slack",     icon: 'megaphone-outline' },
@@ -1185,7 +1185,7 @@ function AccountabilityScreen(p) {
             <OptionCard
               icon={<Ionicons name={o.icon} size={24} color={d.accountability === o.v ? C.primary : C.ink700} />}
               title={o.t} subtitle={o.s}
-              selected={d.accountability === o.v} onPress={() => set('accountability', o.v)}
+              selected={d.accountability === o.v} onPress={() => pick('accountability', o.v)}
             />
           </View>
         ))}
@@ -1357,13 +1357,20 @@ export default function PreAuthOnboarding({ initialData, onComplete, onLogin }) 
   const set = (k, v) => setData(d => ({ ...d, [k]: v }));
   const next = () => setIdx(i => Math.min(i + 1, FLOW.length - 1));
   const back = () => setIdx(i => Math.max(i - 1, 0));
+  const pickLock = useRef(false);
+  const pick = (k, v) => {
+    set(k, v);
+    if (pickLock.current) return;
+    pickLock.current = true;
+    setTimeout(() => { pickLock.current = false; next(); }, 280);
+  };
 
   const screen = FLOW[idx];
   const isFull = FULL_BLEED.has(screen);
   const stepNum = FLOW.slice(0, idx + 1).filter(id => !FULL_BLEED.has(id)).length;
 
   const sharedProps = {
-    d: data, set, next, back,
+    d: data, set, pick, next, back,
     step: stepNum, total: COUNTED,
     onBack: back, showBack: idx > 0 && !isFull,
     hideProgress: isFull,
