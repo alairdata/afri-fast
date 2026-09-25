@@ -772,8 +772,11 @@ const SettingsTab = ({
 
       {/* App Version */}
       <View style={styles.settingsVersion}>
-        <Text style={styles.settingsVersionText}>Logga v1.0.0</Text>
-        <Text style={styles.settingsVersionSub}>Made by SeedFest Technologies</Text>
+        <Text style={[styles.settingsVersionText, { color: colors.text }]}>Logga</Text>
+        <View style={styles.settingsVersionPill}>
+          <Text style={styles.settingsVersionPillText}>Version 1.0.0</Text>
+        </View>
+        <Text style={styles.settingsVersionSub}>Made with care by SeedFest Technologies</Text>
       </View>
 
       <View style={{ height: 40 }} />
@@ -2235,16 +2238,33 @@ const styles = StyleSheet.create({
   },
   settingsVersion: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingTop: 28,
+    paddingBottom: 20,
   },
   settingsVersionText: {
-    fontSize: 13,
-    color: '#888',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 4,
+    textTransform: 'uppercase',
+    color: '#16201b',
+  },
+  settingsVersionPill: {
+    marginTop: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: 'rgba(5,150,105,0.1)',
+  },
+  settingsVersionPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    color: '#059669',
   },
   settingsVersionSub: {
-    fontSize: 11,
-    color: '#aaa',
-    marginTop: 4,
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 12,
   },
   acctOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', paddingHorizontal: 24 },
   acctSheet: { borderRadius: 20, padding: 20 },
