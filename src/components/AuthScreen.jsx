@@ -349,6 +349,16 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             }
           </TouchableOpacity>
 
+          <Text style={ca.terms}>
+            Already have an account?{' '}
+            <Text
+              style={{ color: '#059669', fontWeight: '700' }}
+              onPress={() => { setError(''); setMessage(''); setMode('login'); }}
+            >
+              Log in
+            </Text>
+          </Text>
+
           {/* Terms */}
           <Text style={ca.terms}>
             By continuing you agree to AfriFast's Terms & Privacy{'\n'}Policy.
