@@ -2183,6 +2183,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         onClose={() => setShowCalendar(false)}
         recentMeals={recentMeals}
         dailyCalorieGoal={dailyCalorieGoal}
+        goalHistory={goalHistory}
+        dailyGoalLedger={dailyGoalLedger}
         checkInHistory={checkInHistory}
         onShowCheckInPage={() => openCheckInPage('calendar')}
         volumeUnit={volumeUnit}

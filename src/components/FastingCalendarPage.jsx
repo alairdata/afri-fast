@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 import React, { useState, useMemo, useRef } from 'react';
 import {
   View,
@@ -29,7 +30,7 @@ const getFirstDayOfMonth = (year, month) => {
   return day === 0 ? 6 : day - 1;
 };
 
-const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal = 1600, checkInHistory = [], onShowCheckInPage, volumeUnit = 'oz' }) => {
+const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal = 1600, goalHistory = [], dailyGoalLedger = [], checkInHistory = [], onShowCheckInPage, volumeUnit = 'oz' }) => {
   const today = new Date();
   const [viewMode, setViewMode] = useState('month');
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
@@ -40,18 +41,22 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
   const calendarScrollRef = useRef(null);
   const todayMonthY = useRef(0);
 
-  // Build lookup map of meals keyed by date YYYY-MM-DD
+  // Meals are stored with a Date.toDateString() date ("Fri Sep 25 2026") and a `calories` field, so the
+  // lookup is keyed the same way (not YYYY-MM-DD / `cal`, which never matched anything).
   const mealMap = useMemo(() => {
     const map = {};
     recentMeals.forEach((meal) => {
-      const dateStr = meal.dateStr || (meal.date ? meal.date.slice(0, 10) : null);
-      if (!dateStr) return;
-      if (!map[dateStr]) map[dateStr] = { meals: [], totalCal: 0 };
-      map[dateStr].meals.push(meal);
-      map[dateStr].totalCal += meal.cal || 0;
+      if (!meal.date) return;
+      const parsed = new Date(meal.date);
+      const ds = Number.isNaN(parsed.getTime()) ? meal.date : parsed.toDateString();
+      if (!map[ds]) map[ds] = { meals: [], liveCal: 0 };
+      map[ds].meals.push(meal);
+      map[ds].liveCal += meal.calories ?? meal.cal ?? 0;
     });
     return map;
   }, [recentMeals]);
+
+  const ledgerMap = useMemo(() => buildDailyLedgerMap(dailyGoalLedger), [dailyGoalLedger]);
 
   // Build check-in lookup by date string
   const checkInMap = useMemo(() => {
@@ -76,21 +81,31 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
   const isToday = (year, month, day) =>
     day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
+  // Past days use the daily ledger (their real total and the goal in effect that day, so a later goal
+  // change doesn't re-grade history); today uses the live meal total so it colours the moment you log.
   const getDayData = (year, month, day) => {
-    const key = getDateKey(year, month, day);
-    return mealMap[key] || null;
+    const ds = new Date(year, month, day).toDateString();
+    const base = mealMap[ds];
+    const live = base ? base.liveCal : 0;
+    const eaten = ds === today.toDateString() ? live : resolveCaloriesEaten(ledgerMap, ds, live);
+    if (!base && !(eaten > 0)) return null;
+    return {
+      meals: base ? base.meals : [],
+      totalCal: eaten,
+      goal: resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal),
+    };
   };
 
   const hasMeals = (year, month, day) => !!getDayData(year, month, day);
 
   const isOnGoal = (year, month, day) => {
     const data = getDayData(year, month, day);
-    return data && data.totalCal > 0 && data.totalCal <= dailyCalorieGoal;
+    return data && data.totalCal > 0 && data.totalCal <= data.goal;
   };
 
   const isOverGoal = (year, month, day) => {
     const data = getDayData(year, month, day);
-    return data && data.totalCal > dailyCalorieGoal;
+    return data && data.totalCal > data.goal;
   };
 
   const navigateMonth = (direction) => {
@@ -187,13 +202,13 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
 
     if (dayData) {
       const { totalCal, meals } = dayData;
-      const diff = totalCal - dailyCalorieGoal;
+      const diff = totalCal - dayData.goal;
       if (diff > 300) {
         insights.push({ title: `${diff} cal over goal`, desc: 'Tomorrow, aim for a slightly lighter day to balance it out', color: '#FEF2F2', accent: '#EF4444' });
       } else if (diff > 0) {
         insights.push({ title: `${diff} cal over goal`, desc: 'Just slightly over — a short walk can close the gap', color: '#FFF7ED', accent: '#F59E0B' });
       } else if (totalCal > 0) {
-        insights.push({ title: 'Goal reached!', desc: `You stayed within ${dailyCalorieGoal} cal — great consistency`, color: '#ECFDF5', accent: '#059669' });
+        insights.push({ title: 'Goal reached!', desc: `You stayed within ${dayData.goal} cal — great consistency`, color: '#ECFDF5', accent: '#059669' });
       }
       const topMeal = meals.reduce((best, m) => (m.cal || 0) > (best.cal || 0) ? m : best, meals[0]);
       if (topMeal) {
@@ -247,7 +262,7 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
                       <Ionicons name="restaurant-outline" size={16} color="#059669" />
                       <Text style={styles.detailLabelText} numberOfLines={1}>{meal.name || 'Meal'}</Text>
                     </View>
-                    <Text style={styles.detailValue}>{meal.cal || 0} cal</Text>
+                    <Text style={styles.detailValue}>{meal.calories ?? meal.cal ?? 0} cal</Text>
                   </View>
                 </View>
               ))}
@@ -257,8 +272,8 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
                   <Ionicons name="flame-outline" size={16} color="#F59E0B" />
                   <Text style={[styles.detailLabelText, { fontWeight: '700' }]}>Total</Text>
                 </View>
-                <Text style={[styles.detailValue, dayData.totalCal > dailyCalorieGoal ? { color: '#EF4444' } : { color: '#059669' }]}>
-                  {dayData.totalCal} / {dailyCalorieGoal} cal
+                <Text style={[styles.detailValue, dayData.totalCal > dayData.goal ? { color: '#EF4444' } : { color: '#059669' }]}>
+                  {dayData.totalCal} / {dayData.goal} cal
                 </Text>
               </View>
             </View>
