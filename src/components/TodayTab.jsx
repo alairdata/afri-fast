@@ -666,8 +666,6 @@ const TodayTab = ({
   const calRatio = dailyCalorieGoal > 0 ? Math.min(todayCalories / dailyCalorieGoal, 1) : 0;
   const calRemaining = Math.max((dailyCalorieGoal || 0) - todayCalories, 0);
   const isCalOver = dailyCalorieGoal > 0 && todayCalories > dailyCalorieGoal;
-  // How far over goal, as a ratio of the goal itself — capped at 100% over, drives the overfill spill
-  const overflowRatio = isCalOver ? Math.min((todayCalories - dailyCalorieGoal) / dailyCalorieGoal, 1) : 0;
 
   // Today's meals
   const todayDateStr = new Date().toDateString();
@@ -733,7 +731,7 @@ const TodayTab = ({
             </TouchableOpacity>
 
             <View style={styles.progressRingSmall}>
-              <LiquidCalorieRing ratio={calRatio} overflowRatio={overflowRatio} size={200} />
+              <LiquidCalorieRing ratio={calRatio} size={200} />
               <View style={styles.progressInnerSmall}>
                 <Text style={[styles.fastingLabelSmall, isCalOver && { color: '#EF4444' }]}>
                   {isCalOver ? 'OVER GOAL' : calRemaining === 0 && dailyCalorieGoal ? 'GOAL MET' : 'REMAINING'}
