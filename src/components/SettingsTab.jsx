@@ -231,6 +231,7 @@ const SettingsTab = ({
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [showAccountSheet, setShowAccountSheet] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteText, setDeleteText] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
   const countryRows = (() => {
     const q = countrySearch.trim().toLowerCase();
@@ -731,7 +732,7 @@ const SettingsTab = ({
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingsActionItem} onPress={() => { setConfirmDelete(false); setShowAccountSheet(true); }}>
+        <TouchableOpacity style={styles.settingsActionItem} onPress={() => { setConfirmDelete(false); setDeleteText(''); setShowAccountSheet(true); }}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="person-outline" size={18} color="#374151" />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Account Options</Text>
@@ -1055,10 +1056,26 @@ const SettingsTab = ({
                 <Text style={[styles.acctBody, { color: colors.textSecondary }]}>
                   This permanently deletes your account and all your data. This cannot be undone.
                 </Text>
-                <TouchableOpacity style={styles.acctDeleteBtn} onPress={() => { setShowAccountSheet(false); setConfirmDelete(false); onDeleteAccount?.(); }}>
+                <Text style={[styles.acctBody, { color: colors.textSecondary, marginBottom: 8 }]}>
+                  Type <Text style={{ fontWeight: '800', color: '#DC2626' }}>DELETE</Text> to confirm.
+                </Text>
+                <TextInput
+                  style={[styles.acctInput, { color: colors.text, borderColor: colors.border }]}
+                  value={deleteText}
+                  onChangeText={setDeleteText}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  placeholder="DELETE"
+                  placeholderTextColor="#9CA3AF"
+                />
+                <TouchableOpacity
+                  style={[styles.acctDeleteBtn, deleteText.trim().toUpperCase() !== 'DELETE' && { opacity: 0.35 }]}
+                  disabled={deleteText.trim().toUpperCase() !== 'DELETE'}
+                  onPress={() => { setShowAccountSheet(false); setConfirmDelete(false); setDeleteText(''); onDeleteAccount?.(); }}
+                >
                   <Text style={styles.acctDeleteText}>Yes, delete everything</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.acctCancel} onPress={() => setConfirmDelete(false)}>
+                <TouchableOpacity style={styles.acctCancel} onPress={() => { setConfirmDelete(false); setDeleteText(''); }}>
                   <Text style={styles.acctCancelText}>Cancel</Text>
                 </TouchableOpacity>
               </>
@@ -2237,6 +2254,7 @@ const styles = StyleSheet.create({
   acctRowText: { fontSize: 16, fontWeight: '600' },
   acctCancel: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
   acctCancelText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
+  acctInput: { borderWidth: 1.5, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, fontSize: 16, fontWeight: '700', letterSpacing: 2, marginBottom: 14 },
   acctDeleteBtn: { backgroundColor: '#DC2626', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   acctDeleteText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   cpOverlay: {
