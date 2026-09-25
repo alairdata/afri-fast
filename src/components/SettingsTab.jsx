@@ -353,9 +353,13 @@ const SettingsTab = ({
         <TouchableOpacity style={styles.settingsBackBtn} onPress={onBack} accessibilityLabel="Back">
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <View style={[styles.settingsProfileAvatar, userIconColor ? { backgroundColor: userIconColor } : {}]}>
-          <Text style={styles.settingsProfileInitial}>{userIcon || userName.charAt(0)}</Text>
-        </View>
+        {profileImage ? (
+          <Image source={{ uri: profileImage }} style={styles.settingsProfileAvatarImage} />
+        ) : (
+          <View style={[styles.settingsProfileAvatar, userIconColor ? { backgroundColor: userIconColor } : {}]}>
+            <Text style={styles.settingsProfileInitial}>{userIcon || userName.charAt(0)}</Text>
+          </View>
+        )}
         <View style={styles.settingsProfileInfo}>
           <Text style={[styles.settingsProfileName, { color: colors.text }]}>{userName}</Text>
           <TouchableOpacity onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}>

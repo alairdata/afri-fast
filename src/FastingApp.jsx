@@ -705,6 +705,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         if (s.userId !== session.user.id) return;
         if (s.userName) setUserName(s.userName);
         if (s.userCountry) setUserCountry(s.userCountry);
+        if (s.profileImage) setProfileImage(s.profileImage);
         if (s.height != null) setHeight(s.height);
         if (s.heightUnit) setHeightUnit(s.heightUnit);
         if (s.weightUnit) setWeightUnit(s.weightUnit);
@@ -740,14 +741,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     if (!session?.user?.id) return;
     AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify({
       userId: session.user.id,
-      userName, userCountry,
+      userName, userCountry, profileImage,
       height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
       dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
       hydrationGoal, startingWeight, targetWeight, userGoal,
       age, sex, goalDate, activityLevel, pacePreference,
       struggles, foodContext, cuisines, motivations, accountability,
     })).catch(() => {});
-  }, [userName, userCountry, height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
+  }, [userName, userCountry, profileImage, height, heightUnit, weightUnit, volumeUnit, foodMeasurement,
       dailyCalorieGoal, macroStyle, proteinGoal, carbsGoal, fatsGoal,
       hydrationGoal, startingWeight, targetWeight, userGoal, session, age, sex, goalDate, activityLevel, pacePreference,
       struggles, foodContext, cuisines, motivations, accountability]);
