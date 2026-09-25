@@ -65,6 +65,7 @@ import LogMealModal, { saveCommunityPhotos, setCommunitySharingEnabled } from '.
 import { processPendingMealPhotos } from './lib/mealPhotoUpload';
 import { AFRICAN_RECIPES } from './lib/africanRecipes';
 import { uploadAvatar } from './lib/avatarUpload';
+import { quickWaterIncrement, quickWaterLabel } from './lib/waterQuickAdd';
 import MakeRecipePage from './components/MakeRecipePage';
 import FindRecipePage from './components/FindRecipePage';
 import MakeRecipeModal from './components/MakeRecipeModal';
@@ -1801,6 +1802,27 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     showToast('Check-in saved!');
   };
 
+  // One-tap water from the Today tab: logs a single serving in the user's water unit. Returns the new
+  // log's id so the Today tab can offer a short Undo.
+  const handleQuickAddWater = () => {
+    const now = new Date();
+    const wId = Date.now();
+    const waterLog = {
+      id: wId, date: now.toDateString(),
+      displayDate: `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()]}, ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+      amount: quickWaterIncrement(volumeUnit), unit: volumeUnit,
+    };
+    setWaterLogs(prev => [waterLog, ...prev]);
+    dbSave(supabase.from('water_logs').insert({ id: wId, user_id: session?.user?.id, date: waterLog.date, display_date: waterLog.displayDate, amount: waterLog.amount, unit: waterLog.unit }), 'quick add water', (msg) => showToast(msg, 'error'));
+    showToast(`+${quickWaterLabel(volumeUnit)} of water`);
+    return wId;
+  };
+
+  const handleUndoQuickWater = (wId) => {
+    setWaterLogs(prev => prev.filter(w => w.id !== wId));
+    dbSave(supabase.from('water_logs').delete().eq('id', wId).eq('user_id', session?.user?.id), 'undo quick water', (msg) => showToast(msg, 'error'));
+  };
+
   const handleEditStartTime = () => {
     if (fastStartTime) {
       const d = new Date(fastStartTime);
@@ -1976,6 +1998,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           waterCount={waterCount}
           waterLogs={waterLogs}
           volumeUnit={volumeUnit}
+          onQuickAddWater={handleQuickAddWater}
+          onUndoQuickWater={handleUndoQuickWater}
           eatingStyle={eatingStyle}
           eatingWindow={eatingWindow}
           onNavigateToMeals={() => setActiveTab('meals')}

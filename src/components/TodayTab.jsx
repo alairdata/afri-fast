@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { quickWaterLabel } from '../lib/waterQuickAdd';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, Animated, RefreshControl } from 'react-native';
 import { useTheme } from '../lib/theme';
@@ -320,6 +321,8 @@ const TodayTab = ({
   waterCount,
   waterLogs,
   volumeUnit,
+  onQuickAddWater,
+  onUndoQuickWater,
   onShowCalendar,
   checkInHistory,
   weightLogs,
@@ -377,6 +380,22 @@ const TodayTab = ({
   const [jfyFreshReady, setJfyFreshReady] = useState(false);
   const [jfyExpanded, setJfyExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [undoWaterId, setUndoWaterId] = useState(null);
+  const undoWaterTimer = useRef(null);
+
+  const quickAddWater = () => {
+    const id = onQuickAddWater?.();
+    if (id == null) return;
+    setUndoWaterId(id);
+    clearTimeout(undoWaterTimer.current);
+    undoWaterTimer.current = setTimeout(() => setUndoWaterId(null), 5000);
+  };
+  const undoQuickWater = () => {
+    if (undoWaterId != null) onUndoQuickWater?.(undoWaterId);
+    clearTimeout(undoWaterTimer.current);
+    setUndoWaterId(null);
+  };
+  useEffect(() => () => clearTimeout(undoWaterTimer.current), []);
 
   const buildEnrichedMealLogs = () =>
     (recentMeals || []).map(meal => {
@@ -970,6 +989,17 @@ const TodayTab = ({
                   return `${(totalML / 1000).toFixed(1)} L`;
                 })()}</Text>
               </View>
+              {onQuickAddWater && (
+                undoWaterId != null ? (
+                  <TouchableOpacity style={styles.waterAddBtn} onPress={undoQuickWater} activeOpacity={0.7}>
+                    <Text style={[styles.waterAddText, { color: '#6B7280' }]}>Undo</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={styles.waterAddBtn} onPress={quickAddWater} activeOpacity={0.7} accessibilityLabel={`Add ${quickWaterLabel(volumeUnit)} of water`}>
+                    <Ionicons name="add" size={18} color="#059669" />
+                  </TouchableOpacity>
+                )
+              )}
             </View>
           </View>
         </View>
@@ -1074,6 +1104,17 @@ const makeStyles = (c) => StyleSheet.create({
     height: 34,
     borderRadius: 10,
   },
+  waterAddBtn: {
+    marginLeft: 4,
+    minWidth: 32,
+    height: 32,
+    paddingHorizontal: 8,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(5,150,105,0.1)',
+  },
+  waterAddText: { color: '#059669', fontSize: 12, fontWeight: '700' },
   avatarTextSmall: {
     color: '#fff',
     fontSize: 12,
