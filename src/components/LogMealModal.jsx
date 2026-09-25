@@ -654,7 +654,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         '',
         `Overall Calories: ${totalCal.toLocaleString()} / ${cardGoal.toLocaleString()} kcal`,
         '',
-        'Tracked on AfriFast',
+        'Tracked on Logga',
       ].join('\n');
 
       if (Platform.OS === 'web') {
@@ -670,13 +670,13 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         const dataUrl = canvas.toDataURL('image/png');
         const res = await fetch(dataUrl);
         const blob = await res.blob();
-        const file = new File([blob], 'afri-fast-meal.png', { type: 'image/png' });
+        const file = new File([blob], 'logga-meal.png', { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'My Meal — AfriFast', text: detailsText });
+          await navigator.share({ files: [file], title: 'My Meal — Logga', text: detailsText });
         } else {
           const a = document.createElement('a');
           a.href = dataUrl;
-          a.download = 'afri-fast-meal.png';
+          a.download = 'logga-meal.png';
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -684,7 +684,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       } else {
         const uri = await captureRef(shareCardRef, { format: 'png', quality: 0.95 });
         const result = await Share.share({
-          title: 'My Meal — AfriFast',
+          title: 'My Meal — Logga',
           message: detailsText,
           url: uri,
         });
@@ -1706,7 +1706,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         {dateStr} · <Text style={styles.shareCardFooterMealType}>{mealType}</Text>
                       </Text>
                       <LinearGradient colors={['#22c55e', '#16a34a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.shareCardCtaBtn}>
-                        <Text style={styles.shareCardCtaText}>Made with AfriFast →</Text>
+                        <Text style={styles.shareCardCtaText}>Made with Logga →</Text>
                       </LinearGradient>
                     </View>
                   );

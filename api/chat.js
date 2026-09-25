@@ -110,7 +110,7 @@ ${(enrichedMealLogs || []).slice(0, 15).map(m => {
 }
 
 function buildChatSystemPrompt(personality, userContext) {
-  return `You are a warm, knowledgeable personal health coach inside Afri Fast, an African fasting and nutrition app. You know this user — their habits, goals, patterns, and personality.
+  return `You are a warm, knowledgeable personal health coach inside Logga, an African fasting and nutrition app. You know this user — their habits, goals, patterns, and personality.
 
 ${personality
   ? `WHAT YOU KNOW ABOUT THIS USER:\n${personality}`
@@ -128,7 +128,7 @@ COACHING RULES:
 }
 
 function buildMealsChatSystemPrompt(userContext) {
-  return `You are a calorie-counting helper inside Afri Fast, an African fasting and nutrition app. Your only job in this chat is to help the user understand the calories and nutrition in the meal or food they describe — nothing else.
+  return `You are a calorie-counting helper inside Logga, an African fasting and nutrition app. Your only job in this chat is to help the user understand the calories and nutrition in the meal or food they describe — nothing else.
 
 ${userContext}
 
@@ -147,7 +147,7 @@ RULES:
 }
 
 function buildPersonalityUpdatePrompt(existingPersonality, conversation, userContext) {
-  return `You are updating a personality profile for a user of Afri Fast, a health coaching app. This profile helps the AI coach understand and serve them better over time.
+  return `You are updating a personality profile for a user of Logga, a health coaching app. This profile helps the AI coach understand and serve them better over time.
 
 EXISTING PROFILE:
 ${existingPersonality || 'None yet — this is the first profile entry.'}
@@ -172,7 +172,7 @@ Return ONLY the updated profile text. No labels, no explanation, no JSON.`;
 }
 
 function buildPersonalityRebuildPrompt(userContext, fastingSessions, checkInHistory, recentMeals, weightLogs) {
-  return `You are building a personality profile for a user of Afri Fast, a health coaching app, based entirely on their data.
+  return `You are building a personality profile for a user of Logga, a health coaching app, based entirely on their data.
 
 ${userContext}
 

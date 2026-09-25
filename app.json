@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Afri Fast",
+    "name": "Logga",
     "slug": "afri-fast",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -36,8 +36,8 @@
       "bundler": "webpack",
       "themeColor": "#E6F4FE",
       "description": "African meal fasting and calorie tracker",
-      "name": "Afri Fast",
-      "shortName": "Afri Fast"
+      "name": "Logga",
+      "shortName": "Logga"
     },
     "plugins": [
       "expo-audio",
@@ -45,7 +45,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Afri Fast needs camera access to scan your meals."
+          "cameraPermission": "Logga needs camera access to scan your meals."
         }
       ]
     ]

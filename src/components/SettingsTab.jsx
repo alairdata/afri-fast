@@ -902,7 +902,7 @@ const SettingsTab = ({
 
       {/* App Version */}
       <View style={styles.settingsVersion}>
-        <Text style={styles.settingsVersionText}>Afri Fast v1.0.0</Text>
+        <Text style={styles.settingsVersionText}>Logga v1.0.0</Text>
         <Text style={styles.settingsVersionSub}>Made by SeedFest Technologies</Text>
       </View>
 

@@ -98,7 +98,7 @@ export const schedulePredictionNotification = async (prediction) => {
   await Notifications.scheduleNotificationAsync({
     identifier: 'prediction-daily',
     content: {
-      title: 'AfriFast has a tip for you',
+      title: 'Logga has a tip for you',
       body: prediction.text,
       data: { type: 'prediction', cardIndex: prediction.cardIndex ?? 0 },
     },

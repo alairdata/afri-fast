@@ -497,7 +497,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
   const handleShare = async (post) => {
     try {
       await Share.share({
-        message: `${post.text}\n\n— via Afri Fast Whispers`,
+        message: `${post.text}\n\n— via Logga Whispers`,
       });
     } catch (e) {}
   };

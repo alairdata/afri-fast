@@ -481,7 +481,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
             const shareText = [
               `${mealType} — ${foods.join(', ')}`,
               `${cal} kcal  |  Protein: ${protein}g  |  Carbs: ${carbs}g  |  Fats: ${fats}g`,
-              `Logged on ${viewingMeal.date} · Tracked with AfriFast`,
+              `Logged on ${viewingMeal.date} · Tracked with Logga`,
             ].join('\n');
             return (
               <ScrollView contentContainerStyle={styles.mealDetailScroll} showsVerticalScrollIndicator={false}>
@@ -546,7 +546,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
                   <View style={styles.mealDetailFooter}>
                     <Text style={styles.mealDetailFooterDate}>{viewingMeal.date} · <Text style={styles.mealDetailFooterType}>{mealType}</Text></Text>
                     <View style={styles.mealDetailCtaBtn}>
-                      <Text style={styles.mealDetailCtaText}>Made with AfriFast →</Text>
+                      <Text style={styles.mealDetailCtaText}>Made with Logga →</Text>
                     </View>
                   </View>
                 </View>
@@ -558,7 +558,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
                     onPress={async () => {
                       try {
                         if (navigator.share) {
-                          await navigator.share({ title: 'My Meal — AfriFast', text: shareText });
+                          await navigator.share({ title: 'My Meal — Logga', text: shareText });
                         } else {
                           await navigator.clipboard.writeText(shareText);
                           alert('Copied to clipboard!');

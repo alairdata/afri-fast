@@ -286,7 +286,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
           {/* Headline + subtitle */}
           <Text style={ca.headline}>Save your plan{initial}</Text>
           <Text style={ca.subtitle}>
-            Make a free account so AfriFast keeps your{'\n'}goal, meals and streak safe.
+            Make a free account so Logga keeps your{'\n'}goal, meals and streak safe.
           </Text>
 
           {/* Apple */}
@@ -361,7 +361,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
 
           {/* Terms */}
           <Text style={ca.terms}>
-            By continuing you agree to AfriFast's Terms & Privacy{'\n'}Policy.
+            By continuing you agree to Logga's Terms & Privacy{'\n'}Policy.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

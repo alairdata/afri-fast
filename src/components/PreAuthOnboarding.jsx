@@ -570,7 +570,7 @@ function DemoScreen(p) {
             <>
               <Text style={[s.headline, { marginTop: 6 }]}>Let's see the magic.</Text>
               <Text style={[s.subline, { marginTop: 8 }]}>
-                Tap the shutter — point AfriFast at any plate, even jollof, and watch it read the calories.
+                Tap the shutter — point Logga at any plate, even jollof, and watch it read the calories.
               </Text>
             </>
           ) : (

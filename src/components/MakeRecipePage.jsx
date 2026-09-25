@@ -291,8 +291,8 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
                   </View>
                   {/* Footer */}
                   <View style={detail.cardFooter}>
-                    <Text style={detail.cardFooterText}>Community · AfriFast</Text>
-                    <View style={detail.cardFooterBadge}><Text style={detail.cardFooterBadgeText}>Made with AfriFast →</Text></View>
+                    <Text style={detail.cardFooterText}>Community · Logga</Text>
+                    <View style={detail.cardFooterBadge}><Text style={detail.cardFooterBadgeText}>Made with Logga →</Text></View>
                   </View>
                 </View>
                 {/* Buttons */}
