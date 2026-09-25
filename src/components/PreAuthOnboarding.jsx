@@ -750,7 +750,7 @@ function NameScreen(p) {
       <View style={{ marginTop: 32 }}>
         <Text style={s.eyebrow}>About you · 1 of 4</Text>
         <Text style={s.headline}>First, what should we call you?</Text>
-        <Text style={s.subline}>We like to keep things personal — like family.</Text>
+        <Text style={s.subline}>We like to keep things personal — like friends.</Text>
       </View>
       <View style={s.nameInputWrap}>
         <TextInput
