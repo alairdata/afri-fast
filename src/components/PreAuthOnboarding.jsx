@@ -1264,7 +1264,7 @@ function DoneScreen({ d, onComplete }) {
       cuisines: d.cuisines,
       whys: d.whys,
       goalDate,
-    });
+    }, d);
   };
 
   return (
@@ -1356,8 +1356,8 @@ function DoneScreen({ d, onComplete }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ORCHESTRATOR
 // ─────────────────────────────────────────────────────────────────────────────
-export default function PreAuthOnboarding({ initialData, onComplete, onLogin }) {
-  const [idx, setIdx] = useState(0);
+export default function PreAuthOnboarding({ initialData, initialStep, onComplete, onLogin }) {
+  const [idx, setIdx] = useState(() => Math.max(0, FLOW.indexOf(initialStep)));
   const [data, setData] = useState({ ...DEFAULT_DATA, ...(initialData || {}) });
 
   const set = (k, v) => setData(d => ({ ...d, [k]: v }));

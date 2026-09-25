@@ -177,6 +177,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [message, setMessage] = useState('');
   const [touched, setTouched] = useState({});
   const [screen, setScreen] = useState(preAuthData?.completedAt ? 'auth' : 'onboarding');
+  const [rawOnboarding, setRawOnboarding] = useState(null);
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -240,9 +241,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     return (
       <KeyboardAvoidingView style={styles.onboardingContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <PreAuthOnboarding
-          initialData={preAuthData}
+          initialData={rawOnboarding || preAuthData}
+          initialStep={rawOnboarding ? 'done' : undefined}
           onLogin={() => { setMode('login'); setScreen('auth'); }}
-          onComplete={async (answers) => {
+          onComplete={async (answers, raw) => {
+            setRawOnboarding(raw);
             await onSavePreAuthData?.(answers);
             setName(answers.preferredName || '');
             setMode('signup');
@@ -269,8 +272,8 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
       <KeyboardAvoidingView style={ca.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={ca.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* Close */}
-          <TouchableOpacity style={ca.closeBtn} onPress={() => setScreen('gate')} activeOpacity={0.7}>
-            <Ionicons name="close" size={22} color="rgba(0,0,0,0.45)" />
+          <TouchableOpacity style={ca.closeBtn} onPress={() => setScreen('onboarding')} activeOpacity={0.7}>
+            <Ionicons name="chevron-back"size={22} color="rgba(0,0,0,0.45)" />
           </TouchableOpacity>
 
           <View style={{ alignItems: 'center', marginBottom: 12 }}>
