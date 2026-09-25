@@ -329,19 +329,21 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
 
 // ── Make Recipe Page ─────────────────────────────────────────────────────────
 
+const SHOW_RECIPE_CREATORS = false;
+
 const CATEGORY_META = {
-  'Weight Loss Friendly': { emoji: '🎯', subtitle: 'Low calorie, big satisfaction' },
-  'Breakfast': { emoji: '🌅', subtitle: 'Start your morning right' },
-  'Lunch': { emoji: '☀️', subtitle: 'Midday meals to keep you going' },
-  'Dinner': { emoji: '🌙', subtitle: 'Light and satisfying evening meals' },
-  'Snacks': { emoji: '🤏', subtitle: 'Healthy bites between meals' },
-  'Desserts': { emoji: '🍬', subtitle: 'Sweet treats, African style' },
-  'Drinks': { emoji: '🥤', subtitle: 'Refreshing beverages' },
-  'Weight Loss Drinks': { emoji: '💧', subtitle: 'Low-calorie drinks that support your goals' },
-  'Quick & Easy': { emoji: '⚡', subtitle: 'Ready in under 15 minutes' },
-  'Low Fat': { emoji: '🥗', subtitle: 'Light on fat, big on taste' },
-  'Low Carb': { emoji: '💪', subtitle: 'Keep the carbs down' },
-  'High Protein': { emoji: '🏋️', subtitle: 'Fuel your muscles' },
+  'Weight Loss Friendly': { icon: 'flag-outline', subtitle: 'Low calorie, big satisfaction' },
+  'Breakfast': { icon: 'sunny-outline', subtitle: 'Start your morning right' },
+  'Lunch': { icon: 'restaurant-outline', subtitle: 'Midday meals to keep you going' },
+  'Dinner': { icon: 'moon-outline', subtitle: 'Light and satisfying evening meals' },
+  'Snacks': { icon: 'nutrition-outline', subtitle: 'Healthy bites between meals' },
+  'Desserts': { icon: 'ice-cream-outline', subtitle: 'Sweet treats, African style' },
+  'Drinks': { icon: 'cafe-outline', subtitle: 'Refreshing beverages' },
+  'Weight Loss Drinks': { icon: 'water-outline', subtitle: 'Low-calorie drinks that support your goals' },
+  'Quick & Easy': { icon: 'flash-outline', subtitle: 'Ready in under 15 minutes' },
+  'Low Fat': { icon: 'leaf-outline', subtitle: 'Light on fat, big on taste' },
+  'Low Carb': { icon: 'remove-circle-outline', subtitle: 'Keep the carbs down' },
+  'High Protein': { icon: 'barbell-outline', subtitle: 'Fuel your muscles' },
 };
 
 const getLocalName = (recipe, userCountry) =>
@@ -718,8 +720,8 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-          {/* Action cards */}
-          <View style={styles.actionRow}>
+          {/* Action cards — hidden for now */}
+          {SHOW_RECIPE_CREATORS && (<View style={styles.actionRow}>
             <TouchableOpacity style={styles.actionCard} onPress={() => setPaywallVisible(true)}>
               <View style={[styles.actionIconBg, { backgroundColor: '#ECFDF5' }]}>
                 <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -748,7 +750,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
               <Text style={styles.actionTitle}>List{'\n'}Ingredients</Text>
               <Text style={styles.actionDesc}>Type or say what you have</Text>
             </TouchableOpacity>
-          </View>
+          </View>)}
 
           {/* Photo analysis states */}
           {photoPhase === 'analyzing' && (
@@ -823,7 +825,10 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
                 const meta = CATEGORY_META[cat] || {};
                 return (
                   <View key={cat} style={styles.section}>
-                    <Text style={styles.sectionTitle}>{meta.emoji} {cat}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      {meta.icon ? <Ionicons name={meta.icon} size={20} color="#16201b" /> : null}
+                      <Text style={styles.sectionTitle}>{cat}</Text>
+                    </View>
                     {meta.subtitle && <Text style={styles.sectionSubtitle}>{meta.subtitle}</Text>}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
                       {recipes.map(renderRecipeCard)}
