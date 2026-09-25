@@ -1264,6 +1264,7 @@ function DoneScreen({ d, onComplete }) {
       cuisines: d.cuisines,
       whys: d.whys,
       goalDate,
+      dailyCalorieGoal: plan.target,
     }, d);
   };
 

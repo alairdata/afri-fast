@@ -1210,7 +1210,28 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
         // Single upsert with all onboarding data
         if (Object.keys(patch).length > 0) {
-          upsertProfile(patch, 'save full onboarding data');
+          await upsertProfile(patch, 'save full onboarding data');
+        }
+
+        // The daily target the person saw on the onboarding "Here's your daily target" screen becomes
+        // their starting goal. Only fills in a goal that was never set -- a returning user who already
+        // has one keeps it.
+        const onboardingCal = parseInt(pendingPreAuthData.dailyCalorieGoal, 10);
+        if (onboardingCal > 0) {
+          const split = MACRO_STYLE_SPLITS.balanced;
+          const { data: applied, error: goalError } = await supabase
+            .from('profiles')
+            .update({
+              daily_calorie_goal: onboardingCal,
+              protein_goal: Math.round((onboardingCal * split.protein) / 4),
+              carbs_goal: Math.round((onboardingCal * split.carbs) / 4),
+              fats_goal: Math.round((onboardingCal * split.fats) / 9),
+            })
+            .eq('id', session.user.id)
+            .is('daily_calorie_goal', null)
+            .select('id');
+          if (goalError) console.error('[DB Error - apply onboarding calorie goal]', goalError);
+          else if (applied?.length) updateMacroGoalsFromCalories(onboardingCal);
         }
 
         if (pendingPreAuthData.currentWeight && weightLogs.length === 0) {
