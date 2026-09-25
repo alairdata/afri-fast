@@ -229,6 +229,8 @@ const SettingsTab = ({
   const [storyViewer, setStoryViewer] = useState(null); // { title, slides, index }
   const [showHydrationUnitDropdown, setShowHydrationUnitDropdown] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [showAccountSheet, setShowAccountSheet] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
   const countryRows = (() => {
     const q = countrySearch.trim().toLowerCase();
@@ -660,36 +662,6 @@ const SettingsTab = ({
 
         <View style={styles.settingsItem}>
           <View style={styles.settingsItemLeft}>
-            <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Morning Weigh-In Reminder</Text>
-            {notifyFastStart && fastStartReminderTime && (
-              <TouchableOpacity onPress={() => openTimePicker('fastStart', fastStartReminderTime)}>
-                <Text style={styles.settingsItemSub}>{fmt12(fastStartReminderTime.hour, fastStartReminderTime.minute)} · tap to change</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          {renderToggle(notifyFastStart, () => {
-            if (!notifyFastStart) openTimePicker('fastStart', fastStartReminderTime);
-            else onToggleNotifyFastStart?.(false);
-          })}
-        </View>
-
-        <View style={styles.settingsItem}>
-          <View style={styles.settingsItemLeft}>
-            <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Evening Calorie Check</Text>
-            {notifyFastEnd && fastEndReminderTime && (
-              <TouchableOpacity onPress={() => openTimePicker('fastEnd', fastEndReminderTime)}>
-                <Text style={styles.settingsItemSub}>{fmt12(fastEndReminderTime.hour, fastEndReminderTime.minute)} · tap to change</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          {renderToggle(notifyFastEnd, () => {
-            if (!notifyFastEnd) openTimePicker('fastEnd', fastEndReminderTime);
-            else onToggleNotifyFastEnd?.(false);
-          })}
-        </View>
-
-        <View style={styles.settingsItem}>
-          <View style={styles.settingsItemLeft}>
             <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Meal Logging Reminder</Text>
             {notifyMealReminder && mealReminderTime && (
               <TouchableOpacity onPress={() => openTimePicker('meal', mealReminderTime)}>
@@ -758,6 +730,14 @@ const SettingsTab = ({
           </View>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.settingsActionItem} onPress={() => { setConfirmDelete(false); setShowAccountSheet(true); }}>
+          <View style={styles.settingsActionLeft}>
+            <Ionicons name="person-outline" size={18} color="#374151" />
+            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Account Options</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+        </TouchableOpacity>
       </View>
 
       {/* Support */}
@@ -788,16 +768,6 @@ const SettingsTab = ({
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
       </View>
-
-      {/* Log Out */}
-      <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
-        <Text style={styles.logoutBtnText}>Log Out</Text>
-      </TouchableOpacity>
-
-      {/* Delete Account */}
-      <TouchableOpacity style={styles.deleteAccountBtn} onPress={onDeleteAccount}>
-        <Text style={styles.deleteAccountBtnText}>Delete Account</Text>
-      </TouchableOpacity>
 
       {/* App Version */}
       <View style={styles.settingsVersion}>
@@ -1060,6 +1030,43 @@ const SettingsTab = ({
         </View>
         </View>
       )}
+      {/* Account Options sheet: log out / delete account live here, one deliberate tap away */}
+      <Modal visible={showAccountSheet} animationType="fade" transparent onRequestClose={() => setShowAccountSheet(false)}>
+        <TouchableOpacity style={styles.acctOverlay} activeOpacity={1} onPress={() => setShowAccountSheet(false)}>
+          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={[styles.acctSheet, { backgroundColor: colors.card }]}>
+            {!confirmDelete ? (
+              <>
+                <Text style={[styles.acctTitle, { color: colors.text }]}>Account options</Text>
+                <TouchableOpacity style={styles.acctRow} onPress={() => { setShowAccountSheet(false); onLogout?.(); }}>
+                  <Ionicons name="log-out-outline" size={20} color="#374151" />
+                  <Text style={[styles.acctRowText, { color: colors.text }]}>Log out</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.acctRow} onPress={() => setConfirmDelete(true)}>
+                  <Ionicons name="trash-outline" size={20} color="#DC2626" />
+                  <Text style={[styles.acctRowText, { color: '#DC2626' }]}>Delete account</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.acctCancel} onPress={() => setShowAccountSheet(false)}>
+                  <Text style={styles.acctCancelText}>Close</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.acctTitle, { color: '#DC2626' }]}>Delete your account?</Text>
+                <Text style={[styles.acctBody, { color: colors.textSecondary }]}>
+                  This permanently deletes your account and all your data. This cannot be undone.
+                </Text>
+                <TouchableOpacity style={styles.acctDeleteBtn} onPress={() => { setShowAccountSheet(false); setConfirmDelete(false); onDeleteAccount?.(); }}>
+                  <Text style={styles.acctDeleteText}>Yes, delete everything</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.acctCancel} onPress={() => setConfirmDelete(false)}>
+                  <Text style={styles.acctCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Country Picker Modal */}
       <Modal visible={showCountryPicker} animationType="slide" transparent onRequestClose={() => setShowCountryPicker(false)}>
         <View style={styles.cpOverlay}>
@@ -2222,6 +2229,16 @@ const styles = StyleSheet.create({
     color: '#aaa',
     marginTop: 4,
   },
+  acctOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', paddingHorizontal: 24 },
+  acctSheet: { borderRadius: 20, padding: 20 },
+  acctTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
+  acctBody: { fontSize: 14, lineHeight: 20, marginBottom: 16 },
+  acctRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
+  acctRowText: { fontSize: 16, fontWeight: '600' },
+  acctCancel: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
+  acctCancelText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
+  acctDeleteBtn: { backgroundColor: '#DC2626', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  acctDeleteText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   cpOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

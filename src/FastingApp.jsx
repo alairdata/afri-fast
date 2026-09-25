@@ -262,8 +262,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [notifyFastEnd, setNotifyFastEnd] = useState(true);
   const [notifyMealReminder, setNotifyMealReminder] = useState(false);
   const [notifyMilestones, setNotifyMilestones] = useState(true);
-  const [weighInTime, setWeighInTime] = useState({ hour: 7, minute: 0 });
-  const [calorieCheckTime, setCalorieCheckTime] = useState({ hour: 20, minute: 0 });
   const [mealReminderTime, setMealReminderTime] = useState({ hour: 19, minute: 0 });
   const [milestoneConfig, setMilestoneConfig] = useState({ streak: true, streakDays: 7, hydration: false, weight: false });
   const [notifSettingsLoaded, setNotifSettingsLoaded] = useState(false);
@@ -955,12 +953,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       if (raw) {
         try {
           const n = JSON.parse(raw);
-          if (n.notifyFastStart != null) setNotifyFastStart(n.notifyFastStart);
-          if (n.notifyFastEnd != null) setNotifyFastEnd(n.notifyFastEnd);
           if (n.notifyMealReminder != null) setNotifyMealReminder(n.notifyMealReminder);
           if (n.notifyMilestones != null) setNotifyMilestones(n.notifyMilestones);
-          if (n.weighInTime) setWeighInTime(n.weighInTime);
-          if (n.calorieCheckTime) setCalorieCheckTime(n.calorieCheckTime);
           if (n.mealReminderTime) setMealReminderTime(n.mealReminderTime);
           if (n.milestoneConfig) setMilestoneConfig(n.milestoneConfig);
         } catch (_) {}
@@ -971,18 +965,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   useEffect(() => {
     if (!notifSettingsLoaded) return;
     AsyncStorage.setItem(NOTIF_SETTINGS_KEY, JSON.stringify({
-      notifyFastStart, notifyFastEnd, notifyMealReminder, notifyMilestones,
-      weighInTime, calorieCheckTime, mealReminderTime, milestoneConfig,
+      notifyMealReminder, notifyMilestones, mealReminderTime, milestoneConfig,
     })).catch(() => {});
     if (Platform.OS === 'web') return;
     (async () => {
       if (!(await requestNotificationPermissions())) return;
-      if (notifyFastStart) await scheduleWeighInReminder(weighInTime.hour, weighInTime.minute); else await cancelWeighInReminder();
-      if (notifyFastEnd) await scheduleCalorieCheckReminder(calorieCheckTime.hour, calorieCheckTime.minute); else await cancelCalorieCheckReminder();
+      // The weigh-in and calorie-check reminders were removed from Settings: clear any that an
+      // earlier version already scheduled on this device.
+      await cancelWeighInReminder();
+      await cancelCalorieCheckReminder();
       if (notifyMealReminder) await scheduleMealReminder(mealReminderTime.hour, mealReminderTime.minute); else await cancelMealReminder();
     })().catch((e) => console.log('[Notifications] sync failed:', e?.message));
-  }, [notifSettingsLoaded, notifyFastStart, notifyFastEnd, notifyMealReminder, notifyMilestones,
-      weighInTime, calorieCheckTime, mealReminderTime, milestoneConfig]);
+  }, [notifSettingsLoaded, notifyMealReminder, notifyMilestones, mealReminderTime, milestoneConfig]);
 
   // Handle taps on prediction notifications — navigate to the linked insight card
   useEffect(() => {
@@ -2019,38 +2013,25 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         <SettingsTab
           onBack={() => setActiveTab('today')}
           onLogout={() => setShowLogoutModal(true)}
-          onDeleteAccount={() => {
-            Alert.alert(
-              'Delete Account',
-              'This will permanently delete your account and all your data. This cannot be undone.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Delete',
-                  style: 'destructive',
-                  onPress: async () => {
-                    const uid = session?.user?.id;
-                    if (!uid) return;
-                    try {
-                      // Delete all user data from tables
-                      await Promise.all([
-                        supabase.from('meals').delete().eq('user_id', uid),
-                        supabase.from('weight_logs').delete().eq('user_id', uid),
-                        supabase.from('fasting_sessions').delete().eq('user_id', uid),
-                        supabase.from('water_logs').delete().eq('user_id', uid),
-                        supabase.from('check_ins').delete().eq('user_id', uid),
-                        supabase.from('profiles').delete().eq('id', uid),
-                      ]);
-                      await AsyncStorage.clear();
-                      await supabase.auth.signOut();
-                    } catch (e) {
-                      console.error('[DeleteAccount]', e);
-                      showToast('Failed to delete account. Try again.', 'error');
-                    }
-                  },
-                },
-              ]
-            );
+          onDeleteAccount={async () => {
+            const uid = session?.user?.id;
+            if (!uid) return;
+            try {
+              // Delete all user data from tables
+              await Promise.all([
+                supabase.from('meals').delete().eq('user_id', uid),
+                supabase.from('weight_logs').delete().eq('user_id', uid),
+                supabase.from('fasting_sessions').delete().eq('user_id', uid),
+                supabase.from('water_logs').delete().eq('user_id', uid),
+                supabase.from('check_ins').delete().eq('user_id', uid),
+                supabase.from('profiles').delete().eq('id', uid),
+              ]);
+              await AsyncStorage.clear();
+              await supabase.auth.signOut();
+            } catch (e) {
+              console.error('[DeleteAccount]', e);
+              showToast('Failed to delete account. Try again.', 'error');
+            }
           }}
           userName={userName}
           userEmail={userEmail}
@@ -2125,12 +2106,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           setEatingStyle={(val) => { setEatingStyle(val); upsertProfile({ eating_style: val }, 'update eating_style'); }}
           eatingWindow={eatingWindow}
           setEatingWindow={(val) => { setEatingWindow(val); upsertProfile({ eating_window: val }, 'update eating_window'); }}
-          notifyFastStart={notifyFastStart}
-          onToggleNotifyFastStart={(val, time) => { setNotifyFastStart(val); if (time) setWeighInTime(time); }}
-          fastStartReminderTime={weighInTime}
-          notifyFastEnd={notifyFastEnd}
-          onToggleNotifyFastEnd={(val, time) => { setNotifyFastEnd(val); if (time) setCalorieCheckTime(time); }}
-          fastEndReminderTime={calorieCheckTime}
           notifyMealReminder={notifyMealReminder}
           onToggleNotifyMealReminder={(val, time) => { setNotifyMealReminder(val); if (time) setMealReminderTime(time); }}
           mealReminderTime={mealReminderTime}
