@@ -328,6 +328,7 @@ const TodayTab = ({
   dailyCalorieGoal,
   hydrationGoal,
   userName,
+  profileImage,
   userCountry,
   userJoinDate,
   userId,
@@ -676,7 +677,11 @@ const TodayTab = ({
       {/* Header */}
       <View style={styles.headerCompact}>
         <TouchableOpacity style={styles.avatarSmall} onPress={onOpenSettings} accessibilityLabel="Open settings">
-          <Text style={styles.avatarTextSmall}>{getInitials(userName)}</Text>
+          {profileImage ? (
+            <Image source={{ uri: profileImage }} style={styles.avatarImageSmall} />
+          ) : (
+            <Text style={styles.avatarTextSmall}>{getInitials(userName)}</Text>
+          )}
         </TouchableOpacity>
         <View style={styles.dateContainer}>
           <Text style={styles.dateTextSmall}>{formatDate()}</Text>
@@ -1037,6 +1042,11 @@ const makeStyles = (c) => StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 6,
+  },
+  avatarImageSmall: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
   },
   avatarTextSmall: {
     color: '#fff',

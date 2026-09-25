@@ -54,6 +54,7 @@ import NutritionQuizPage from './components/NutritionQuizPage';
 import LogMealModal, { saveCommunityPhotos } from './components/LogMealModal';
 import { processPendingMealPhotos } from './lib/mealPhotoUpload';
 import { AFRICAN_RECIPES } from './lib/africanRecipes';
+import { uploadAvatar } from './lib/avatarUpload';
 import MakeRecipePage from './components/MakeRecipePage';
 import FindRecipePage from './components/FindRecipePage';
 import MakeRecipeModal from './components/MakeRecipeModal';
@@ -476,6 +477,24 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     console.log(`[Profile upsert ok - ${label}]`, data);
     return data;
   };
+
+  // Show the picked photo right away, then upload it so it follows the account across devices and
+  // reinstalls. If the upload fails (offline, bucket not set up) the local copy stays as a fallback.
+  const handleProfileImageChange = async (uri) => {
+    setProfileImage(uri);
+    if (!uri) return;
+    const url = await uploadAvatar(uri);
+    if (!url) return;
+    setProfileImage(url);
+    upsertProfile({ avatar_url: url }, 'save avatar');
+  };
+
+  // Separate, best-effort read: a missing avatar_url column must never break the main profile fetch.
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    supabase.from('profiles').select('avatar_url').eq('id', session.user.id).maybeSingle()
+      .then(({ data, error }) => { if (!error && data?.avatar_url) setProfileImage(data.avatar_url); });
+  }, [session?.user?.id]);
 
   // === Restore active fast — AsyncStorage first (instant), then active_fasts table (cross-device) ===
   useEffect(() => {
@@ -1813,6 +1832,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           dailyCalorieGoal={dailyCalorieGoal}
           hydrationGoal={hydrationGoal}
           userName={userName}
+          profileImage={profileImage}
           userCountry={userCountry}
           userJoinDate={userJoinDate}
           userId={session?.user?.id}
@@ -2298,7 +2318,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         userCountry={userCountry}
         setUserCountry={setUserCountry}
         profileImage={profileImage}
-        setProfileImage={setProfileImage}
+        setProfileImage={handleProfileImageChange}
         onSave={() => upsertProfile({ name: userName }, 'save profile name')}
       />
 
