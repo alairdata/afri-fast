@@ -1093,9 +1093,9 @@ function EatingScreen(p) {
 function FoodScreen(p) {
   const { d, set, next } = p;
   const where = [
-    { v: 'home', t: 'Mostly home-cooked',        icon: '🏠' },
-    { v: 'out',  t: 'Mostly bought / eating out', icon: '🍴' },
-    { v: 'mix',  t: 'A mix of both',              icon: '🔄' },
+    { v: 'home', t: 'Mostly home-cooked',        icon: 'home-outline' },
+    { v: 'out',  t: 'Mostly bought / eating out', icon: 'restaurant-outline' },
+    { v: 'mix',  t: 'A mix of both',              icon: 'swap-horizontal-outline' },
   ];
   const cuisines = ['Nigerian', 'Ghanaian', 'Kenyan', 'Swahili', 'Ethiopian', 'Senegalese', 'Continental', 'Fast food'];
   const toggleC = (c) => {
@@ -1111,7 +1111,7 @@ function FoodScreen(p) {
         {where.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 10 }}>
             <OptionCard compact
-              icon={<Text style={{ fontSize: 22 }}>{o.icon}</Text>}
+              icon={<Ionicons name={o.icon} size={22} color={d.foodContext === o.v ? C.primary : C.ink700} />}
               title={o.t} selected={d.foodContext === o.v} onPress={() => set('foodContext', o.v)}
             />
           </View>
@@ -1135,11 +1135,11 @@ function FoodScreen(p) {
 function WhyScreen(p) {
   const { d, set, next } = p;
   const opts = [
-    { v: 'wedding',    t: 'A big event',           s: 'Wedding, shoot, reunion',         icon: '💍' },
-    { v: 'health',     t: 'A health wake-up call',  s: 'I want to get ahead of it',       icon: '❤️' },
-    { v: 'confident',  t: 'To feel confident again', s: 'In my clothes, in my skin',       icon: '✨' },
-    { v: 'doctor',     t: "Doctor's advice",         s: 'Following medical guidance',      icon: '🩺' },
-    { v: 'curious',    t: 'Just curious',            s: 'Seeing what I can do',            icon: '🔍' },
+    { v: 'wedding',    t: 'A big event',           s: 'Wedding, shoot, reunion',         icon: 'calendar-outline' },
+    { v: 'health',     t: 'A health wake-up call',  s: 'I want to get ahead of it',       icon: 'heart-outline' },
+    { v: 'confident',  t: 'To feel confident again', s: 'In my clothes, in my skin',       icon: 'sparkles-outline' },
+    { v: 'doctor',     t: "Doctor's advice",         s: 'Following medical guidance',      icon: 'medkit-outline' },
+    { v: 'curious',    t: 'Just curious',            s: 'Seeing what I can do',            icon: 'search-outline' },
   ];
   const list = d.whys || [];
   const toggle = (v) => set('whys', list.includes(v) ? list.filter(x => x !== v) : [...list, v]);
@@ -1158,7 +1158,7 @@ function WhyScreen(p) {
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 10 }}>
             <OptionCard compact multi
-              icon={<Text style={{ fontSize: 22 }}>{o.icon}</Text>}
+              icon={<Ionicons name={o.icon} size={22} color={list.includes(o.v) ? C.primary : C.ink700} />}
               title={o.t} subtitle={o.s}
               selected={list.includes(o.v)} onPress={() => toggle(o.v)}
             />
