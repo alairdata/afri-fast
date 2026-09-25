@@ -1975,6 +1975,21 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           proteinGoal={proteinGoal}
           carbsGoal={carbsGoal}
           fatsGoal={fatsGoal}
+          age={age}
+          sex={sex}
+          height={height}
+          heightUnit={heightUnit}
+          weightUnit={weightUnit}
+          activityLevel={activityLevel}
+          pacePreference={pacePreference}
+          struggles={struggles}
+          foodContext={foodContext}
+          cuisines={cuisines}
+          motivations={motivations}
+          accountability={accountability}
+          stepGoal={stepGoal}
+          stepLogs={stepLogs}
+          activities={activities}
           dataReady={dataLoadCount >= 8}
           goalHistory={goalHistory}
           dailyGoalLedger={dailyGoalLedger}

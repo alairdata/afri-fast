@@ -238,7 +238,9 @@ export async function getJustForYou(data, forceRefresh = false) {
   }
 
   try {
-    const result = await callApi('just_for_you', { ...data, todayLens, recentInsights });
+    // The account id is only needed here (cache key); it isn't sent to the server or the model.
+    const { userId: _omit, ...profileWithoutId } = data.profile || {};
+    const result = await callApi('just_for_you', { ...data, profile: profileWithoutId, todayLens, recentInsights });
     if (result?.insight) {
       const todayStr = new Date().toISOString().split('T')[0];
       const newEntry = { date: todayStr, lens: result.lens || todayLens, topic: result.topic || '' };

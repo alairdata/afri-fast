@@ -17,6 +17,13 @@ const GOAL_LABELS = {
   liveLonger: 'Live longer',
 };
 
+const ACTIVITY_LABELS = { sedentary: 'mostly sitting', light: 'lightly active', moderate: 'on their feet a lot', active: 'very active' };
+const PACE_LABELS = { slow: 'slow and steady (~0.25 kg a week)', moderate: 'balanced (~0.5 kg a week)', aggressive: 'all-in (~0.75 kg a week)', extreme: 'all-out (~1 kg a week)' };
+const STRUGGLE_LABELS = { forget: 'forgetting to track', local: "not knowing local food calories", motivation: 'losing motivation', eatout: 'eating out a lot' };
+const WHY_LABELS = { wedding: 'a big event (wedding, shoot, reunion)', health: 'a health wake-up call', confident: 'feeling confident again', doctor: "doctor's advice", curious: 'curiosity' };
+const ACCOUNTABILITY_LABELS = { gentle: 'gentle, encouraging nudges', firm: 'firm reminders, keep them honest', alone: 'leave them alone, they will come to the app themselves' };
+const FOOD_CONTEXT_LABELS = { home: 'mostly home-cooked', out: 'mostly bought / eating out', mix: 'a mix of home-cooked and bought' };
+
 const ANALYST_PROMPT = `You are a sharp, intuitive health analyst who understands that numbers alone don't tell the story — what the numbers are made of does.
 When given user health data (calorie logs, meal logs, weight logs, water intake, mood/check-ins), your job is not to grade them against a target. Your job is to understand what actually happened and why.
 
@@ -83,6 +90,9 @@ You are like that friend who happens to know about health and nutrition — not 
 Do NOT summarize what the user already sees on their dashboard. They can see their calories, their water, their meals. Your job is to connect the dots across their data and surface the thing they would NOT notice on their own — the hidden pattern, the quiet connection, the non-obvious insight.
 
 Ask yourself before writing: "Would the user already know this just by looking at their data?" If yes, don't say it. Find something deeper.
+
+## Use what you know about them
+The data also tells you who they are: their why, what they struggle with, how they want to be kept on track, their pace, their usual food and cuisines. Use it to make the insight feel personal, and match their accountability style (gentle means kind and encouraging, firm means direct and honest, leave-me-alone means light and short). Never recite these details back as a list.
 
 ## Insight lenses — rotate through these
 Every insight must come from a different lens than the last. The lenses are:
@@ -218,7 +228,7 @@ function getGoalAtDate(goalHistory, dateStr, profile) {
 }
 
 function preprocessData(data) {
-  const { profile, fastingSessions, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs, goalHistory } = data;
+  const { profile, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs, goalHistory, stepLogs, activities } = data;
   const now = new Date();
 
   const daysBetween = (d1, d2) => Math.floor(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24));
@@ -266,6 +276,24 @@ function preprocessData(data) {
     lines.push(`STARTING WEIGHT: ${profile.startingWeight} ${profile.weightUnit || 'kg'} → CURRENT TARGET WEIGHT (use this exact value, do not change it): ${profile.targetWeight || '?'} ${profile.weightUnit || 'kg'}`);
   }
 
+  // Who they are (from onboarding / Your Details)
+  const label = (map, v) => map[v] || v;
+  const listOf = (map, arr) => (arr || []).map((v) => label(map, v)).join(', ');
+  const aboutBits = [];
+  if (profile.age) aboutBits.push(`age ${profile.age}`);
+  if (profile.sex) aboutBits.push(`sex ${profile.sex}`);
+  if (profile.height) aboutBits.push(`height ${profile.height} ${profile.heightUnit || 'cm'}`);
+  if (profile.activityLevel) aboutBits.push(`activity level: ${label(ACTIVITY_LABELS, profile.activityLevel)}`);
+  if (aboutBits.length) lines.push(`ABOUT THEM: ${aboutBits.join(' | ')}`);
+  if (profile.pacePreference) lines.push(`PACE THEY CHOSE: ${label(PACE_LABELS, profile.pacePreference)}`);
+  if (profile.struggles?.length) lines.push(`WHAT THEY STRUGGLE WITH: ${listOf(STRUGGLE_LABELS, profile.struggles)}`);
+  if (profile.motivations?.length) lines.push(`THEIR WHY (what motivates them): ${listOf(WHY_LABELS, profile.motivations)}`);
+  if (profile.accountability) lines.push(`HOW THEY WANT TO BE KEPT ON TRACK: ${label(ACCOUNTABILITY_LABELS, profile.accountability)}`);
+  const foodBits = [];
+  if (profile.foodContext) foodBits.push(label(FOOD_CONTEXT_LABELS, profile.foodContext));
+  if (profile.cuisines?.length) foodBits.push(`cuisines: ${profile.cuisines.join(', ')}`);
+  if (foodBits.length) lines.push(`FOOD: ${foodBits.join(' | ')}`);
+
   // Goal history — shows what the targets were at different points in time
   const sortedGoalHistory = [...(goalHistory || [])].sort((a, b) => new Date(a.from) - new Date(b.from));
   if (sortedGoalHistory.length > 0) {
@@ -276,7 +304,6 @@ function preprocessData(data) {
       if (snap.dailyCalorieGoal) parts.push(`${snap.dailyCalorieGoal} kcal/day`);
       if (snap.proteinGoal || snap.carbsGoal || snap.fatsGoal) parts.push(`macros ${snap.proteinGoal || '?'}g P / ${snap.carbsGoal || '?'}g C / ${snap.fatsGoal || '?'}g F`);
       if (snap.hydrationGoal) parts.push(`hydration ${snap.hydrationGoal} ${profile.volumeUnit || 'glasses'}/day`);
-      if (snap.selectedPlan) parts.push(`plan ${snap.selectedPlan}`);
       lines.push(parts.join(' | '));
     });
   }
@@ -365,6 +392,24 @@ function preprocessData(data) {
         lines.push(`  ${label}: 0 ${unit} logged (app not used or water tracking skipped)`);
       }
     }
+    lines.push('');
+  }
+
+  // Movement — last 14 days of steps and logged workouts
+  const recentSteps = (stepLogs || [])
+    .filter((r) => { const w = getWeekIndex(r.date); return w >= 0 && w <= 1; })
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (recentSteps.length > 0) {
+    lines.push(`STEPS (last 14 days; goal: ${profile.stepGoal || 10000}/day):`);
+    recentSteps.forEach((r) => lines.push(`  ${r.date}: ${r.steps} steps`));
+    lines.push('');
+  }
+  const recentActivities = (activities || [])
+    .filter((a) => { const w = getWeekIndex(a.date); return w >= 0 && w <= 1; })
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (recentActivities.length > 0) {
+    lines.push('LOGGED WORKOUTS (last 14 days):');
+    recentActivities.forEach((a) => lines.push(`  ${a.date}: ${a.type}${a.durationMin ? `, ${a.durationMin} min` : ''}`));
     lines.push('');
   }
 
