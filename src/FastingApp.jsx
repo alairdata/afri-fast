@@ -9,6 +9,7 @@ const ACTIVE_FAST_KEY = 'afri_active_fast_v1';
 const LAST_FAST_END_KEY = 'afri_last_fast_end_v1';
 const SETTINGS_KEY = 'afri_user_settings_v2';
 const NOTIF_SETTINGS_KEY = 'afri_notification_settings_v1';
+const PRIVACY_SETTINGS_KEY = 'afri_privacy_settings_v1';
 // Persists the start-time the user manually set so the conflict check doesn't
 // kill the fast on the next page refresh (the ref resets but this survives).
 const CONFLICT_BYPASS_KEY = 'afri_conflict_bypass_v1';
@@ -56,7 +57,7 @@ import FastingQuizPage from './components/FastingQuizPage';
 import NutritionQuizPage from './components/NutritionQuizPage';
 
 // Modal components
-import LogMealModal, { saveCommunityPhotos } from './components/LogMealModal';
+import LogMealModal, { saveCommunityPhotos, setCommunitySharingEnabled } from './components/LogMealModal';
 import { processPendingMealPhotos } from './lib/mealPhotoUpload';
 import { AFRICAN_RECIPES } from './lib/africanRecipes';
 import { uploadAvatar } from './lib/avatarUpload';
@@ -265,6 +266,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [mealReminderTime, setMealReminderTime] = useState({ hour: 19, minute: 0 });
   const [milestoneConfig, setMilestoneConfig] = useState({ streak: true, streakDays: 7, hydration: false, weight: false });
   const [notifSettingsLoaded, setNotifSettingsLoaded] = useState(false);
+  const [shareCommunityPhotos, setShareCommunityPhotos] = useState(true);
   const [profileImage, setProfileImage] = useState(null);
 
   // === Weight state ===
@@ -944,6 +946,58 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
 
   // Request notification permissions
   useEffect(() => { requestNotificationPermissions(); }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem(PRIVACY_SETTINGS_KEY).then((raw) => {
+      if (!raw) return;
+      try {
+        const v = JSON.parse(raw).shareCommunityPhotos;
+        if (v != null) { setShareCommunityPhotos(v); setCommunitySharingEnabled(v); }
+      } catch (_) {}
+    }).catch(() => {});
+  }, []);
+
+  const handleToggleShareCommunityPhotos = (val) => {
+    setShareCommunityPhotos(val);
+    setCommunitySharingEnabled(val);
+    AsyncStorage.setItem(PRIVACY_SETTINGS_KEY, JSON.stringify({ shareCommunityPhotos: val })).catch(() => {});
+  };
+
+  // Clear History: wipes everything the user has logged but keeps the account, details and goals.
+  // Returns an error message, or null on success.
+  const handleClearHistory = async () => {
+    const uid = session?.user?.id;
+    if (!uid) return 'You need to be signed in.';
+    try {
+      const { data: mealRows } = await supabase.from('meals').select('id').eq('user_id', uid);
+      const mealIds = (mealRows || []).map((m) => m.id);
+      if (mealIds.length) await supabase.from('recipe_community_photos').delete().in('meal_id', mealIds);
+
+      const tables = [
+        'meals', 'meal_logs', 'weight_logs', 'water_logs', 'check_ins', 'fasting_sessions', 'active_fasts',
+        'willpower_logs', 'step_logs', 'activities', 'daily_goal_ledger', 'burnout_predictions',
+        'weight_predictions', 'user_insights',
+      ];
+      const results = await Promise.all(tables.map((t) => supabase.from(t).delete().eq('user_id', uid)));
+      const failed = results.some((r, i) => r.error && tables[i] === 'meals');
+      if (failed) return "We couldn't clear your history. Please try again.";
+
+      setRecentMeals([]);
+      setWeightLogs([]);
+      setWaterLogs([]);
+      setCheckInHistory([]);
+      setFastingSessions([]);
+      setStepLogs([]);
+      setActivities([]);
+      setDailyGoalLedger([]);
+      await AsyncStorage.multiRemove(['claude_just_for_you_v4', 'claude_daily_insights_v1']).catch(() => {});
+      showToast('History cleared');
+      return null;
+    } catch (e) {
+      console.error('[ClearHistory]', e);
+      return "We couldn't clear your history. Please try again.";
+    }
+  };
 
   // Reminder toggles + times persist on the device, and the scheduled notifications are always
   // derived from them (schedule what's on, cancel what's off), so the Settings screen can never
@@ -2040,6 +2094,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           profileImage={profileImage}
           latestWeightKg={latestWeightKg}
           onSaveDetails={handleSaveDetails}
+          userId={session?.user?.id}
+          onClearHistory={handleClearHistory}
+          shareCommunityPhotos={shareCommunityPhotos}
+          onToggleShareCommunityPhotos={handleToggleShareCommunityPhotos}
           onEditProfile={() => setShowEditProfile(true)}
           onShowPlanPage={handleOpenPlanPage}
           onShowFastingQuiz={() => setShowFastingQuiz(true)}

@@ -68,7 +68,13 @@ const matchRecipes = (detectedFoods, recipes) => {
   return [...matched];
 };
 
+// Privacy setting: when the user turns off "Share meal photos with the community", meal photos are
+// never added to the recipe community gallery.
+let communitySharingEnabled = true;
+export const setCommunitySharingEnabled = (enabled) => { communitySharingEnabled = !!enabled; };
+
 export const saveCommunityPhotos = async (mealId, photoUrl, detectedFoods, recipes, userEmail) => {
+  if (!communitySharingEnabled) return;
   if (!photoUrl || !detectedFoods?.length) return;
   try {
     const recipeIds = matchRecipes(detectedFoods, recipes);

@@ -1,9 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Modal, Dimensions, Image, Platform, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Modal, Dimensions, Image, Platform, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FastingQuizPage from './FastingQuizPage';
 import YourDetails from './YourDetails';
+import { FaqSheet, ContactSheet, RateSheet, PrivacySheet, ClearHistorySheet } from './SettingsSheets';
+import { exportMyData } from '../lib/exportData';
 import { useTheme } from '../lib/theme';
 
 const COUNTRIES = [
@@ -219,6 +221,7 @@ const SettingsTab = ({
   motivations, setMotivations,
   accountability, setAccountability,
   latestWeightKg, onSaveDetails,
+  userId, onClearHistory, shareCommunityPhotos, onToggleShareCommunityPhotos,
   onBack,
 }) => {
   const { isDark, colors } = useTheme();
@@ -231,6 +234,20 @@ const SettingsTab = ({
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [showAccountSheet, setShowAccountSheet] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showFaq, setShowFaq] = useState(false);
+  const [showContact, setShowContact] = useState(false);
+  const [showRate, setShowRate] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showClear, setShowClear] = useState(false);
+  const [exportState, setExportState] = useState('idle'); // idle | busy | done | error
+
+  const handleExport = async () => {
+    if (exportState === 'busy') return;
+    setExportState('busy');
+    const result = await exportMyData(userId);
+    setExportState(result.ok ? 'done' : 'error');
+    if (result.ok) setTimeout(() => setExportState('idle'), 3000);
+  };
   const [deleteText, setDeleteText] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
   const countryRows = (() => {
@@ -708,15 +725,23 @@ const SettingsTab = ({
       <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Data & Privacy</Text>
 
-        <TouchableOpacity style={styles.settingsActionItem}>
+        <TouchableOpacity style={styles.settingsActionItem} onPress={handleExport}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="download-outline" size={18} color="#374151" />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Export My Data</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+          {exportState === 'busy' ? (
+            <ActivityIndicator size="small" color="#059669" />
+          ) : exportState === 'done' ? (
+            <Ionicons name="checkmark-circle" size={18} color="#059669" />
+          ) : exportState === 'error' ? (
+            <Text style={{ color: '#DC2626', fontSize: 12 }}>Failed, tap to retry</Text>
+          ) : (
+            <Ionicons name="chevron-forward" size={16} color="#ccc" />
+          )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingsActionItem}>
+        <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowClear(true)}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="trash-outline" size={18} color="#374151" />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Clear History</Text>
@@ -724,7 +749,7 @@ const SettingsTab = ({
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingsActionItem}>
+        <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowPrivacy(true)}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="shield-checkmark-outline" size={18} color="#374151" />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Privacy Settings</Text>
@@ -745,7 +770,7 @@ const SettingsTab = ({
       <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Support</Text>
 
-        <TouchableOpacity style={styles.settingsActionItem}>
+        <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowFaq(true)}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="help-circle-outline" size={18} color="#374151" />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Help & FAQ</Text>
@@ -753,7 +778,7 @@ const SettingsTab = ({
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingsActionItem}>
+        <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowContact(true)}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="mail-outline" size={18} color="#374151" />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Contact Support</Text>
@@ -761,7 +786,7 @@ const SettingsTab = ({
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingsActionItem}>
+        <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowRate(true)}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="star-outline" size={18} color="#374151" />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Rate the App</Text>
@@ -772,11 +797,10 @@ const SettingsTab = ({
 
       {/* App Version */}
       <View style={styles.settingsVersion}>
-        <Text style={[styles.settingsVersionText, { color: colors.text }]}>Logga</Text>
-        <View style={styles.settingsVersionPill}>
-          <Text style={styles.settingsVersionPillText}>Version 1.0.0</Text>
-        </View>
-        <Text style={styles.settingsVersionSub}>Made with care by SeedFest Technologies</Text>
+        <Text style={styles.settingsVersionText}>
+          <Text style={{ fontWeight: '700', color: colors.text }}>Logga</Text> v1.0.0
+        </Text>
+        <Text style={styles.settingsVersionSub}>Made by SeedFest Technologies</Text>
       </View>
 
       <View style={{ height: 40 }} />
@@ -1034,6 +1058,12 @@ const SettingsTab = ({
         </View>
         </View>
       )}
+      <FaqSheet visible={showFaq} onClose={() => setShowFaq(false)} />
+      <ContactSheet visible={showContact} onClose={() => setShowContact(false)} userId={userId} userEmail={userEmail} />
+      <RateSheet visible={showRate} onClose={() => setShowRate(false)} userId={userId} userEmail={userEmail} />
+      <PrivacySheet visible={showPrivacy} onClose={() => setShowPrivacy(false)} shareCommunityPhotos={shareCommunityPhotos} onToggleShare={onToggleShareCommunityPhotos} />
+      <ClearHistorySheet visible={showClear} onClose={() => setShowClear(false)} onConfirm={onClearHistory} />
+
       {/* Account Options sheet: log out / delete account live here, one deliberate tap away */}
       <Modal visible={showAccountSheet} animationType="fade" transparent onRequestClose={() => setShowAccountSheet(false)}>
         <TouchableOpacity style={styles.acctOverlay} activeOpacity={1} onPress={() => setShowAccountSheet(false)}>
@@ -2238,33 +2268,16 @@ const styles = StyleSheet.create({
   },
   settingsVersion: {
     alignItems: 'center',
-    paddingTop: 28,
-    paddingBottom: 20,
+    paddingVertical: 20,
   },
   settingsVersionText: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: 4,
-    textTransform: 'uppercase',
-    color: '#16201b',
-  },
-  settingsVersionPill: {
-    marginTop: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: 'rgba(5,150,105,0.1)',
-  },
-  settingsVersionPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    color: '#059669',
+    fontSize: 14,
+    color: '#888',
   },
   settingsVersionSub: {
     fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 12,
+    color: '#aaa',
+    marginTop: 4,
   },
   acctOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', paddingHorizontal: 24 },
   acctSheet: { borderRadius: 20, padding: 20 },
