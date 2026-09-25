@@ -10,6 +10,7 @@ const LAST_FAST_END_KEY = 'afri_last_fast_end_v1';
 const SETTINGS_KEY = 'afri_user_settings_v2';
 const NOTIF_SETTINGS_KEY = 'afri_notification_settings_v1';
 const PRIVACY_SETTINGS_KEY = 'afri_privacy_settings_v1';
+const MILESTONES_FIRED_KEY = 'afri_milestones_fired_v1';
 // Persists the start-time the user manually set so the conflict check doesn't
 // kill the fast on the next page refresh (the ref resets but this survives).
 const CONFLICT_BYPASS_KEY = 'afri_conflict_bypass_v1';
@@ -29,7 +30,10 @@ import {
   cancelWeighInReminder,
   scheduleCalorieCheckReminder,
   cancelCalorieCheckReminder,
+  fireCelebrationNotification,
 } from './lib/notifications';
+import { evaluateMilestones } from './lib/milestones';
+import { buildDailyLedgerMap } from './lib/goalHistory';
 
 // Tab components
 import TodayTab from './components/TodayTab';
@@ -998,6 +1002,42 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       return "We couldn't clear your history. Please try again.";
     }
   };
+
+  // Progress Milestones: when a celebration the user turned on is earned (goal streak, water streak,
+  // 5 kg down), announce it once. Phones get a local notification; the website has no notification
+  // support, so it gets an in-app toast. Announced keys are remembered per account so nothing repeats.
+  const milestonesFiredRef = useRef(null);
+  useEffect(() => {
+    if (!notifSettingsLoaded || !notifyMilestones || dataLoadCount < 8 || !session?.user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const storeKey = `${MILESTONES_FIRED_KEY}_${session.user.id}`;
+      if (!milestonesFiredRef.current) {
+        try {
+          milestonesFiredRef.current = new Set(JSON.parse((await AsyncStorage.getItem(storeKey)) || '[]'));
+        } catch (_) {
+          milestonesFiredRef.current = new Set();
+        }
+      }
+      if (cancelled) return;
+      const fired = milestonesFiredRef.current;
+      const earned = evaluateMilestones({
+        config: milestoneConfig,
+        recentMeals, ledgerMap: buildDailyLedgerMap(dailyGoalLedger), goalHistory, dailyCalorieGoal,
+        waterLogs, hydrationGoal, volumeUnit, weightLogs, startingWeight, weightUnit,
+      }).filter((m) => !fired.has(m.key));
+      if (!earned.length) return;
+      earned.forEach((m) => fired.add(m.key));
+      AsyncStorage.setItem(storeKey, JSON.stringify([...fired])).catch(() => {});
+      for (const m of earned) {
+        if (Platform.OS === 'web') showToast(`${m.title}: ${m.body}`);
+        else await fireCelebrationNotification(m.title, m.body).catch(() => {});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [notifSettingsLoaded, notifyMilestones, milestoneConfig, dataLoadCount, session?.user?.id,
+      recentMeals, dailyGoalLedger, goalHistory, dailyCalorieGoal, waterLogs, hydrationGoal, volumeUnit,
+      weightLogs, startingWeight, weightUnit]);
 
   // Reminder toggles + times persist on the device, and the scheduled notifications are always
   // derived from them (schedule what's on, cancel what's off), so the Settings screen can never
