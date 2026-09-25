@@ -86,6 +86,85 @@ const OptionRow = ({ title, desc, active, onPress, colors, compact }) => (
   </TouchableOpacity>
 );
 
+const MACRO_STYLE_OPTIONS = [
+  { value: 'balanced', label: 'Balanced' },
+  { value: 'highProtein', label: 'High Protein' },
+  { value: 'lowCarb', label: 'Low Carb' },
+  { value: 'custom', label: 'Custom' },
+];
+
+// Small anchored dropdown, same look and behaviour as the range picker on the Insights charts: the
+// menu renders in a Modal (a true top-level overlay) positioned from the button's on-screen coords.
+const MacroStyleDropdown = ({ value, onChange, colors }) => {
+  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState(null);
+  const btnRef = React.useRef(null);
+  const current = MACRO_STYLE_OPTIONS.find((o) => o.value === value) || MACRO_STYLE_OPTIONS[0];
+  const screenWidth = Dimensions.get('window').width;
+
+  const openMenu = () => {
+    btnRef.current?.measureInWindow((x, y, width, height) => {
+      setAnchor({ x, y, width, height });
+      setOpen(true);
+    });
+  };
+
+  return (
+    <>
+      <TouchableOpacity ref={btnRef} style={dropdownStyles.btn} onPress={openMenu} activeOpacity={0.7}>
+        <Text style={dropdownStyles.btnText}>{current.label}</Text>
+        <Ionicons name="chevron-down" size={10} color="#059669" />
+      </TouchableOpacity>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setOpen(false)}>
+          {anchor && (
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => {}}
+              style={[
+                dropdownStyles.menu,
+                { backgroundColor: colors.card, top: anchor.y + anchor.height + 4, right: Math.max(12, screenWidth - (anchor.x + anchor.width)) },
+              ]}
+            >
+              {MACRO_STYLE_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[dropdownStyles.item, value === opt.value && dropdownStyles.itemActive]}
+                  onPress={() => { onChange(opt.value); setOpen(false); }}
+                >
+                  <Text style={[dropdownStyles.itemText, { color: colors.textSecondary }, value === opt.value && dropdownStyles.itemTextActive]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+      </Modal>
+    </>
+  );
+};
+
+const dropdownStyles = StyleSheet.create({
+  btn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingVertical: 6, paddingHorizontal: 12,
+    backgroundColor: 'rgba(5,150,105,0.08)',
+    borderWidth: 1, borderColor: 'rgba(5,150,105,0.15)',
+    borderRadius: 8,
+  },
+  btnText: { color: '#059669', fontSize: 12, fontWeight: '600' },
+  menu: {
+    position: 'absolute', borderRadius: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15, shadowRadius: 24, elevation: 10,
+    borderWidth: 1, borderColor: 'rgba(5,150,105,0.1)',
+    minWidth: 140,
+  },
+  item: { paddingVertical: 10, paddingHorizontal: 16 },
+  itemActive: { backgroundColor: 'rgba(5,150,105,0.08)' },
+  itemText: { fontSize: 13 },
+  itemTextActive: { color: '#059669', fontWeight: '700' },
+});
+
 const optionStyles = StyleSheet.create({
   row: {
     width: '100%', flexDirection: 'row', alignItems: 'center',
@@ -481,24 +560,12 @@ const SettingsTab = ({
                   <Text style={styles.settingsInputUnit}>cal</Text>
                 </View>
               </View>
-              <View style={styles.settingsItemBlock}>
+              <View style={[styles.settingsItemBlock, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }]}>
                 <View style={styles.settingsItemLeft}>
                   <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Macro Style</Text>
                   <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>How calories are split across protein, carbs, and fats</Text>
                 </View>
-                <View style={styles.settingsMacroStyleControl}>
-                  {['balanced', 'highProtein', 'lowCarb', 'custom'].map((ms) => (
-                    <TouchableOpacity
-                      key={ms}
-                      style={[styles.settingsMacroStyleOption, macroStyle === ms && styles.settingsMacroStyleOptionActive]}
-                      onPress={() => setMacroStyle(ms)}
-                    >
-                      <Text style={macroStyle === ms ? styles.settingsMacroStyleTextActive : styles.settingsMacroStyleText}>
-                        {ms === 'balanced' ? 'Balanced' : ms === 'highProtein' ? 'High Protein' : ms === 'lowCarb' ? 'Low Carb' : 'Custom'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <MacroStyleDropdown value={macroStyle} onChange={setMacroStyle} colors={colors} />
               </View>
               <View style={styles.settingsMacroRow}>
                 {[{ label: 'Protein', key: 'protein', set: setProteinGoal }, { label: 'Carbs', key: 'carbs', set: setCarbsGoal }, { label: 'Fats', key: 'fats', set: setFatsGoal }].map(({ label, key, set }) => (
