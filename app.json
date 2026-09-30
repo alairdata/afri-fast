@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FBF5EA"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
@@ -19,7 +19,7 @@
       "package": "com.afrifast.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#1F4D3A",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -34,7 +34,7 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "webpack",
-      "themeColor": "#1F4D3A",
+      "themeColor": "#000000",
       "description": "African meal fasting and calorie tracker",
       "name": "Logga",
       "shortName": "Logga"

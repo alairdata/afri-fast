@@ -277,7 +277,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
           </TouchableOpacity>
 
           <View style={{ alignItems: 'center', marginBottom: 12 }}>
-            <Image source={require('../../assets/icon.png')} style={{ width: 72, height: 72, borderRadius: 18 }} />
+            <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 130, height: 50 }} resizeMode="contain" />
           </View>
 
           {/* Eyebrow */}
@@ -386,7 +386,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         </TouchableOpacity>
 
         <View style={{ alignItems: 'center', marginBottom: 12 }}>
-          <Image source={require('../../assets/icon.png')} style={{ width: 72, height: 72, borderRadius: 18 }} />
+          <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 130, height: 50 }} resizeMode="contain" />
         </View>
 
         <Text style={ca.eyebrow}>WELCOME BACK</Text>
