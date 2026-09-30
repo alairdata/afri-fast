@@ -11,10 +11,12 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   const [proteinTooltip, setProteinTooltip] = useState(null);
   const [carbsTooltip, setCarbsTooltip] = useState(null);
   const [fatsTooltip, setFatsTooltip] = useState(null);
+  const [fiberTooltip, setFiberTooltip] = useState(null);
 
   useEffect(() => { if (!proteinTooltip) return; const t = setTimeout(() => setProteinTooltip(null), 2000); return () => clearTimeout(t); }, [proteinTooltip]);
   useEffect(() => { if (!carbsTooltip) return; const t = setTimeout(() => setCarbsTooltip(null), 2000); return () => clearTimeout(t); }, [carbsTooltip]);
   useEffect(() => { if (!fatsTooltip) return; const t = setTimeout(() => setFatsTooltip(null), 2000); return () => clearTimeout(t); }, [fatsTooltip]);
+  useEffect(() => { if (!fiberTooltip) return; const t = setTimeout(() => setFiberTooltip(null), 2000); return () => clearTimeout(t); }, [fiberTooltip]);
 
   if (!show) return null;
 
@@ -28,11 +30,12 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   });
   const byDate = {};
   rangeMeals.forEach(m => {
-    if (!byDate[m.date]) byDate[m.date] = { calories: 0, protein: 0, carbs: 0, fats: 0 };
+    if (!byDate[m.date]) byDate[m.date] = { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 };
     byDate[m.date].calories += m.calories || 0;
     byDate[m.date].protein += m.protein || 0;
     byDate[m.date].carbs += m.carbs || 0;
     byDate[m.date].fats += m.fats || 0;
+    byDate[m.date].fiber += m.fiber || 0;
   });
   const daysCount = Object.keys(byDate).length;
   const totals = rangeMeals.reduce((s, m) => ({
@@ -40,7 +43,8 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
     protein: s.protein + (m.protein || 0),
     carbs: s.carbs + (m.carbs || 0),
     fats: s.fats + (m.fats || 0),
-  }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
+    fiber: s.fiber + (m.fiber || 0),
+  }), { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 });
   const hasData = daysCount > 0;
   const avg = (val) => hasData ? Math.round(val / daysCount) : 0;
   const dailyVals = Object.values(byDate).map(d => d.calories);
@@ -252,21 +256,20 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
               <Text style={styles.detailSectionTitleNoMargin}>Fiber Intake</Text>
             </View>
             <View style={styles.chartCardCompact}>
-              <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={styles.chartPlaceholderText}>No fiber data</Text>
-                <Text style={styles.chartPlaceholderSubtext}>Coming soon</Text>
-              </View>
+              {hasMultiple ? makeMacroChart(dailyData.map(d => Math.round(d.fiber || 0)), 'rgba(34, 197, 94, 1)', '#22C55E', fiberTooltip, setFiberTooltip)
+                : <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasData && totals.fiber > 0 ? `${avg(totals.fiber)}g avg` : 'No fiber data yet'}</Text></View>}
+
               <View style={styles.macroStatsRowCompact}>
                 <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>--</Text>
+                  <Text style={styles.macroStatValueSmall}>{hasData ? `${avg(totals.fiber)}g` : '--'}</Text>
                   <Text style={styles.macroStatLabelSmall}>Avg daily</Text>
                 </View>
                 <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>--</Text>
-                  <Text style={styles.macroStatLabelSmall}>Of goal</Text>
+                  <Text style={styles.macroStatValueSmall}>{hasData ? `${Math.round(Math.max(0, ...dailyData.map(d => d.fiber || 0)))}g` : '--'}</Text>
+                  <Text style={styles.macroStatLabelSmall}>Best day</Text>
                 </View>
                 <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>--</Text>
+                  <Text style={styles.macroStatValueSmall}>{hasData ? `${Math.round(totals.fiber)}g` : '--'}</Text>
                   <Text style={styles.macroStatLabelSmall}>Total</Text>
                 </View>
               </View>
