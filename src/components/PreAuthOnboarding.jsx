@@ -462,12 +462,7 @@ function HookScreen({ next, onLogin }) {
     <View style={[s.shell, { backgroundColor: C.bg }]}>
       {/* Brand */}
       <View style={s.hookBrand}>
-        <View style={s.hookLogo}>
-          <Ionicons name="leaf" size={16} color="#fff" />
-        </View>
-        <Text style={s.hookBrandTxt}>
-          Afri<Text style={{ color: C.primary }}>Fast</Text>
-        </Text>
+        <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 96, height: 37 }} resizeMode="contain" />
       </View>
 
       {/* Hero */}
