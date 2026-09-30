@@ -43,7 +43,8 @@ const STREAK_WINDOW_DAYS = 90;
 
 // Activities always show "this week" (Mon-Sun), independent of any chart's range dropdown --
 // matches the "This Week" check-in style strip on the Today tab, not the 7/14/30/90-day ranges.
-const getWeekActivityData = (activities) => {
+const ACTIVE_DAY_STEPS = 5000;
+const getWeekActivityData = (activities, stepLogs) => {
   const today = new Date();
   const dayOfWeek = today.getDay();
   const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -52,11 +53,15 @@ const getWeekActivityData = (activities) => {
   monday.setHours(0, 0, 0, 0);
 
   const loggedDates = new Set((activities || []).map(a => a.date));
+  // A day also counts as active when its steps total 5k+, even with no logged activity.
+  const stepsByDate = {};
+  (stepLogs || []).forEach(s => { stepsByDate[s.date] = (stepsByDate[s.date] || 0) + (s.steps || 0); });
   const weekActivityHistory = WEEK_DAY_LABELS.map((_, i) => {
     const day = new Date(monday);
     day.setDate(monday.getDate() + i);
     if (day > today) return null;
-    return loggedDates.has(day.toDateString());
+    const ds = day.toDateString();
+    return loggedDates.has(ds) || (stepsByDate[ds] || 0) >= ACTIVE_DAY_STEPS;
   });
 
   const weekActivities = (activities || [])
@@ -409,7 +414,7 @@ const ProgressTab = ({
       avgSteps,
       hasLoggedSteps: loggedStepsDays.length > 0,
       stepsGoalMet: `${uniqueSteps.filter(s => s.totalSteps >= stepGoal).length}/${uniqueSteps.length}`,
-      ...getWeekActivityData(activities),
+      ...getWeekActivityData(activities, stepLogs),
       // Labels
       formatLabel,
       buildLabels,
@@ -2039,7 +2044,7 @@ const ProgressTab = ({
                   </View>
                 </TouchableOpacity>
 
-                <Text style={styles.weekActivitySubtitle}>Days you logged an activity this week</Text>
+                <Text style={styles.weekActivitySubtitle}>Days you logged an activity or hit 5,000 steps this week</Text>
                 <View style={styles.weekDots}>
                   {WEEK_DAY_LABELS.map((label, i) => (
                     <View key={i} style={styles.weekDay}>
