@@ -17,7 +17,7 @@
 - [ ] Create a test account for the Apple reviewer
 
 ## E. First build
-- [ ] `npx eas-cli login`
+- [x] `npx eas-cli login`
 - [ ] `eas init`, then `eas build --platform ios --profile production` (sign in to Apple when asked; EAS creates certificates)
 - [ ] `eas submit --platform ios`
 

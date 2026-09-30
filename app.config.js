@@ -5,7 +5,7 @@ module.exports = {
   extra: {
     geminiApiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY || '',
     eas: {
-      projectId: 'c8c6d227-2004-4d79-ac6d-23ebcd8a8b57',
+      projectId: '20dad7ed-f831-40ee-a5ed-9458bac13889',
     },
   },
 };
