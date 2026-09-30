@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Dimensions, Animated, Platform, StatusBar, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, Dimensions, Animated, Platform, StatusBar, Alert, Linking, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './lib/supabase';
@@ -34,6 +34,7 @@ import {
 } from './lib/notifications';
 import { evaluateMilestones } from './lib/milestones';
 import { syncSmartNotifications, clearSmartNotifications } from './lib/smartNotifications';
+import { pendingWidgetWater, ackWidgetWater, pushWidgetSnapshot } from './lib/widgetSync';
 import { buildDailyLedgerMap } from './lib/goalHistory';
 
 // Tab components
@@ -1090,6 +1091,47 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     return () => clearTimeout(t);
   }, [notifSettingsLoaded, notifySmart, session?.user?.id, recentMeals, waterLogs, stepLogs, activities, hydrationGoal, volumeUnit]);
 
+  // iOS home-screen widgets: keep them fed with today's numbers, and bring water added with the
+  // widget's "+" button back into the app's own logs. Runs on data changes and whenever the app
+  // comes to the foreground; if widget water is waiting it is added first (which changes
+  // waterLogs and re-runs this), and only then is the snapshot rewritten.
+  const [widgetTick, setWidgetTick] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') setWidgetTick((t) => t + 1); });
+    return () => sub.remove();
+  }, []);
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !session?.user?.id || dataLoadCount < 8) return;
+    const t = setTimeout(() => {
+      (async () => {
+        const { delta, widgetGlasses } = await pendingWidgetWater();
+        if (delta > 0) {
+          addWidgetWater(delta);
+          await ackWidgetWater(widgetGlasses);
+          return;
+        }
+        await pushWidgetSnapshot({ recentMeals, waterLogs, hydrationGoal, volumeUnit, dailyCalorieGoal, proteinGoal });
+      })().catch((e) => console.log('[Widget] sync failed:', e?.message));
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [session?.user?.id, dataLoadCount, widgetTick, recentMeals, waterLogs, hydrationGoal, volumeUnit, dailyCalorieGoal, proteinGoal]);
+
+  // Taps from the widgets open the app through logga:// links.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const handle = (url) => {
+      if (!url) return;
+      const host = String(url).replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split(/[/?#]/)[0];
+      if (host === 'log-meal') { setActiveTab('meals'); setShowLogMealOptions(true); }
+      else if (host === 'energy') setActiveTab('progress');
+      else if (host === 'today' || host === 'water') setActiveTab('today');
+    };
+    Linking.getInitialURL().then(handle).catch(() => {});
+    const sub = Linking.addEventListener('url', (e) => handle(e.url));
+    return () => sub.remove();
+  }, []);
+
   // Handle taps on prediction notifications — navigate to the linked insight card
   useEffect(() => {
     if (Platform.OS === 'web') return;
@@ -1839,6 +1881,21 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     dbSave(supabase.from('water_logs').insert({ id: wId, user_id: session?.user?.id, date: waterLog.date, display_date: waterLog.displayDate, amount: waterLog.amount, unit: waterLog.unit }), 'quick add water', (msg) => showToast(msg, 'error'));
     showToast(`+${quickWaterLabel(volumeUnit)} of water`);
     return wId;
+  };
+
+  // Water logged with the home-screen widget's "+" button: add the same number of glasses here.
+  const addWidgetWater = (count) => {
+    const now = new Date();
+    const logs = Array.from({ length: count }, (_, i) => {
+      const id = Date.now() + i;
+      return {
+        id, date: now.toDateString(),
+        displayDate: `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()]}, ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+        amount: quickWaterIncrement(volumeUnit), unit: volumeUnit,
+      };
+    });
+    setWaterLogs(prev => [...logs, ...prev]);
+    logs.forEach((w) => dbSave(supabase.from('water_logs').insert({ id: w.id, user_id: session?.user?.id, date: w.date, display_date: w.displayDate, amount: w.amount, unit: w.unit }), 'widget water', (msg) => showToast(msg, 'error')));
   };
 
   const handleUndoQuickWater = (wId) => {

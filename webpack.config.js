@@ -19,6 +19,7 @@ module.exports = async function (env, argv) {
       'node_modules/abort-controller/polyfill.js'
     ),
     'expo-notifications': path.resolve(__dirname, 'src/lib/notifications-stub.js'),
+    '@bacons/apple-targets': path.resolve(__dirname, 'src/lib/apple-targets-stub.js'),
   };
   // Drop all console calls in production builds
   if (env.mode === 'production') {
