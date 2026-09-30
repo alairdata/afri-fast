@@ -271,7 +271,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         ? (window.location.hostname === 'localhost' ? 'https://afri-fast.vercel.app' : window.location.origin)
         : 'https://afri-fast.vercel.app';
       if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('afri-fast-oauth-pending', '1');
-      const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
+      const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo, queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined } });
       if (error) setError(error.message);
     };
     return (
@@ -386,7 +386,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
       ? (window.location.hostname === 'localhost' ? 'https://afri-fast.vercel.app' : window.location.origin)
       : 'https://afri-fast.vercel.app';
     if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('afri-fast-oauth-pending', '1');
-    const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
+    const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo, queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined } });
     if (error) setError(error.message);
   };
 

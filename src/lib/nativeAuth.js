@@ -47,7 +47,12 @@ async function signInWithApple() {
 async function signInWithBrowser(provider) {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
-    options: { redirectTo: REDIRECT_URL, skipBrowserRedirect: true },
+    options: {
+      redirectTo: REDIRECT_URL,
+      skipBrowserRedirect: true,
+      // Always let the user pick the Google account instead of silently reusing the last one.
+      queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined,
+    },
   });
   if (error) return { error: error.message };
   const result = await WebBrowser.openAuthSessionAsync(data.url, REDIRECT_URL);
