@@ -94,7 +94,7 @@ const REVIEWS = [
   { name: 'Yemi D.', text: 'Tracked amala and ewedu for a week. The numbers matched what my nutritionist said. Impressive.', stars: 5 },
 ];
 
-const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked, onShowChat, showLogMealOptions, setShowLogMealOptions }) => {
+const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked, onShowChat, onShowMakeRecipe, showLogMealOptions, setShowLogMealOptions }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
@@ -419,13 +419,13 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
             <View style={styles.logMealRow}>
               <TouchableOpacity
                 style={styles.logMealCard}
-                onPress={() => handleLogMethod('write')}
+                onPress={() => { setShowLogMealOptions(false); onShowMakeRecipe && onShowMakeRecipe(); }}
               >
                 <View style={[styles.logMealCardIcon, { backgroundColor: colors.cardAlt }]}>
-                  <Ionicons name="create-outline" size={26} color="#F97316" />
+                  <Ionicons name="restaurant-outline" size={26} color="#F97316" />
                 </View>
-                <Text style={styles.logMealCardTitle}>Write it</Text>
-                <Text style={styles.logMealCardDesc}>Type in your meal</Text>
+                <Text style={styles.logMealCardTitle}>Make it</Text>
+                <Text style={styles.logMealCardDesc}>Recipes that fit your goals</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

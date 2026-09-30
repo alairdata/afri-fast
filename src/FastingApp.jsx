@@ -221,6 +221,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [pendingInsightIndex, setPendingInsightIndex] = useState(null);
   const [showFindRecipePage, setShowFindRecipePage] = useState(false);
   const [showMakeRecipeModal, setShowMakeRecipeModal] = useState(false);
+  const [showMakeRecipePage, setShowMakeRecipePage] = useState(false);
   const [showFindRecipeModal, setShowFindRecipeModal] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editingTime, setEditingTime] = useState('start');
@@ -2080,6 +2081,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           }}
           onMealLogBlocked={() => showToast('Log meals only after ending your fast.')}
           onFindRecipe={() => setShowFindRecipePage(true)}
+          onShowMakeRecipe={() => setShowMakeRecipePage(true)}
           onShowChat={(context) => { setChatOpeningContext(context || null); setChatVariant('meals'); setChatOpenedFromLogMealOptions(true); setShowChat(true); }}
           onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setLogMealOpenedFromOptions(false); setShowLogMealModal(true); }}
           onDeleteMeal={async (id) => {
@@ -2478,10 +2480,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       />
 
       <MakeRecipePage
-        show={activeTab === 'ideas'}
-        onClose={() => setActiveTab('today')}
+        show={showMakeRecipePage}
+        onClose={() => setShowMakeRecipePage(false)}
         userCountry={userCountry}
         onLogMeal={(recipe) => {
+          setShowMakeRecipePage(false);
           setActiveTab('meals');
           setRecipeToLog(recipe);
           setLogMealMethod('recipe');
