@@ -191,6 +191,7 @@ const SettingsTab = ({
   notifyMealReminder, onToggleNotifyMealReminder,
   mealReminderTime,
   notifyMilestones, onToggleNotifyMilestones,
+  notifySmart, onToggleNotifySmart,
   milestoneConfig, onSetMilestoneConfig,
   darkMode, onToggleDarkMode,
   onLogout, onDeleteAccount,
@@ -697,6 +698,14 @@ const SettingsTab = ({
             if (!notifyMilestones) { setMilestoneDraft(milestoneConfig || { streak: true, streakDays: 7, hydration: false, weight: false }); setShowMilestoneConfig(true); }
             else onToggleNotifyMilestones?.(false);
           })}
+        </View>
+
+        <View style={styles.settingsItem}>
+          <View style={styles.settingsItemLeft}>
+            <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Smart Nudges</Text>
+            <Text style={styles.settingsItemSub}>Water, movement, streak and heads-up reminders, only when they help</Text>
+          </View>
+          {renderToggle(notifySmart, () => onToggleNotifySmart?.(!notifySmart))}
         </View>
       </View>
 

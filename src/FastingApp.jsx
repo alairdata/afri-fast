@@ -33,6 +33,7 @@ import {
   fireCelebrationNotification,
 } from './lib/notifications';
 import { evaluateMilestones } from './lib/milestones';
+import { syncSmartNotifications, clearSmartNotifications } from './lib/smartNotifications';
 import { buildDailyLedgerMap } from './lib/goalHistory';
 
 // Tab components
@@ -269,6 +270,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [notifyFastEnd, setNotifyFastEnd] = useState(true);
   const [notifyMealReminder, setNotifyMealReminder] = useState(false);
   const [notifyMilestones, setNotifyMilestones] = useState(true);
+  const [notifySmart, setNotifySmart] = useState(true);
   const [mealReminderTime, setMealReminderTime] = useState({ hour: 19, minute: 0 });
   const [milestoneConfig, setMilestoneConfig] = useState({ streak: true, streakDays: 7, hydration: false, weight: false });
   const [notifSettingsLoaded, setNotifSettingsLoaded] = useState(false);
@@ -1051,6 +1053,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           const n = JSON.parse(raw);
           if (n.notifyMealReminder != null) setNotifyMealReminder(n.notifyMealReminder);
           if (n.notifyMilestones != null) setNotifyMilestones(n.notifyMilestones);
+          if (n.notifySmart != null) setNotifySmart(n.notifySmart);
           if (n.mealReminderTime) setMealReminderTime(n.mealReminderTime);
           if (n.milestoneConfig) setMilestoneConfig(n.milestoneConfig);
         } catch (_) {}
@@ -1061,7 +1064,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   useEffect(() => {
     if (!notifSettingsLoaded) return;
     AsyncStorage.setItem(NOTIF_SETTINGS_KEY, JSON.stringify({
-      notifyMealReminder, notifyMilestones, mealReminderTime, milestoneConfig,
+      notifyMealReminder, notifyMilestones, notifySmart, mealReminderTime, milestoneConfig,
     })).catch(() => {});
     if (Platform.OS === 'web') return;
     (async () => {
@@ -1072,7 +1075,20 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       await cancelCalorieCheckReminder();
       if (notifyMealReminder) await scheduleMealReminder(mealReminderTime.hour, mealReminderTime.minute); else await cancelMealReminder();
     })().catch((e) => console.log('[Notifications] sync failed:', e?.message));
-  }, [notifSettingsLoaded, notifyMealReminder, notifyMilestones, mealReminderTime, milestoneConfig]);
+  }, [notifSettingsLoaded, notifyMealReminder, notifyMilestones, notifySmart, mealReminderTime, milestoneConfig]);
+
+  // Smart nudges: re-planned (after a short pause) whenever the data they depend on changes.
+  useEffect(() => {
+    if (!notifSettingsLoaded || Platform.OS === 'web' || !session?.user?.id) return;
+    const t = setTimeout(() => {
+      (async () => {
+        if (!notifySmart) { await clearSmartNotifications(); return; }
+        if (!(await requestNotificationPermissions())) return;
+        await syncSmartNotifications({ recentMeals, waterLogs, stepLogs, activities, hydrationGoal, volumeUnit });
+      })().catch((e) => console.log('[SmartNotifications] sync failed:', e?.message));
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [notifSettingsLoaded, notifySmart, session?.user?.id, recentMeals, waterLogs, stepLogs, activities, hydrationGoal, volumeUnit]);
 
   // Handle taps on prediction notifications — navigate to the linked insight card
   useEffect(() => {
@@ -1082,6 +1098,12 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       if (data?.type === 'prediction' && data?.cardIndex != null) {
         setActiveTab('today');
         setPendingInsightIndex(data.cardIndex);
+      } else if (data?.type === 'burnout') {
+        setActiveTab('progress');
+      } else if (data?.type === 'streak') {
+        setActiveTab('meals');
+      } else if (data?.type === 'insight' || data?.type === 'water' || data?.type === 'movement') {
+        setActiveTab('today');
       }
     });
     return () => sub.remove();
@@ -2250,6 +2272,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           mealReminderTime={mealReminderTime}
           notifyMilestones={notifyMilestones}
           onToggleNotifyMilestones={setNotifyMilestones}
+          notifySmart={notifySmart}
+          onToggleNotifySmart={setNotifySmart}
           milestoneConfig={milestoneConfig}
           onSetMilestoneConfig={setMilestoneConfig}
           userIcon={getUserIcon(session?.user?.id || '')}

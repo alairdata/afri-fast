@@ -9,6 +9,7 @@ import { computeMomentumTimeline, MET } from '../lib/momentum';
 import { computeWeeklyPace } from '../lib/trajectory';
 import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
+import { publishBurnoutSummary } from '../lib/smartNotifications';
 import { fetchSavedBurnoutDays, saveBurnoutDay } from '../lib/burnoutHistory';
 import { savePredictionSnapshot } from '../lib/predictionHistory';
 import { saveBurnoutPredictionSnapshot } from '../lib/burnoutPredictionHistory';
@@ -767,6 +768,12 @@ const ProgressTab = ({
     recentMeals, waterLogs, tdee, bmr, weightKg: currentWeightKg, pacePreference,
     dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, goalHistory, savedDays: savedBurnoutDays, now,
   }), [recentMeals, waterLogs, tdee, bmr, currentWeightKg, pacePreference, dailyCalorieGoal, proteinGoal, carbsGoal, fatsGoal, goalHistory, savedBurnoutDays, now]);
+
+  // Hand the burnout trend to the smart-notification planner (used for the "heads up" nudge).
+  useEffect(() => {
+    if (!userId) return;
+    publishBurnoutSummary({ daysToCrash: burnout.daysToCrash, crashDate: burnout.crashDate, score: burnout.today?.score });
+  }, [userId, burnout.daysToCrash, burnout.crashDate, burnout.today?.score]);
 
   useEffect(() => {
     if (!userId) return;
