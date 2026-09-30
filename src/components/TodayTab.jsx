@@ -1025,14 +1025,6 @@ const TodayTab = ({
           </View>
           <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20 }}>
             <FormattedText text={justForYouInsight || ''} bodyStyle={[styles.insightDetailBody, { fontSize: 15.5, lineHeight: 24 }]} />
-            {onShowChat && (
-              <TouchableOpacity
-                style={{ marginTop: 28, backgroundColor: '#059669', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}
-                onPress={() => { setJfyExpanded(false); onShowChat(`I just read today's insight — can you tell me more?`); }}
-              >
-                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Talk to Coach</Text>
-              </TouchableOpacity>
-            )}
             <View style={{ height: 40 }} />
           </ScrollView>
         </View>

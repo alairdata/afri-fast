@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Vibration } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../lib/theme';
 
 // 'progress' now renders the merged Progress+Insights tab (see ProgressTab.jsx) — kept the
@@ -26,14 +26,7 @@ const BottomTabBar = ({ activeTab, onTabChange }) => {
           <TouchableOpacity
             key={tab.id}
             style={styles.tab}
-            onPress={() => {
-              if (Platform.OS === 'web') {
-                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(6);
-              } else {
-                Vibration.vibrate(10);
-              }
-              onTabChange(tab.id);
-            }}
+            onPress={() => onTabChange(tab.id)}
             accessibilityLabel={tab.label}
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
