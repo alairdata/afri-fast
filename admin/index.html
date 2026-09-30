@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AfriFast Admin — Whispers</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+    /* ── Gate ── */
+    #gate {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; gap: 16px;
+    }
+    #gate .logo { font-size: 32px; font-weight: 800; color: #059669; letter-spacing: -1px; }
+    #gate .sub  { font-size: 14px; color: #64748b; margin-top: -8px; }
+    #gate input {
+      width: 280px; padding: 12px 16px; border-radius: 10px;
+      border: 1.5px solid #1e293b; background: #1e293b; color: #e2e8f0;
+      font-size: 15px; outline: none; text-align: center; letter-spacing: 2px;
+    }
+    #gate input:focus { border-color: #059669; }
+    #gate button {
+      width: 280px; padding: 12px; border-radius: 10px; border: none;
+      background: #059669; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    #gate button:hover { background: #047857; }
+    #gate .err { font-size: 13px; color: #ef4444; }
+
+    /* ── Panel ── */
+    #panel { display: none; max-width: 760px; margin: 0 auto; padding: 32px 20px 80px; }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+    .topbar .logo { font-size: 22px; font-weight: 800; color: #059669; }
+    .topbar .badge { font-size: 11px; background: #1e293b; color: #94a3b8; padding: 4px 10px; border-radius: 20px; }
+
+    /* ── Form card ── */
+    .card { background: #1e293b; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+    .card h2 { font-size: 14px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
+
+    label { display: block; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+
+    .field { margin-bottom: 18px; }
+
+    select, input[type="text"], input[type="url"], textarea {
+      width: 100%; padding: 10px 14px; border-radius: 10px;
+      border: 1.5px solid #334155; background: #0f172a; color: #e2e8f0;
+      font-size: 14px; outline: none; font-family: inherit;
+    }
+    select:focus, input:focus, textarea:focus { border-color: #059669; }
+    textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
+
+    /* Page picker */
+    .page-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+    .page-chip {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+      border-radius: 10px; border: 2px solid #334155; cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .page-chip:hover { border-color: #475569; }
+    .page-chip.selected { border-color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); }
+    .page-chip input[type="radio"] { display: none; }
+    .page-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .page-name { font-size: 12px; font-weight: 600; color: #e2e8f0; line-height: 1.3; }
+
+    /* Poll toggle */
+    .toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .toggle-row label { margin: 0; }
+    .toggle {
+      width: 40px; height: 22px; border-radius: 11px; background: #334155;
+      position: relative; cursor: pointer; transition: background .2s;
+    }
+    .toggle.on { background: #059669; }
+    .toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; border-radius: 50%; background: #fff;
+      transition: transform .2s;
+    }
+    .toggle.on::after { transform: translateX(18px); }
+
+    .poll-options { display: flex; flex-direction: column; gap: 8px; }
+    .poll-option-row { display: flex; gap: 8px; align-items: center; }
+    .poll-option-row input { flex: 1; }
+    .poll-option-row button {
+      width: 30px; height: 30px; border-radius: 8px; border: none;
+      background: #334155; color: #94a3b8; cursor: pointer; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .add-option { margin-top: 6px; font-size: 12px; color: #059669; cursor: pointer; font-weight: 600; background: none; border: none; }
+
+    /* Submit */
+    .submit-btn {
+      width: 100%; padding: 14px; border-radius: 12px; border: none;
+      background: #059669; color: #fff; font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: background .2s;
+    }
+    .submit-btn:hover { background: #047857; }
+    .submit-btn:disabled { background: #1e4d3a; color: #3d8b6e; cursor: not-allowed; }
+    .submit-msg { text-align: center; font-size: 13px; margin-top: 10px; min-height: 18px; }
+    .submit-msg.ok  { color: #34d399; }
+    .submit-msg.err { color: #ef4444; }
+
+    /* ── Posts list ── */
+    .posts-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .posts-header h2 { font-size: 14px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+    .refresh-btn { font-size: 12px; color: #059669; cursor: pointer; font-weight: 600; background: none; border: none; }
+
+    .post-item {
+      background: #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 12px;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .post-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .post-body { flex: 1; min-width: 0; }
+    .post-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .post-page-name { font-size: 13px; font-weight: 700; color: #e2e8f0; }
+    .post-time { font-size: 11px; color: #64748b; }
+    .post-text { font-size: 13px; color: #cbd5e1; line-height: 1.5; word-break: break-word; }
+    .post-image { margin-top: 8px; width: 100%; max-height: 160px; object-fit: cover; border-radius: 8px; }
+    .post-poll { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+    .post-poll-opt { font-size: 12px; color: #94a3b8; background: #0f172a; padding: 6px 10px; border-radius: 6px; }
+    .delete-btn {
+      flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; border: none;
+      background: rgba(239,68,68,0.1); color: #ef4444; cursor: pointer; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .delete-btn:hover { background: rgba(239,68,68,0.2); }
+    .empty { text-align: center; padding: 40px 0; color: #475569; font-size: 14px; }
+    .loading { text-align: center; padding: 24px 0; color: #475569; font-size: 13px; }
+
+    /* SQL hint */
+    .sql-card { background: #1e293b; border-radius: 16px; padding: 20px; margin-bottom: 24px; }
+    .sql-card h2 { font-size: 14px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+    .sql-card pre { font-size: 11px; color: #7dd3fc; line-height: 1.6; overflow-x: auto; background: #0f172a; padding: 14px; border-radius: 8px; }
+    .sql-card p  { font-size: 12px; color: #64748b; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Gate ── -->
+<div id="gate">
+  <div class="logo">AfriFast</div>
+  <div class="sub">Admin · Whispers</div>
+  <input id="pwInput" type="password" placeholder="Enter admin password" autocomplete="off" />
+  <button onclick="unlock()">Enter</button>
+  <div id="gateErr" class="err"></div>
+</div>
+
+<!-- ── Panel ── -->
+<div id="panel">
+  <div class="topbar">
+    <div class="logo">AfriFast Admin</div>
+    <div class="badge">Whispers · Page Posts</div>
+  </div>
+
+  <!-- SQL setup hint (shown once, collapsible) -->
+  <div class="sql-card" id="sqlHint">
+    <h2>One-time Supabase setup</h2>
+    <p>Run this SQL in your Supabase <strong>SQL Editor</strong> once to create the table, then collapse this.</p>
+    <pre>create table if not exists whispers_posts (
+  id          text primary key default gen_random_uuid()::text,
+  is_page     boolean default true,
+  page_name   text not null,
+  page_avatar text not null,
+  page_initial text not null,
+  text        text not null,
+  image_url   text,
+  is_poll     boolean default false,
+  poll_options jsonb,
+  likes       integer default 0,
+  comments    integer default 0,
+  created_at  timestamptz default now()
+);
+
+-- allow anyone to read, only service role to insert/delete
+-- (anon key is used here so disable RLS or add a permissive policy):
+alter table whispers_posts enable row level security;
+create policy "public read"  on whispers_posts for select using (true);
+create policy "admin insert" on whispers_posts for insert with check (true);
+create policy "admin delete" on whispers_posts for delete using (true);</pre>
+    <button onclick="document.getElementById('sqlHint').style.display='none'" style="margin-top:12px;font-size:12px;color:#059669;background:none;border:none;cursor:pointer;font-weight:600;">Hide this ↑</button>
+  </div>
+
+  <!-- New post form -->
+  <div class="card">
+    <h2>New Page Post</h2>
+
+    <!-- Page picker -->
+    <div class="field">
+      <label>Post as page</label>
+      <div class="page-grid" id="pageGrid"></div>
+    </div>
+
+    <!-- Text -->
+    <div class="field">
+      <label>Post text</label>
+      <textarea id="postText" placeholder="What's on your mind?"></textarea>
+    </div>
+
+    <!-- Image URL -->
+    <div class="field">
+      <label>Image URL <span style="color:#475569;font-weight:400;text-transform:none">(optional)</span></label>
+      <input type="url" id="imageUrl" placeholder="https://images.unsplash.com/..." />
+    </div>
+
+    <!-- Poll toggle -->
+    <div class="toggle-row">
+      <div class="toggle" id="pollToggle" onclick="togglePoll()"></div>
+      <label style="color:#94a3b8;font-size:13px;text-transform:none;letter-spacing:0">This is a poll</label>
+    </div>
+    <div id="pollFields" style="display:none;margin-bottom:18px;">
+      <label>Poll options</label>
+      <div class="poll-options" id="pollOptions">
+        <div class="poll-option-row"><input type="text" placeholder="Option 1" /><button onclick="removeOption(this)" title="Remove">×</button></div>
+        <div class="poll-option-row"><input type="text" placeholder="Option 2" /><button onclick="removeOption(this)" title="Remove">×</button></div>
+      </div>
+      <button class="add-option" onclick="addOption()">+ Add option</button>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitPost()">Publish Post</button>
+    <div class="submit-msg" id="submitMsg"></div>
+  </div>
+
+  <!-- Recent posts -->
+  <div>
+    <div class="posts-header">
+      <h2>Published Posts</h2>
+      <button class="refresh-btn" onclick="loadPosts()">↻ Refresh</button>
+    </div>
+    <div id="postsList"><div class="loading">Loading posts…</div></div>
+  </div>
+</div>
+
+<script>
+  const { createClient } = supabase;
+  const sb = createClient(
+    'https://exvbplhajnvuhanykumm.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4dmJwbGhham52dWhhbnlrdW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwODY2NTEsImV4cCI6MjA5MDY2MjY1MX0.L-D_1nnehcjcQZ52XEl0rhKOoUm7HmOMC4_wGIwQETE'
+  );
+
+  const ADMIN_PASSWORD = 'AFRIFAST@ADMIN2026';
+
+  const PAGES = [
+    { name: 'Weight Loss Tips',    color: '#059669', initial: 'W' },
+    { name: 'Fasting Stress',      color: '#ef4444', initial: 'F' },
+    { name: 'Healthy Recipes',     color: '#ec4899', initial: 'H' },
+    { name: 'Fasting Mindset',     color: '#0ea5e9', initial: 'F' },
+    { name: 'Weight Gain Struggles', color: '#8b5cf6', initial: 'W' },
+    { name: 'Fasting Science',     color: '#3b82f6', initial: 'S' },
+    { name: 'African Recipes',     color: '#059669', initial: 'A' },
+  ];
+
+  let selectedPage = null;
+  let isPoll = false;
+
+  // ── Gate ──
+  function unlock() {
+    const pw = document.getElementById('pwInput').value.trim();
+    if (pw === ADMIN_PASSWORD) {
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('panel').style.display = 'block';
+      buildPageGrid();
+      loadPosts();
+    } else {
+      document.getElementById('gateErr').textContent = 'Wrong password.';
+    }
+  }
+  document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+
+  // ── Page grid ──
+  function buildPageGrid() {
+    const grid = document.getElementById('pageGrid');
+    grid.innerHTML = '';
+    PAGES.forEach((p, i) => {
+      const chip = document.createElement('label');
+      chip.className = 'page-chip';
+      chip.style.setProperty('--c', p.color);
+      chip.innerHTML = `
+        <input type="radio" name="page" value="${i}" onchange="selectPage(${i})" />
+        <div class="page-avatar" style="background:${p.color}">${p.initial}</div>
+        <div class="page-name">${p.name}</div>
+      `;
+      grid.appendChild(chip);
+    });
+  }
+
+  function selectPage(i) {
+    selectedPage = PAGES[i];
+    document.querySelectorAll('.page-chip').forEach((c, ci) => {
+      c.classList.toggle('selected', ci === i);
+    });
+  }
+
+  // ── Poll ──
+  function togglePoll() {
+    isPoll = !isPoll;
+    document.getElementById('pollToggle').classList.toggle('on', isPoll);
+    document.getElementById('pollFields').style.display = isPoll ? 'block' : 'none';
+  }
+  function addOption() {
+    const opts = document.getElementById('pollOptions');
+    if (opts.children.length >= 4) return;
+    const n = opts.children.length + 1;
+    const row = document.createElement('div');
+    row.className = 'poll-option-row';
+    row.innerHTML = `<input type="text" placeholder="Option ${n}" /><button onclick="removeOption(this)" title="Remove">×</button>`;
+    opts.appendChild(row);
+  }
+  function removeOption(btn) {
+    const opts = document.getElementById('pollOptions');
+    if (opts.children.length <= 2) return;
+    btn.closest('.poll-option-row').remove();
+  }
+
+  // ── Submit ──
+  async function submitPost() {
+    const text = document.getElementById('postText').value.trim();
+    const imageUrl = document.getElementById('imageUrl').value.trim();
+    const msgEl = document.getElementById('submitMsg');
+    const btn = document.getElementById('submitBtn');
+
+    if (!selectedPage) { showMsg('Please select a page.', false); return; }
+    if (!text) { showMsg('Post text is required.', false); return; }
+
+    let pollOptions = null;
+    if (isPoll) {
+      const inputs = document.querySelectorAll('#pollOptions input');
+      pollOptions = [...inputs].map(i => ({ text: i.value.trim(), votes: 0 })).filter(o => o.text);
+      if (pollOptions.length < 2) { showMsg('Add at least 2 poll options.', false); return; }
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Publishing…';
+
+    const { error } = await sb.from('whispers_posts').insert({
+      is_page: true,
+      page_name: selectedPage.name,
+      page_avatar: selectedPage.color,
+      page_initial: selectedPage.initial,
+      text,
+      image_url: imageUrl || null,
+      is_poll: isPoll,
+      poll_options: pollOptions,
+    });
+
+    btn.disabled = false;
+    btn.textContent = 'Publish Post';
+
+    if (error) {
+      showMsg('Error: ' + error.message, false);
+    } else {
+      showMsg('Post published!', true);
+      document.getElementById('postText').value = '';
+      document.getElementById('imageUrl').value = '';
+      if (isPoll) togglePoll();
+      loadPosts();
+    }
+  }
+
+  function showMsg(msg, ok) {
+    const el = document.getElementById('submitMsg');
+    el.textContent = msg;
+    el.className = 'submit-msg ' + (ok ? 'ok' : 'err');
+    setTimeout(() => { el.textContent = ''; el.className = 'submit-msg'; }, 4000);
+  }
+
+  // ── Load posts ──
+  async function loadPosts() {
+    const list = document.getElementById('postsList');
+    list.innerHTML = '<div class="loading">Loading…</div>';
+    const { data, error } = await sb
+      .from('whispers_posts')
+      .select('*')
+      .eq('is_page', true)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) { list.innerHTML = `<div class="empty">Error: ${error.message}</div>`; return; }
+    if (!data?.length) { list.innerHTML = '<div class="empty">No posts yet. Publish one above.</div>'; return; }
+
+    list.innerHTML = data.map(p => `
+      <div class="post-item">
+        <div class="post-avatar" style="background:${p.page_avatar}">${p.page_initial}</div>
+        <div class="post-body">
+          <div class="post-meta">
+            <span class="post-page-name">${p.page_name}</span>
+            <span class="post-time">${new Date(p.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+          </div>
+          <div class="post-text">${p.text}</div>
+          ${p.image_url ? `<img class="post-image" src="${p.image_url}" alt="" />` : ''}
+          ${p.is_poll && p.poll_options ? `
+            <div class="post-poll">
+              ${p.poll_options.map(o => `<div class="post-poll-opt">· ${o.text}</div>`).join('')}
+            </div>` : ''}
+        </div>
+        <button class="delete-btn" onclick="deletePost('${p.id}')" title="Delete">🗑</button>
+      </div>
+    `).join('');
+  }
+
+  // ── Delete ──
+  async function deletePost(id) {
+    if (!confirm('Delete this post?')) return;
+    const { error } = await sb.from('whispers_posts').delete().eq('id', id);
+    if (error) alert('Error: ' + error.message);
+    else loadPosts();
+  }
+</script>
+</body>
+</html>
