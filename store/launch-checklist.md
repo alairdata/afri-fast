@@ -18,22 +18,22 @@
 
 ## E. First build
 - [x] `npx eas-cli login`
-- [ ] `eas init`, then `eas build --platform ios --profile production` (sign in to Apple when asked; EAS creates certificates)
-- [ ] `eas submit --platform ios`
+- [x] `eas init`, then `eas build --platform ios --profile production` (sign in to Apple when asked; EAS creates certificates)
+- [x] `eas submit --platform ios`
 
 ## F. Test on a real iPhone (TestFlight)
-- [ ] Apple sign-in
-- [ ] Google sign-in
-- [ ] Camera meal scan
-- [ ] Notifications
-- [ ] Account deletion
+- [x] Apple sign-in
+- [x] Google sign-in
+- [x] Camera meal scan
+- [x] Notifications
+- [x] Account deletion
 
 ## G. Store listing
-- [ ] Paste text from `store/app-store-listing.md`
-- [ ] Screenshots (6.9" and 6.5" iPhone sizes)
-- [ ] Age rating + App Privacy answers
-- [ ] Price: Free, pick countries
-- [ ] Export compliance: standard HTTPS encryption only
+- [x] Paste text from `store/app-store-listing.md`
+- [x] Screenshots (6.9" and 6.5" iPhone sizes)
+- [x] Age rating + App Privacy answers
+- [x] Price: Free, pick countries
+- [x] Export compliance: standard HTTPS encryption only
 
 ## H. Submit
 - [ ] Add test account to review notes
