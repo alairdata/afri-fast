@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,9 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
   const [showBackToToday, setShowBackToToday] = useState(false);
   const calendarScrollRef = useRef(null);
   const todayMonthY = useRef(0);
+  const didInitialScroll = useRef(false);
+  // The month ScrollView remounts on reopen / switching back from Year view, so re-arm the jump.
+  useEffect(() => { if (show && viewMode === 'month') didInitialScroll.current = false; }, [show, viewMode]);
 
   // Meals are stored with a Date.toDateString() date ("Fri Sep 25 2026") and a `calories` field, so the
   // lookup is keyed the same way (not YYYY-MM-DD / `cal`, which never matched anything).
@@ -453,6 +456,12 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
             style={styles.calendarScroll}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.calendarScrollContent}
+            onContentSizeChange={() => {
+              if (!didInitialScroll.current && todayMonthY.current > 0) {
+                didInitialScroll.current = true;
+                calendarScrollRef.current?.scrollTo({ y: todayMonthY.current, animated: false });
+              }
+            }}
             onScroll={(e) => {
               const scrollY = e.nativeEvent.contentOffset.y;
               const viewHeight = e.nativeEvent.layoutMeasurement.height;
@@ -474,7 +483,14 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
                   <View
                     key={`${y}-${m}`}
                     style={styles.calendarMonthBlock}
-                    onLayout={isTodayMonth ? (e) => { todayMonthY.current = e.nativeEvent.layout.y; } : undefined}
+                    onLayout={isTodayMonth ? (e) => {
+                      todayMonthY.current = e.nativeEvent.layout.y;
+                      // Open on the current month instead of the oldest one at the top.
+                      if (!didInitialScroll.current) {
+                        didInitialScroll.current = true;
+                        calendarScrollRef.current?.scrollTo({ y: todayMonthY.current, animated: false });
+                      }
+                    } : undefined}
                   >
                     <Text style={styles.monthNavText}>{MONTH_NAMES[m]} {y}</Text>
                     <View style={styles.calendarGrid}>
