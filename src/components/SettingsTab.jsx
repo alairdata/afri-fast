@@ -783,6 +783,9 @@ const SettingsTab = ({
         <Image source={require('../../assets/logga-wordmark.png')} style={styles.settingsVersionLogo} resizeMode="contain" />
         <Text style={styles.settingsVersionText}>v1.0.0</Text>
         <Text style={styles.settingsVersionSub}>Made by SeedFest Technologies</Text>
+        <Text style={[styles.settingsVersionSub, { textAlign: 'center', marginTop: 10, paddingHorizontal: 24 }]}>
+          Logga is a tracking tool, not medical advice. Talk to a qualified professional before changing your diet or exercise.
+        </Text>
       </View>
 
       <View style={{ height: 40 }} />

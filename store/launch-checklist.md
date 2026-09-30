@@ -12,8 +12,8 @@
 - [ ] Supabase → Authentication → URL Configuration → add `logga://auth-callback` to redirect URLs
 
 ## D. Code changes
-- [ ] In-app health disclaimer
-- [ ] Hide the Apple button on web (web Apple OAuth needs a Services ID + key; native uses the token flow)
+- [x] In-app health disclaimer
+- [x] Hide the Apple button on web (web Apple OAuth needs a Services ID + key; native uses the token flow)
 - [ ] Create a test account for the Apple reviewer
 
 ## E. First build

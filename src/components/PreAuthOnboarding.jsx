@@ -1341,6 +1341,9 @@ function DoneScreen({ d, onComplete }) {
         <Text style={{ fontWeight: '700' }}>{d.goal || 'eat better'}</Text>
         {d.country ? `, tuned for ${d.country} kitchens.` : '.'}
       </Text>
+      <Text style={{ fontSize: 12, color: C.ink500, textAlign: 'center', marginTop: 10, lineHeight: 17, alignSelf: 'stretch' }}>
+        Estimates only, not medical advice. Check with a qualified professional before changing your diet or exercise.
+      </Text>
 
       <View style={{ marginTop: 22, marginBottom: 16, alignSelf: 'stretch' }}>
         <PrimaryBtn label="Create my account →" onPress={handleFinish} />

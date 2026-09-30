@@ -296,10 +296,12 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
           </Text>
 
           {/* Apple */}
-          <TouchableOpacity style={ca.appleBtn} activeOpacity={0.85} onPress={() => handleOAuth('apple')}>
-            <Ionicons name="logo-apple" size={20} color="#fff" />
-            <Text style={ca.appleTxt}>Continue with Apple</Text>
-          </TouchableOpacity>
+          {Platform.OS !== 'web' && (
+            <TouchableOpacity style={ca.appleBtn} activeOpacity={0.85} onPress={() => handleOAuth('apple')}>
+              <Ionicons name="logo-apple" size={20} color="#fff" />
+              <Text style={ca.appleTxt}>Continue with Apple</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Google */}
           <TouchableOpacity style={ca.googleBtn} activeOpacity={0.85} onPress={() => handleOAuth('google')}>
@@ -404,10 +406,12 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         <Text style={ca.headline}>Log back in.</Text>
         <Text style={ca.subtitle}>Pick up right where you left off.</Text>
 
-        <TouchableOpacity style={ca.appleBtn} activeOpacity={0.85} onPress={() => handleOAuthLogin('apple')}>
-          <Ionicons name="logo-apple" size={20} color="#fff" />
-          <Text style={ca.appleTxt}>Continue with Apple</Text>
-        </TouchableOpacity>
+        {Platform.OS !== 'web' && (
+          <TouchableOpacity style={ca.appleBtn} activeOpacity={0.85} onPress={() => handleOAuthLogin('apple')}>
+            <Ionicons name="logo-apple" size={20} color="#fff" />
+            <Text style={ca.appleTxt}>Continue with Apple</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity style={ca.googleBtn} activeOpacity={0.85} onPress={() => handleOAuthLogin('google')}>
           <Ionicons name="logo-google" size={18} color="#444" />
