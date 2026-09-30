@@ -111,6 +111,56 @@ const MOMENTUM_WHY_SCHEMA = {
   required: ['headline', 'connector', 'eating', 'satiety', 'movement'],
 };
 
+const BURNOUT_WHY_SYSTEM =
+  'You are that friend who happens to know about health and food — warm, plain-spoken, honest, a little light-hearted when it fits. ' +
+  'You are explaining to someone what their "burnout likelihood" number means for them this week. Burnout here simply means how likely they are ' +
+  'to get worn out and drop off their plan: usually from eating far too little, swinging between very low and very high days, or missing the things ' +
+  'that keep them full and steady (protein, water, fibre).\n\n' +
+  'You are given the exact numbers: the score, the band, what is pulling it up, their last days of calories against their target, and sometimes a ' +
+  'predicted "rough patch" date. Use the numbers exactly, but say them the way a friend would. NEVER use jargon or the words: TDEE, deficit, floor, ' +
+  'macros, volatility, binge-restrict, subscore, pillar. Say "eating a lot less than your body uses", "days going up and down a lot", ' +
+  '"not enough protein to keep you full" instead.\n\n' +
+  'Fields:\n' +
+  '- summary: 1-2 short sentences. The real story of their week in everyday words, referring to actual days or amounts when that helps. If the ' +
+  'score is low and things look steady, say so warmly and briefly.\n' +
+  '- tip: ONE short, doable thing to do today or tomorrow (for example a specific kind of meal, a glass of water, not skipping a meal). Empty string if ' +
+  'everything is fine.\n' +
+  '- crashNote: if a rough-patch date is given, ONE calm sentence about it ("around Thursday you may feel worn down — a proper lunch each day before ' +
+  'then helps"). Otherwise an empty string. Never scary, never guilt.\n\n' +
+  'No medical claims, no diagnosing, no shaming. Do not repeat the score number. Keep every field short enough to read at a glance.';
+
+const BURNOUT_WHY_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    summary:   { type: 'STRING' },
+    tip:       { type: 'STRING' },
+    crashNote: { type: 'STRING' },
+  },
+  required: ['summary', 'tip', 'crashNote'],
+};
+
+const PATTERN_INSIGHT_SYSTEM =
+  'You are that friend who happens to know about health and food, quietly paying attention to someone\'s eating over the last two weeks. ' +
+  'Write ONE short insight card about the most useful pattern you notice, in plain, warm, everyday language — no jargon, no report-speak, never a ' +
+  'scolding. You are given each recent day with its weekday, calories eaten and their target for that day, plus a few pattern flags.\n\n' +
+  'Look at ALL the days, not just the biggest one. Good patterns to spot: a couple of heavy days and what followed; a heavy day then a very light one ' +
+  '(up and down); the same weekday being harder each week; several days in a row well under target; one rough day after a steady stretch (and that one ' +
+  'day not mattering much); or steady and fine. Mention real days and amounts exactly as given ("Monday was about 3,000 and Thursday about 4,000, more ' +
+  'than double your target"). Explain what it likely means for them in one plain sentence and give one gentle next step.\n\n' +
+  'Fields:\n' +
+  '- title: 3-6 words, specific to the pattern (not generic like "Big swing").\n' +
+  '- body: 2-3 short sentences: what you noticed (with real days/numbers), what it means, one gentle next step. Reassuring where the picture is fine.\n\n' +
+  'Never say TDEE, deficit, variance, or any clinical term. No medical claims. No guilt.';
+
+const PATTERN_INSIGHT_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    title: { type: 'STRING' },
+    body:  { type: 'STRING' },
+  },
+  required: ['title', 'body'],
+};
+
 // ── Core fetch helper ────────────────────────────────────────────────────────
 
 async function callGemini(apiKey, parts, { systemInstruction, schema } = {}) {
@@ -278,6 +328,26 @@ export default async function handler(req, res) {
         satiety: parsed.satiety || null,
         movement: parsed.movement || null,
       });
+    }
+
+    // ── Burnout likelihood: plain-language explanation ───────────────────────
+    if (type === 'burnout_why') {
+      const text = await callGemini(GEMINI_KEY, [
+        { text: `THIS WEEK'S BURNOUT DATA:\n${JSON.stringify(data)}` },
+      ], { systemInstruction: BURNOUT_WHY_SYSTEM, schema: BURNOUT_WHY_SCHEMA });
+      const parsed = parseJson(text);
+      if (!parsed?.summary) return res.status(500).json({ error: 'Could not parse burnout why' });
+      return res.json({ summary: parsed.summary, tip: parsed.tip || '', crashNote: parsed.crashNote || '' });
+    }
+
+    // ── Weekly pattern insight (replaces the old "big swing" template) ───────
+    if (type === 'pattern_insight') {
+      const text = await callGemini(GEMINI_KEY, [
+        { text: `RECENT EATING DATA:\n${JSON.stringify(data)}` },
+      ], { systemInstruction: PATTERN_INSIGHT_SYSTEM, schema: PATTERN_INSIGHT_SCHEMA });
+      const parsed = parseJson(text);
+      if (!parsed?.body) return res.status(500).json({ error: 'Could not parse pattern insight' });
+      return res.json({ title: parsed.title || null, body: parsed.body });
     }
 
     return res.status(400).json({ error: 'Invalid type' });

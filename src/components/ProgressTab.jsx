@@ -10,6 +10,7 @@ import { computeWeeklyPace } from '../lib/trajectory';
 import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
 import { publishBurnoutSummary } from '../lib/smartNotifications';
+import { getAiText, getDismissedFingerprints, dismissInsight } from '../lib/insightText';
 import { fetchSavedBurnoutDays, saveBurnoutDay } from '../lib/burnoutHistory';
 import { savePredictionSnapshot } from '../lib/predictionHistory';
 import { saveBurnoutPredictionSnapshot } from '../lib/burnoutPredictionHistory';
@@ -202,7 +203,6 @@ const ProgressTab = ({
   // Precomputed daily_goal_ledger, keyed for O(1) lookup by date -- see lib/goalHistory.js.
   const ledgerMap = useMemo(() => buildDailyLedgerMap(dailyGoalLedger), [dailyGoalLedger]);
   const [view, setView] = useState('main');
-  const [guardrailDismissed, setGuardrailDismissed] = useState(false);
   const [chartTooltip, setChartTooltip] = useState(null);
 
   // Independent per-chart range state — each of Weight/Calorie/Hydration/Steps owns its own
@@ -620,9 +620,13 @@ const ProgressTab = ({
     const thisWeek = sortedWeights.slice(-7);
     const priorWeek = sortedWeights.slice(Math.max(0, n - 14), Math.max(0, n - 7));
     if (!priorWeek.length) return null;
-    const avgThis = thisWeek.reduce((s, w) => s + w.weightKg, 0) / thisWeek.length;
-    const avgPrior = priorWeek.reduce((s, w) => s + w.weightKg, 0) / priorWeek.length;
-    return avgThis - avgPrior;
+    const avg = (arr, key) => arr.reduce((s, w) => s + w[key], 0) / arr.length;
+    // Turn the change between the two groups of weigh-ins into a real per-WEEK rate by dividing by
+    // how much time actually separates them. Without this, a burst of weigh-ins logged close
+    // together (e.g. four in one afternoon) shows up as a huge "weekly" loss like -2.4 kg.
+    const elapsedDays = (avg(thisWeek, 'ts') - avg(priorWeek, 'ts')) / DAY_MS;
+    if (elapsedDays < 3) return null; // too close together in time to call a weekly rate
+    return ((avg(thisWeek, 'weightKg') - avg(priorWeek, 'weightKg')) / elapsedDays) * 7;
   }, [sortedWeights]);
 
   const deviationKg = (weeklyWeightChangeKg != null && requiredWeeklyRateKg != null)
@@ -727,6 +731,13 @@ const ProgressTab = ({
     }
 
     let note = null;
+    let noteSuffix = '';
+    const predictedWeeklyKg = weeklyPace && weeklyPace.dailyRateKg != null ? weeklyPace.dailyRateKg * 7 : null;
+    if (predictedWeeklyKg != null && Math.abs(weeklyWeightChangeKg - predictedWeeklyKg) > Math.max(0.5, (currentWeightKg || 70) * 0.006)) {
+      noteSuffix = weeklyWeightChangeKg < predictedWeeklyKg
+        ? " Your scale is dropping faster than your eating alone explains. That's often water weight or weigh-in timing, so trust the trend over a few weeks."
+        : " Your scale is moving slower than your eating alone suggests. Water and timing can hide progress for a while, so keep going.";
+    }
     if (trajectory && requiredWeeklyRateKg) {
       const sign = requiredWeeklyRateKg < 0 ? '-' : '+';
       const observedRate = fromKg(Math.abs(weeklyWeightChangeKg), weightUnit);
@@ -742,12 +753,12 @@ const ProgressTab = ({
 
     return {
       eta: projectedGoalDate,
-      pct, planPct, note,
+      pct, planPct, note: note ? note + noteSuffix : note,
       lost: fromKg(lostKg, weightUnit),
       togo: fromKg(togoKg, weightUnit),
       weeklyRate: fromKg(Math.abs(weeklyWeightChangeKg), weightUnit),
     };
-  }, [startingWeightKg, targetWeightKg, currentWeightKg, weeklyWeightChangeKg, goalDate, userJoinDate, trajectory, requiredWeeklyRateKg, projectedGoalDate, weightUnit, now]);
+  }, [startingWeightKg, targetWeightKg, currentWeightKg, weeklyWeightChangeKg, goalDate, userJoinDate, trajectory, requiredWeeklyRateKg, projectedGoalDate, weightUnit, weeklyPace, now]);
 
   // Ledger's real eaten total for each day, not the live recompute -- falls back to live only
   // for a day the ledger hasn't caught up to yet. Each day judged against its own day's goal.
@@ -821,19 +832,60 @@ const ProgressTab = ({
   const burnoutBand = burnout.today.band;
   const burnoutColor = burnoutBand.tone === 'good' ? accent : burnoutBand.tone === 'warn' ? WARN : DANGER;
   const burnoutBg = burnoutBand.tone === 'good' ? colors.accentLight : burnoutBand.tone === 'warn' ? WARN_BG : DANGER_BG;
-  const burnoutWhy = useMemo(() => {
+  // Plain-language drivers behind the burnout number. No jargon: these phrases are what the user
+  // reads if the AI text isn't available, and also the facts handed to Gemini to word properly.
+  const burnoutDrivers = useMemo(() => {
     const t = burnout.today;
-    const drivers = [];
-    if (t.deficitPts >= 12) drivers.push('your deficit is running deep relative to your TDEE');
-    if (t.proteinPts >= 6) drivers.push("protein is running under your floor, so hunger keeps building");
-    if (t.waterPts >= 8) drivers.push("water intake is running under your floor");
-    if (t.carbsPts >= 4) drivers.push('carbs are running under your floor');
-    if (t.fiberPts >= 4) drivers.push('fiber is running low, which tends to leave meals feeling less filling');
-    if (t.fatPts >= 2) drivers.push("fat's under your floor, which tends to hit mood and sleep");
-    if (t.volatilityPts >= 8) drivers.push('calories are swinging a lot day to day — binge-restrict pattern, not a steady deficit');
-    if (!drivers.length) return 'Deficit, nutrition, and day-to-day consistency are all in a sustainable range this week.';
-    return `This week: ${drivers.join('; ')}.`;
+    const d = [];
+    if (t.deficitPts >= 12) d.push("you've been eating a lot less than your body uses");
+    if (t.proteinPts >= 6) d.push("you're low on protein, so you may feel hungry again quickly");
+    if (t.waterPts >= 8) d.push("you're drinking less water than you need");
+    if (t.carbsPts >= 4) d.push("you're low on carbs, which is your body's quick energy");
+    if (t.fiberPts >= 4) d.push("you're low on fibre, so meals don't keep you full for long");
+    if (t.fatPts >= 2) d.push("you're low on healthy fats, which can affect mood and sleep");
+    if (t.volatilityPts >= 8) d.push('your days are going up and down a lot');
+    return d;
   }, [burnout]);
+  const burnoutWhy = useMemo(() => {
+    if (!burnoutDrivers.length) return 'Your eating, water and day-to-day rhythm all look steady and sustainable this week.';
+    const joined = burnoutDrivers.length === 1
+      ? burnoutDrivers[0]
+      : `${burnoutDrivers.slice(0, -1).join(', ')} and ${burnoutDrivers[burnoutDrivers.length - 1]}`;
+    return `This week ${joined}.`;
+  }, [burnoutDrivers]);
+
+  const burnoutFacts = useMemo(() => {
+    const t = burnout.today;
+    return {
+      score: t.score,
+      band: burnout.today.band?.label,
+      whatIsPullingItUp: burnoutDrivers,
+      averagesThisWeek: {
+        caloriesPerDay: t.avgCalories, proteinGrams: t.avgProtein, proteinTargetGrams: proteinGoal,
+        waterMlPerDay: t.avgWaterMl, fibreGrams: t.avgFiber,
+      },
+      dailyCalorieTarget: dailyCalorieGoal,
+      last7Days: last7.map((d) => ({
+        weekday: d.date.toLocaleDateString('en-US', { weekday: 'short' }), eatenKcal: Math.round(d.total),
+      })),
+      roughPatch: burnout.daysToCrash != null && burnout.crashDate
+        ? { inDays: burnout.daysToCrash, weekday: burnout.crashDate.toLocaleDateString('en-US', { weekday: 'long' }), date: fmtShort(burnout.crashDate) }
+        : null,
+    };
+  }, [burnout, burnoutDrivers, proteinGoal, dailyCalorieGoal, last7]);
+  const burnoutFingerprint = useMemo(() => [
+    Math.round(burnout.today.score / 5) * 5,
+    burnoutDrivers.join('|'),
+    burnout.crashDate ? burnout.crashDate.toDateString() : '',
+  ].join('#'), [burnout, burnoutDrivers]);
+  const [burnoutAi, setBurnoutAi] = useState(null);
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    getAiText({ kind: 'burnout_why', userId, facts: burnoutFacts, fingerprint: burnoutFingerprint })
+      .then((v) => { if (!cancelled && v) setBurnoutAi(v); });
+    return () => { cancelled = true; };
+  }, [userId, burnoutFingerprint]);
 
   // Momentum "See why" — plain-language sentences instead of a bare numbers table. Calorie and
   // Movement are single facts, so they're templated directly off the same live numbers shown
@@ -1190,27 +1242,6 @@ const ProgressTab = ({
     return null;
   }, [trendBadge, weeklyPace, bmr]);
 
-  const guardrail = useMemo(() => {
-    if (loggedDays.length < 3 || !dailyCalorieGoal) return null;
-    // ledgerLoggedDays already carries each day's ledger-sourced (not live-recomputed) total.
-    const maxDay = ledgerLoggedDays.reduce((a, b) => (b.total > a.total ? b : a), ledgerLoggedDays[0]);
-    const others = ledgerLoggedDays.filter((d) => d !== maxDay);
-    if (!others.length) return null;
-    const avgOthers = others.reduce((s, d) => s + d.total, 0) / others.length;
-    const swing = maxDay.total - avgOthers;
-    // Whether this counts as a "big swing" is judged against the goal that was active on
-    // maxDay itself; the "get back to X" advice below still points at today's live goal since
-    // that's forward guidance, not a judgment of the past.
-    const maxDayGoal = resolveCalorieGoal(ledgerMap, goalHistory, maxDay.ds, dailyCalorieGoal);
-    if (swing > maxDayGoal * 0.5 && maxDay.total > maxDayGoal * 1.3) {
-      return {
-        title: 'Big swing this week',
-        body: `${fmtShort(maxDay.date)} came in around ${Math.round(maxDay.total).toLocaleString()} kcal — about ${Math.round(swing).toLocaleString()} more than your other days. One day like that won't undo your progress. Get back to ${dailyCalorieGoal.toLocaleString()} kcal and keep moving.`,
-      };
-    }
-    return null;
-  }, [loggedDays, ledgerLoggedDays, dailyCalorieGoal, goalHistory, ledgerMap]);
-
   const weeklyHitRates = useMemo(() => {
     const weeks = [];
     for (let w = 5; w >= 0; w--) {
@@ -1259,6 +1290,92 @@ const ProgressTab = ({
     const names = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
     return { name: names[best.wd], avgOverage: Math.round(best.avgOverage) };
   }, [recentMeals, dailyCalorieGoal, goalHistory, ledgerMap]);
+
+  // Weekly pattern insight (replaces the old single-number "Big swing" template). Looks at every
+  // day of the last two weeks, not just the highest one, and flags: heavy days (well over that
+  // day's target), very light days, and the combination. The wording itself comes from Gemini
+  // (see lib/insightText.js); `fallback` is the plain-language version used until/unless that
+  // arrives. "Got it" is remembered per set of flagged days, so a card stays dismissed until
+  // something NEW shows up (a different heavy/light day), never just because the week rolled over.
+  const patternInsight = useMemo(() => {
+    if (!dailyCalorieGoal) return null;
+    const todayDs = new Date(now).toDateString();
+    const days = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now - i * DAY_MS);
+      const ds = d.toDateString();
+      const live = (recentMeals || []).filter((m) => m.date === ds).reduce((s, m) => s + (m.calories || 0), 0);
+      const eaten = resolveCaloriesEaten(ledgerMap, ds, live);
+      if (eaten <= 0) continue;
+      const target = resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal);
+      days.push({
+        ds, date: d, isToday: ds === todayDs, eaten: Math.round(eaten), target: Math.round(target), ratio: eaten / target,
+        weekday: d.toLocaleDateString('en-US', { weekday: 'long' }),
+        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      });
+    }
+    if (days.length < 3) return null;
+    const recent = days.filter((d) => now - d.date.getTime() < 7 * DAY_MS);
+    const heavy = recent.filter((d) => d.ratio > 1.25);
+    // Today is only partly eaten, so it can be flagged as heavy but never as a light day.
+    const light = recent.filter((d) => !d.isToday && d.ratio < 0.5);
+    const triggered = heavy.length >= 2 || heavy.some((d) => d.ratio > 1.3) || light.length >= 3;
+    if (!triggered) return null;
+
+    const keys = [...heavy.map((d) => `o:${d.ds}`), ...light.map((d) => `u:${d.ds}`)];
+    const fmtDay = (d) => `${d.weekday} (about ${d.eaten.toLocaleString()} kcal)`;
+    const list = (arr) => (arr.length <= 1 ? arr.map(fmtDay).join('') : `${arr.slice(0, -1).map(fmtDay).join(', ')} and ${fmtDay(arr[arr.length - 1])}`);
+    let title;
+    if (heavy.length && light.length) title = 'Up and down this week';
+    else if (heavy.length >= 2) title = 'A few heavy days this week';
+    else if (heavy.length === 1) title = `A heavy ${heavy[0].weekday}`;
+    else title = 'Several light days this week';
+    const parts = [];
+    if (heavy.length) parts.push(`${list(heavy)} came in well above your usual target of about ${dailyCalorieGoal.toLocaleString()} kcal.`);
+    if (light.length) parts.push(`${list(light)} ${light.length === 1 ? 'was' : 'were'} far below what your body needs.`);
+    parts.push(heavy.length
+      ? "A day or two like this won't undo your progress. Just aim to be close to your normal amount tomorrow."
+      : 'Eating very little for days in a row can leave you worn out, so try a proper meal today.');
+
+    return {
+      keys,
+      fingerprint: keys.join(','),
+      facts: {
+        dailyTarget: dailyCalorieGoal,
+        days: days.map((d) => ({ weekday: d.weekday, date: d.label, eatenKcal: d.eaten, targetKcal: d.target, isToday: d.isToday })),
+        heavyDays: heavy.map((d) => d.weekday + ' ' + d.label),
+        lightDays: light.map((d) => d.weekday + ' ' + d.label),
+        toughestWeekdayOverall: worstWeekday ? worstWeekday.name : null,
+      },
+      fallback: { title, body: parts.join(' ') },
+    };
+  }, [recentMeals, ledgerMap, goalHistory, dailyCalorieGoal, worstWeekday, now]);
+
+  const [dismissedInsights, setDismissedInsights] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    getDismissedFingerprints(userId).then((m) => { if (!cancelled) setDismissedInsights(m); });
+    return () => { cancelled = true; };
+  }, [userId]);
+  const patternDismissed = useMemo(() => {
+    const prev = dismissedInsights.pattern_insight;
+    if (!patternInsight || !prev) return false;
+    const seen = new Set(prev.split(','));
+    return patternInsight.keys.every((k) => seen.has(k));
+  }, [patternInsight, dismissedInsights]);
+  const dismissPattern = () => {
+    if (!patternInsight) return;
+    dismissInsight(userId, 'pattern_insight', patternInsight.fingerprint);
+    setDismissedInsights((m) => ({ ...m, pattern_insight: patternInsight.fingerprint }));
+  };
+  const [patternAi, setPatternAi] = useState(null);
+  useEffect(() => {
+    if (!userId || !patternInsight || patternDismissed) return;
+    let cancelled = false;
+    getAiText({ kind: 'pattern_insight', userId, facts: patternInsight.facts, fingerprint: patternInsight.fingerprint })
+      .then((v) => { if (!cancelled && v) setPatternAi(v); });
+    return () => { cancelled = true; };
+  }, [userId, patternInsight?.fingerprint, patternDismissed]);
 
   const recs = useMemo(() => {
     const items = [];
@@ -1694,14 +1811,14 @@ const ProgressTab = ({
             )}
 
             {/* Guardrail */}
-            {guardrail && !guardrailDismissed && (
+            {patternInsight && !patternDismissed && (
               <View style={[styles.card, { backgroundColor: WARN_BG, borderColor: '#FCE3CB' }]}>
                 <View style={styles.rowStart}>
                   <View style={styles.warnDot}><Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>!</Text></View>
-                  <Text style={[styles.cardTitleSmall, { color: '#C25A11' }]}>{guardrail.title}</Text>
+                  <Text style={[styles.cardTitleSmall, { color: '#C25A11' }]}>{patternAi?.title || patternInsight.fallback.title}</Text>
                 </View>
-                <Text style={[styles.mutedBody, { color: '#8A7663', marginTop: 8 }]}>{guardrail.body}</Text>
-                <TouchableOpacity style={styles.dismissBtn} onPress={() => setGuardrailDismissed(true)}>
+                <Text style={[styles.mutedBody, { color: '#8A7663', marginTop: 8 }]}>{patternAi?.body || patternInsight.fallback.body}</Text>
+                <TouchableOpacity style={styles.dismissBtn} onPress={dismissPattern}>
                   <Text style={{ color: '#C25A11', fontSize: 12.5, fontWeight: '700' }}>Got it</Text>
                 </TouchableOpacity>
               </View>
@@ -1811,7 +1928,12 @@ const ProgressTab = ({
                   <Text style={[styles.pillText, { color: burnoutColor }]}>{burnoutBand.label}</Text>
                 </View>
               </View>
-              <Text style={[styles.mutedBody, { marginTop: 6 }]}>{burnoutWhy}</Text>
+              <View style={{ marginTop: 10, padding: 12, borderRadius: 12, backgroundColor: colors.cardAlt || burnoutBg }}>
+                <Text style={[styles.mutedBody, { color: colors.text }]}>{burnoutAi?.summary || burnoutWhy}</Text>
+                {!!burnoutAi?.tip && (
+                  <Text style={[styles.mutedBody, { color: colors.text, fontWeight: '600', marginTop: 6 }]}>{`Try this: ${burnoutAi.tip}`}</Text>
+                )}
+              </View>
               <View style={styles.burnoutWeekRow}>
                 {burnout.week.map((d, i) => {
                   const dayColor = d.score <= 25 ? accent : d.score <= 55 ? WARN : d.score <= 80 ? '#EA580C' : DANGER;
@@ -1828,11 +1950,13 @@ const ProgressTab = ({
               {burnout.daysToCrash != null && (
                 <View style={styles.nextWeekRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.nextWeekTitle}>Estimated crash risk window</Text>
+                    <Text style={styles.nextWeekTitle}>When you might feel worn out</Text>
                     <Text style={styles.nextWeekNote}>
-                      {burnout.daysToCrash === 0
-                        ? "Your score is already in Critical territory — this isn't a forecast, it's where you are right now."
-                        : `Your risk score has been climbing — at that rate, off-plan eating or a crash-out becomes likely around ${fmtShort(burnout.crashDate)}, ${burnout.daysToCrash} day${burnout.daysToCrash === 1 ? '' : 's'} out, if nothing changes.`}
+                      {burnoutAi?.crashNote
+                        ? burnoutAi.crashNote
+                        : burnout.daysToCrash === 0
+                          ? "You're already in the danger zone right now. Please eat a proper meal and go easy on yourself today."
+                          : `Things have been getting harder each day. Around ${fmtShort(burnout.crashDate)} (${burnout.daysToCrash} day${burnout.daysToCrash === 1 ? '' : 's'} from now) you may feel worn out and slip off your plan, unless something changes.`}
                     </Text>
                   </View>
                   <View style={[styles.nextWeekBadge, { backgroundColor: burnoutBg }]}>
