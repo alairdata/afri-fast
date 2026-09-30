@@ -4,6 +4,7 @@
     "slug": "afri-fast",
     "version": "1.0.0",
     "orientation": "portrait",
+    "scheme": "logga",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
@@ -13,7 +14,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.logga.app"
+      "bundleIdentifier": "com.logga.app",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.logga.app",
@@ -41,6 +43,8 @@
     },
     "plugins": [
       "expo-audio",
+      "expo-apple-authentication",
+      "expo-web-browser",
       "expo-notifications",
       [
         "expo-camera",

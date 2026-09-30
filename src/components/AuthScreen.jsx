@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { supabase } from '../lib/supabase';
+import { signInNative } from '../lib/nativeAuth';
 import PreAuthOnboarding from './PreAuthOnboarding';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -261,6 +262,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     const firstName = name ? name.trim().split(' ')[0] : '';
     const initial = firstName ? `, ${firstName[0].toLowerCase()}.` : '.';
     const handleOAuth = async (provider) => {
+      if (Platform.OS !== 'web') {
+        const r = await signInNative(provider);
+        if (r.error) setError(r.error);
+        return;
+      }
       const redirectTo = typeof window !== 'undefined'
         ? (window.location.hostname === 'localhost' ? 'https://afri-fast.vercel.app' : window.location.origin)
         : 'https://afri-fast.vercel.app';
@@ -369,6 +375,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   }
 
   const handleOAuthLogin = async (provider) => {
+    if (Platform.OS !== 'web') {
+      const r = await signInNative(provider);
+      if (r.error) setError(r.error);
+      return;
+    }
     const redirectTo = typeof window !== 'undefined'
       ? (window.location.hostname === 'localhost' ? 'https://afri-fast.vercel.app' : window.location.origin)
       : 'https://afri-fast.vercel.app';
