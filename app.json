@@ -15,7 +15,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.logga.app",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.logga.app",
@@ -42,13 +45,25 @@
       "shortName": "Logga"
     },
     "plugins": [
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Logga uses the microphone so you can log meals by voice."
+        }
+      ],
       "expo-apple-authentication",
       "expo-web-browser",
       "expo-notifications",
       [
         "expo-camera",
         {
+          "cameraPermission": "Logga needs camera access to scan your meals."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Logga needs access to your photos so you can add meal and profile pictures.",
           "cameraPermission": "Logga needs camera access to scan your meals."
         }
       ]
