@@ -221,7 +221,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
       setLoading(false);
       return;
     }
-    if (data.user) {
+    // With email confirmation on, signUp gives back a user but no session yet, so the database (row
+    // security) refuses the profile insert and it used to show a false "Account setup failed".
+    // The profile is created automatically on the first real login (see FastingApp's profile fetch),
+    // so just ask them to confirm their email.
+    if (data.user && data.session) {
       const { error: profileError } = await supabase.from('profiles').insert({ id: data.user.id, name, email });
       if (profileError) {
         console.error('[DB Error - create profile]', profileError);
