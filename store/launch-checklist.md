@@ -5,11 +5,11 @@
 - [x] Register App ID `com.logga.app` with Sign in with Apple
 
 ## B. App Store Connect
-- [ ] Apps → + → New App: iOS, name `Logga`, bundle ID `com.logga.app`, SKU `logga-1`, Full Access
+- [x] Apps → + → New App: iOS, name `Logga`, bundle ID `com.logga.app`, SKU `logga-1`, Full Access
 
 ## C. Sign-in setup
-- [ ] Supabase → Authentication → Providers → enable Apple, Client ID `com.logga.app`
-- [ ] Supabase → Authentication → URL Configuration → add `logga://auth-callback` to redirect URLs
+- [x] Supabase → Authentication → Providers → enable Apple, Client ID `com.logga.app`
+- [x] Supabase → Authentication → URL Configuration → add `logga://auth-callback` to redirect URLs
 
 ## D. Code changes
 - [x] In-app health disclaimer
