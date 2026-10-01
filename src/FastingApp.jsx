@@ -55,6 +55,7 @@ import HydrationDetailsPage from './components/HydrationDetailsPage';
 import StepsDetailsPage from './components/StepsDetailsPage';
 import AddActivityModal from './components/AddActivityModal';
 import ActivityLogPage from './components/ActivityLogPage';
+import CalorieTargetPage from './components/CalorieTargetPage';
 import CalorieDetailsPage from './components/CalorieDetailsPage';
 import BMIDetailsPage from './components/BMIDetailsPage';
 import FastingDetailsPage from './components/FastingDetailsPage';
@@ -194,6 +195,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   const [showFastingDetails, setShowFastingDetails] = useState(false);
   const [showBMIDetails, setShowBMIDetails] = useState(false);
   const [showCalorieDetails, setShowCalorieDetails] = useState(false);
+  const [showCalorieTarget, setShowCalorieTarget] = useState(false);
   const [showHydrationDetails, setShowHydrationDetails] = useState(false);
   const [showStepsDetails, setShowStepsDetails] = useState(false);
   const [showAddActivity, setShowAddActivity] = useState(false);
@@ -2112,6 +2114,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
             setShowLogMealModal(true);
           }}
           onNavigateToProgress={() => setActiveTab('progress')}
+          onShowCalorieTarget={() => setShowCalorieTarget(true)}
           onNavigateToHydration={() => {
             setActiveTab('progress');
             setTimeout(() => setShowHydrationDetails(true), 100);
@@ -2458,6 +2461,30 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         activities={activities}
         setActivities={setActivities}
         onActivityDeleted={(log) => dbSave(supabase.from('activities').delete().eq('id', log.id).eq('user_id', session?.user?.id), 'delete activity', (msg) => showToast(msg, 'error'))}
+      />
+
+      <CalorieTargetPage
+        show={showCalorieTarget}
+        onClose={() => setShowCalorieTarget(false)}
+        dailyCalorieGoal={dailyCalorieGoal}
+        pacePreference={pacePreference}
+        weightUnit={weightUnit}
+        targetWeight={targetWeight}
+        startingWeight={startingWeight}
+        weightLogs={weightLogs}
+        recentMeals={recentMeals}
+        age={age}
+        sex={sex}
+        height={height}
+        heightUnit={heightUnit}
+        activityLevel={activityLevel}
+        onOpenSettings={() => { setShowCalorieTarget(false); setActiveTab('settings'); }}
+        onSave={(val) => {
+          track(EVENTS.CALORIE_TARGET_CHANGED, { from: dailyCalorieGoal, to: val });
+          updateMacroGoalsFromCalories(val);
+          recordGoalChange({ dailyCalorieGoal: val }, { daily_calorie_goal: val });
+          showToast('Daily target updated');
+        }}
       />
 
       <CalorieDetailsPage

@@ -54,6 +54,7 @@ is merged into their profile.
 | `weight_logged` | `unit` | Weigh-ins. |
 | `steps_logged` | `steps` | Steps feature usage. |
 | `activity_logged` | `type`, `duration_min` | Workouts. |
+| `calorie_target_changed` | `from`, `to` | Someone moved their daily calorie target on the Daily calorie target page. |
 
 ## Retention
 | Event | Properties | Why |

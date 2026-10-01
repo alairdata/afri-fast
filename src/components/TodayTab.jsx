@@ -312,6 +312,7 @@ const TodayTab = ({
   onEditEndTime,
   canEditEndTime,
   onNavigateToProgress,
+  onShowCalorieTarget,
   onNavigateToHydration,
   onStartFast,
   onEndFast,
@@ -742,7 +743,7 @@ const TodayTab = ({
         {/* Calorie Ring Hero */}
         <View style={styles.heroCardCompact}>
           <View style={styles.heroContent}>
-            <TouchableOpacity style={styles.fastTypeBadge} onPress={onNavigateToProgress}>
+            <TouchableOpacity style={styles.fastTypeBadge} onPress={onShowCalorieTarget || onNavigateToProgress}>
               <Text style={styles.fastTypeBadgeText}>
                 {dailyCalorieGoal ? `${dailyCalorieGoal.toLocaleString()} cal daily goal` : 'Set a calorie goal'}
               </Text>

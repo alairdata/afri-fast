@@ -45,6 +45,7 @@ export const EVENTS = {
   WEIGHT_LOGGED: 'weight_logged',
   STEPS_LOGGED: 'steps_logged',
   ACTIVITY_LOGGED: 'activity_logged',
+  CALORIE_TARGET_CHANGED: 'calorie_target_changed',
   // Retention & activation
   ACTIVATION_MILESTONE: 'activation_milestone',
   RETENTION_DAY: 'retention_day',
