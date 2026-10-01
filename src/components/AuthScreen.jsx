@@ -206,7 +206,20 @@ const emailRedirectTo = () => (Platform.OS === 'web' ? webOrigin() : NATIVE_REDI
 
 const isNotConfirmed = (e) => e?.code === 'email_not_confirmed' || /not confirmed/i.test(e?.message || '');
 const isRateLimited = (e) => e?.code === 'over_email_send_rate_limit' || e?.status === 429 || /rate limit/i.test(e?.message || '');
-const RATE_LIMIT_MSG = "We're sending a lot of emails right now. Please wait a few minutes and try again, or continue with Apple or Google.";
+
+// Calls our own server (Vercel). Resolves { ok, status, data, error } and never throws.
+const API_BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
+async function postJson(path, body) {
+  try {
+    const r = await fetch(`${API_BASE}${path}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const data = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, data, error: data?.error || (r.ok ? '' : 'Something went wrong. Please try again.') };
+  } catch (_) {
+    return { ok: false, status: 0, data: {}, error: "Couldn't reach Logga. Check your connection and try again." };
+  }
+}
 
 // Capitalise what they typed ("reviewer" -> "Reviewer") but never cut it down to an initial.
 const displayName = (n) => {
@@ -321,66 +334,34 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     const cleanEmail = email.trim().toLowerCase();
     setLoading(true); setError(''); setMessage('');
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password,
-      options: { data: { name: name.trim() }, emailRedirectTo: emailRedirectTo() },
+    // Our own server creates the account and sends the branded confirmation email (api/signup.js),
+    // the same approach as the So-UnFiltered AI app.
+    const result = await postJson('/api/signup', {
+      name: name.trim(), email: cleanEmail, password, redirectTo: emailRedirectTo(), website: '',
     });
-    if (signUpError) {
-      const msg = (signUpError.message || '').toLowerCase();
-      if (msg.includes('already registered') || msg.includes('already exists')) {
-        setError(`We already have an account for ${cleanEmail}. Log in below instead.`);
-        setMode('login');
-      } else if (isRateLimited(signUpError)) {
-        setError(RATE_LIMIT_MSG);
-      } else {
-        setError(signUpError.message);
-      }
-      setLoading(false);
-      return;
-    }
-    // With email confirmation on, Supabase answers "success" for an email that already has an account,
-    // but returns a user with no identities. Treat that as "already registered".
-    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    setLoading(false);
+    if (result.status === 409) {
       setError(`We already have an account for ${cleanEmail}. Log in below instead.`);
       setMode('login');
-      setLoading(false);
       return;
     }
-    // With email confirmation on, signUp gives back a user but no session yet, so the database (row
-    // security) refuses the profile insert and it used to show a false "Account setup failed".
-    // The profile is created automatically on the first real login (see FastingApp's profile fetch),
-    // so just ask them to confirm their email.
-    if (data.user && data.session) {
-      const { error: profileError } = await supabase.from('profiles').insert({ id: data.user.id, name: name.trim(), email: cleanEmail });
-      if (profileError) {
-        console.error('[DB Error - create profile]', profileError);
-        // Profile creation failed — delete the auth user to avoid orphaned accounts
-        await supabase.auth.signOut();
-        setError('Account setup failed. Please try again.');
-        setLoading(false);
-        return;
-      }
-      setLoading(false);
-      return;
-    }
-    setLoading(false);
+    if (!result.ok) { setError(result.error); return; }
+    // No session yet: the profile is created on their first real login (see FastingApp's profile
+    // fetch), so just ask them to confirm their email.
     goConfirm(cleanEmail, 45);
   };
 
   const handleResend = async () => {
     if (resendIn > 0 || !confirmEmail) return;
     setError(''); setMessage('');
-    const { error: resendError } = await supabase.auth.resend({
-      type: 'signup', email: confirmEmail, options: { emailRedirectTo: emailRedirectTo() },
-    });
-    if (resendError) {
-      setError(isRateLimited(resendError) ? RATE_LIMIT_MSG : resendError.message);
-      setResendIn(60);
+    const result = await postJson('/api/resend-verification', { email: confirmEmail, redirectTo: emailRedirectTo() });
+    setResendIn(60);
+    if (!result.ok) { setError(result.error); return; }
+    if (result.data?.alreadyConfirmed) {
+      setMessage('This email is already confirmed. You can log in now.');
       return;
     }
     setMessage('Sent! It can take a minute to arrive. Check your spam folder too.');
-    setResendIn(60);
   };
 
   const handleOAuth = async (provider) => {
