@@ -161,24 +161,26 @@ function RulerPicker({ min, max, value, onChange, unit, accent }) {
 
 // ── Option card ────────────────────────────────────────────────────────────────
 function OptionCard({ icon, title, subtitle, selected, onPress, multi, compact }) {
+  // Only emoji flags (a <Text>) are kept as a leading mark; the generic outline icons are gone.
+  const flag = icon && icon.type === Text ? icon : null;
   return (
     <TouchableOpacity
       style={[s.optCard, selected && s.optCardSel, compact && s.optCardCompact]}
       onPress={onPress}
       activeOpacity={0.8}
     >
-      {icon != null && (
-        <View style={[s.optIconWrap, selected && s.optIconWrapSel]}>
-          {icon}
-        </View>
-      )}
+      {flag ? <View style={{ marginRight: 12 }}>{flag}</View> : null}
       <View style={s.optText}>
         <Text style={s.optTitle}>{title}</Text>
         {subtitle ? <Text style={s.optSub}>{subtitle}</Text> : null}
       </View>
-      <View style={[s.optSel, selected && s.optSelOn, multi && s.optSelMulti]}>
-        {selected ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
-      </View>
+      {multi ? (
+        <View style={[s.optSel, s.optSelMulti, selected && s.optSelOn]}>
+          {selected ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
+        </View>
+      ) : selected ? (
+        <Ionicons name="checkmark" size={20} color={C.ink} />
+      ) : null}
     </TouchableOpacity>
   );
 }
@@ -246,9 +248,6 @@ function ProgressTop({ step, total, onBack, showBack }) {
       <View style={s.progressTrack}>
         <View style={[s.progressFill, { width: `${pct * 100}%` }]} />
       </View>
-      <Text style={s.progressCount}>
-        {step}<Text style={{ opacity: 0.5 }}>/{total}</Text>
-      </Text>
     </View>
   );
 }
@@ -680,12 +679,11 @@ export function GoalScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.goal} />}>
-      <View style={{ marginTop: 32 }}>
-        {!p.editing && <Text style={s.eyebrow}>Your goal</Text>}
+      <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>What brings you here?</Text>
         <Text style={s.subline}>Pick the one that matters most right now.</Text>
       </View>
-      <View style={{ marginTop: 36 }}>
+      <View style={{ marginTop: 24 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 11 }}>
             <OptionCard
@@ -717,11 +715,11 @@ export function StruggleScreen(p) {
         {!p.editing && <TextBtn label="Skip" onPress={next} />}
       </>
     }>
-      <View style={{ marginTop: 32 }}>
+      <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>What's tripped you up before?</Text>
         <Text style={s.subline}>Pick all that ring true — no judgement.</Text>
       </View>
-      <View style={{ marginTop: 36 }}>
+      <View style={{ marginTop: 24 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 11 }}>
             <OptionCard
@@ -743,10 +741,9 @@ function NameScreen(p) {
   const first = d.name.trim().split(' ')[0];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.name.trim()} />}>
-      <View style={{ marginTop: 32 }}>
-        {!p.editing && <Text style={s.eyebrow}>About you · 1 of 4</Text>}
+      <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>First, what should we call you?</Text>
-        <Text style={s.subline}>We like to keep things personal — like friends.</Text>
+        <Text style={s.subline}>Just a first name is fine.</Text>
       </View>
       <View style={s.nameInputWrap}>
         <TextInput
@@ -759,14 +756,6 @@ function NameScreen(p) {
           returnKeyType="done"
           onSubmitEditing={() => d.name.trim() && next()}
         />
-      </View>
-      <View style={s.nameMascotWrap}>
-        <MascotFace happy={happy} />
-        <View style={[s.nameGreet, { backgroundColor: happy ? C.primarySoft : C.sunken, marginTop: 14 }]}>
-          <Text style={[s.nameGreetTxt, { color: happy ? C.primary : C.ink400 }]}>
-            {happy ? `Lovely to meet you, ${first}!` : "Go on — I'm all ears."}
-          </Text>
-        </View>
       </View>
     </ScreenShell>
   );
@@ -781,12 +770,11 @@ function CountryScreen(p) {
   const list = ['Nigeria','Ghana','Kenya','Tanzania','Uganda','Senegal','Cameroon','Ethiopia','Other'];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.country} />}>
-      <View style={{ marginTop: 32 }}>
-        {!p.editing && <Text style={s.eyebrow}>About you · 2 of 4</Text>}
+      <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>Where are you{'\n'}cooking from?</Text>
         <Text style={s.subline}>So we match dishes and portions to your kitchen.</Text>
       </View>
-      <View style={{ marginTop: 36 }}>
+      <View style={{ marginTop: 24 }}>
         {list.map((c, i) => (
           <View key={c} style={i > 0 && { marginTop: 9 }}>
             <OptionCard compact
@@ -809,12 +797,11 @@ export function GenderScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.gender} />}>
-      <View style={{ marginTop: 32 }}>
-        {!p.editing && <Text style={s.eyebrow}>About you · 3 of 4</Text>}
+      <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>What's your sex?</Text>
         <Text style={s.subline}>This sharpens your calorie maths — nothing else.</Text>
       </View>
-      <View style={{ marginTop: 36 }}>
+      <View style={{ marginTop: 24 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 11 }}>
             <OptionCard
@@ -832,8 +819,7 @@ export function AgeScreen(p) {
   const { d, set, next } = p;
   return (
     <ScreenShell {...p} grow footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} />}>
-      <View style={{ marginTop: 32 }}>
-        {!p.editing && <Text style={s.eyebrow}>About you · 4 of 4</Text>}
+      <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>How old{'\n'}are you?</Text>
         <Text style={s.subline}>Drag the dial to your age.</Text>
       </View>
@@ -848,16 +834,12 @@ function BodyIntroScreen({ d, next }) {
   const first = d.name ? d.name.split(' ')[0] : '';
   return (
     <View style={[s.shell, s.centeredScreen, { backgroundColor: C.bg }]}>
-      <Text style={{ fontSize: 64, marginBottom: 18 }}>📐</Text>
-      <Text style={[s.eyebrow, { textAlign: 'center' }]}>
-        Halfway there{first ? `, ${first}` : ''}
-      </Text>
-      <Text style={[s.headline, { textAlign: 'center', marginTop: 8 }]}>Now, a few{'\n'}body basics</Text>
-      <Text style={[s.subline, { textAlign: 'center', maxWidth: 280 }]}>
-        These give us your real calorie target — the science bit. Quick, promise.
+      <Text style={[s.headline, { textAlign: 'center' }]}>{first ? `${first}, a few body basics` : 'A few body basics'}</Text>
+      <Text style={[s.subline, { textAlign: 'center', maxWidth: 290 }]}>
+        Height, weight and a goal. They give us your calorie target, and take about a minute.
       </Text>
       <View style={[s.footer, { width: '100%' }]}>
-        <PrimaryBtn label="I'm ready" onPress={next} />
+        <PrimaryBtn label="Continue" onPress={next} />
       </View>
     </View>
   );
@@ -981,38 +963,27 @@ export function PaceScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.pace} />}>
-      <View style={{ marginTop: 32 }}>
+      <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>How fast do you want to go?</Text>
         <Text style={s.subline}>This sets your daily deficit. Change it whenever life shifts.</Text>
       </View>
-      <View style={{ marginTop: 36 }}>
+      <View style={{ marginTop: 24 }}>
         {opts.map((o, i) => {
           const on = d.pace === o.v;
           const wk = gap > 0 ? Math.max(1, Math.round(gap / o.rate)) : 0;
           return (
             <TouchableOpacity key={o.v} style={[s.paceCard, on && s.paceCardOn, i > 0 && { marginTop: 11 }]}
               onPress={() => pick('pace', o.v)} activeOpacity={0.8}>
-              <View style={[s.paceIcon, on && s.paceIconOn]}>
-                {[1, 2, 3, 4].map(level => (
-                  <View key={level} style={{
-                    width: 6, borderRadius: 2,
-                    height: 6 + level * 6,
-                    backgroundColor: level <= o.bars ? (on ? C.primary : C.ink700) : C.line2,
-                  }} />
-                ))}
-              </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.paceTitle}>{o.t}</Text>
                 <Text style={s.paceSub}>{o.s}</Text>
                 {wk > 0 ? (
-                  <Text style={[s.paceWeeks, { color: on ? C.primary : C.ink400 }]}>
+                  <Text style={[s.paceWeeks, { color: on ? C.ink : C.ink400 }]}>
                     ≈ {wk} weeks to your goal
                   </Text>
                 ) : null}
               </View>
-              <View style={[s.optSel, on && s.optSelOn]}>
-                {on ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
-              </View>
+              {on ? <Ionicons name="checkmark" size={20} color={C.ink} /> : null}
             </TouchableOpacity>
           );
         })}
@@ -1020,7 +991,7 @@ export function PaceScreen(p) {
       <View style={s.paceNote}>
         <Text style={s.paceNoteTxt}>
           Slower paces protect your energy and muscle. Most people thrive on{' '}
-          <Text style={{ color: C.primary, fontWeight: '700' }}>Balanced</Text>.
+          <Text style={{ color: C.ink, fontWeight: '700' }}>Balanced</Text>.
         </Text>
       </View>
     </ScreenShell>
@@ -1037,11 +1008,11 @@ export function ActivityScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.activity} />}>
-      <View style={{ marginTop: 32 }}>
+      <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>How active is your day?</Text>
         <Text style={s.subline}>A normal day, not your best one. This sets your burn.</Text>
       </View>
-      <View style={{ marginTop: 36 }}>
+      <View style={{ marginTop: 24 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 11 }}>
             <OptionCard
@@ -1067,11 +1038,11 @@ export function EatingScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.eatingStyle} />}>
-      <View style={{ marginTop: 32 }}>
+      <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>How do you like to eat?</Text>
         <Text style={s.subline}>We'll time your reminders around it.</Text>
       </View>
-      <View style={{ marginTop: 36 }}>
+      <View style={{ marginTop: 24 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 10 }}>
             <OptionCard compact
@@ -1100,10 +1071,10 @@ export function FoodScreen(p) {
   };
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.foodContext} />}>
-      <View style={{ marginTop: 32 }}>
+      <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>Where does your food come from?</Text>
       </View>
-      <View style={{ marginTop: 36 }}>
+      <View style={{ marginTop: 24 }}>
         {where.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 10 }}>
             <OptionCard compact
@@ -1146,11 +1117,11 @@ export function WhyScreen(p) {
         {!p.editing && <TextBtn label="Skip" onPress={next} />}
       </>
     }>
-      <View style={{ marginTop: 32 }}>
+      <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>What's your deeper why?</Text>
         <Text style={s.subline}>Pick all that move you — on tough days, we'll remind you.</Text>
       </View>
-      <View style={{ marginTop: 36 }}>
+      <View style={{ marginTop: 24 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 10 }}>
             <OptionCard compact multi
@@ -1174,11 +1145,11 @@ export function AccountabilityScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Lock it in'} onPress={next} disabled={!d.accountability} />}>
-      <View style={{ marginTop: 32 }}>
+      <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>How should we keep you on track?</Text>
         <Text style={s.subline}>You can change this anytime in settings.</Text>
       </View>
-      <View style={{ marginTop: 36 }}>
+      <View style={{ marginTop: 24 }}>
         {opts.map((o, i) => (
           <View key={o.v} style={i > 0 && { marginTop: 11 }}>
             <OptionCard
@@ -1252,68 +1223,63 @@ function DoneScreen({ d, onComplete }) {
     }, d);
   };
 
-  const PACE_LABEL = { slow: 'gentle pace', moderate: 'steady pace', aggressive: 'fast pace', extreme: 'very fast pace' };
   const reachDate = plan.weeks > 0 ? new Date(Date.now() + plan.weeks * 7 * 24 * 60 * 60 * 1000) : null;
   const reachText = reachDate
     ? reachDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', ...(reachDate.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) })
     : null;
 
-  const Row = ({ label, sub, value, strong, last }) => (
+  const Row = ({ label, value, strong, last }) => (
     <View style={[s.planRow, last && { borderBottomWidth: 0 }]}>
-      <View style={{ flex: 1, paddingRight: 12 }}>
-        <Text style={[s.planRowLabel, strong && { fontWeight: '800', color: C.ink }]}>{label}</Text>
-        {sub ? <Text style={s.planRowSub}>{sub}</Text> : null}
-      </View>
+      <Text style={[s.planRowLabel, strong && { fontWeight: '800', color: C.ink }]}>{label}</Text>
       <Text style={[s.planRowVal, strong && { fontWeight: '800' }]}>{value}</Text>
     </View>
   );
 
   return (
-    <ScrollView
-      style={[s.shell, { backgroundColor: C.bg }]}
-      contentContainerStyle={{ paddingHorizontal: 26, paddingTop: Platform.OS === 'ios' ? 72 : 56, paddingBottom: 40 }}
-      showsVerticalScrollIndicator={false}
-    >
-      <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 92, height: 35, marginBottom: 30 }} resizeMode="contain" />
+    <View style={[s.shell, { backgroundColor: C.bg }]}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 26, paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: 16 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 84, height: 32, marginBottom: 22 }} resizeMode="contain" />
 
-      <Text style={s.planKicker}>YOUR STARTING PLAN</Text>
-      <Text style={s.planHeadline}>Here's where we'd start you, {first}.</Text>
+        <Text style={s.planKicker}>YOUR STARTING PLAN</Text>
+        <Text style={s.planHeadline}>Here's where we'd start you, {first}.</Text>
 
-      <View style={s.planNumberWrap}>
-        <Text style={s.planNumber}>{plan.target.toLocaleString()}</Text>
-        <Text style={s.planNumberUnit}>calories a day</Text>
-      </View>
+        <View style={s.planNumberWrap}>
+          <Text style={s.planNumber}>{plan.target.toLocaleString()}</Text>
+          <Text style={s.planNumberUnit}>calories a day</Text>
+        </View>
 
-      <Text style={s.planSection}>How we got there</Text>
-      <View>
-        <Row label="What your body burns" sub="Based on your height, weight, age and activity" value={`${plan.tdee.toLocaleString()} kcal`} />
-        {plan.deficit > 0 ? (
-          <Row label="Daily deficit" sub={PACE_LABEL[d.pace] || 'steady pace'} value={`−${plan.deficit} kcal`} />
+        <Text style={s.planSection}>How we got there</Text>
+        <View>
+          <Row label="What your body burns" value={`${plan.tdee.toLocaleString()} kcal`} />
+          {plan.deficit > 0 ? <Row label="Daily deficit" value={`−${plan.deficit} kcal`} /> : null}
+          <Row label="Your target" value={`${plan.target.toLocaleString()} kcal`} strong last />
+        </View>
+
+        <Text style={s.planSection}>Each day, aim for</Text>
+        <View>
+          <Row label="Protein" value={`about ${plan.protein} g`} />
+          <Row label="Water" value={`about ${plan.water} L`} last />
+        </View>
+
+        {reachText ? (
+          <Text style={s.planProjection}>
+            At this pace you'd reach <Text style={{ fontWeight: '800', color: C.ink }}>{Math.round(d.targetKg)} kg</Text> around{' '}
+            <Text style={{ fontWeight: '800', color: C.ink }}>{reachText}</Text>.
+          </Text>
         ) : null}
-        <Row label="Your target" value={`${plan.target.toLocaleString()} kcal`} strong last />
-      </View>
 
-      <Text style={s.planSection}>Each day, aim for</Text>
-      <View>
-        <Row label="Protein" value={`about ${plan.protein} g`} />
-        <Row label="Water" value={`about ${plan.water} L`} last />
-      </View>
+        <Text style={s.planNote}>Estimates, not medical advice. You can change your goal any time in Settings.</Text>
+      </ScrollView>
 
-      {reachText ? (
-        <Text style={s.planProjection}>
-          At this pace you'd reach <Text style={{ fontWeight: '800', color: C.ink }}>{Math.round(d.targetKg)} kg</Text> around{' '}
-          <Text style={{ fontWeight: '800', color: C.ink }}>{reachText}</Text>.
-        </Text>
-      ) : null}
-
-      <Text style={s.planNote}>
-        These are estimates, not medical advice. You can change your goal any time in Settings, and Logga adjusts as you log.
-      </Text>
-
-      <View style={{ marginTop: 26 }}>
+      {/* Pinned, so it is always on screen without scrolling */}
+      <View style={s.footer}>
         <PrimaryBtn label="Create my account" onPress={handleFinish} />
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -1327,13 +1293,9 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
   const set = (k, v) => setData(d => ({ ...d, [k]: v }));
   const next = () => setIdx(i => Math.min(i + 1, FLOW.length - 1));
   const back = () => setIdx(i => Math.max(i - 1, 0));
-  const pickLock = useRef(false);
-  const pick = (k, v) => {
-    set(k, v);
-    if (pickLock.current) return;
-    pickLock.current = true;
-    setTimeout(() => { pickLock.current = false; next(); }, 280);
-  };
+  // Choosing an answer only selects it; the Continue button moves on. (It used to jump ahead on its
+  // own 0.28s after the tap, which felt abrupt.)
+  const pick = (k, v) => set(k, v);
 
   // Funnel: started -> each screen -> completed (or skipped), the same shape as SUAI's onboarding events.
   useEffect(() => { track(EVENTS.ONBOARDING_STARTED); }, []);
@@ -1389,21 +1351,20 @@ const s = StyleSheet.create({
 
   // Progress
   progressWrap: {
-    paddingTop: Platform.OS === 'ios' ? 52 : 36,
+    paddingTop: Platform.OS === 'ios' ? 54 : 38,
     paddingHorizontal: 22, paddingBottom: 6,
     flexDirection: 'row', alignItems: 'center',
   },
   backBtn: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: C.sunken,
-    alignItems: 'center', justifyContent: 'center',
-    marginRight: 12,
+    width: 34, height: 34,
+    alignItems: 'flex-start', justifyContent: 'center',
+    marginRight: 10,
   },
   progressTrack: {
-    flex: 1, height: 7, borderRadius: 999,
-    backgroundColor: C.sunken, overflow: 'hidden',
+    flex: 1, height: 3, borderRadius: 999,
+    backgroundColor: C.line, overflow: 'hidden',
   },
-  progressFill: { height: '100%', borderRadius: 999, backgroundColor: C.primary },
+  progressFill: { height: '100%', borderRadius: 999, backgroundColor: C.ink },
   progressCount: {
     fontSize: 12, fontWeight: '700', color: C.ink400,
     minWidth: 34, textAlign: 'right', marginLeft: 12,
@@ -1417,20 +1378,18 @@ const s = StyleSheet.create({
     fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase',
     letterSpacing: 2, color: C.primary, marginBottom: 6,
   },
-  headline: { fontSize: 27, fontWeight: '800', color: C.ink, lineHeight: 33, letterSpacing: -0.5 },
-  subline:  { fontSize: 15, fontWeight: '500', color: C.ink500, lineHeight: 22, marginTop: 8 },
+  headline: { fontSize: 26, fontWeight: '700', color: C.ink, lineHeight: 32, letterSpacing: -0.7 },
+  subline:  { fontSize: 15, fontWeight: '400', color: C.ink500, lineHeight: 22, marginTop: 8 },
 
   // Buttons
   primaryBtn: {
-    width: '100%', height: 56, borderRadius: 999,
-    backgroundColor: C.primary,
+    width: '100%', height: 54, borderRadius: 14,
+    backgroundColor: C.ink,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: C.primary, shadowOpacity: 0.3, shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
-  primaryBtnDis: { backgroundColor: '#cfd6d1', shadowOpacity: 0, elevation: 0 },
-  primaryBtnTxt: { fontSize: 17, fontWeight: '700', color: '#fff', letterSpacing: -0.3 },
-  primaryBtnTxtDis: { color: 'rgba(255,255,255,0.55)' },
+  primaryBtnDis: { backgroundColor: C.line },
+  primaryBtnTxt: { fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: -0.2 },
+  primaryBtnTxtDis: { color: C.ink400 },
   textBtn: { width: '100%', height: 44, alignItems: 'center', justifyContent: 'center' },
   textBtnTxt: { fontSize: 15, fontWeight: '600', color: C.ink400 },
 
@@ -1447,14 +1406,12 @@ const s = StyleSheet.create({
 
   // Option card
   optCard: {
-    flexDirection: 'row', alignItems: 'center', padding: 15,
-    borderRadius: 16, backgroundColor: C.surface,
-    borderWidth: 1.5, borderColor: C.line,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 }, elevation: 1,
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16,
+    borderRadius: 14, backgroundColor: C.surface,
+    borderWidth: 1.5, borderColor: C.line2,
   },
-  optCardSel: { backgroundColor: C.primarySoft, borderColor: C.primary },
-  optCardCompact: { padding: 13 },
+  optCardSel: { borderColor: C.ink },
+  optCardCompact: { paddingVertical: 14 },
   optIconWrap: {
     width: 46, height: 46, borderRadius: 13,
     backgroundColor: C.sunken, alignItems: 'center', justifyContent: 'center',
@@ -1462,22 +1419,22 @@ const s = StyleSheet.create({
   },
   optIconWrapSel: { backgroundColor: '#fff' },
   optText: { flex: 1 },
-  optTitle: { fontSize: 16, fontWeight: '700', color: C.ink, letterSpacing: -0.2 },
-  optSub: { fontSize: 13, fontWeight: '500', color: C.ink500, marginTop: 2 },
+  optTitle: { fontSize: 16, fontWeight: '600', color: C.ink, letterSpacing: -0.2 },
+  optSub: { fontSize: 13, fontWeight: '400', color: C.ink500, marginTop: 2, lineHeight: 18 },
   optSel: {
-    width: 24, height: 24, borderRadius: 12,
-    borderWidth: 2, borderColor: C.line2,
+    width: 22, height: 22, borderRadius: 11,
+    borderWidth: 1.5, borderColor: C.line2,
     alignItems: 'center', justifyContent: 'center', marginLeft: 10,
   },
-  optSelOn: { backgroundColor: C.primary, borderColor: C.primary },
-  optSelMulti: { borderRadius: 7 },
+  optSelOn: { backgroundColor: C.ink, borderColor: C.ink },
+  optSelMulti: { borderRadius: 6 },
 
   // Chip
   chip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999,
     backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.line,
   },
-  chipSel: { backgroundColor: C.primary, borderColor: C.primary },
+  chipSel: { backgroundColor: C.ink, borderColor: C.ink },
   chipText: { fontSize: 14, fontWeight: '600', color: C.ink700 },
   chipTextSel: { color: '#fff' },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 10 },
@@ -1600,7 +1557,7 @@ const s = StyleSheet.create({
   demoTagKcal: { fontSize: 13, fontWeight: '700', color: C.primary },
 
   // Name screen
-  nameInputWrap: { marginTop: 30, borderBottomWidth: 2.5, borderBottomColor: C.primary, paddingBottom: 8 },
+  nameInputWrap: { marginTop: 30, borderBottomWidth: 2, borderBottomColor: C.ink, paddingBottom: 8 },
   nameInput: { fontSize: 26, fontWeight: '700', color: C.ink, letterSpacing: -0.5 },
   nameMascotWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 16, paddingTop: 24 },
   mascotFace: {
@@ -1617,11 +1574,11 @@ const s = StyleSheet.create({
 
   // Pace screen
   paceCard: {
-    flexDirection: 'row', alignItems: 'center', padding: 15,
-    borderRadius: 16, backgroundColor: C.surface,
-    borderWidth: 1.5, borderColor: C.line,
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16,
+    borderRadius: 14, backgroundColor: C.surface,
+    borderWidth: 1.5, borderColor: C.line2,
   },
-  paceCardOn: { backgroundColor: C.primarySoft, borderColor: C.primary },
+  paceCardOn: { borderColor: C.ink },
   paceIcon: {
     width: 46, height: 46, borderRadius: 13, backgroundColor: C.sunken,
     alignItems: 'flex-end', justifyContent: 'center',
@@ -1629,10 +1586,10 @@ const s = StyleSheet.create({
     marginRight: 14,
   },
   paceIconOn: { backgroundColor: '#fff' },
-  paceTitle: { fontSize: 16, fontWeight: '700', color: C.ink, letterSpacing: -0.2 },
-  paceSub: { fontSize: 13, fontWeight: '500', color: C.ink500, marginTop: 2 },
-  paceWeeks: { fontSize: 12, fontWeight: '700', marginTop: 4 },
-  paceNote: { marginTop: 16, padding: 14, backgroundColor: C.green50, borderRadius: 16 },
+  paceTitle: { fontSize: 16, fontWeight: '600', color: C.ink, letterSpacing: -0.2 },
+  paceSub: { fontSize: 13, fontWeight: '400', color: C.ink500, marginTop: 2 },
+  paceWeeks: { fontSize: 12.5, fontWeight: '600', marginTop: 4 },
+  paceNote: { marginTop: 16, padding: 14, backgroundColor: C.sunken, borderRadius: 14 },
   paceNoteTxt: { fontSize: 13, color: C.ink700, fontWeight: '500', lineHeight: 20 },
 
   // Building screen
@@ -1656,16 +1613,16 @@ const s = StyleSheet.create({
   // "Your starting plan" (DoneScreen): plain type and hairline rows, no cards or badges
   planKicker: { fontSize: 11.5, fontWeight: '800', color: C.ink400, letterSpacing: 1.8, marginBottom: 8 },
   planHeadline: { fontSize: 26, fontWeight: '800', color: C.ink, lineHeight: 32, letterSpacing: -0.6 },
-  planNumberWrap: { marginTop: 26, marginBottom: 30 },
-  planNumber: { fontSize: 76, fontWeight: '800', color: C.ink, lineHeight: 82, letterSpacing: -3 },
+  planNumberWrap: { marginTop: 16, marginBottom: 18 },
+  planNumber: { fontSize: 64, fontWeight: '800', color: C.ink, lineHeight: 70, letterSpacing: -2.5 },
   planNumberUnit: { fontSize: 16, fontWeight: '600', color: C.ink500, marginTop: 2 },
-  planSection: { fontSize: 12, fontWeight: '800', color: C.ink400, letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 4, marginBottom: 4 },
-  planRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.line },
+  planSection: { fontSize: 11.5, fontWeight: '800', color: C.ink400, letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 14, marginBottom: 2 },
+  planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.line },
   planRowLabel: { fontSize: 15.5, fontWeight: '600', color: C.ink700 },
   planRowSub: { fontSize: 12.5, color: C.ink400, marginTop: 2, lineHeight: 17 },
   planRowVal: { fontSize: 15.5, fontWeight: '700', color: C.ink },
-  planProjection: { fontSize: 15, lineHeight: 22, color: C.ink500, marginTop: 24 },
-  planNote: { fontSize: 12.5, lineHeight: 18, color: C.ink400, marginTop: 14 },
+  planProjection: { fontSize: 14.5, lineHeight: 21, color: C.ink500, marginTop: 16 },
+  planNote: { fontSize: 12, lineHeight: 17, color: C.ink400, marginTop: 8 },
   doneCheck: {
     width: 76, height: 76, borderRadius: 38, backgroundColor: C.primary,
     alignItems: 'center', justifyContent: 'center',
