@@ -162,6 +162,13 @@ export const syncSmartNotifications = async (ctx) => {
   return planned.length;
 };
 
+const burnoutSummaryListeners = new Set();
+// Lets the home-screen widget sync re-run the moment a fresh burnout score is saved.
+export const onBurnoutSummaryPublished = (fn) => {
+  burnoutSummaryListeners.add(fn);
+  return () => burnoutSummaryListeners.delete(fn);
+};
+
 export const publishBurnoutSummary = async ({ daysToCrash, crashDate, score }) => {
   try {
     await AsyncStorage.setItem(BURNOUT_SUMMARY_KEY, JSON.stringify({
@@ -170,5 +177,6 @@ export const publishBurnoutSummary = async ({ daysToCrash, crashDate, score }) =
       score: score ?? null,
       at: Date.now(),
     }));
+    burnoutSummaryListeners.forEach((fn) => { try { fn(); } catch (_) {} });
   } catch (_) {}
 };

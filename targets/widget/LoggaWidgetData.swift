@@ -61,6 +61,41 @@ struct LoggaDay: Codable, Equatable {
     var burnoutScore: Int? = nil
     var burnoutLabel: String? = nil
 
+    init(date: Date, caloriesEaten: Int, calorieGoal: Int, waterGlasses: Int, waterGoal: Int,
+         proteinGrams: Int, proteinGoal: Int, streakDays: Int, loggedThisWeek: [Bool],
+         burnoutScore: Int? = nil, burnoutLabel: String? = nil) {
+        self.date = date
+        self.caloriesEaten = caloriesEaten
+        self.calorieGoal = calorieGoal
+        self.waterGlasses = waterGlasses
+        self.waterGoal = waterGoal
+        self.proteinGrams = proteinGrams
+        self.proteinGoal = proteinGoal
+        self.streakDays = streakDays
+        self.loggedThisWeek = loggedThisWeek
+        self.burnoutScore = burnoutScore
+        self.burnoutLabel = burnoutLabel
+    }
+
+    /// Tolerant decoding: one missing or malformed field no longer throws the whole day away (which
+    /// made every widget fall back to an empty day: 0 streak, 0 water, no burnout score).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func int(_ key: CodingKeys, _ fallback: Int) -> Int { (try? c.decodeIfPresent(Int.self, forKey: key)) ?? fallback }
+        date = (try? c.decodeIfPresent(Date.self, forKey: .date)) ?? Date()
+        caloriesEaten = int(.caloriesEaten, 0)
+        calorieGoal = int(.calorieGoal, 1520)
+        waterGlasses = int(.waterGlasses, 0)
+        waterGoal = int(.waterGoal, 8)
+        proteinGrams = int(.proteinGrams, 0)
+        proteinGoal = int(.proteinGoal, 90)
+        streakDays = int(.streakDays, 0)
+        let week = (try? c.decodeIfPresent([Bool].self, forKey: .loggedThisWeek)) ?? nil
+        loggedThisWeek = (week?.count == 7) ? (week ?? []) : Array(repeating: false, count: 7)
+        burnoutScore = (try? c.decodeIfPresent(Int.self, forKey: .burnoutScore)) ?? nil
+        burnoutLabel = (try? c.decodeIfPresent(String.self, forKey: .burnoutLabel)) ?? nil
+    }
+
     var caloriesLeft: Int { max(calorieGoal - caloriesEaten, 0) }
 
     var calorieProgress: Double {
@@ -136,9 +171,13 @@ extension LoggaDay {
         }
 
         let fuel = onTrack(caloriesEaten, calorieGoal)
-        let water = min(Double(waterGlasses) / (Double(max(waterGoal, 1)) * dayFraction), 1)
-        let protein = min(Double(proteinGrams) / (Double(max(proteinGoal, 1)) * dayFraction), 1)
-        let score = Int((0.4 * fuel + 0.3 * water + 0.3 * protein) * 100)
+        // Paced values feed the score; the bars show true progress toward the goal so they move with
+        // every glass / gram (the paced values pinned at full early in the day).
+        let waterPace = min(Double(waterGlasses) / (Double(max(waterGoal, 1)) * dayFraction), 1)
+        let proteinPace = min(Double(proteinGrams) / (Double(max(proteinGoal, 1)) * dayFraction), 1)
+        let water = min(Double(waterGlasses) / Double(max(waterGoal, 1)), 1)
+        let protein = min(Double(proteinGrams) / Double(max(proteinGoal, 1)), 1)
+        let score = Int((0.4 * fuel + 0.3 * waterPace + 0.3 * proteinPace) * 100)
 
         // When the app has calculated the real burnout number, use it (energy = 100 - burnout) so the
         // widget and the Insights tab always agree. The bars still show today's progress.

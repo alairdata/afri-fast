@@ -112,15 +112,17 @@ export async function pushWidgetSnapshot({ recentMeals, waterLogs, hydrationGoal
       }
     } catch (_) {}
 
+    // NaN / Infinity would serialise to null and the widget's integer fields would not decode.
+    const whole = (n, fallback = 0) => (Number.isFinite(n) ? Math.round(n) : fallback);
     const day = {
       date: swiftDate(now.getTime()),
-      caloriesEaten,
-      calorieGoal: Math.round(dailyCalorieGoal || 1520),
-      waterGlasses,
-      waterGoal,
-      proteinGrams,
-      proteinGoal: Math.round(proteinGoal || DEFAULT_PROTEIN_GOAL),
-      streakDays: computeCurrentMealStreak(recentMeals, now),
+      caloriesEaten: whole(caloriesEaten),
+      calorieGoal: whole(dailyCalorieGoal, 1520) || 1520,
+      waterGlasses: whole(waterGlasses),
+      waterGoal: whole(waterGoal, 8) || 8,
+      proteinGrams: whole(proteinGrams),
+      proteinGoal: whole(proteinGoal, DEFAULT_PROTEIN_GOAL) || DEFAULT_PROTEIN_GOAL,
+      streakDays: whole(computeCurrentMealStreak(recentMeals, now)),
       loggedThisWeek,
       ...(burnoutScore != null ? { burnoutScore, burnoutLabel: burnoutLabel(burnoutScore) } : {}),
     };

@@ -33,7 +33,7 @@ import {
   fireCelebrationNotification,
 } from './lib/notifications';
 import { evaluateMilestones } from './lib/milestones';
-import { syncSmartNotifications, clearSmartNotifications } from './lib/smartNotifications';
+import { syncSmartNotifications, clearSmartNotifications, onBurnoutSummaryPublished } from './lib/smartNotifications';
 import { pendingWidgetWater, ackWidgetWater, pushWidgetSnapshot } from './lib/widgetSync';
 import { buildDailyLedgerMap } from './lib/goalHistory';
 
@@ -1099,7 +1099,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
     const sub = AppState.addEventListener('change', (state) => { if (state === 'active') setWidgetTick((t) => t + 1); });
-    return () => sub.remove();
+    // A new burnout score (calculated on the Insights tab) should reach the widget straight away.
+    const unsubscribe = onBurnoutSummaryPublished(() => setWidgetTick((t) => t + 1));
+    return () => { sub.remove(); unsubscribe(); };
   }, []);
   useEffect(() => {
     if (Platform.OS !== 'ios' || !session?.user?.id || dataLoadCount < 8) return;
