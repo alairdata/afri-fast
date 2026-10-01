@@ -1194,38 +1194,26 @@ export function AccountabilityScreen(p) {
 }
 
 function BuildingScreen({ d, next }) {
-  const spin = useRef(new Animated.Value(0)).current;
-  const msgs = [
-    'Crunching your numbers…',
-    'Calibrating local food portions…',
-    'Setting your daily target…',
-    'Almost ready…',
-  ];
-  const [msgIdx, setMsgIdx] = useState(0);
-  const first = d.name ? d.name.split(' ')[0] : 'your';
+  // A short, honest beat between the questions and the plan (the numbers are instant): the logo and a
+  // progress bar, with no made-up "calibrating..." messages.
+  const progress = useRef(new Animated.Value(0)).current;
+  const first = d.name ? d.name.split(' ')[0] : '';
 
   useEffect(() => {
-    Animated.loop(
-      Animated.timing(spin, { toValue: 1, duration: 900, useNativeDriver: true })
-    ).start();
-    const t1 = setInterval(() => setMsgIdx(x => Math.min(x + 1, msgs.length - 1)), 700);
-    const t2 = setTimeout(() => { clearInterval(t1); next(); }, 3100);
-    return () => { clearInterval(t1); clearTimeout(t2); };
+    Animated.timing(progress, { toValue: 1, duration: 1700, easing: Easing.inOut(Easing.cubic), useNativeDriver: false }).start();
+    const t = setTimeout(next, 1900);
+    return () => clearTimeout(t);
   }, []);
 
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const width = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
 
   return (
     <View style={[s.shell, s.centeredScreen, { backgroundColor: C.bg }]}>
-      <View style={s.buildingSpinnerWrap}>
-        <View style={s.buildingTrack} />
-        <Animated.View style={[s.buildingArc, { transform: [{ rotate }] }]} />
-        <View style={s.buildingLogoWrap}>
-          <Ionicons name="leaf" size={28} color={C.primary} />
-        </View>
+      <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 120, height: 46, marginBottom: 34 }} resizeMode="contain" />
+      <Text style={s.buildingTitle}>{first ? `Putting your plan together, ${first}` : 'Putting your plan together'}</Text>
+      <View style={{ width: 180, height: 4, borderRadius: 2, backgroundColor: C.line, overflow: 'hidden', marginTop: 14 }}>
+        <Animated.View style={{ height: 4, width, backgroundColor: C.terra, borderRadius: 2 }} />
       </View>
-      <Text style={s.buildingTitle}>Building {first}'s plan</Text>
-      <Text key={msgIdx} style={s.buildingMsg}>{msgs[msgIdx]}</Text>
     </View>
   );
 }
