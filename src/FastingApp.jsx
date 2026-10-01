@@ -2467,7 +2467,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         show={showCalorieTarget}
         onClose={() => setShowCalorieTarget(false)}
         dailyCalorieGoal={dailyCalorieGoal}
-        pacePreference={pacePreference}
         weightUnit={weightUnit}
         targetWeight={targetWeight}
         startingWeight={startingWeight}
@@ -2479,11 +2478,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         heightUnit={heightUnit}
         activityLevel={activityLevel}
         onOpenSettings={() => { setShowCalorieTarget(false); setActiveTab('settings'); }}
-        onSave={(val) => {
-          track(EVENTS.CALORIE_TARGET_CHANGED, { from: dailyCalorieGoal, to: val });
-          updateMacroGoalsFromCalories(val);
-          recordGoalChange({ dailyCalorieGoal: val }, { daily_calorie_goal: val });
-          showToast('Daily target updated');
+        onSave={(val, activity) => {
+          // Activity level feeds the daily-burn estimate everywhere (same profile field as onboarding).
+          if (activity && activity !== activityLevel) {
+            setActivityLevel(activity);
+            upsertProfile({ activity_level: activity }, 'update activity_level');
+          }
+          if (val && val !== dailyCalorieGoal) {
+            track(EVENTS.CALORIE_TARGET_CHANGED, { from: dailyCalorieGoal, to: val });
+            updateMacroGoalsFromCalories(val);
+            recordGoalChange({ dailyCalorieGoal: val }, { daily_calorie_goal: val });
+          }
+          showToast('Saved');
         }}
       />
 

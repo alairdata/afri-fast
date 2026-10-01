@@ -17,8 +17,13 @@ export const toKg = (w, unit) => (unit === 'lbs' ? w / 2.20462 : w);
 export const fromKg = (kg, unit) => (unit === 'lbs' ? kg * 2.20462 : kg);
 const toCm = (h, unit) => (unit === 'ft' ? h * 30.48 : h);
 
-// Lowest daily target we will let someone set (same floor the onboarding plan uses).
-export const calorieFloor = (sex) => (sex === 'Male' ? 1500 : 1200);
+// Limits on a daily target someone can SET on the Daily calorie target page. Low: 1,200 for everyone (people
+// following a plan can use it). High: more than +1,000 over their daily burn is about +1 kg of weight gain
+// a week, which is beyond what is considered healthy by any standard.
+export const MIN_CALORIES = 1200;
+export const MAX_SURPLUS = 1000;
+export const MAX_TARGET_NO_TDEE = 4500;
+export const calorieFloor = () => MIN_CALORIES;
 
 export function computeTdeeSummary({
   weightLogs = [], recentMeals = [], weightUnit = 'kg', startingWeight, targetWeight,
@@ -77,7 +82,9 @@ export function computeTdeeSummary({
 }
 
 // What a given daily target means for reaching the goal weight.
-//   kind: 'maintain' | 'lose' | 'gain' | 'stalled' | 'unknown'
+//   kind: 'maintain' | 'lose' | 'gain' | 'away' | 'stalled' | 'unknown'
+//   'away' = the target moves them the opposite way from their goal (a surplus when they want to lose,
+//   a deficit when they want to gain). We can say how fast, not where it would stop.
 export function projectGoal({ currentKg, targetKg, tdee, calories }) {
   if (currentKg == null || targetKg == null || tdee == null || !calories) return { kind: 'unknown' };
   const gapKg = currentKg - targetKg; // > 0: wants to lose
@@ -85,6 +92,7 @@ export function projectGoal({ currentKg, targetKg, tdee, calories }) {
   const weeklyKg = ((tdee - calories) * 7) / KCAL_PER_KG; // > 0: losing
   const wantsLoss = gapKg > 0;
   const moving = wantsLoss ? weeklyKg : -weeklyKg;
+  if (moving <= -0.02) return { kind: 'away', wantsLoss, weeklyKg: Math.abs(weeklyKg) };
   if (moving < 0.02) return { kind: 'stalled', wantsLoss, weeklyKg };
   const weeks = Math.max(1, Math.ceil(Math.abs(gapKg) / moving));
   return {
