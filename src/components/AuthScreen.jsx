@@ -222,21 +222,26 @@ async function postJson(path, body) {
   }
 }
 
-// SUAI's password rules, shown as a live checklist on sign-up (the server enforces the same ones).
-const PASSWORD_RULES = [
-  { key: 'len', label: 'At least 10 characters', test: (p) => p.length >= 10 },
-  { key: 'up', label: 'An uppercase letter', test: (p) => /[A-Z]/.test(p) },
-  { key: 'low', label: 'A lowercase letter', test: (p) => /[a-z]/.test(p) },
-  { key: 'num', label: 'A number', test: (p) => /[0-9]/.test(p) },
-  { key: 'sym', label: 'A special character', test: (p) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(p) },
-];
-const passwordProblem = (p) => {
-  if (p.length < 10) return 'Password must be at least 10 characters';
-  if (!PASSWORD_RULES[1].test(p)) return 'Password must contain at least one uppercase letter';
-  if (!PASSWORD_RULES[2].test(p)) return 'Password must contain at least one lowercase letter';
-  if (!PASSWORD_RULES[3].test(p)) return 'Password must contain at least one number';
-  if (!PASSWORD_RULES[4].test(p)) return 'Password must contain at least one special character';
-  return null;
+// Passwords: any password of 8+ characters is allowed. As they type we only show how strong it is
+// (a hint, never a block), so people can still use the password they want.
+const MIN_PASSWORD = 8;
+const passwordProblem = (p) => (p.length < MIN_PASSWORD ? `Use at least ${MIN_PASSWORD} characters` : null);
+const passwordStrength = (p) => {
+  if (!p) return { level: 0, label: '', color: '#e5e7eb' };
+  if (p.length < MIN_PASSWORD) return { level: 1, label: `Too short, use ${MIN_PASSWORD}+ characters`, color: '#ef4444' };
+  const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((r) => r.test(p)).length;
+  let score = 1; // 8+ characters
+  if (p.length >= 12) score += 1;
+  if (classes >= 3) score += 1;
+  if (p.length >= 16 || (classes === 4 && p.length >= 12)) score += 1;
+  score = Math.min(score, 4);
+  return [
+    null,
+    { level: 1, label: 'Weak, but you can use it', color: '#ef4444' },
+    { level: 2, label: 'Okay', color: '#f59e0b' },
+    { level: 3, label: 'Good', color: '#84cc16' },
+    { level: 4, label: 'Strong', color: '#059669' },
+  ][score];
 };
 
 // Capitalise what they typed ("reviewer" -> "Reviewer") but never cut it down to an initial.
@@ -439,7 +444,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     const redirectTo = webOrigin();
     if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('afri-fast-oauth-pending', '1');
     const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo, queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined } });
-    if (oauthError) setError(oauthError.message);
+    if (oauthError) {
+      setError(provider === 'apple'
+        ? 'Sign in with Apple works in the Logga app. On the web, please use Google or email.'
+        : oauthError.message);
+    }
   };
 
   const openLegal = (path) => Linking.openURL(`https://www.logga.space/${path}`).catch(() => {});
@@ -447,15 +456,13 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
 
   const socialButtons = (
     <>
-      {Platform.OS !== 'web' && (
-        <TouchableOpacity style={ca.appleBtn} activeOpacity={0.85} onPress={() => handleOAuth('apple')}>
-          <Ionicons name="logo-apple" size={20} color="#fff" />
-          <Text style={ca.appleTxt}>Continue with Apple</Text>
-        </TouchableOpacity>
-      )}
       <TouchableOpacity style={ca.googleBtn} activeOpacity={0.85} onPress={() => handleOAuth('google')}>
         <Ionicons name="logo-google" size={18} color="#444" />
         <Text style={ca.googleTxt}>Continue with Google</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[ca.appleBtn, { marginTop: 10, marginBottom: 0 }]} activeOpacity={0.85} onPress={() => handleOAuth('apple')}>
+        <Ionicons name="logo-apple" size={20} color="#fff" />
+        <Text style={ca.appleTxt}>Continue with Apple</Text>
       </TouchableOpacity>
     </>
   );
@@ -507,17 +514,20 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         </TouchableOpacity>
       </View>
       {isSignup && (
-        <View style={{ marginTop: 2 }}>
-          {PASSWORD_RULES.map((rule) => {
-            const ok = rule.test(password);
-            return (
-              <View key={rule.key} style={ca.hint}>
-                <Ionicons name={ok ? 'checkmark-circle' : 'ellipse-outline'} size={14} color={ok ? '#059669' : 'rgba(0,0,0,0.3)'} />
-                <Text style={[ca.hintTxt, ok && ca.hintOk]}>{rule.label}</Text>
+        (() => {
+          const st = passwordStrength(password);
+          if (!st.level) return null;
+          return (
+            <View style={{ marginTop: 10 }}>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {[1, 2, 3, 4].map((i) => (
+                  <View key={i} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: i <= st.level ? st.color : '#e5e7eb' }} />
+                ))}
               </View>
-            );
-          })}
-        </View>
+              <Text style={{ marginTop: 6, fontSize: 12.5, fontWeight: '600', color: st.color }}>{st.label}</Text>
+            </View>
+          );
+        })()
       )}
     </View>
   );

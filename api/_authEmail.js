@@ -66,14 +66,10 @@ export async function updateUser(id, patch) {
 
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// SUAI's password rules: 10+ characters with upper case, lower case, a number and a symbol.
+// Any password of 8+ characters is allowed (the app only shows a strength hint, it doesn't block).
 export function passwordError(pw) {
-  if (typeof pw !== 'string' || pw.length < 10) return 'Password must be at least 10 characters';
+  if (typeof pw !== 'string' || pw.length < 8) return 'Use at least 8 characters';
   if (pw.length > 128) return 'Password too long';
-  if (!/[A-Z]/.test(pw)) return 'Password must contain at least one uppercase letter';
-  if (!/[a-z]/.test(pw)) return 'Password must contain at least one lowercase letter';
-  if (!/[0-9]/.test(pw)) return 'Password must contain at least one number';
-  if (!/[!@#$%^&*()_+\-=[\]{};':"\|,.<>/?]/.test(pw)) return 'Password must contain at least one special character';
   return null;
 }
 
