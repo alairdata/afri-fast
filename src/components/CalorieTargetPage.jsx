@@ -35,12 +35,14 @@ const CalorieTargetPage = ({
   const current = dailyCalorieGoal || 0;
   const [text, setText] = useState(String(current || ''));
   const [activity, setActivity] = useState(activityLevel || 'light');
+  const [actOpen, setActOpen] = useState(false);
 
   // Start from what is saved every time the page opens.
   useEffect(() => {
     if (!show) return;
     setText(String(dailyCalorieGoal || ''));
     setActivity(activityLevel || 'light');
+    setActOpen(false);
   }, [show, dailyCalorieGoal, activityLevel]);
 
   // The activity picked here feeds the daily-burn estimate live.
@@ -135,7 +137,7 @@ const CalorieTargetPage = ({
             <TouchableOpacity style={styles.stepBtn} onPress={() => bump(-50)} accessibilityLabel="Lower by 50">
               <Ionicons name="remove" size={22} color={INK} />
             </TouchableOpacity>
-            <View style={{ alignItems: 'center' }}>
+            <View style={styles.numberCol}>
               <TextInput
                 style={[styles.numberInput, !!limitError && { color: RED }]}
                 value={text}
@@ -162,20 +164,41 @@ const CalorieTargetPage = ({
 
           {/* Activity level: changes the daily burn, so it changes everything below */}
           <Text style={styles.section}>How active is your day?</Text>
-          <View>
-            {ACTIVITY_OPTIONS.map((o) => {
-              const on = activity === o.v;
-              return (
-                <TouchableOpacity key={o.v} style={[styles.actRow, on && styles.actRowOn]} onPress={() => setActivity(o.v)} activeOpacity={0.8}>
+          {(() => {
+            const sel = ACTIVITY_OPTIONS.find((o) => o.v === activity) || ACTIVITY_OPTIONS[1];
+            return (
+              <View>
+                <TouchableOpacity style={[styles.dropField, actOpen && styles.dropFieldOpen]} onPress={() => setActOpen((v) => !v)} activeOpacity={0.8}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.actTitle}>{o.t}</Text>
-                    <Text style={styles.actSub}>{o.s}</Text>
+                    <Text style={styles.actTitle}>{sel.t}</Text>
+                    <Text style={styles.actSub}>{sel.s}</Text>
                   </View>
-                  {on ? <Ionicons name="checkmark" size={20} color={INK} /> : null}
+                  <Ionicons name={actOpen ? 'chevron-up' : 'chevron-down'} size={20} color={INK500} />
                 </TouchableOpacity>
-              );
-            })}
-          </View>
+                {actOpen ? (
+                  <View style={styles.dropList}>
+                    {ACTIVITY_OPTIONS.map((o, i) => {
+                      const on = activity === o.v;
+                      return (
+                        <TouchableOpacity
+                          key={o.v}
+                          style={[styles.dropItem, i > 0 && { borderTopWidth: 1, borderTopColor: LINE }]}
+                          onPress={() => { setActivity(o.v); setActOpen(false); }}
+                          activeOpacity={0.8}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.actTitle}>{o.t}</Text>
+                            <Text style={styles.actSub}>{o.s}</Text>
+                          </View>
+                          {on ? <Ionicons name="checkmark" size={20} color={INK} /> : null}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })()}
 
           {/* The maths */}
           <View style={{ marginTop: 14 }}>
@@ -255,23 +278,28 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: '700', color: '#1F1F1F' },
   content: { paddingHorizontal: 24, paddingTop: 22, paddingBottom: 24 },
   kicker: { fontSize: 11.5, fontWeight: '800', color: INK400, letterSpacing: 1.8, textAlign: 'center' },
-  numberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
+  numberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 10 },
+  numberCol: { alignItems: 'center', flexShrink: 1 },
   stepBtn: { width: 46, height: 46, borderRadius: 23, borderWidth: 1.5, borderColor: '#deded4', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  // A fixed width: on the web an <input> otherwise sizes itself from its default character count and
+  // shoves the + button off to the right.
   numberInput: {
-    fontSize: 56, fontWeight: '800', color: INK, letterSpacing: -2, textAlign: 'center',
-    minWidth: 170, paddingVertical: 0, borderBottomWidth: 2, borderBottomColor: INK,
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
+    width: 180, maxWidth: '100%', fontSize: 52, fontWeight: '800', color: INK, letterSpacing: -2, textAlign: 'center',
+    paddingVertical: 0, paddingHorizontal: 0, borderBottomWidth: 2, borderBottomColor: INK,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none', boxSizing: 'border-box' } : {}),
   },
   numberUnit: { fontSize: 14, fontWeight: '600', color: INK500, marginTop: 6 },
   errorBox: { marginTop: 14, padding: 12, borderRadius: 12, backgroundColor: '#FEF2F2' },
   errorTxt: { fontSize: 13.5, lineHeight: 19, color: RED },
   wasTxt: { textAlign: 'center', fontSize: 13, color: INK500, marginTop: 12 },
   section: { fontSize: 11.5, fontWeight: '800', color: INK400, letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 22, marginBottom: 8 },
-  actRow: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, marginBottom: 8,
+  dropField: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14,
     borderRadius: 14, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#deded4',
   },
-  actRowOn: { borderColor: INK },
+  dropFieldOpen: { borderColor: INK },
+  dropList: { marginTop: 6, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#deded4', overflow: 'hidden' },
+  dropItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14 },
   actTitle: { fontSize: 15, fontWeight: '600', color: INK },
   actSub: { fontSize: 12.5, color: INK500, marginTop: 1 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: LINE },
