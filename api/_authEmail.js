@@ -14,7 +14,7 @@ const SERVICE_KEY = () => process.env.SUPABASE_SERVICE_KEY;
 const RESEND_FROM = () => process.env.RESEND_FROM || 'Logga <support@logga.space>';
 
 // Only these can be used as the link's landing place (they must also be in Supabase's Redirect URLs).
-const CALLBACK_PAGE = 'https://afri-fast.vercel.app/auth-callback';
+const CALLBACK_PAGE = 'https://www.logga.space/auth-callback';
 const ALLOWED_REDIRECTS = [CALLBACK_PAGE, 'https://afri-fast.vercel.app', 'https://www.logga.space'];
 // The app asks for its own logga:// link, but mail apps and browsers often refuse to follow a redirect
 // straight into an app link (the button looks dead), so phones are sent to a small web page that opens
