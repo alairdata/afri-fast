@@ -922,8 +922,24 @@ export function TargetScreen(p) {
   const gapShown = inKg ? `${gapAbs} kg` : `${gapAbsLb} lb`;
   const losing = gap > 0.5;
   const gaining = gap < -0.5;
+
+  // Healthy-range guard: a goal weight below BMI 18.5 (the standard lower limit) for their height can't be
+  // chosen. If they are already under that range, a loss goal isn't offered at all (maintain or gain only).
+  const hM = d.heightCm > 0 ? d.heightCm / 100 : null;
+  const minHealthyKg = hM ? 18.5 * hM * hM : null;
+  const maxHealthyKg = hM ? 24.9 * hM * hM : null;
+  const underweightNow = hM ? d.weightKg / (hM * hM) < 18.5 : false;
+  const minAllowedKg = minHealthyKg == null ? null : (underweightNow ? d.weightKg : minHealthyKg);
+  const blocked = minAllowedKg != null && d.targetKg + 0.05 < minAllowedKg;
+  const toUnit = (kg) => (inKg ? kg : kg * 2.2046);
+  const minShown = minAllowedKg != null ? Math.ceil(toUnit(minAllowedKg) - 0.001) : null;
+  const maxShown = maxHealthyKg != null ? Math.floor(toUnit(maxHealthyKg)) : null;
+  const unitWord = inKg ? 'kg' : 'lb';
+  const guardMsg = !blocked ? '' : underweightNow
+    ? `You're already under the healthy range for your height, so we can't plan a weight loss. Set your goal at ${minShown} ${unitWord} or more.`
+    : `For your height, a healthy goal is between ${minShown} and ${maxShown} ${unitWord}. Pick a goal in that range, or talk to a doctor or dietitian about going lower.`;
   return (
-    <ScreenShell {...p} grow footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} />}>
+    <ScreenShell {...p} grow footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={blocked} />}>
       <View style={{ marginTop: 8 }}>
         <Text style={s.headline}>What's your{'\n'}goal weight?</Text>
         <Text style={s.subline}>Aim for a healthy, reachable number — we'll pace it.</Text>
@@ -946,6 +962,9 @@ export function TargetScreen(p) {
               {losing ? `${gapShown} to lose` : gaining ? `${gapShown} to gain` : 'Maintain your weight'}
             </Text>
           </View>
+          {blocked ? (
+            <View style={s.guardBox}><Text style={s.guardTxt}>{guardMsg}</Text></View>
+          ) : null}
         </View>
       </View>
     </ScreenShell>
@@ -1570,6 +1589,8 @@ const s = StyleSheet.create({
 
   // Target gap pill
   gapPill: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999 },
+  guardBox: { marginTop: 14, padding: 12, borderRadius: 12, backgroundColor: '#FEF2F2', alignSelf: 'stretch' },
+  guardTxt: { fontSize: 13.5, lineHeight: 19, color: '#B91C1C', textAlign: 'center' },
   gapPillTxt: { fontSize: 14.5, fontWeight: '700' },
 
   // Pace screen
