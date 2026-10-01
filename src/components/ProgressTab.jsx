@@ -610,6 +610,9 @@ const ProgressTab = ({
   }, [recentMeals, now]);
 
   const loggedDays = last7.filter((d) => d.total > 0);
+  // Declared up here (not next to the burnout card code) because effects further up depend on it.
+  // Same rule as momentum: a score from a handful of unlogged days is noise, not 'super low risk'.
+  const burnoutReady = loggedDays.length >= MIN_LOGGED_DAYS;
   const missingDays = 7 - loggedDays.length;
   const todayCalories = last7[last7.length - 1]?.total || 0;
   const deficitToday = tdee != null ? tdee - todayCalories : null;
@@ -853,8 +856,6 @@ const ProgressTab = ({
   }, [userId, burnoutPredictionSnapshot]);
 
   const burnoutScore = burnout.today.score;
-  // Same rule as momentum: a score from a handful of unlogged days is noise, not "super low risk".
-  const burnoutReady = loggedDays.length >= MIN_LOGGED_DAYS;
   const burnoutBand = burnout.today.band;
   const burnoutColor = burnoutBand.tone === 'good' ? accent : burnoutBand.tone === 'warn' ? WARN : DANGER;
   const burnoutBg = burnoutBand.tone === 'good' ? colors.accentLight : burnoutBand.tone === 'warn' ? WARN_BG : DANGER_BG;
