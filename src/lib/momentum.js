@@ -79,6 +79,10 @@ function ewmaStep(prev, rawToday, hasDataToday) {
   return prev == null ? null : prev * 0.95;
 }
 
+// A momentum score blends three smoothed pillars, so a single day (or none) says nothing yet. Until the
+// person has logged meals on this many different days we report "not enough data" instead of a score.
+export const MIN_LOGGED_DAYS = 3;
+
 function bandFor(score) {
   if (score >= 80) return { label: 'STRONG', tone: 'strong' };
   if (score >= 60) return { label: 'DRIFTING', tone: 'drifting' };
@@ -142,6 +146,7 @@ export function computeMomentumTimeline({
   // No meal ever logged means nothing to score yet: everything reads 0 instead of the neutral
   // 50s / "missed every nutrition floor" Satiety that would otherwise add up to ~47 for a new user.
   let everLoggedMeal = false;
+  let loggedDayCount = 0;
 
   for (let i = windowDays - 1; i >= 0; i--) {
     const day = new Date(now - i * DAY_MS);
@@ -152,7 +157,7 @@ export function computeMomentumTimeline({
     // for a day the ledger hasn't caught up to yet (today, before the next hourly refresh).
     const caloriesToday = resolveCaloriesEaten(ledgerMap, ds, mealsByDate[ds] || 0);
     const loggedToday = caloriesToday > 0;
-    if (loggedToday) everLoggedMeal = true;
+    if (loggedToday) { everLoggedMeal = true; loggedDayCount += 1; }
 
     // Weight EWMA — smooths water-weight noise, but decay is scaled by elapsed *days* since the
     // last weigh-in, not by sample count: a reading 3 weeks after the last one is close to a true
@@ -225,6 +230,8 @@ export function computeMomentumTimeline({
       movementStepsKcal: moveBreakdown ? Math.round(moveBreakdown.eSteps) : null,
       movementTargetKcal: moveBreakdown ? Math.round(moveBreakdown.eTarget) : null,
       momentum,
+      loggedDays: loggedDayCount,
+      ready: loggedDayCount >= MIN_LOGGED_DAYS,
       confidence,
       band: bandFor(momentum),
       staleWeighIn,

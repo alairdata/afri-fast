@@ -5,7 +5,7 @@ import Svg, { Path, Circle, Line } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../lib/theme';
 import { LineChart } from 'react-native-chart-kit';
-import { computeMomentumTimeline, MET } from '../lib/momentum';
+import { computeMomentumTimeline, MET, MIN_LOGGED_DAYS } from '../lib/momentum';
 import { computeWeeklyPace } from '../lib/trajectory';
 import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
@@ -156,7 +156,7 @@ const fmtDayMonth = (d) => d.toLocaleDateString('en-GB', { day: 'numeric', month
 const dayLabel = (d) => 'SMTWTFS'[d.getDay()];
 
 // ── Momentum gauge (0-100 semicircle) ──────────────────────────────────────
-function buildGauge(score, accent) {
+function buildGauge(score, accent, muted = false) {
   const cx = 110, cy = 100, r = 78, n = 30;
   const stops = [
     { p: 0, c: [224, 82, 82] }, { p: 0.3, c: [240, 138, 60] },
@@ -173,12 +173,12 @@ function buildGauge(score, accent) {
   for (let i = 0; i < n; i++) {
     const [x0, y0] = xy(180 + i * (180 / n)), [x1, y1] = xy(180 + (i + 1) * (180 / n));
     const c = lerp(i / n);
-    segments.push({ d: `M ${x0} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y1}`, stroke: `rgb(${c[0]},${c[1]},${c[2]})` });
+    segments.push({ d: `M ${x0} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y1}`, stroke: muted ? '#e5e7eb' : `rgb(${c[0]},${c[1]},${c[2]})` });
   }
   const rad = ((180 + (score / 100) * 180) * Math.PI) / 180, iR = r - 13, oR = r + 13;
   return {
     segments,
-    needle: { x1: cx + iR * Math.cos(rad), y1: cy + iR * Math.sin(rad), x2: cx + oR * Math.cos(rad), y2: cy + oR * Math.sin(rad) },
+    needle: muted ? null : { x1: cx + iR * Math.cos(rad), y1: cy + iR * Math.sin(rad), x2: cx + oR * Math.cos(rad), y2: cy + oR * Math.sin(rad) },
   };
 }
 function hexToRgb(hex) {
@@ -645,11 +645,14 @@ const ProgressTab = ({
 
   const today = momentumTimeline[momentumTimeline.length - 1];
   const momentumScore = today.momentum;
-  const momentumLabel = today.band.label === 'STRONG' ? 'Strong momentum' : today.band.label === 'DRIFTING' ? 'Drifting' : 'Stalled';
-  const momentumColor = today.band.tone === 'strong' ? accent : today.band.tone === 'drifting' ? WARN : DANGER;
-  const momentumBg = today.band.tone === 'strong' ? colors.accentLight : today.band.tone === 'drifting' ? WARN_BG : DANGER_BG;
+  // Not enough logged days yet -> no verdict (a brand-new person is not "stalled", they just haven't started).
+  const momentumReady = !!today.ready;
+  const momentumLabel = !momentumReady ? 'Not enough data yet'
+    : today.band.label === 'STRONG' ? 'Strong momentum' : today.band.label === 'DRIFTING' ? 'Drifting' : 'Stalled';
+  const momentumColor = !momentumReady ? colors.textMuted : today.band.tone === 'strong' ? accent : today.band.tone === 'drifting' ? WARN : DANGER;
+  const momentumBg = !momentumReady ? colors.border : today.band.tone === 'strong' ? colors.accentLight : today.band.tone === 'drifting' ? WARN_BG : DANGER_BG;
 
-  const gauge = useMemo(() => buildGauge(momentumScore, accent), [momentumScore, accent]);
+  const gauge = useMemo(() => buildGauge(momentumScore, accent, !momentumReady), [momentumScore, accent, momentumReady]);
 
   // Measured gym+steps kcal per day, last 7 days -- lets Weekly Pace use BMR + real activity
   // instead of the PAL guess on days that actually have movement data logged.
@@ -717,7 +720,23 @@ const ProgressTab = ({
     if (totalGapKg < 0.05) return null;
     const togoKg = Math.abs(targetWeightKg - currentWeightKg);
     if (togoKg < 0.05) return { done: true };
-    if (weeklyWeightChangeKg == null) return { insufficientData: true };
+    if (weeklyWeightChangeKg == null) {
+      // Only one weigh-in so far (the one from sign-up counts): estimate from eating instead of
+      // asking for more weigh-ins. It gets sharper with every weigh-in.
+      const predictedWeekly = weeklyPace && weeklyPace.dailyRateKg != null ? weeklyPace.dailyRateKg * 7 : null;
+      if (predictedWeekly != null && projectedGoalDate) {
+        const lostEst = Math.abs(currentWeightKg - startingWeightKg);
+        return {
+          eta: projectedGoalDate,
+          pct: Math.min(100, Math.round((lostEst / totalGapKg) * 100)), planPct: null,
+          note: 'Estimated from what you have eaten so far. It gets sharper with each weigh-in.',
+          lost: fromKg(lostEst, weightUnit),
+          togo: fromKg(togoKg, weightUnit),
+          weeklyRate: fromKg(Math.abs(predictedWeekly), weightUnit),
+        };
+      }
+      return { insufficientData: true, needsWeight: (weightLogs || []).length === 0 };
+    }
 
     const lostKg = Math.abs(currentWeightKg - startingWeightKg);
     const pct = Math.min(100, Math.round((lostKg / totalGapKg) * 100));
@@ -783,8 +802,13 @@ const ProgressTab = ({
   // Hand the burnout trend to the smart-notification planner (used for the "heads up" nudge).
   useEffect(() => {
     if (!userId) return;
-    publishBurnoutSummary({ daysToCrash: burnout.daysToCrash, crashDate: burnout.crashDate, score: burnout.today?.score });
-  }, [userId, burnout.daysToCrash, burnout.crashDate, burnout.today?.score]);
+    // No score (and no "rough patch" date) goes to notifications or the widget until there is data behind it.
+    publishBurnoutSummary({
+      daysToCrash: burnoutReady ? burnout.daysToCrash : null,
+      crashDate: burnoutReady ? burnout.crashDate : null,
+      score: burnoutReady ? burnout.today?.score : null,
+    });
+  }, [userId, burnoutReady, burnout.daysToCrash, burnout.crashDate, burnout.today?.score]);
 
   useEffect(() => {
     if (!userId) return;
@@ -829,6 +853,8 @@ const ProgressTab = ({
   }, [userId, burnoutPredictionSnapshot]);
 
   const burnoutScore = burnout.today.score;
+  // Same rule as momentum: a score from a handful of unlogged days is noise, not "super low risk".
+  const burnoutReady = loggedDays.length >= MIN_LOGGED_DAYS;
   const burnoutBand = burnout.today.band;
   const burnoutColor = burnoutBand.tone === 'good' ? accent : burnoutBand.tone === 'warn' ? WARN : DANGER;
   const burnoutBg = burnoutBand.tone === 'good' ? colors.accentLight : burnoutBand.tone === 'warn' ? WARN_BG : DANGER_BG;
@@ -880,12 +906,12 @@ const ProgressTab = ({
   ].join('#'), [burnout, burnoutDrivers]);
   const [burnoutAi, setBurnoutAi] = useState(null);
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !burnoutReady) return;
     let cancelled = false;
     getAiText({ kind: 'burnout_why', userId, facts: burnoutFacts, fingerprint: burnoutFingerprint })
       .then((v) => { if (!cancelled && v) setBurnoutAi(v); });
     return () => { cancelled = true; };
-  }, [userId, burnoutFingerprint]);
+  }, [userId, burnoutFingerprint, burnoutReady]);
 
   // Momentum "See why" — plain-language sentences instead of a bare numbers table. Calorie and
   // Movement are single facts, so they're templated directly off the same live numbers shown
@@ -1442,17 +1468,22 @@ const ProgressTab = ({
                   {gauge.segments.map((s, i) => (
                     <Path key={i} d={s.d} fill="none" stroke={s.stroke} strokeWidth={12} strokeLinecap="round" />
                   ))}
-                  <Line {...gauge.needle} stroke={colors.text} strokeWidth={3} strokeLinecap="round" />
+                  {gauge.needle ? <Line {...gauge.needle} stroke={colors.text} strokeWidth={3} strokeLinecap="round" /> : null}
                 </Svg>
                 <View style={styles.gaugeCenter}>
                   <Text style={styles.gaugeKicker}>MOMENTUM</Text>
-                  <Text style={styles.gaugeScore}>{momentumScore}</Text>
+                  <Text style={styles.gaugeScore}>{momentumReady ? momentumScore : '--'}</Text>
                 </View>
               </View>
               <View style={[styles.pill, { backgroundColor: momentumBg }]}>
                 <Text style={[styles.pillText, { color: momentumColor }]}>{momentumLabel}</Text>
               </View>
-              {today.band.tone !== 'strong' && (
+              {!momentumReady && (
+                <Text style={[styles.mutedSmall, { textAlign: 'center', marginTop: 10 }]}>
+                  {`Log meals on ${MIN_LOGGED_DAYS} different days to unlock your momentum score. ${Math.min(today.loggedDays || 0, MIN_LOGGED_DAYS)} of ${MIN_LOGGED_DAYS} so far.`}
+                </Text>
+              )}
+              {momentumReady && today.band.tone !== 'strong' && (
                 <TouchableOpacity style={[styles.detailsBtn, { width: '100%' }]} onPress={() => setView('momentum')}>
                   <Text style={styles.detailsBtnText}>See why</Text>
                   <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
@@ -1801,7 +1832,11 @@ const ProgressTab = ({
             )}
             {pace?.insufficientData && (
               <View style={styles.card}>
-                <Text style={styles.mutedBody}>Log a few more weigh-ins over the next week or two and your pace-to-goal will show up here.</Text>
+                <Text style={styles.mutedBody}>
+                  {pace.needsWeight
+                    ? 'Log your current weight and we will estimate when you will reach your goal.'
+                    : `Keep logging your meals. After ${MIN_LOGGED_DAYS} days your pace to goal will show up here.`}
+                </Text>
               </View>
             )}
             {pace?.done && (
@@ -1922,32 +1957,38 @@ const ProgressTab = ({
               <View style={styles.rowBetween}>
                 <View>
                   <Text style={styles.kicker}>BURNOUT LIKELIHOOD</Text>
-                  <Text style={styles.bigStat}>{burnoutScore}<Text style={styles.bigStatSub}>/100</Text></Text>
+                  {burnoutReady
+                    ? <Text style={styles.bigStat}>{burnoutScore}<Text style={styles.bigStatSub}>/100</Text></Text>
+                    : <Text style={[styles.bigStat, { color: colors.textMuted }]}>--</Text>}
                 </View>
-                <View style={[styles.pill, { backgroundColor: burnoutBg }]}>
-                  <Text style={[styles.pillText, { color: burnoutColor }]}>{burnoutBand.label}</Text>
+                <View style={[styles.pill, { backgroundColor: burnoutReady ? burnoutBg : colors.border }]}>
+                  <Text style={[styles.pillText, { color: burnoutReady ? burnoutColor : colors.textMuted }]}>{burnoutReady ? burnoutBand.label : 'Not enough data yet'}</Text>
                 </View>
               </View>
               <View style={{ marginTop: 10, padding: 12, borderRadius: 12, backgroundColor: colors.cardAlt || burnoutBg }}>
-                <Text style={[styles.mutedBody, { color: colors.text }]}>{burnoutAi?.summary || burnoutWhy}</Text>
-                {!!burnoutAi?.tip && (
+                <Text style={[styles.mutedBody, { color: colors.text }]}>
+                  {burnoutReady
+                    ? (burnoutAi?.summary || burnoutWhy)
+                    : `We need a few days of meals before we can read your pattern. Log on ${MIN_LOGGED_DAYS} different days and this will start to fill in. ${Math.min(loggedDays.length, MIN_LOGGED_DAYS)} of ${MIN_LOGGED_DAYS} so far.`}
+                </Text>
+                {burnoutReady && !!burnoutAi?.tip && (
                   <Text style={[styles.mutedBody, { color: colors.text, fontWeight: '600', marginTop: 6 }]}>{`Try this: ${burnoutAi.tip}`}</Text>
                 )}
               </View>
               <View style={styles.burnoutWeekRow}>
                 {burnout.week.map((d, i) => {
-                  const dayColor = d.score <= 25 ? accent : d.score <= 55 ? WARN : d.score <= 80 ? '#EA580C' : DANGER;
-                  const h = Math.max(10, Math.round((d.score / 100) * 56));
+                  const dayColor = !burnoutReady ? colors.border : d.score <= 25 ? accent : d.score <= 55 ? WARN : d.score <= 80 ? '#EA580C' : DANGER;
+                  const h = burnoutReady ? Math.max(10, Math.round((d.score / 100) * 56)) : 10;
                   return (
                     <View key={i} style={styles.burnoutDayCol}>
-                      <Text style={[styles.burnoutDayScore, { color: dayColor }]}>{d.score}</Text>
+                      <Text style={[styles.burnoutDayScore, { color: dayColor }]}>{burnoutReady ? d.score : ''}</Text>
                       <View style={[styles.burnoutBar, { height: h, backgroundColor: dayColor, opacity: d.isFuture ? 0.55 : 1 }]} />
                       <Text style={styles.axisLabel}>{dayLabel(d.date)}</Text>
                     </View>
                   );
                 })}
               </View>
-              {burnout.daysToCrash != null && (
+              {burnoutReady && burnout.daysToCrash != null && (
                 <View style={styles.nextWeekRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.nextWeekTitle}>When you might feel worn out</Text>
@@ -2228,7 +2269,6 @@ const ProgressTab = ({
               </View>
             </View>
 
-            <View style={{ height: 100 }} />
           </ScrollView>
         </>
       )}
