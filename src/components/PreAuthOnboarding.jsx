@@ -4,6 +4,7 @@ import {
   TextInput, Animated, Easing, Platform, useWindowDimensions, Image,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { track, EVENTS } from '../lib/analytics';
 import Svg, { G, Circle, Ellipse, Path } from 'react-native-svg';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -1370,6 +1371,14 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
     setTimeout(() => { pickLock.current = false; next(); }, 280);
   };
 
+  // Funnel: started -> each screen -> completed (or skipped), the same shape as SUAI's onboarding events.
+  useEffect(() => { track(EVENTS.ONBOARDING_STARTED); }, []);
+  useEffect(() => { track(EVENTS.ONBOARDING_SCREEN_VIEWED, { screen: FLOW[idx], index: idx }); }, [idx]);
+  const handleComplete = (answers, raw) => {
+    track(answers?.skipped ? EVENTS.ONBOARDING_SKIPPED : EVENTS.ONBOARDING_COMPLETED);
+    return onComplete?.(answers, raw);
+  };
+
   const screen = FLOW[idx];
   const isFull = FULL_BLEED.has(screen);
   const stepNum = FLOW.slice(0, idx + 1).filter(id => !FULL_BLEED.has(id)).length;
@@ -1401,7 +1410,7 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
     case 'why':            return <WhyScreen {...sharedProps} />;
     case 'accountability': return <AccountabilityScreen {...sharedProps} />;
     case 'building':       return <BuildingScreen d={data} next={next} />;
-    case 'done':           return <DoneScreen d={data} onComplete={onComplete} />;
+    case 'done':           return <DoneScreen d={data} onComplete={handleComplete} />;
     default:               return null;
   }
 }

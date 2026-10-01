@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, StatusBar, View, ActivityIndicator, Text, TextInput, Platform } from 'react-native';
+import { SafeAreaView, StatusBar, View, ActivityIndicator, Text, TextInput, Platform, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './src/lib/supabase';
 import AuthScreen from './src/components/AuthScreen';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import FastingApp from './src/FastingApp';
+import PreAuthOnboarding from './src/components/PreAuthOnboarding';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   // Load Inter from Google Fonts
@@ -102,6 +103,32 @@ export default function App() {
     };
   }, []);
 
+
+  // Everyone who signs in must have been through onboarding, however they signed in (the same rule as
+  // So-UnFiltered AI's onboarding_complete flag). Someone who taps Apple/Google on the LOGIN screen
+  // creates an account without ever answering the questions; catch that here. We call onboarding done
+  // if they answered it before sign-up (preAuthData) or their profile already has any of the answers.
+  const [profileCheck, setProfileCheck] = useState('idle'); // 'idle' | 'checking' | 'needs' | 'ok'
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid) { setProfileCheck('idle'); return undefined; }
+    if (loading) return undefined;
+    let cancelled = false;
+    setProfileCheck('checking');
+    supabase.from('profiles')
+      .select('goal, height, age, target_weight, starting_weight, daily_calorie_goal')
+      .eq('id', uid).maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        // A network blip must never lock someone out of their own account.
+        if (error) { setProfileCheck('ok'); return; }
+        const filled = !!data && Object.values(data).some((v) => v !== null && v !== undefined && v !== '');
+        setProfileCheck(filled || preAuthData?.completedAt ? 'ok' : 'needs');
+      })
+      .catch(() => { if (!cancelled) setProfileCheck('ok'); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id, loading]);
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F0FDF4', alignItems: 'center', justifyContent: 'center' }}>
@@ -123,6 +150,32 @@ export default function App() {
           }
         }}
       />
+    );
+  }
+
+  if (profileCheck === 'idle' || profileCheck === 'checking') {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F0FDF4', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#059669" />
+      </View>
+    );
+  }
+
+  if (profileCheck === 'needs') {
+    return (
+      <SafeAreaProvider>
+        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#FFFFFF' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <PreAuthOnboarding
+            initialData={preAuthData}
+            onLogin={() => supabase.auth.signOut()}
+            onComplete={async (answers) => {
+              setPreAuthData(answers);
+              await AsyncStorage.setItem(PRE_AUTH_STORAGE_KEY, JSON.stringify(answers));
+              setProfileCheck('ok');
+            }}
+          />
+        </KeyboardAvoidingView>
+      </SafeAreaProvider>
     );
   }
 
