@@ -172,7 +172,10 @@ export default function LiquidCalorieRing({
   const uid = `lcr${size}`;
 
   return (
+    // Purely visual. The drawing below is larger than this box (headroom for the overflow bulge, it
+    // reaches above the box), so it must never catch taps meant for whatever sits near it.
     <View
+      pointerEvents="none"
       style={[
         { width: size, height: size, alignItems: 'center', justifyContent: 'center' },
         style,
@@ -182,6 +185,7 @@ export default function LiquidCalorieRing({
         width={outer}
         height={outer}
         viewBox={`0 0 ${f(outer)} ${f(outer)}`}
+        pointerEvents="none"
         style={{ position: 'absolute', left: -pad, top: -pad }}
       >
         <Defs>

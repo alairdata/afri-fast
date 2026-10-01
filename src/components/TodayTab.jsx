@@ -1146,6 +1146,8 @@ const makeStyles = (c) => StyleSheet.create({
     borderColor: 'rgba(5, 150, 105, 0.1)',
   },
   fastTypeBadge: {
+    position: 'relative',
+    zIndex: 5,
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
@@ -1153,7 +1155,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
-    marginBottom: 8,
+    marginBottom: 14,
     gap: 4,
   },
   fastTypeBadgeText: {
