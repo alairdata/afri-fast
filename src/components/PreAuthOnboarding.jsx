@@ -1264,90 +1264,66 @@ function DoneScreen({ d, onComplete }) {
     }, d);
   };
 
+  const PACE_LABEL = { slow: 'gentle pace', moderate: 'steady pace', aggressive: 'fast pace', extreme: 'very fast pace' };
+  const reachDate = plan.weeks > 0 ? new Date(Date.now() + plan.weeks * 7 * 24 * 60 * 60 * 1000) : null;
+  const reachText = reachDate
+    ? reachDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', ...(reachDate.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) })
+    : null;
+
+  const Row = ({ label, sub, value, strong, last }) => (
+    <View style={[s.planRow, last && { borderBottomWidth: 0 }]}>
+      <View style={{ flex: 1, paddingRight: 12 }}>
+        <Text style={[s.planRowLabel, strong && { fontWeight: '800', color: C.ink }]}>{label}</Text>
+        {sub ? <Text style={s.planRowSub}>{sub}</Text> : null}
+      </View>
+      <Text style={[s.planRowVal, strong && { fontWeight: '800' }]}>{value}</Text>
+    </View>
+  );
+
   return (
     <ScrollView
       style={[s.shell, { backgroundColor: C.bg }]}
-      contentContainerStyle={{ paddingHorizontal: 24, paddingTop: Platform.OS === 'ios' ? 100 : 80, paddingBottom: 40, alignItems: 'center' }}
+      contentContainerStyle={{ paddingHorizontal: 26, paddingTop: Platform.OS === 'ios' ? 72 : 56, paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Check icon */}
-      <View style={{ alignItems: 'center', marginBottom: 18 }}>
-        <View style={s.doneCheck}>
-          <Ionicons name="checkmark" size={38} color="#fff" />
-        </View>
+      <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 92, height: 35, marginBottom: 30 }} resizeMode="contain" />
+
+      <Text style={s.planKicker}>YOUR STARTING PLAN</Text>
+      <Text style={s.planHeadline}>Here's where we'd start you, {first}.</Text>
+
+      <View style={s.planNumberWrap}>
+        <Text style={s.planNumber}>{plan.target.toLocaleString()}</Text>
+        <Text style={s.planNumberUnit}>calories a day</Text>
       </View>
 
-      <View style={{ alignItems: 'center', marginBottom: 22 }}>
-        <Text style={[s.eyebrow, { textAlign: 'center' }]}>You're all set, {first}!</Text>
-        <Text style={[s.headline, { textAlign: 'center', marginTop: 8 }]}>Here's your daily target</Text>
+      <Text style={s.planSection}>How we got there</Text>
+      <View>
+        <Row label="What your body burns" sub="Based on your height, weight, age and activity" value={`${plan.tdee.toLocaleString()} kcal`} />
+        {plan.deficit > 0 ? (
+          <Row label="Daily deficit" sub={PACE_LABEL[d.pace] || 'steady pace'} value={`−${plan.deficit} kcal`} />
+        ) : null}
+        <Row label="Your target" value={`${plan.target.toLocaleString()} kcal`} strong last />
       </View>
 
-      {/* Calorie hero card */}
-      <View style={[s.calCard, { alignSelf: 'stretch' }]}>
-        <Text style={s.calLabel}>Eat around</Text>
-        <Text style={s.calNumber}>{plan.target.toLocaleString()}</Text>
-        <Text style={s.calUnit}>calories a day</Text>
-        <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 14 }}>
-          <View style={s.calPill}>
-            <Text style={s.calPillLabel}>Maintenance</Text>
-            <Text style={s.calPillVal}>{plan.tdee.toLocaleString()} kcal</Text>
-          </View>
-          {plan.deficit > 0 ? (
-            <View style={[s.calPill, { backgroundColor: C.terraSoft }]}>
-              <Text style={s.calPillLabel}>Daily deficit</Text>
-              <Text style={[s.calPillVal, { color: C.terra }]}>−{plan.deficit}</Text>
-            </View>
-          ) : null}
-        </View>
-        <Text style={{ fontSize: 13, color: C.ink500, textAlign: 'center', marginTop: 16, lineHeight: 19 }}>
-          Don't let these numbers freak you out — we'll guide you every step of the way.
+      <Text style={s.planSection}>Each day, aim for</Text>
+      <View>
+        <Row label="Protein" value={`about ${plan.protein} g`} />
+        <Row label="Water" value={`about ${plan.water} L`} last />
+      </View>
+
+      {reachText ? (
+        <Text style={s.planProjection}>
+          At this pace you'd reach <Text style={{ fontWeight: '800', color: C.ink }}>{Math.round(d.targetKg)} kg</Text> around{' '}
+          <Text style={{ fontWeight: '800', color: C.ink }}>{reachText}</Text>.
         </Text>
-      </View>
-
-      {/* Stats grid */}
-      <View style={{ flexDirection: 'row', gap: 11, marginTop: 11, alignSelf: 'stretch' }}>
-        <View style={s.statCard}>
-          <Ionicons name="heart-outline" size={24} color={C.ink} />
-          <View style={{ marginLeft: 10 }}>
-            <Text style={s.statLabel}>Protein / day</Text>
-            <Text style={s.statVal}>{plan.protein} g</Text>
-          </View>
-        </View>
-        <View style={s.statCard}>
-          <Ionicons name="water-outline" size={24} color={C.ink} />
-          <View style={{ marginLeft: 10 }}>
-            <Text style={s.statLabel}>Water / day</Text>
-            <Text style={s.statVal}>{plan.water} L</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Projection */}
-      {plan.weeks > 0 ? (
-        <View style={[s.projCard, { alignSelf: 'stretch' }]}>
-          <Ionicons name="trending-down-outline" size={26} color={C.ink} />
-          <Text style={[s.projTxt, { marginLeft: 12, flex: 1 }]}>
-            On track to reach{' '}
-            <Text style={{ color: C.primary, fontWeight: '700' }}>{Math.round(d.targetKg)} kg</Text>
-            {' '}in about{' '}
-            <Text style={{ color: C.amber, fontWeight: '700' }}>{plan.weeks} weeks</Text>
-            {' '}— eating the food you love.
-          </Text>
-        </View>
       ) : null}
 
-      {/* Personalisation tagline */}
-      <Text style={[s.doneTagline, { alignSelf: 'stretch' }]}>
-        Built for your goal to{' '}
-        <Text style={{ fontWeight: '700' }}>{d.goal || 'eat better'}</Text>
-        {d.country ? `, tuned for ${d.country} kitchens.` : '.'}
-      </Text>
-      <Text style={{ fontSize: 12, color: C.ink500, textAlign: 'center', marginTop: 10, lineHeight: 17, alignSelf: 'stretch' }}>
-        Estimates only, not medical advice. Check with a qualified professional before changing your diet or exercise.
+      <Text style={s.planNote}>
+        These are estimates, not medical advice. You can change your goal any time in Settings, and Logga adjusts as you log.
       </Text>
 
-      <View style={{ marginTop: 22, marginBottom: 16, alignSelf: 'stretch' }}>
-        <PrimaryBtn label="Create my account →" onPress={handleFinish} />
+      <View style={{ marginTop: 26 }}>
+        <PrimaryBtn label="Create my account" onPress={handleFinish} />
       </View>
     </ScrollView>
   );
@@ -1689,6 +1665,19 @@ const s = StyleSheet.create({
   buildingMsg: { fontSize: 15, fontWeight: '500', color: C.ink500, textAlign: 'center' },
 
   // Done screen
+  // "Your starting plan" (DoneScreen): plain type and hairline rows, no cards or badges
+  planKicker: { fontSize: 11.5, fontWeight: '800', color: C.ink400, letterSpacing: 1.8, marginBottom: 8 },
+  planHeadline: { fontSize: 26, fontWeight: '800', color: C.ink, lineHeight: 32, letterSpacing: -0.6 },
+  planNumberWrap: { marginTop: 26, marginBottom: 30 },
+  planNumber: { fontSize: 76, fontWeight: '800', color: C.ink, lineHeight: 82, letterSpacing: -3 },
+  planNumberUnit: { fontSize: 16, fontWeight: '600', color: C.ink500, marginTop: 2 },
+  planSection: { fontSize: 12, fontWeight: '800', color: C.ink400, letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 4, marginBottom: 4 },
+  planRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.line },
+  planRowLabel: { fontSize: 15.5, fontWeight: '600', color: C.ink700 },
+  planRowSub: { fontSize: 12.5, color: C.ink400, marginTop: 2, lineHeight: 17 },
+  planRowVal: { fontSize: 15.5, fontWeight: '700', color: C.ink },
+  planProjection: { fontSize: 15, lineHeight: 22, color: C.ink500, marginTop: 24 },
+  planNote: { fontSize: 12.5, lineHeight: 18, color: C.ink400, marginTop: 14 },
   doneCheck: {
     width: 76, height: 76, borderRadius: 38, backgroundColor: C.primary,
     alignItems: 'center', justifyContent: 'center',
