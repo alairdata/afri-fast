@@ -1,0 +1,42 @@
+<!-- Paste into Supabase: Authentication -> Email Templates -> "Confirm signup".
+     Subject: Confirm your Logga account
+     Styled after the So-UnFiltered AI verification email, in Logga's colours. -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;margin:0;padding:0;background:#fbfbf7;color:#10201a;">
+    <div style="max-width:560px;margin:0 auto;padding:48px 24px;">
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="font-size:26px;font-weight:800;letter-spacing:-0.04em;color:#059669;">Logga</div>
+        <h1 style="font-size:28px;font-weight:800;letter-spacing:-0.04em;margin:18px 0 0;line-height:1.2;">One tap to get started.</h1>
+      </div>
+
+      <div style="background:#ffffff;border:1px solid rgba(0,0,0,0.07);border-radius:16px;padding:32px;margin-bottom:24px;">
+        <div style="font-size:15px;font-weight:600;margin-bottom:8px;">Welcome to Logga,</div>
+        <div style="font-size:14px;color:#5b6b64;margin-bottom:24px;">
+          Confirm your email and you're in. Your goal, meals and streak will be saved to your account.
+        </div>
+
+        <div style="text-align:center;margin:28px 0;">
+          <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 36px;background:#059669;color:#ffffff !important;text-decoration:none;border-radius:12px;font-weight:700;font-size:14px;">Confirm my email</a>
+        </div>
+
+        <div style="font-size:12px;color:#8a978f;word-break:break-all;margin-top:16px;">
+          Or paste this link:<br>
+          <a href="{{ .ConfirmationURL }}" style="color:#059669;text-decoration:none;">{{ .ConfirmationURL }}</a>
+        </div>
+
+        <div style="height:1px;background:rgba(0,0,0,0.07);margin:24px 0;"></div>
+        <div style="font-size:12px;color:#8a978f;text-align:center;">Open this on the phone where you installed Logga. Can't find our emails? Check your spam folder.</div>
+      </div>
+
+      <div style="text-align:center;font-size:12px;color:#8a978f;">
+        Didn't sign up? Just ignore this email and nothing will happen.
+        <div style="margin-top:12px;font-size:11px;"><a href="https://www.logga.space" style="color:#8a978f;text-decoration:none;">logga.space</a></div>
+      </div>
+    </div>
+  </body>
+</html>

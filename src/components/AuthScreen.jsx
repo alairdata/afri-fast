@@ -2,7 +2,7 @@
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image,
-  Animated, Easing, useWindowDimensions, Linking,
+  Animated, Easing, useWindowDimensions, Linking, Modal,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -178,6 +178,14 @@ const ca = StyleSheet.create({
   secondaryTxt: { color: '#10201a', fontSize: 15, fontWeight: '600' },
   terms: { textAlign: 'center', marginTop: 18, fontSize: 13, color: 'rgba(16,32,26,0.45)', lineHeight: 19 },
   link: { color: '#059669', fontWeight: '700' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  modalCard: { width: '100%', maxWidth: 400, backgroundColor: '#fff', borderRadius: 24, padding: 24 },
+  modalIcon: {
+    width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(5,150,105,0.12)',
+    alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 14,
+  },
+  modalTitle: { fontSize: 21, fontWeight: '800', color: '#10201a', textAlign: 'center', letterSpacing: -0.4, marginBottom: 10 },
+  modalBody: { fontSize: 14.5, color: 'rgba(16,32,26,0.62)', textAlign: 'center', lineHeight: 21, marginBottom: 18 },
   confirmIcon: {
     width: 76, height: 76, borderRadius: 38, backgroundColor: 'rgba(5,150,105,0.12)',
     alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 28, marginBottom: 22,
@@ -241,6 +249,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmEmail, setConfirmEmail] = useState('');
   const [resendIn, setResendIn] = useState(0);
+  const [pendingModal, setPendingModal] = useState(false);
 
   // Resend-email cooldown.
   useEffect(() => {
@@ -293,7 +302,11 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     if (!loginError) return;
     // They signed up but never tapped the link in the email: say so (and let them resend) instead of
     // bouncing them around the sign-up screens.
-    if (isNotConfirmed(loginError)) { goConfirm(cleanEmail); return; }
+    if (isNotConfirmed(loginError)) {
+      setConfirmEmail(cleanEmail); setError(''); setMessage('');
+      setPendingModal(true);
+      return;
+    }
     if (isRateLimited(loginError)) { setError('Too many attempts. Please wait a few minutes and try again.'); return; }
     if (loginError.code === 'invalid_credentials' || /invalid login credentials/i.test(loginError.message || '')) {
       setError("That email and password don't match. If you're new here, tap \"Start here\" below.");
@@ -493,7 +506,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
           <Text style={ca.confirmBody}>We sent a confirmation link to</Text>
           <Text style={ca.confirmEmail}>{confirmEmail}</Text>
           <Text style={[ca.confirmBody, { marginBottom: 6 }]}>
-            Tap the link on this phone and you'll come straight back into Logga, signed in.
+            Tap the link on this phone and you'll come straight back into Logga, signed in. Can't see it? Check your spam folder.
           </Text>
 
           {error ? <Text style={ca.error}>{error}</Text> : null}
@@ -613,6 +626,40 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
           <Text style={ca.link} onPress={() => setScreen('onboarding')}>Start here</Text>
         </Text>
       </ScrollView>
+
+      {/* Shown when they try to log in before tapping the confirmation link in their email. */}
+      <Modal visible={pendingModal} transparent animationType="fade" onRequestClose={() => setPendingModal(false)}>
+        <View style={ca.modalBackdrop}>
+          <View style={ca.modalCard}>
+            <View style={ca.modalIcon}>
+              <Ionicons name="mail-unread-outline" size={30} color="#059669" />
+            </View>
+            <Text style={ca.modalTitle}>Confirm your email first</Text>
+            <Text style={ca.modalBody}>
+              <Text style={{ fontWeight: '700', color: '#10201a' }}>{confirmEmail}</Text> is waiting for confirmation.
+              {'\n\n'}Go to your inbox and tap the link we sent, then come back and log in. Can't find it? Check your spam folder.
+            </Text>
+
+            {error ? <Text style={[ca.error, { marginTop: 0, marginBottom: 12 }]}>{error}</Text> : null}
+            {message ? <Text style={[ca.success, { marginTop: 0, marginBottom: 12 }]}>{message}</Text> : null}
+
+            <TouchableOpacity style={[ca.createBtn, { marginTop: 4 }]} onPress={openMailApp} activeOpacity={0.85}>
+              <Text style={ca.createTxt}>Open email app</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[ca.secondaryBtn, resendIn > 0 && { opacity: 0.55 }]}
+              onPress={handleResend}
+              disabled={resendIn > 0}
+              activeOpacity={0.8}
+            >
+              <Text style={ca.secondaryTxt}>{resendIn > 0 ? `Resend email in ${resendIn}s` : 'Resend email'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => { setPendingModal(false); setError(''); setMessage(''); }} style={{ paddingVertical: 14 }}>
+              <Text style={[ca.terms, { marginTop: 0 }]}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
