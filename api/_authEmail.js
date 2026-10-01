@@ -72,7 +72,7 @@ export async function sendVerificationEmail(to, name, link) {
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;margin:0;padding:0;background:#fbfbf7;color:#10201a;">
 <div style="max-width:560px;margin:0 auto;padding:48px 24px;">
   <div style="text-align:center;margin-bottom:28px;">
-    <div style="font-size:26px;font-weight:800;letter-spacing:-0.04em;color:#059669;">Logga</div>
+    <a href="https://www.logga.space" style="text-decoration:none;"><img src="https://www.logga.space/logga-wordmark.png" alt="Logga" width="130" style="display:inline-block;width:130px;height:auto;border:0;"></a>
     <h1 style="font-size:28px;font-weight:800;letter-spacing:-0.04em;margin:18px 0 0;line-height:1.2;">One tap to get started.</h1>
   </div>
   <div style="background:#ffffff;border:1px solid rgba(0,0,0,0.07);border-radius:16px;padding:32px;margin-bottom:24px;">
