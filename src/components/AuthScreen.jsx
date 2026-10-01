@@ -167,9 +167,8 @@ const ca = StyleSheet.create({
     backgroundColor: '#ECFDF5', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, overflow: 'hidden',
   },
   createBtn: {
-    backgroundColor: '#059669', borderRadius: 16, height: 56,
+    backgroundColor: '#16201b', borderRadius: 14, height: 54,
     alignItems: 'center', justifyContent: 'center', marginTop: 20,
-    shadowColor: '#059669', shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 3,
   },
   createTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
   secondaryBtn: {
