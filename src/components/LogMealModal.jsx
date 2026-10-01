@@ -1773,17 +1773,20 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             <Text style={styles.shareCardProgressLabel}>Today overall</Text>
                             <Text style={[styles.shareCardProgressPct, isOver && { color: '#f97316' }]}>{Math.round(rawPct * 100)}%</Text>
                           </View>
-                          <Text style={styles.shareCardProgressText}>
-                            {dayTotal.toLocaleString()} of {(cardGoal || 0).toLocaleString()} kcal · {isOver
-                              ? `${(dayTotal - cardGoal).toLocaleString()} over`
-                              : `${remaining.toLocaleString()} left`}
-                          </Text>
+                          <View>
+                            <View style={styles.shareCardProgressNumbers}>
+                              <Text style={styles.shareCardProgressText}>{dayTotal.toLocaleString()} of {(cardGoal || 0).toLocaleString()} kcal</Text>
+                              <Text style={[styles.shareCardProgressText, { fontWeight: '600', color: isOver ? '#f97316' : 'rgba(255,255,255,0.8)' }]}>
+                                {isOver ? `${(dayTotal - cardGoal).toLocaleString()} over` : `${remaining.toLocaleString()} left`}
+                              </Text>
+                            </View>
                           <View style={styles.shareCardProgressBar}>
                             <LinearGradient
                               colors={isOver ? ['#f97316', '#ef4444'] : ['#22c55e', '#86efac']}
                               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                               style={[styles.shareCardProgressFill, { width: `${Math.round(barPct * 100)}%` }]}
                             />
+                          </View>
                           </View>
                         </View>
                       </View>
@@ -2902,7 +2905,7 @@ const styles = StyleSheet.create({
   },
   shareCardInfoPanel: {
     backgroundColor: '#111',
-    paddingHorizontal: 18,
+    paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 4,
   },
@@ -3007,8 +3010,8 @@ const styles = StyleSheet.create({
   },
   shareCardKcalRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
+    alignItems: 'stretch',
+    gap: 20,
   },
   shareCardKcalBig: {
     flexDirection: 'column',
@@ -3025,7 +3028,7 @@ const styles = StyleSheet.create({
   },
   shareCardKcalNumberRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'baseline',
     gap: 6,
   },
   shareCardKcalNumber: {
@@ -3040,16 +3043,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#4ade80',
     fontWeight: '600',
-    marginBottom: 7,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   shareCardProgressCol: {
     flex: 1,
+    justifyContent: 'space-between',
   },
   shareCardProgressMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'baseline',
+  },
+  shareCardProgressNumbers: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
     marginBottom: 6,
   },
   shareCardProgressLabel: {
@@ -3062,7 +3071,6 @@ const styles = StyleSheet.create({
   shareCardProgressText: {
     fontSize: 11,
     color: 'rgba(255,255,255,0.55)',
-    marginBottom: 6,
   },
   shareCardProgressPct: {
     fontSize: 11,
@@ -3160,10 +3168,10 @@ const styles = StyleSheet.create({
   },
   shareCardFooterDate: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.22)',
+    color: 'rgba(255,255,255,0.4)',
   },
   shareCardFooterMealType: {
-    color: 'rgba(255,255,255,0.42)',
+    color: 'rgba(255,255,255,0.65)',
     fontWeight: '600',
   },
   shareCardCtaBtn: {
