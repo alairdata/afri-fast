@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Confirm your email - Logga</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fbfbf7; color: #10201a; display: flex; min-height: 100vh; align-items: center; justify-content: center; text-align: center; }
+    main { max-width: 380px; padding: 32px 24px; }
+    img { width: 130px; height: auto; margin-bottom: 22px; }
+    h1 { font-size: 26px; letter-spacing: -0.03em; margin: 0 0 10px; }
+    p { font-size: 15px; line-height: 1.55; color: #5b6b64; margin: 0 0 24px; }
+    button, a.btn { display: block; width: 100%; box-sizing: border-box; background: #16201b; color: #fff; text-decoration: none; font-size: 16px; font-weight: 700; padding: 16px; border: 0; border-radius: 14px; cursor: pointer; }
+    button:disabled { opacity: 0.55; cursor: default; }
+    .hide { display: none; }
+    small { display: block; margin-top: 18px; font-size: 12px; color: #8a978f; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/logga-wordmark.png" alt="Logga">
+
+    <div id="ask">
+      <h1>Confirm your email</h1>
+      <p>Tap the button to finish setting up your Logga account.</p>
+      <button id="go">Confirm my email</button>
+    </div>
+
+    <div id="done" class="hide">
+      <h1>Email verified!</h1>
+      <p>You can now log in.</p>
+      <a id="open" class="btn" href="logga://auth-callback?verified=true">Open Logga</a>
+      <small>Open this page on the phone that has Logga installed.</small>
+    </div>
+
+    <div id="bad" class="hide">
+      <h1 id="badTitle">Link already used or expired</h1>
+      <p id="badText">If you've already confirmed your email, open Logga and log in. If not, sign up again in the app to get a new link.</p>
+      <a class="btn" href="logga://auth-callback">Open Logga</a>
+    </div>
+  </main>
+  <script>
+    // The one-time code in this link is only spent when the button is tapped (not by opening the page), so
+    // email scanners that pre-open links can't use it up.
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var tokenHash = q.get('token_hash');
+      var type = q.get('type');
+      var show = function (id) { ['ask', 'done', 'bad'].forEach(function (x) { document.getElementById(x).classList.toggle('hide', x !== id); }); };
+      if (!tokenHash || !type) { document.getElementById('badTitle').textContent = 'Link not valid'; document.getElementById('badText').textContent = 'Open the latest email from Logga and tap the button in it.'; show('bad'); return; }
+      var go = document.getElementById('go');
+      go.addEventListener('click', function () {
+        go.disabled = true; go.textContent = 'Confirming...';
+        fetch('https://afri-fast.vercel.app/api/confirm-email', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenHash: tokenHash, type: type })
+        }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+          .then(function (res) {
+            if (res.ok) {
+              show('done');
+              setTimeout(function () { window.location.href = 'logga://auth-callback?verified=true'; }, 600);
+            } else { show('bad'); }
+          })
+          .catch(function () { go.disabled = false; go.textContent = 'Confirm my email'; alert('Could not reach Logga. Check your connection and try again.'); });
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 // the same whether or not the email has an account (so nobody can probe which emails exist).
 // The reset link lasts 1 hour (Supabase's recovery link) and lands on /reset-password.
 import {
-  cors, configured, clientIp, rateLimit, isValidEmail, generateLink, sendPasswordResetEmail, RESET_PAGE,
+  cors, configured, clientIp, rateLimit, isValidEmail, generateLink, sendPasswordResetEmail, RESET_PAGE, resetLink,
 } from './_authEmail.js';
 import { trackServerEvent } from './_analytics.js';
 
@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     const link = await generateLink({ type: 'recovery', email, redirect_to: RESET_PAGE });
     // No account, or one that never confirmed its email: same answer, nothing sent.
     if (!link.ok || !link.body.email_confirmed_at) return res.status(200).json(SAME_ANSWER);
-    const sent = await sendPasswordResetEmail(email, link.body.user_metadata?.name || '', link.body.action_link);
+    const sent = await sendPasswordResetEmail(email, link.body.user_metadata?.name || '', resetLink(link.body));
     if (!sent) return res.status(500).json({ error: 'Failed to send reset email' });
     await trackServerEvent(link.body.id, 'email_sent', { email_type: 'password_reset' });
     return res.status(200).json(SAME_ANSWER);

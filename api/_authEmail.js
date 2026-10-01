@@ -57,6 +57,34 @@ export async function generateLink(payload) {
   return { ok: r.ok, status: r.status, body };
 }
 
+// The email links to OUR page (which waits for a button tap), not to Supabase's one-time link. Mail apps and
+// security scanners open every link in an email to check it; a one-time link opened by a scanner is used up
+// before the person taps it, and they see 'expired'. A scanner can open our page but cannot press its button.
+const CONFIRM_PAGE = 'https://www.logga.space/confirm-email';
+const hashOf = (b) => b.hashed_token || b.properties?.hashed_token;
+export function emailConfirmLink(body) {
+  const hash = hashOf(body);
+  const type = body.verification_type || body.properties?.verification_type;
+  if (!hash || !type) return body.action_link; // fall back to Supabase's own link
+  return `${CONFIRM_PAGE}?token_hash=${encodeURIComponent(hash)}&type=${encodeURIComponent(type)}`;
+}
+export function resetLink(body) {
+  const hash = hashOf(body);
+  if (!hash) return body.action_link;
+  return `${RESET_PAGE}?token_hash=${encodeURIComponent(hash)}&type=recovery`;
+}
+
+// Uses up a one-time code (this is the moment it is spent), returning Supabase's answer.
+export async function verifyTokenHash(tokenHash, type) {
+  const r = await fetch(`${SUPABASE_URL()}/auth/v1/verify`, {
+    method: 'POST',
+    headers: { apikey: SERVICE_KEY(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, token_hash: tokenHash }),
+  });
+  const body = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, body };
+}
+
 export async function updateUser(id, patch) {
   const r = await fetch(`${SUPABASE_URL()}/auth/v1/admin/users/${id}`, {
     method: 'PUT', headers: adminHeaders(), body: JSON.stringify(patch),

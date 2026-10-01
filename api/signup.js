@@ -3,7 +3,7 @@
 // Responses: 200 {ok} | 400 {error} | 409 {error:'already_registered'} | 429 {error} | 5xx {error}
 import {
   cors, configured, clientIp, rateLimit, isDisposableEmail, isValidEmail, pickRedirect,
-  generateLink, updateUser, sendVerificationEmail, passwordError,
+  generateLink, updateUser, sendVerificationEmail, passwordError, emailConfirmLink,
 } from './_authEmail.js';
 import { trackServerEvent } from './_analytics.js';
 
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     // Creates the unconfirmed user and returns the confirmation link without emailing it.
     const created = await generateLink({ type: 'signup', email, password, data: { name: cleanName }, redirect_to });
     if (created.ok) {
-      link = created.body.action_link;
+      link = emailConfirmLink(created.body);
     } else if (created.status === 422 || created.body?.error_code === 'email_exists') {
       // Already has a login. If they never confirmed it, treat this as "try again": set the password
       // they just chose and send a fresh link. If it is confirmed, tell them to log in.
@@ -48,7 +48,7 @@ export default async function handler(req, res) {
       if (!existing.ok) return res.status(500).json({ error: 'Could not create your account. Please try again.' });
       if (existing.body.email_confirmed_at) return res.status(409).json({ error: 'already_registered' });
       await updateUser(existing.body.id, { password, user_metadata: { name: cleanName } });
-      link = existing.body.action_link;
+      link = emailConfirmLink(existing.body);
     } else {
       console.error('[signup] generate_link failed:', created.status, created.body);
       return res.status(500).json({ error: 'Could not create your account. Please try again.' });

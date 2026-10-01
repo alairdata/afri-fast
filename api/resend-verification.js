@@ -2,7 +2,7 @@
 // Responses: 200 {ok, alreadyConfirmed?} | 400 | 429 | 5xx. Unknown emails get a plain 200 so this
 // can't be used to probe which addresses have accounts.
 import {
-  cors, configured, clientIp, rateLimit, isValidEmail, pickRedirect, generateLink, sendVerificationEmail,
+  cors, configured, clientIp, rateLimit, isValidEmail, pickRedirect, generateLink, sendVerificationEmail, emailConfirmLink,
 } from './_authEmail.js';
 
 export default async function handler(req, res) {
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     const link = await generateLink({ type: 'magiclink', email, redirect_to: pickRedirect(req.body?.redirectTo) });
     if (!link.ok) return res.status(200).json({ ok: true }); // no such account: say nothing
     if (link.body.email_confirmed_at) return res.status(200).json({ ok: true, alreadyConfirmed: true });
-    const sent = await sendVerificationEmail(email, link.body.user_metadata?.name || '', link.body.action_link);
+    const sent = await sendVerificationEmail(email, link.body.user_metadata?.name || '', emailConfirmLink(link.body));
     if (!sent) return res.status(502).json({ error: "We couldn't send the email. Please try again." });
     return res.status(200).json({ ok: true });
   } catch (e) {
