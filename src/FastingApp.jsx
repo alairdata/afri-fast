@@ -35,6 +35,7 @@ import {
 import { evaluateMilestones } from './lib/milestones';
 import { syncSmartNotifications, clearSmartNotifications, onBurnoutSummaryPublished } from './lib/smartNotifications';
 import { pendingWidgetWater, ackWidgetWater, pushWidgetSnapshot } from './lib/widgetSync';
+import { track, EVENTS, startSession, countSessionLog, incrementUserProperty, resetAnalytics } from './lib/analytics';
 import { buildDailyLedgerMap } from './lib/goalHistory';
 
 // Tab components
@@ -1091,6 +1092,19 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     return () => clearTimeout(t);
   }, [notifSettingsLoaded, notifySmart, session?.user?.id, recentMeals, waterLogs, stepLogs, activities, hydrationGoal, volumeUnit]);
 
+  // Analytics: identify the person and open a session (see lib/analytics.js).
+  useEffect(() => {
+    const u = session?.user;
+    if (!u?.id) return;
+    startSession({
+      id: u.id,
+      name: u.user_metadata?.name || u.user_metadata?.full_name,
+      email: u.email,
+      createdAt: u.created_at,
+      onboardingComplete: true,
+    });
+  }, [session?.user?.id]);
+
   // iOS home-screen widgets: keep them fed with today's numbers, and bring water added with the
   // widget's "+" button back into the app's own logs. Runs on data changes and whenever the app
   // comes to the foreground; if widget water is waiting it is added first (which changes
@@ -1125,6 +1139,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     const handle = (url) => {
       if (!url) return;
       const host = String(url).replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split(/[/?#]/)[0];
+      if (['log-meal', 'energy', 'today', 'water'].includes(host)) track(EVENTS.WIDGET_OPENED, { target: host });
       if (host === 'log-meal') { setActiveTab('meals'); setShowLogMealOptions(true); }
       else if (host === 'energy') setActiveTab('progress');
       else if (host === 'today' || host === 'water') setActiveTab('today');
@@ -1139,6 +1154,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     if (Platform.OS === 'web') return;
     const sub = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
+      track(EVENTS.NOTIFICATION_OPENED, { type: data?.type || 'unknown' });
       if (data?.type === 'prediction' && data?.cardIndex != null) {
         setActiveTab('today');
         setPendingInsightIndex(data.cardIndex);
@@ -1881,12 +1897,16 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     };
     setWaterLogs(prev => [waterLog, ...prev]);
     dbSave(supabase.from('water_logs').insert({ id: wId, user_id: session?.user?.id, date: waterLog.date, display_date: waterLog.displayDate, amount: waterLog.amount, unit: waterLog.unit }), 'quick add water', (msg) => showToast(msg, 'error'));
+    track(EVENTS.WATER_LOGGED, { source: 'quick_add', unit: volumeUnit });
+    countSessionLog();
+    incrementUserProperty('total_water_logs');
     showToast(`+${quickWaterLabel(volumeUnit)} of water`);
     return wId;
   };
 
   // Water logged with the home-screen widget's "+" button: add the same number of glasses here.
   const addWidgetWater = (count) => {
+    track(EVENTS.WATER_LOGGED, { source: 'widget', glasses: count });
     const now = new Date();
     const logs = Array.from({ length: count }, (_, i) => {
       const id = Date.now() + i;
@@ -2242,6 +2262,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                 const body = await resp.json().catch(() => ({}));
                 throw new Error(body.error || `Delete failed (${resp.status})`);
               }
+              track(EVENTS.ACCOUNT_DELETED);
+              resetAnalytics();
               await AsyncStorage.clear();
               await supabase.auth.signOut({ scope: 'local' });
             } catch (e) {
@@ -2388,7 +2410,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         setWeightLogs={setWeightLogs}
         weightUnit={weightUnit}
         setWeightUnit={setWeightUnit}
-        onWeightSaved={(log) => dbSave(supabase.from('weight_logs').insert({ id: log.timestamp, user_id: session?.user?.id, date: log.date, weight: log.weight, unit: log.unit }), 'save weight_log', (msg) => showToast(msg, 'error'))}
+        onWeightSaved={(log) => { track(EVENTS.WEIGHT_LOGGED, { unit: log.unit }); countSessionLog(); incrementUserProperty('total_weight_logs'); dbSave(supabase.from('weight_logs').insert({ id: log.timestamp, user_id: session?.user?.id, date: log.date, weight: log.weight, unit: log.unit }), 'save weight_log', (msg) => showToast(msg, 'error')); }}
         onWeightDeleted={(log) => dbSave(supabase.from('weight_logs').delete().eq('id', log.timestamp).eq('user_id', session?.user?.id), 'delete weight_log', (msg) => showToast(msg, 'error'))}
       />
 
@@ -2409,7 +2431,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         stepLogs={stepLogs}
         setStepLogs={setStepLogs}
         stepGoal={stepGoal}
-        onStepsSaved={(log) => dbSave(supabase.from('step_logs').insert({ id: log.id, user_id: session?.user?.id, date: log.date, display_date: log.displayDate, steps: log.steps }), 'save step_log', (msg) => showToast(msg, 'error'))}
+        onStepsSaved={(log) => { track(EVENTS.STEPS_LOGGED, { steps: log.steps }); countSessionLog(); dbSave(supabase.from('step_logs').insert({ id: log.id, user_id: session?.user?.id, date: log.date, display_date: log.displayDate, steps: log.steps }), 'save step_log', (msg) => showToast(msg, 'error')); }}
         onStepsDeleted={(log) => dbSave(supabase.from('step_logs').delete().eq('id', log.id).eq('user_id', session?.user?.id), 'delete step_log', (msg) => showToast(msg, 'error'))}
       />
 
@@ -2418,6 +2440,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
         onClose={() => setShowAddActivity(false)}
         currentWeightKg={weightLogs.length ? (weightUnit === 'lbs' ? weightLogs[0].weight / 2.20462 : weightLogs[0].weight) : (startingWeight != null ? (weightUnit === 'lbs' ? startingWeight / 2.20462 : startingWeight) : null)}
         onSave={(entry) => {
+          track(EVENTS.ACTIVITY_LOGGED, { type: entry.type, duration_min: entry.durationMin });
+          countSessionLog();
           setActivities(prev => [entry, ...prev]);
           dbSave(supabase.from('activities').insert({
             id: entry.id, user_id: session?.user?.id, type: entry.type, name: entry.name,
@@ -2492,6 +2516,20 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
                 else console.log('[Photo update] saved photo for meal', meal.id);
               });
             return;
+          }
+          // Analytics: the core loop. Only brand-new meals count (an edit re-saves an existing id).
+          if (!recentMeals.some(m => m.id === meal.id)) {
+            const totalMeals = recentMeals.length + 1;
+            track(EVENTS.MEAL_LOGGED, {
+              method: meal.method || 'unknown',
+              calories: Math.round(meal.calories || 0),
+              has_photo: !!(meal.photo || meal.localPhoto),
+              is_first_meal: recentMeals.length === 0,
+            });
+            if (recentMeals.length === 0) track(EVENTS.FIRST_MEAL_LOGGED);
+            if ([3, 10, 50].includes(totalMeals)) track(EVENTS.ACTIVATION_MILESTONE, { total_meals: totalMeals });
+            countSessionLog();
+            incrementUserProperty('total_meals');
           }
           const attemptInsert = async (mealToSave) => {
             setRecentMeals(prev => prev.some(m => m.id === mealToSave.id) ? prev : [mealToSave, ...prev]);
@@ -2687,6 +2725,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalSecondaryBtn} onPress={() => {
               setShowLogoutModal(false);
+              track(EVENTS.USER_LOGGED_OUT);
+              resetAnalytics();
               AsyncStorage.clear().catch(() => {});
               supabase.auth.signOut();
             }}>

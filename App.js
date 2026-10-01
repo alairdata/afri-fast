@@ -7,6 +7,7 @@ import AuthScreen from './src/components/AuthScreen';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import FastingApp from './src/FastingApp';
 import PreAuthOnboarding from './src/components/PreAuthOnboarding';
+import { installErrorTracking } from './src/lib/analytics';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   // Load Inter from Google Fonts
@@ -48,6 +49,9 @@ TextInput.defaultProps.style = [
   { fontFamily: 'Inter', ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) },
   TextInput.defaultProps.style,
 ].filter(Boolean);
+
+// Uncaught errors / unhandled rejections go to Mixpanel too (capped per launch).
+installErrorTracking();
 
 const PRE_AUTH_STORAGE_KEY = 'afri-fast-preauth';
 
