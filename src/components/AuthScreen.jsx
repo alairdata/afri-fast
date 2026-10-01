@@ -8,6 +8,7 @@ import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../lib/supabase';
 import { signInNative } from '../lib/nativeAuth';
+import { track, EVENTS } from '../lib/analytics';
 import PreAuthOnboarding from './PreAuthOnboarding';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -221,6 +222,23 @@ async function postJson(path, body) {
   }
 }
 
+// SUAI's password rules, shown as a live checklist on sign-up (the server enforces the same ones).
+const PASSWORD_RULES = [
+  { key: 'len', label: 'At least 10 characters', test: (p) => p.length >= 10 },
+  { key: 'up', label: 'An uppercase letter', test: (p) => /[A-Z]/.test(p) },
+  { key: 'low', label: 'A lowercase letter', test: (p) => /[a-z]/.test(p) },
+  { key: 'num', label: 'A number', test: (p) => /[0-9]/.test(p) },
+  { key: 'sym', label: 'A special character', test: (p) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(p) },
+];
+const passwordProblem = (p) => {
+  if (p.length < 10) return 'Password must be at least 10 characters';
+  if (!PASSWORD_RULES[1].test(p)) return 'Password must contain at least one uppercase letter';
+  if (!PASSWORD_RULES[2].test(p)) return 'Password must contain at least one lowercase letter';
+  if (!PASSWORD_RULES[3].test(p)) return 'Password must contain at least one number';
+  if (!PASSWORD_RULES[4].test(p)) return 'Password must contain at least one special character';
+  return null;
+};
+
 // Capitalise what they typed ("reviewer" -> "Reviewer") but never cut it down to an initial.
 const displayName = (n) => {
   const t = (n || '').trim().replace(/\s+/g, ' ');
@@ -263,6 +281,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [confirmEmail, setConfirmEmail] = useState('');
   const [resendIn, setResendIn] = useState(0);
   const [pendingModal, setPendingModal] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
   // Resend-email cooldown.
   useEffect(() => {
@@ -279,6 +298,21 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
       if (!url || !url.startsWith(NATIVE_REDIRECT) || handledAuthUrls.has(url)) return;
       handledAuthUrls.add(url);
       const params = new URLSearchParams(url.split('#')[1] || url.split('?')[1] || '');
+      // The web page after the email link (public/auth-callback.html) sends people back here the way
+      // the So-UnFiltered AI site does: "Email verified! You can now log in."
+      if (params.get('verified') === 'true') {
+        track(EVENTS.EMAIL_VERIFIED);
+        setError('');
+        setMode('login'); setScreen('auth'); setPendingModal(false);
+        setMessage('Email verified! You can now log in.');
+        return;
+      }
+      const linkError = params.get('error');
+      if (linkError === 'token-expired' || linkError === 'invalid-token') {
+        setMode('login'); setScreen('auth');
+        setError(linkError === 'token-expired' ? 'Verification link expired. Please sign up again.' : 'Invalid or expired verification link.');
+        return;
+      }
       const access_token = params.get('access_token');
       const refresh_token = params.get('refresh_token');
       if (access_token && refresh_token) {
@@ -312,17 +346,25 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     setLoading(true); setError(''); setMessage('');
     const { error: loginError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
     setLoading(false);
-    if (!loginError) return;
+    if (!loginError) { track(EVENTS.USER_LOGGED_IN, { method: 'credentials' }); return; }
     // They signed up but never tapped the link in the email: say so (and let them resend) instead of
     // bouncing them around the sign-up screens.
     if (isNotConfirmed(loginError)) {
+      track(EVENTS.LOGIN_FAILED, { method: 'credentials', error_type: 'email_not_verified' });
       setConfirmEmail(cleanEmail); setError(''); setMessage('');
       setPendingModal(true);
       return;
     }
-    if (isRateLimited(loginError)) { setError('Too many attempts. Please wait a few minutes and try again.'); return; }
+    if (isRateLimited(loginError)) {
+      track(EVENTS.LOGIN_FAILED, { method: 'credentials', error_type: 'rate_limited' });
+      setError('Too many login attempts. Please try again in 15 minutes.');
+      return;
+    }
+    track(EVENTS.LOGIN_FAILED, { method: 'credentials', error_type: loginError.code || 'unknown' });
+    // Same wording as So-UnFiltered AI, and the same for a wrong password and an unknown email, so
+    // nobody can probe which emails have accounts.
     if (loginError.code === 'invalid_credentials' || /invalid login credentials/i.test(loginError.message || '')) {
-      setError("That email and password don't match. If you're new here, tap \"Start here\" below.");
+      setError('Invalid email or password');
       return;
     }
     setError(loginError.message);
@@ -330,8 +372,17 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
 
   const handleSignUp = async () => {
     setTouched({ name: true, email: true, password: true });
-    if (!name.trim() || !email.trim() || !password) { setError('Please fill in all fields.'); return; }
-    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    if (!name.trim() || !email.trim() || !password) {
+      track(EVENTS.FORM_VALIDATION_ERROR, { form: 'signup', field: 'required' });
+      setError('Please fill in all fields.');
+      return;
+    }
+    const pwProblem = passwordProblem(password);
+    if (pwProblem) {
+      track(EVENTS.FORM_VALIDATION_ERROR, { form: 'signup', field: 'password' });
+      setError(pwProblem);
+      return;
+    }
     const cleanEmail = email.trim().toLowerCase();
     setLoading(true); setError(''); setMessage('');
     // Our own server creates the account and sends the branded confirmation email (api/signup.js),
@@ -348,7 +399,20 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     if (!result.ok) { setError(result.error); return; }
     // No session yet: the profile is created on their first real login (see FastingApp's profile
     // fetch), so just ask them to confirm their email.
+    track(EVENTS.USER_SIGNED_UP, { method: 'email' });
     goConfirm(cleanEmail, 45);
+  };
+
+  // Forgot password, the SUAI way: always the same answer, whether or not the email has an account.
+  const handleForgot = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) { setError('Please enter your email.'); return; }
+    setLoading(true); setError(''); setMessage('');
+    const result = await postJson('/api/forgot-password', { email: cleanEmail });
+    setLoading(false);
+    if (!result.ok) { setError(result.error); return; }
+    track(EVENTS.PASSWORD_RESET_REQUESTED);
+    setForgotSent(true);
   };
 
   const handleResend = async () => {
@@ -368,7 +432,8 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     setError('');
     if (Platform.OS !== 'web') {
       const r = await signInNative(provider);
-      if (r.error) setError(r.error);
+      if (r.error) { track(EVENTS.LOGIN_FAILED, { method: provider, error_type: 'oauth_error' }); setError(r.error); }
+      else if (!r.cancelled) track(EVENTS.USER_LOGGED_IN, { method: provider });
       return;
     }
     const redirectTo = webOrigin();
@@ -442,13 +507,16 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         </TouchableOpacity>
       </View>
       {isSignup && (
-        <View style={ca.hint}>
-          <Ionicons
-            name={password.length >= 8 ? 'checkmark-circle' : 'ellipse-outline'}
-            size={14}
-            color={password.length >= 8 ? '#059669' : 'rgba(0,0,0,0.3)'}
-          />
-          <Text style={[ca.hintTxt, password.length >= 8 && ca.hintOk]}>At least 8 characters</Text>
+        <View style={{ marginTop: 2 }}>
+          {PASSWORD_RULES.map((rule) => {
+            const ok = rule.test(password);
+            return (
+              <View key={rule.key} style={ca.hint}>
+                <Ionicons name={ok ? 'checkmark-circle' : 'ellipse-outline'} size={14} color={ok ? '#059669' : 'rgba(0,0,0,0.3)'} />
+                <Text style={[ca.hintTxt, ok && ca.hintOk]}>{rule.label}</Text>
+              </View>
+            );
+          })}
         </View>
       )}
     </View>
@@ -574,6 +642,46 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     );
   }
 
+  // ── Forgot password screen ──────────────────────────────────────────────────
+  if (mode === 'forgot') {
+    return (
+      <KeyboardAvoidingView style={ca.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={ca.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <AuthTop onBack={() => { setError(''); setMessage(''); setMode('login'); }} />
+          {forgotSent ? (
+            <>
+              <View style={ca.confirmIcon}>
+                <Ionicons name="mail-open-outline" size={36} color="#059669" />
+              </View>
+              <Text style={ca.confirmHeadline}>Check your email</Text>
+              <Text style={ca.confirmBody}>If an account exists with this email, you will receive a password reset link.</Text>
+              <Text style={ca.confirmEmail}>{email.trim().toLowerCase()}</Text>
+              <Text style={[ca.confirmBody, { marginBottom: 6 }]}>The link expires in 1 hour. Don't forget to check your spam folder!</Text>
+              <TouchableOpacity style={ca.createBtn} onPress={() => { setForgotSent(false); setMode('login'); }} activeOpacity={0.85}>
+                <Text style={ca.createTxt}>Back to log in</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={ca.eyebrow}>NO WORRIES</Text>
+              <Text style={ca.headline}>Reset your password.</Text>
+              <Text style={ca.subtitle}>Enter your email and we'll send you a link to choose a new one.</Text>
+              {emailField}
+              {error ? <Text style={ca.error}>{error}</Text> : null}
+              <TouchableOpacity style={[ca.createBtn, loading && { opacity: 0.6 }]} onPress={handleForgot} disabled={loading} activeOpacity={0.85}>
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={ca.createTxt}>Send reset link</Text>}
+              </TouchableOpacity>
+              <Text style={ca.terms}>
+                Remembered it?{' '}
+                <Text style={ca.link} onPress={() => { setError(''); setMode('login'); }}>Log in</Text>
+              </Text>
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
   // ── Log in screen ───────────────────────────────────────────────────────────
   return (
     <KeyboardAvoidingView style={ca.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -594,6 +702,13 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
 
         {emailField}
         {passwordField('Your password', false)}
+
+        <Text
+          style={[ca.link, { textAlign: 'right', marginTop: 12 }]}
+          onPress={() => { setError(''); setMessage(''); setForgotSent(false); setMode('forgot'); }}
+        >
+          Forgot password?
+        </Text>
 
         {error ? <Text style={ca.error}>{error}</Text> : null}
         {message ? <Text style={ca.success}>{message}</Text> : null}
@@ -617,8 +732,8 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             </View>
             <Text style={ca.modalTitle}>Confirm your email first</Text>
             <Text style={ca.modalBody}>
-              <Text style={{ fontWeight: '700', color: '#10201a' }}>{confirmEmail}</Text> is waiting for confirmation.
-              {'\n\n'}Go to your inbox and tap the link we sent, then come back and log in. Can't find it? Check your spam folder.
+              Please verify your email before logging in. Check your inbox.
+              {'\n\n'}<Text style={{ fontWeight: '700', color: '#10201a' }}>{confirmEmail}</Text> is waiting for confirmation. Tap the link we sent, then come back and log in. Can't find it? Check your spam folder.
             </Text>
 
             {error ? <Text style={[ca.error, { marginTop: 0, marginBottom: 12 }]}>{error}</Text> : null}

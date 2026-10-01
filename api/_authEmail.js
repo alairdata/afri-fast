@@ -66,37 +66,73 @@ export async function updateUser(id, patch) {
 
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-export async function sendVerificationEmail(to, name, link) {
-  const hello = name ? `Welcome to Logga, ${escapeHtml(name)},` : 'Welcome to Logga,';
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+// SUAI's password rules: 10+ characters with upper case, lower case, a number and a symbol.
+export function passwordError(pw) {
+  if (typeof pw !== 'string' || pw.length < 10) return 'Password must be at least 10 characters';
+  if (pw.length > 128) return 'Password too long';
+  if (!/[A-Z]/.test(pw)) return 'Password must contain at least one uppercase letter';
+  if (!/[a-z]/.test(pw)) return 'Password must contain at least one lowercase letter';
+  if (!/[0-9]/.test(pw)) return 'Password must contain at least one number';
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\|,.<>/?]/.test(pw)) return 'Password must contain at least one special character';
+  return null;
+}
+
+export const RESET_PAGE = 'https://www.logga.space/reset-password';
+
+const shell = (headline, inner, footer) => `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;margin:0;padding:0;background:#fbfbf7;color:#10201a;">
 <div style="max-width:560px;margin:0 auto;padding:48px 24px;">
   <div style="text-align:center;margin-bottom:28px;">
     <a href="https://www.logga.space" style="text-decoration:none;"><img src="https://www.logga.space/logga-wordmark.png" alt="Logga" width="130" style="display:inline-block;width:130px;height:auto;border:0;"></a>
-    <h1 style="font-size:28px;font-weight:800;letter-spacing:-0.04em;margin:18px 0 0;line-height:1.2;">One tap to get started.</h1>
+    <h1 style="font-size:28px;font-weight:800;letter-spacing:-0.04em;margin:18px 0 0;line-height:1.2;">${headline}</h1>
   </div>
-  <div style="background:#ffffff;border:1px solid rgba(0,0,0,0.07);border-radius:16px;padding:32px;margin-bottom:24px;">
-    <div style="font-size:15px;font-weight:600;margin-bottom:8px;">${hello}</div>
-    <div style="font-size:14px;color:#5b6b64;margin-bottom:24px;">Confirm your email and you're in. Your goal, meals and streak will be saved to your account.</div>
-    <div style="text-align:center;margin:28px 0;">
-      <a href="${link}" style="display:inline-block;padding:14px 36px;background:#059669;color:#ffffff !important;text-decoration:none;border-radius:12px;font-weight:700;font-size:14px;">Confirm my email</a>
-    </div>
-    <div style="font-size:12px;color:#8a978f;word-break:break-all;margin-top:16px;">Or paste this link:<br><a href="${link}" style="color:#059669;text-decoration:none;">${link}</a></div>
-    <div style="height:1px;background:rgba(0,0,0,0.07);margin:24px 0;"></div>
-    <div style="font-size:12px;color:#8a978f;text-align:center;">Open this on the phone where you installed Logga. Can't find our emails? Check your spam folder.</div>
-  </div>
-  <div style="text-align:center;font-size:12px;color:#8a978f;">Didn't sign up? Just ignore this email and nothing will happen.
+  <div style="background:#ffffff;border:1px solid rgba(0,0,0,0.07);border-radius:16px;padding:32px;margin-bottom:24px;">${inner}</div>
+  <div style="text-align:center;font-size:12px;color:#8a978f;">${footer}
     <div style="margin-top:12px;font-size:11px;"><a href="https://www.logga.space" style="color:#8a978f;text-decoration:none;">logga.space</a></div>
   </div>
 </div></body></html>`;
 
+const button = (link, label) => `<div style="text-align:center;margin:28px 0;">
+      <a href="${link}" style="display:inline-block;padding:14px 36px;background:#059669;color:#ffffff !important;text-decoration:none;border-radius:12px;font-weight:700;font-size:14px;">${label}</a>
+    </div>
+    <div style="font-size:12px;color:#8a978f;word-break:break-all;margin-top:16px;">Or paste this link:<br><a href="${link}" style="color:#059669;text-decoration:none;">${link}</a></div>
+    <div style="height:1px;background:rgba(0,0,0,0.07);margin:24px 0;"></div>`;
+
+async function sendEmail(to, subject, html) {
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: RESEND_FROM(), to, subject: 'Confirm your Logga account', html }),
+    body: JSON.stringify({ from: RESEND_FROM(), to, subject, html }),
   });
   if (!r.ok) console.error('[auth-email] Resend failed:', r.status, await r.text().catch(() => ''));
   return r.ok;
+}
+
+export const sendVerificationEmail = (to, name, link) => sendEmail(
+  to, 'Confirm your Logga account',
+  shell('One tap to get started.', `
+    <div style="font-size:15px;font-weight:600;margin-bottom:8px;">${name ? `Welcome to Logga, ${escapeHtml(name)},` : 'Welcome to Logga,'}</div>
+    <div style="font-size:14px;color:#5b6b64;margin-bottom:24px;">Confirm your email and you're in. Your goal, meals and streak will be saved to your account.</div>
+    ${button(link, 'Confirm my email')}
+    <div style="font-size:12px;color:#8a978f;text-align:center;">This link expires in 24 hours. Can't find our emails? Check your spam folder.</div>`,
+  "Didn't sign up? Just ignore this email and nothing will happen."),
+);
+
+export const sendPasswordResetEmail = (to, name, link) => sendEmail(
+  to, 'Reset your Logga password',
+  shell('Reset your password.', `
+    <div style="font-size:15px;font-weight:600;margin-bottom:8px;">${name ? `Hey ${escapeHtml(name)},` : 'Hey,'}</div>
+    <div style="font-size:14px;color:#5b6b64;margin-bottom:24px;">We got a request to reset your Logga password. Tap the button to choose a new one.</div>
+    ${button(link, 'Reset my password')}
+    <div style="font-size:12px;color:#8a978f;text-align:center;">This link expires in 1 hour. Don't forget to check your spam folder!</div>`,
+  "Didn't ask for this? Just ignore this email. Your password won't change."),
+);
+
+export async function sendDripEmail(to, subject, headline, bodyHtml, ctaLabel, ctaLink) {
+  return sendEmail(to, subject, shell(headline, `
+    <div style="font-size:14px;color:#5b6b64;margin-bottom:8px;">${bodyHtml}</div>
+    ${ctaLink ? button(ctaLink, ctaLabel) : ''}`,
+  'You are getting this because you have a Logga account.'));
 }
 
 export const cors = (res) => {

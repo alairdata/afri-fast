@@ -6,35 +6,41 @@
   <title>Logga</title>
   <style>
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fbfbf7; color: #10201a; display: flex; min-height: 100vh; align-items: center; justify-content: center; text-align: center; }
-    main { max-width: 360px; padding: 32px 24px; }
-    .logo { font-size: 28px; font-weight: 800; letter-spacing: -0.04em; color: #059669; margin-bottom: 18px; }
-    h1 { font-size: 24px; letter-spacing: -0.03em; margin: 0 0 10px; }
-    p { font-size: 15px; line-height: 1.5; color: #5b6b64; margin: 0 0 22px; }
+    main { max-width: 380px; padding: 32px 24px; }
+    img { width: 130px; height: auto; margin-bottom: 22px; }
+    h1 { font-size: 26px; letter-spacing: -0.03em; margin: 0 0 10px; }
+    p { font-size: 15px; line-height: 1.55; color: #5b6b64; margin: 0 0 24px; }
     a.btn { display: inline-block; background: #059669; color: #fff; text-decoration: none; font-weight: 700; padding: 15px 34px; border-radius: 14px; }
     small { display: block; margin-top: 18px; font-size: 12px; color: #8a978f; }
   </style>
 </head>
 <body>
   <main>
-    <div class="logo">Logga</div>
-    <h1 id="title">Email confirmed</h1>
-    <p id="text">Opening the Logga app...</p>
-    <a id="open" class="btn" href="logga://auth-callback">Open Logga</a>
-    <small id="note">If nothing happens, tap the button. Open this page on the phone that has Logga installed.</small>
+    <img src="/logga-wordmark.png" alt="Logga">
+    <h1 id="title">Email verified!</h1>
+    <p id="text">You can now log in.</p>
+    <a id="open" class="btn" href="logga://auth-callback?verified=true">Open Logga</a>
+    <small>Open this page on the phone that has Logga installed.</small>
   </main>
   <script>
-    // Supabase sends the person here after confirming their email, with the sign-in tokens (or an
-    // error such as an expired link) in the URL. Forward all of it into the app's own link.
+    // Supabase has already confirmed the address by the time the person lands here. Like the
+    // So-UnFiltered AI app, we just tell them it worked and send them to log in. If something went
+    // wrong, Supabase puts error=... in the URL.
     (function () {
-      var rest = location.hash || location.search || '';
-      var appUrl = 'logga://auth-callback' + rest;
-      document.getElementById('open').setAttribute('href', appUrl);
-      if (/error=|error_description=/.test(rest)) {
-        document.getElementById('title').textContent = 'That link has expired';
-        document.getElementById('text').textContent = 'Open Logga and tap "Resend email" to get a fresh confirmation link.';
-        document.getElementById('open').textContent = 'Open Logga';
+      var raw = (location.hash || location.search || '').replace(/^[#?]/, '');
+      var params = new URLSearchParams(raw);
+      var code = params.get('error_code') || params.get('error');
+      var appUrl = 'logga://auth-callback?verified=true';
+      if (code) {
+        var expired = /expired|otp_expired/i.test(code + ' ' + (params.get('error_description') || ''));
+        document.getElementById('title').textContent = expired ? 'Link expired' : 'Link not valid';
+        document.getElementById('text').textContent = expired
+          ? 'Verification link expired. Please sign up again.'
+          : 'Invalid or expired verification link.';
+        appUrl = 'logga://auth-callback?error=' + (expired ? 'token-expired' : 'invalid-token');
       }
-      setTimeout(function () { window.location.href = appUrl; }, 300);
+      document.getElementById('open').setAttribute('href', appUrl);
+      setTimeout(function () { window.location.href = appUrl; }, 600);
     })();
   </script>
 </body>

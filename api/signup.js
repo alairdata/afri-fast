@@ -3,8 +3,9 @@
 // Responses: 200 {ok} | 400 {error} | 409 {error:'already_registered'} | 429 {error} | 5xx {error}
 import {
   cors, configured, clientIp, rateLimit, isDisposableEmail, isValidEmail, pickRedirect,
-  generateLink, updateUser, sendVerificationEmail,
+  generateLink, updateUser, sendVerificationEmail, passwordError,
 } from './_authEmail.js';
+import { trackServerEvent } from './_analytics.js';
 
 export default async function handler(req, res) {
   cors(res);
@@ -19,13 +20,15 @@ export default async function handler(req, res) {
   // Honeypot: real people never fill this hidden field. Pretend it worked.
   if (website) return res.status(200).json({ ok: true });
 
-  if (!cleanName || !isValidEmail(email) || typeof password !== 'string' || password.length < 8 || password.length > 128) {
-    return res.status(400).json({ error: 'Please enter your name, a valid email and a password of at least 8 characters.' });
+  const pwProblem = passwordError(password);
+  if (pwProblem) return res.status(400).json({ error: pwProblem });
+  if (!cleanName || !isValidEmail(email)) {
+    return res.status(400).json({ error: 'Please enter your name and a valid email.' });
   }
   if (isDisposableEmail(email)) {
     return res.status(400).json({ error: 'Disposable email addresses are not allowed. Please use your real email.' });
   }
-  if (!rateLimit(`signup-ip:${clientIp(req)}`, 8, 60 * 60 * 1000) || !rateLimit(`signup-email:${email}`, 3, 60 * 60 * 1000)) {
+  if (!rateLimit(`signup-ip:${clientIp(req)}`, 5, 60 * 60 * 1000) || !rateLimit(`signup-email:${email}`, 3, 60 * 60 * 1000)) {
     return res.status(429).json({ error: 'Too many sign-up attempts. Please try again in a little while.' });
   }
 
@@ -53,6 +56,8 @@ export default async function handler(req, res) {
 
     if (!link) return res.status(500).json({ error: 'Could not create your confirmation link. Please try again.' });
     const sent = await sendVerificationEmail(email, toName, link);
+    const userId = created.ok ? created.body.id : null;
+    if (sent && userId) await trackServerEvent(userId, 'email_sent', { email_type: 'verification' });
     if (!sent) return res.status(502).json({ error: "We couldn't send the confirmation email. Please try again." });
     return res.status(200).json({ ok: true });
   } catch (e) {
