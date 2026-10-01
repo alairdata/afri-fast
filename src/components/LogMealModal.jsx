@@ -368,33 +368,31 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const [sayMsgIndex, setSayMsgIndex] = useState(0);
   const [writeMsgIndex, setWriteMsgIndex] = useState(0);
 
-  // When opened with a pre-built recipe, skip straight to the share card
+  // Opened with a pre-built recipe: show a confirm step first (meal type, how it felt, then Log Meal)
+  // instead of saving instantly and jumping to the share card. Nothing is saved until Log Meal is tapped.
   useLayoutEffect(() => {
     if (!show || !recipeToLog) return;
-    const mealDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
-    const isToday = mealDate.toDateString() === new Date().toDateString();
-    const timeStr = `${isToday ? 'Today' : mealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${mealDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-    const mealId = Date.now();
-    if (onSaveMeal) {
-      onSaveMeal({
-        id: mealId,
-        name: recipeToLog.name,
-        calories: recipeToLog.calories || 0,
-        protein: recipeToLog.protein || 0,
-        carbs: recipeToLog.carbs || 0,
-        fats: recipeToLog.fats || 0,
-        fiber: recipeToLog.fiber || 0,
-        time: timeStr,
-        date: mealDate.toDateString(),
-        photo: recipeToLog.imageUrl || null,
-        method: 'recipe',
-        items: (recipeToLog.ingredients || []).map(i => i.name),
-      });
+    const servings = recipeToLog.servings;
+    setDetectedFoods([{
+      id: 0,
+      name: recipeToLog.name,
+      qty: servings ? `${servings} ${servings === 1 ? 'serving' : 'servings'}` : '1 serving',
+      cal: Math.round(recipeToLog.calories || 0),
+      protein: recipeToLog.protein || 0,
+      carbs: recipeToLog.carbs || 0,
+      fats: recipeToLog.fats || 0,
+      fiber: recipeToLog.fiber || 0,
+    }]);
+    setMealTitle(recipeToLog.name);
+    if (recipeToLog.imageUrl) {
+      setCapturedPhoto(recipeToLog.imageUrl);
+      // Warm the (remote) photo now so the share card after logging doesn't have to fetch it.
+      Image.prefetch(recipeToLog.imageUrl).catch(() => {});
+    } else {
+      setCapturedPhoto(null);
     }
-    if (recipeToLog.imageUrl) setCapturedPhoto(recipeToLog.imageUrl);
     setCapturedPhotoSize(null);
-    setLoggedMealId(mealId);
-    setScanPhase('shareCard');
+    setScanPhase('recipeConfirm');
   }, [show, recipeToLog]);
 
   // When opened with a meal already worked out in the Ask chat, log it and skip straight to the share card
@@ -999,6 +997,62 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setScanPhase('shareCard');
   };
 
+  const logRecipeMeal = () => {
+    if (!recipeToLog) return;
+    const mealDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
+    const isToday = mealDate.toDateString() === new Date().toDateString();
+    const timeStr = `${isToday ? 'Today' : mealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${mealDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    const mealId = Date.now();
+    if (onSaveMeal) {
+      onSaveMeal({
+        id: mealId,
+        name: recipeToLog.name,
+        calories: recipeToLog.calories || 0,
+        protein: recipeToLog.protein || 0,
+        carbs: recipeToLog.carbs || 0,
+        fats: recipeToLog.fats || 0,
+        fiber: recipeToLog.fiber || 0,
+        time: timeStr,
+        date: mealDate.toDateString(),
+        photo: recipeToLog.imageUrl || null,
+        method: 'recipe',
+        items: (recipeToLog.ingredients || []).map(i => i.name),
+        foods: detectedFoods,
+      });
+    }
+    setLoggedMealId(mealId);
+    setScanPhase('shareCard');
+  };
+
+  const renderMealTypeCard = () => (
+    <View style={[styles.foodCard, { marginTop: 16 }]}>
+      <View style={styles.foodCardHead}>
+        <Text style={styles.foodCardTitle}>MEAL TYPE</Text>
+      </View>
+      <View style={{ flexDirection: 'row', padding: 12, gap: 8 }}>
+        {[
+          { type: 'Breakfast', icon: 'sunny-outline' },
+          { type: 'Lunch',     icon: 'partly-sunny-outline' },
+          { type: 'Snack',     icon: 'nutrition-outline' },
+          { type: 'Dinner',    icon: 'moon-outline' },
+        ].map(({ type, icon }) => (
+          <TouchableOpacity
+            key={type}
+            onPress={() => setSelectedMealType(type)}
+            style={{
+              flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', gap: 4,
+              backgroundColor: selectedMealType === type ? '#059669' : '#F9FAFB',
+              borderWidth: 1.5, borderColor: selectedMealType === type ? '#059669' : 'transparent',
+            }}
+          >
+            <Ionicons name={icon} size={16} color={selectedMealType === type ? '#fff' : '#9CA3AF'} />
+            <Text style={{ fontSize: 10, fontWeight: '700', color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>{type}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView style={styles.weightPageOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.weightPage}>
@@ -1588,6 +1642,42 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
             {renderCheckInWidget()}
 
             <TouchableOpacity style={[styles.logBtn, { marginHorizontal: 20 }]} onPress={logMeal}>
+              <Text style={styles.logBtnText}>Log Meal</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+
+        {/* Recipe confirm: review, add how it felt, then log */}
+        {scanPhase === 'recipeConfirm' && recipeToLog && (
+          <ScrollView style={styles.scanResultsContainer} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+            {capturedPhoto ? <Image source={{ uri: capturedPhoto }} style={styles.scanResultImage} /> : null}
+            <View style={{ marginHorizontal: 20, marginTop: 16 }}>
+              <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB' }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: '#111' }}>{recipeToLog.name}</Text>
+                <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
+                  {recipeToLog.servings ? `${recipeToLog.servings} ${recipeToLog.servings === 1 ? 'serving' : 'servings'}` : '1 serving'}
+                </Text>
+                <View style={{ flexDirection: 'row', marginTop: 14, gap: 8 }}>
+                  {[
+                    { label: 'Calories', val: Math.round(recipeToLog.calories || 0), unit: 'kcal' },
+                    { label: 'Protein', val: Math.round(recipeToLog.protein || 0), unit: 'g' },
+                    { label: 'Carbs', val: Math.round(recipeToLog.carbs || 0), unit: 'g' },
+                    { label: 'Fats', val: Math.round(recipeToLog.fats || 0), unit: 'g' },
+                  ].map((m) => (
+                    <View key={m.label} style={{ flex: 1, backgroundColor: '#F9FAFB', borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 17, fontWeight: '800', color: '#111' }}>{m.val}<Text style={{ fontSize: 11, fontWeight: '600', color: '#9CA3AF' }}> {m.unit}</Text></Text>
+                      <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{m.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            <View style={{ marginHorizontal: 20 }}>{renderMealTypeCard()}</View>
+
+            {renderCheckInWidget()}
+
+            <TouchableOpacity style={[styles.logBtn, { marginHorizontal: 20 }]} onPress={logRecipeMeal}>
               <Text style={styles.logBtnText}>Log Meal</Text>
             </TouchableOpacity>
           </ScrollView>
