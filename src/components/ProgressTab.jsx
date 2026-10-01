@@ -612,7 +612,9 @@ const ProgressTab = ({
   const loggedDays = last7.filter((d) => d.total > 0);
   // Declared up here (not next to the burnout card code) because effects further up depend on it.
   // Same rule as momentum: a score from a handful of unlogged days is noise, not 'super low risk'.
-  const burnoutReady = loggedDays.length >= MIN_LOGGED_DAYS;
+  // Only finished days count: today (last entry) is still in progress.
+  const completedLoggedDays = last7.slice(0, -1).filter((d) => d.total > 0).length;
+  const burnoutReady = completedLoggedDays >= MIN_LOGGED_DAYS;
   const missingDays = 7 - loggedDays.length;
   const todayCalories = last7[last7.length - 1]?.total || 0;
   const deficitToday = tdee != null ? tdee - todayCalories : null;
@@ -699,6 +701,16 @@ const ProgressTab = ({
   }, [deviationKg, requiredWeeklyRateKg, accent, colors.accentLight]);
 
   // Forecast shares the same energy-deficit engine as the This Week chart (weeklyPace).
+  // The change in each forecast is the exact same energy maths as the Energy balance card (calories
+  // alone, rate x days), so the two always agree. The absolute weights start from the smoothed weight.
+  const forecastDelta = (days) => {
+    const kg = (weeklyPace.dailyRateKg || 0) * days;
+    return `${kg <= 0 ? '-' : '+'}${Math.abs(fromKg(kg, weightUnit)).toFixed(2)} ${weightUnit}`;
+  };
+  const forecastAnchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
+  const forecastAnchorNote = forecastAnchorKg != null && currentWeightKg != null && Math.abs(forecastAnchorKg - currentWeightKg) > 0.05
+    ? `Starts from ${fromKg(forecastAnchorKg, weightUnit).toFixed(1)} ${weightUnit}: your weight with day-to-day water swings smoothed out, so it can differ a little from your last weigh-in.`
+    : null;
   const projected7Kg = weeklyPace.projectDay(7)?.projectedKg ?? null;
   const projected14Kg = weeklyPace.projectDay(14)?.projectedKg ?? null;
 
@@ -1481,7 +1493,7 @@ const ProgressTab = ({
               </View>
               {!momentumReady && (
                 <Text style={[styles.mutedSmall, { textAlign: 'center', marginTop: 10 }]}>
-                  {`Log meals on ${MIN_LOGGED_DAYS} different days to unlock your momentum score. ${Math.min(today.loggedDays || 0, MIN_LOGGED_DAYS)} of ${MIN_LOGGED_DAYS} so far.`}
+                  {`Log meals on ${MIN_LOGGED_DAYS} different days to unlock your momentum score. Today counts once it is over. ${Math.min(today.loggedDays || 0, MIN_LOGGED_DAYS)} of ${MIN_LOGGED_DAYS} so far.`}
                 </Text>
               )}
               {momentumReady && today.band.tone !== 'strong' && (
@@ -1734,16 +1746,23 @@ const ProgressTab = ({
                   <View style={{ flex: 1 }}>
                     <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + 7 * DAY_MS)).toUpperCase()} (7D)</Text>
                     <Text style={styles.statValue}>{projected7Kg != null ? `${fromKg(projected7Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
+                    {weeklyPace.dailyRateKg != null && (
+                      <Text style={styles.mutedSmall}>{forecastDelta(7)}</Text>
+                    )}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + 14 * DAY_MS)).toUpperCase()} (14D)</Text>
                     <Text style={styles.statValue}>{projected14Kg != null ? `${fromKg(projected14Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
+                    {weeklyPace.dailyRateKg != null && (
+                      <Text style={styles.mutedSmall}>{forecastDelta(14)}</Text>
+                    )}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.statLabel}>GOAL DATE</Text>
                     <Text style={styles.statValue}>{projectedGoalDate ? fmtShort(projectedGoalDate) : '--'}</Text>
                   </View>
                 </View>
+                {forecastAnchorNote ? <Text style={[styles.mutedSmall, { marginTop: 10 }]}>{forecastAnchorNote}</Text> : null}
                 <Text style={[styles.mutedSmall, { marginTop: 10 }]}>Confidence is based on your logging streak and how recent your last weigh-in is — {Math.round(today.confidence * 100)}% right now.</Text>
               </View>
             )}
@@ -1970,7 +1989,7 @@ const ProgressTab = ({
                 <Text style={[styles.mutedBody, { color: colors.text }]}>
                   {burnoutReady
                     ? (burnoutAi?.summary || burnoutWhy)
-                    : `We need a few days of meals before we can read your pattern. Log on ${MIN_LOGGED_DAYS} different days and this will start to fill in. ${Math.min(loggedDays.length, MIN_LOGGED_DAYS)} of ${MIN_LOGGED_DAYS} so far.`}
+                    : `We need a few days of meals before we can read your pattern. Log on ${MIN_LOGGED_DAYS} different days and this will start to fill in. Today counts once it is over. ${Math.min(completedLoggedDays, MIN_LOGGED_DAYS)} of ${MIN_LOGGED_DAYS} so far.`}
                 </Text>
                 {burnoutReady && !!burnoutAi?.tip && (
                   <Text style={[styles.mutedBody, { color: colors.text, fontWeight: '600', marginTop: 6 }]}>{`Try this: ${burnoutAi.tip}`}</Text>

@@ -60,8 +60,10 @@ export function computeWeeklyPace({
   // Unlogged days are excluded entirely, not counted as a fake full-expenditure deficit -- a day
   // with nothing logged isn't "ate zero calories," it's "we don't know," and averaging it in as a
   // 2,000+kcal deficit would falsely crater the projected line every time a day goes unlogged.
+  // Today is left out: it is still in progress, so one breakfast would read as a huge "deficit" and
+  // fake a forecast. The window is the last 7 FINISHED days; a prediction needs at least one of them.
   let d7d = 0, loggedDaysCount = 0;
-  for (let i = 6; i >= 0; i--) {
+  for (let i = 7; i >= 1; i--) {
     const d = new Date(now - i * DAY_MS);
     const ds = d.toDateString();
     const logged = mealsByDate[ds] || 0;
@@ -95,8 +97,8 @@ export function computeWeeklyPace({
     }
     return { avg: count > 0 ? total / count : null, count };
   };
-  const todayCalWindow = rollingCalAvg(0, 3); // today, yesterday, 2 days ago
-  const priorCalWindow = rollingCalAvg(1, 3); // yesterday's own 3-day window, as it would've read then
+  const todayCalWindow = rollingCalAvg(1, 3); // yesterday and the 2 days before (today is unfinished)
+  const priorCalWindow = rollingCalAvg(2, 3); // the same window one day earlier, as it would've read then
 
   const threeDayAvgCalories = todayCalWindow.avg;
   const bmrSafetyFloor = bmr != null ? bmr * (BMR_SAFETY_FLOOR_RATIO_BY_PACE[pacePreference] ?? BMR_SAFETY_FLOOR_RATIO) : null;

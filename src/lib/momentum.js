@@ -80,7 +80,8 @@ function ewmaStep(prev, rawToday, hasDataToday) {
 }
 
 // A momentum score blends three smoothed pillars, so a single day (or none) says nothing yet. Until the
-// person has logged meals on this many different days we report "not enough data" instead of a score.
+// person has logged meals on this many different COMPLETED days (today is still in progress, so it does
+// not count) we report "not enough data" instead of a score.
 export const MIN_LOGGED_DAYS = 3;
 
 function bandFor(score) {
@@ -157,7 +158,7 @@ export function computeMomentumTimeline({
     // for a day the ledger hasn't caught up to yet (today, before the next hourly refresh).
     const caloriesToday = resolveCaloriesEaten(ledgerMap, ds, mealsByDate[ds] || 0);
     const loggedToday = caloriesToday > 0;
-    if (loggedToday) { everLoggedMeal = true; loggedDayCount += 1; }
+    if (loggedToday) { everLoggedMeal = true; if (i > 0) loggedDayCount += 1; }
 
     // Weight EWMA — smooths water-weight noise, but decay is scaled by elapsed *days* since the
     // last weigh-in, not by sample count: a reading 3 weeks after the last one is close to a true
