@@ -1369,6 +1369,21 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     }
   }, [selectedPlan, isFasting, fastStartTime]);
 
+  // === Day rollover ===
+  // Several things start from 'today' once (the Meals tab's selected day, and the date on the check-in,
+  // weight, water, steps and activity pages). If the app stays open or in the background past midnight they
+  // would keep yesterday's date, so the Meals tab said 'Thursday' on a Friday and new meals were filed under
+  // the old day. When the calendar day changes: move 'today'-anchored state forward, and (through the key on
+  // those pages below) let them start fresh.
+  const dayKey = currentTime.toDateString();
+  const lastDayKey = useRef(dayKey);
+  useEffect(() => {
+    const previous = lastDayKey.current;
+    if (previous === dayKey) return;
+    lastDayKey.current = dayKey;
+    setSelectedMealDate((d) => (d.toDateString() === previous ? new Date() : d));
+  }, [dayKey]);
+
   // === Timer effect ===
   useEffect(() => {
     const timer = setInterval(() => {
@@ -2380,6 +2395,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       />
 
       <CheckInPage
+        key={`checkin-${dayKey}`}
         show={showCheckInPage}
         onClose={() => setShowCheckInPage(false)}
         onSave={saveCheckIn}
@@ -2407,6 +2423,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       />
 
       <WeightLogPage
+        key={`weight-${dayKey}`}
         show={showWeightModal}
         onClose={() => setShowWeightModal(false)}
         weightLogs={weightLogs}
@@ -2418,6 +2435,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       />
 
       <HydrationDetailsPage
+        key={`hydration-${dayKey}`}
         show={showHydrationDetails}
         onClose={() => setShowHydrationDetails(false)}
         waterLogs={waterLogs}
@@ -2429,6 +2447,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       />
 
       <StepsDetailsPage
+        key={`steps-${dayKey}`}
         show={showStepsDetails}
         onClose={() => setShowStepsDetails(false)}
         stepLogs={stepLogs}
@@ -2439,6 +2458,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       />
 
       <AddActivityModal
+        key={`activity-${dayKey}`}
         show={showAddActivity}
         onClose={() => setShowAddActivity(false)}
         currentWeightKg={weightLogs.length ? (weightUnit === 'lbs' ? weightLogs[0].weight / 2.20462 : weightLogs[0].weight) : (startingWeight != null ? (weightUnit === 'lbs' ? startingWeight / 2.20462 : startingWeight) : null)}
