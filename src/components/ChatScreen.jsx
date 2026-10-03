@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, ActivityIndicator, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import FormattedText from '../lib/FormattedText';
 
@@ -91,6 +92,12 @@ const ChatScreen = ({
   goalSource,
   onLogMealFromChat,
 }) => {
+  // These screens are full-screen layers that sit BELOW the top of the phone (under the notch area), but the
+  // keyboard measures from the top of the screen. Without telling it about that gap it lifts the input by too
+  // little and the keyboard still covers part of what you type.
+  const safeInsets = useSafeAreaInsets();
+  const keyboardOffset = Platform.OS === 'ios' ? safeInsets.top : 0;
+
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef(null);
@@ -218,6 +225,7 @@ const ChatScreen = ({
     <KeyboardAvoidingView
       style={styles.chatOverlay}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={keyboardOffset}
     >
       <View style={styles.chatContainer}>
         {/* Header */}

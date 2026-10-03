@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 're
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Animated, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Share, Modal } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Line, Polyline, Rect } from 'react-native-svg';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Sharing from 'expo-sharing';
@@ -223,6 +224,12 @@ const ShareCardImage = ({ uri, height, style }) => {
 };
 
 const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, goalHistory = [], dailyGoalLedger = [], recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, chatMealToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
+  // These screens are full-screen layers that sit BELOW the top of the phone (under the notch area), but the
+  // keyboard measures from the top of the screen. Without telling it about that gap it lifts the input by too
+  // little and the keyboard still covers part of what you type.
+  const safeInsets = useSafeAreaInsets();
+  const keyboardOffset = Platform.OS === 'ios' ? safeInsets.top : 0;
+
   // The one true "what date is this card about" anchor, used everywhere below (streak, goal
   // lookup, footer date, share text). viewingMeal — set only when opening an EXISTING logged
   // meal from history — carries that meal's real date and takes priority. selectedMealDate is a
@@ -1054,7 +1061,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   );
 
   return (
-    <KeyboardAvoidingView style={styles.weightPageOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={styles.weightPageOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={keyboardOffset}>
       <View style={styles.weightPage}>
         <View style={styles.weightPageHeader}>
           <TouchableOpacity
