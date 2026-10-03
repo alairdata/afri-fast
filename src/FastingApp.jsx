@@ -34,7 +34,7 @@ import {
 } from './lib/notifications';
 import { evaluateMilestones } from './lib/milestones';
 import { syncSmartNotifications, clearSmartNotifications, onBurnoutSummaryPublished } from './lib/smartNotifications';
-import { pendingWidgetWater, ackWidgetWater, pushWidgetSnapshot } from './lib/widgetSync';
+import { pendingWidgetWater, ackWidgetWater, pushWidgetSnapshot, clearWidgetSnapshot } from './lib/widgetSync';
 import { track, EVENTS, startSession, countSessionLog, incrementUserProperty, resetAnalytics } from './lib/analytics';
 import { buildDailyLedgerMap } from './lib/goalHistory';
 
@@ -1123,13 +1123,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
     if (Platform.OS !== 'ios' || !session?.user?.id || dataLoadCount < 8) return;
     const t = setTimeout(() => {
       (async () => {
-        const { delta, widgetGlasses } = await pendingWidgetWater();
+        const { delta, widgetGlasses } = await pendingWidgetWater(session?.user?.id);
         if (delta > 0) {
           addWidgetWater(delta);
           await ackWidgetWater(widgetGlasses);
           return;
         }
-        await pushWidgetSnapshot({ recentMeals, waterLogs, hydrationGoal, volumeUnit, dailyCalorieGoal, proteinGoal });
+        await pushWidgetSnapshot({ recentMeals, waterLogs, hydrationGoal, volumeUnit, dailyCalorieGoal, proteinGoal, userId: session?.user?.id });
       })().catch((e) => console.log('[Widget] sync failed:', e?.message));
     }, 1200);
     return () => clearTimeout(t);
@@ -2282,6 +2282,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
               }
               track(EVENTS.ACCOUNT_DELETED);
               resetAnalytics();
+              clearWidgetSnapshot();
               await AsyncStorage.clear();
               await supabase.auth.signOut({ scope: 'local' });
             } catch (e) {
@@ -2780,6 +2781,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
               setShowLogoutModal(false);
               track(EVENTS.USER_LOGGED_OUT);
               resetAnalytics();
+              clearWidgetSnapshot();
               AsyncStorage.clear().catch(() => {});
               supabase.auth.signOut();
             }}>

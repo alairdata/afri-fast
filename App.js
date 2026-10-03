@@ -8,6 +8,7 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import FastingApp from './src/FastingApp';
 import PreAuthOnboarding from './src/components/PreAuthOnboarding';
 import { installErrorTracking } from './src/lib/analytics';
+import { clearWidgetSnapshot } from './src/lib/widgetSync';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   // Load Inter from Google Fonts
@@ -133,6 +134,12 @@ export default function App() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id, loading]);
+  // Signed out for any reason (log out, expired session, removed account): the home-screen widgets must not keep
+  // showing the last person's numbers.
+  useEffect(() => {
+    if (!loading && !session) clearWidgetSnapshot();
+  }, [loading, session]);
+
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F0FDF4', alignItems: 'center', justifyContent: 'center' }}>

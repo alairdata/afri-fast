@@ -53,7 +53,7 @@ const burnoutLabel = (score) => (score <= 25 ? 'Low' : score <= 55 ? 'Moderate' 
 
 // Water logged from the widget since the app last wrote the snapshot.
 // Returns { delta, widgetGlasses }: delta = glasses to add to the app's own logs (0 if none).
-export async function pendingWidgetWater() {
+export async function pendingWidgetWater(currentUserId) {
   const none = { delta: 0, widgetGlasses: 0 };
   const st = getStorage();
   if (!st) return none;
@@ -64,7 +64,11 @@ export async function pendingWidgetWater() {
     if (!widgetDay || widgetDay.date == null) return none;
     const widgetMs = (widgetDay.date + SWIFT_REFERENCE_EPOCH) * 1000;
     if (!sameDay(widgetMs, Date.now())) return none;
-    const baseline = Number(await AsyncStorage.getItem(BASELINE_KEY));
+    // Water tapped on the widget belongs to the account that wrote the snapshot. If someone else signed in
+    // since (or this is an old snapshot we can't vouch for), never add it to this account.
+    const baselineRaw = await AsyncStorage.getItem(BASELINE_KEY);
+    if (widgetDay.userId ? widgetDay.userId !== currentUserId : baselineRaw == null) return none;
+    const baseline = Number(baselineRaw);
     const widgetGlasses = widgetDay.waterGlasses || 0;
     const delta = widgetGlasses - (Number.isFinite(baseline) ? baseline : 0);
     return { delta: delta > 0 ? delta : 0, widgetGlasses };
@@ -78,8 +82,18 @@ export async function ackWidgetWater(widgetGlasses) {
   try { await AsyncStorage.setItem(BASELINE_KEY, String(widgetGlasses)); } catch (_) {}
 }
 
+// Signed out (or switching accounts): remove the snapshot so the widgets stop showing the previous person's
+// numbers, and forget the water baseline so nothing carries over to the next account.
+export async function clearWidgetSnapshot() {
+  const st = getStorage();
+  try { await AsyncStorage.removeItem(BASELINE_KEY); } catch (_) {}
+  if (!st) return;
+  try { st.remove(WIDGET_KEY); } catch (_) {}
+  reloadWidgets();
+}
+
 // Writes the current snapshot for the widgets and asks them to refresh.
-export async function pushWidgetSnapshot({ recentMeals, waterLogs, hydrationGoal, volumeUnit, dailyCalorieGoal, proteinGoal }) {
+export async function pushWidgetSnapshot({ recentMeals, waterLogs, hydrationGoal, volumeUnit, dailyCalorieGoal, proteinGoal, userId }) {
   const st = getStorage();
   if (!st) return;
   try {
@@ -123,6 +137,7 @@ export async function pushWidgetSnapshot({ recentMeals, waterLogs, hydrationGoal
       proteinGrams: whole(proteinGrams),
       proteinGoal: whole(proteinGoal, DEFAULT_PROTEIN_GOAL) || DEFAULT_PROTEIN_GOAL,
       streakDays: whole(computeCurrentMealStreak(recentMeals, now)),
+      userId: userId || null,
       loggedThisWeek,
       ...(burnoutScore != null ? { burnoutScore, burnoutLabel: burnoutLabel(burnoutScore) } : {}),
     };

@@ -60,10 +60,12 @@ struct LoggaDay: Codable, Equatable {
     /// widget falls back to a simple time-of-day estimate.
     var burnoutScore: Int? = nil
     var burnoutLabel: String? = nil
+    /// Which account this snapshot belongs to (the app writes it; widget taps keep it when they re-save).
+    var userId: String? = nil
 
     init(date: Date, caloriesEaten: Int, calorieGoal: Int, waterGlasses: Int, waterGoal: Int,
          proteinGrams: Int, proteinGoal: Int, streakDays: Int, loggedThisWeek: [Bool],
-         burnoutScore: Int? = nil, burnoutLabel: String? = nil) {
+         burnoutScore: Int? = nil, burnoutLabel: String? = nil, userId: String? = nil) {
         self.date = date
         self.caloriesEaten = caloriesEaten
         self.calorieGoal = calorieGoal
@@ -75,6 +77,7 @@ struct LoggaDay: Codable, Equatable {
         self.loggedThisWeek = loggedThisWeek
         self.burnoutScore = burnoutScore
         self.burnoutLabel = burnoutLabel
+        self.userId = userId
     }
 
     /// Tolerant decoding: one missing or malformed field no longer throws the whole day away (which
@@ -94,6 +97,7 @@ struct LoggaDay: Codable, Equatable {
         loggedThisWeek = (week?.count == 7) ? (week ?? []) : Array(repeating: false, count: 7)
         burnoutScore = (try? c.decodeIfPresent(Int.self, forKey: .burnoutScore)) ?? nil
         burnoutLabel = (try? c.decodeIfPresent(String.self, forKey: .burnoutLabel)) ?? nil
+        userId = (try? c.decodeIfPresent(String.self, forKey: .userId)) ?? nil
     }
 
     var caloriesLeft: Int { max(calorieGoal - caloriesEaten, 0) }
