@@ -615,6 +615,17 @@ const ProgressTab = ({
   // Only finished days count: today (last entry) is still in progress.
   const completedLoggedDays = last7.slice(0, -1).filter((d) => d.total > 0).length;
   const burnoutReady = completedLoggedDays >= MIN_LOGGED_DAYS;
+  // Days before the person's first logged meal have nothing to score. The engine gives them 0, which is the
+  // BEST possible burnout score, so showing it would read as 'no risk' rather than 'no data'. Treat them as blank.
+  const firstMealTs = (recentMeals || []).reduce((min, m) => {
+    if (!(m.calories > 0)) return min;
+    const ts = new Date(m.date).getTime();
+    return isNaN(ts) ? min : Math.min(min, ts);
+  }, Infinity);
+  const beforeFirstMeal = (date) => {
+    if (firstMealTs === Infinity) return true;
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() < firstMealTs;
+  };
   const missingDays = 7 - loggedDays.length;
   const todayCalories = last7[last7.length - 1]?.total || 0;
   const deficitToday = tdee != null ? tdee - todayCalories : null;
@@ -827,7 +838,8 @@ const ProgressTab = ({
 
   useEffect(() => {
     if (!userId) return;
-    const toFinalize = burnout.week.filter((d) => d.isPast && !d.isFinalized);
+    // (Days before the first logged meal have no real score, so they are not saved either.)
+    const toFinalize = burnout.week.filter((d) => d.isPast && !d.isFinalized && !beforeFirstMeal(d.date));
     if (!toFinalize.length) return;
     let cancelled = false;
     Promise.all(toFinalize.map((d) => saveBurnoutDay(userId, d.ds, d))).then(() => {
@@ -1997,11 +2009,12 @@ const ProgressTab = ({
               </View>
               <View style={styles.burnoutWeekRow}>
                 {burnout.week.map((d, i) => {
-                  const dayColor = !burnoutReady ? colors.border : d.score <= 25 ? accent : d.score <= 55 ? WARN : d.score <= 80 ? '#EA580C' : DANGER;
-                  const h = burnoutReady ? Math.max(10, Math.round((d.score / 100) * 56)) : 10;
+                  const noData = !burnoutReady || (!d.isFuture && beforeFirstMeal(d.date));
+                  const dayColor = noData ? colors.border : d.score <= 25 ? accent : d.score <= 55 ? WARN : d.score <= 80 ? '#EA580C' : DANGER;
+                  const h = noData ? 10 : Math.max(10, Math.round((d.score / 100) * 56));
                   return (
                     <View key={i} style={styles.burnoutDayCol}>
-                      <Text style={[styles.burnoutDayScore, { color: dayColor }]}>{burnoutReady ? d.score : ''}</Text>
+                      <Text style={[styles.burnoutDayScore, { color: dayColor }]}>{noData ? '' : d.score}</Text>
                       <View style={[styles.burnoutBar, { height: h, backgroundColor: dayColor, opacity: d.isFuture ? 0.55 : 1 }]} />
                       <Text style={styles.axisLabel}>{dayLabel(d.date)}</Text>
                     </View>
