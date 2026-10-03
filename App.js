@@ -10,7 +10,7 @@ import PreAuthOnboarding from './src/components/PreAuthOnboarding';
 import { installErrorTracking } from './src/lib/analytics';
 import { clearWidgetSnapshot } from './src/lib/widgetSync';
 import AccountDeletedModal from './src/components/AccountDeletedModal';
-import { ThemeContext, COLORS } from './src/lib/theme';
+import { ThemeContext, COLORS, DARK_MODE_AVAILABLE } from './src/lib/theme';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   // Load Inter from Google Fonts
@@ -76,7 +76,8 @@ export default function App() {
     setDarkMode(!!on);
     AsyncStorage.setItem(DARK_MODE_KEY, on ? '1' : '0').catch(() => {});
   };
-  const themeValue = React.useMemo(() => ({ isDark: darkMode, colors: darkMode ? COLORS.dark : COLORS.light }), [darkMode]);
+  const effectiveDark = DARK_MODE_AVAILABLE && darkMode; // stays light while dark mode is hidden
+  const themeValue = React.useMemo(() => ({ isDark: effectiveDark, colors: effectiveDark ? COLORS.dark : COLORS.light }), [effectiveDark]);
 
   useEffect(() => {
     let isMounted = true;

@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import FastingQuizPage from './FastingQuizPage';
 import YourDetails from './YourDetails';
 import { FaqSheet, ContactSheet, RateSheet, PrivacySheet, ClearHistorySheet } from './SettingsSheets';
-import { useTheme } from '../lib/theme';
+import { useTheme, DARK_MODE_AVAILABLE } from '../lib/theme';
 
 const COUNTRIES = [
   'Algeria',
@@ -709,7 +709,8 @@ const SettingsTab = ({
         </View>
       </View>
 
-      {/* App Settings */}
+      {/* App Settings (only holds the Dark Mode switch for now, hidden while dark mode is unfinished) */}
+      {DARK_MODE_AVAILABLE && (
       <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>App Settings</Text>
 
@@ -720,6 +721,7 @@ const SettingsTab = ({
           {renderToggle(darkMode, () => onToggleDarkMode?.(!darkMode))}
         </View>
       </View>
+      )}
 
       {/* Data & Privacy */}
       <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>

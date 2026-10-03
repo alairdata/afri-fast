@@ -43,6 +43,11 @@ export const COLORS = {
   },
 };
 
+// Dark mode is only partly built (the tabs follow the theme, about 30 other screens have fixed colours). Keep this
+// false until those screens are done: it hides the Dark Mode switch in Settings and keeps the app light, even for
+// anyone who switched it on while it was visible.
+export const DARK_MODE_AVAILABLE = false;
+
 export const ThemeContext = createContext({ isDark: false, colors: COLORS.light });
 
 export const useTheme = () => useContext(ThemeContext);
