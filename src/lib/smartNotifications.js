@@ -13,6 +13,7 @@
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { computeCurrentMealStreak } from './mealStreak';
+import { getCachedJustForYou } from './claudeInsights';
 
 const ID_PREFIX = 'smart-';
 const DAYS_AHEAD = 3;
@@ -55,7 +56,26 @@ export const syncSmartNotifications = async (ctx) => {
   const now = new Date();
   await cancelSmart();
 
-  const { recentMeals = [], waterLogs = [], stepLogs = [], activities = [], hydrationGoal = 0, volumeUnit } = ctx;
+  const { recentMeals = [], waterLogs = [], stepLogs = [], activities = [], hydrationGoal = 0, volumeUnit, userId } = ctx;
+
+  // The insight notification is scheduled ahead of time, so tomorrow's insight does not exist yet. For a ping that
+  // fires today we can quote today's real insight (first sentence); for later days we say what is waiting.
+  let todayInsight = '';
+  try {
+    const card = userId ? await getCachedJustForYou(userId) : null;
+    const text = String(card?.insight || '').replace(/\s+/g, ' ').trim();
+    if (text) {
+      const m = text.match(/^.{20,140}?[.!?](?=\s|$)/);
+      todayInsight = m ? m[0] : text.slice(0, 120).trim() + (text.length > 120 ? '...' : '');
+    }
+  } catch (_) {}
+  const INSIGHT_LINES = [
+    'Your daily insight is ready: what your eating, water and movement say about today.',
+    'A short read on how you are doing is ready. It takes about 20 seconds.',
+    "Today's insight is in. See what to focus on next.",
+    'New insight for you: one thing to keep doing, one to tweak.',
+  ];
+
   const hydrationGoalMl = hydrationGoal * (UNIT_TO_ML[volumeUnit] ?? 1);
   const todayStr = now.toDateString();
   const weekAgo = now.getTime() - 7 * DAY_MS;
@@ -90,7 +110,16 @@ export const syncSmartNotifications = async (ctx) => {
     const candidates = [];
 
     // Daily insight -- deliberately one short line.
-    candidates.push({ key: 'insight', date: at(now, day, 10, 0), title: 'Logga', body: 'Insight ready ✨', data: { type: 'insight' }, prio: 3 });
+    {
+      const when = at(now, day, 10, 0);
+      const useReal = isToday && !!todayInsight;
+      candidates.push({
+        key: 'insight', date: when, prio: 3,
+        title: useReal ? 'Your insight for today' : 'Your daily insight',
+        body: useReal ? todayInsight : INSIGHT_LINES[when.getDate() % INSIGHT_LINES.length],
+        data: { type: 'insight' },
+      });
+    }
 
     // Streak at risk.
     if (streak >= 3 && !(isToday && loggedMealToday)) {

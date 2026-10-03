@@ -568,6 +568,11 @@ const recipesForCountry = (country) => {
 };
 
 const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
+  // The search box is well down the page. When the keyboard opens we scroll the page so the box sits at the
+  // top of what is left on screen (and add room at the bottom so there is something to scroll into).
+  const pageScrollRef = useRef(null);
+  const searchY = useRef(0);
+  const [searchFocused, setSearchFocused] = useState(false);
   const [makeRecipeMethod, setMakeRecipeMethod] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState(null);
@@ -743,7 +748,15 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        <ScrollView
+          ref={pageScrollRef}
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={{ paddingBottom: searchFocused ? 420 : 100 }}
+        >
           {/* Action cards — hidden for now */}
           {SHOW_RECIPE_CREATORS && (<View style={styles.actionRow}>
             <TouchableOpacity style={styles.actionCard} onPress={() => setPaywallVisible(true)}>
@@ -815,7 +828,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
           )}
 
           {/* Search */}
-          <View style={styles.searchBar}>
+          <View style={styles.searchBar} onLayout={(e) => { searchY.current = e.nativeEvent.layout.y; }}>
             <Ionicons name="search" size={16} color="#999" style={{ marginRight: 8 }} />
             <TextInput
               style={styles.searchInput}
@@ -823,6 +836,12 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
               placeholderTextColor="#999"
               value={searchQuery}
               onChangeText={setSearchQuery}
+              onFocus={() => {
+                setSearchFocused(true);
+                setTimeout(() => pageScrollRef.current?.scrollTo({ y: Math.max(0, searchY.current - 12), animated: true }), 150);
+              }}
+              onBlur={() => setSearchFocused(false)}
+              returnKeyType="search"
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>

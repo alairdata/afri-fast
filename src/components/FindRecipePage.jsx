@@ -291,7 +291,13 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView style={styles.recipePageContent}>
+        <ScrollView
+          style={styles.recipePageContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={{ paddingBottom: 300 }}
+        >
           {/* Search Bar + Country Filter */}
           <View style={styles.searchRow}>
             <View style={styles.recipeSearchBarContainer}>

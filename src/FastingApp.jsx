@@ -1088,7 +1088,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       (async () => {
         if (!notifySmart) { await clearSmartNotifications(); return; }
         if (!(await requestNotificationPermissions())) return;
-        await syncSmartNotifications({ recentMeals, waterLogs, stepLogs, activities, hydrationGoal, volumeUnit });
+        await syncSmartNotifications({ recentMeals, waterLogs, stepLogs, activities, hydrationGoal, volumeUnit, userId: session?.user?.id });
       })().catch((e) => console.log('[SmartNotifications] sync failed:', e?.message));
     }, 2500);
     return () => clearTimeout(t);
