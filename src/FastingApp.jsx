@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Dimensions, Animated, Platform, StatusBar, Alert, Linking, AppState } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, Dimensions, Animated, Platform, StatusBar, Alert, Linking, AppState, ActivityIndicator } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './lib/supabase';
@@ -165,7 +165,9 @@ function normalizeMealDate(dateStr) {
   return dateStr;
 }
 
-const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
+const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccountDeleted }) => {
+  // True while the server is deleting the account (it can take a few seconds): shows a 'Deleting...' screen.
+  const [deletingAccount, setDeletingAccount] = useState(false);
   // === Core fasting state ===
   const [currentTime, setCurrentTime] = useState(new Date());
   const [fastingHours, setFastingHours] = useState(0);
@@ -2269,6 +2271,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
           onLogout={() => setShowLogoutModal(true)}
           onDeleteAccount={async () => {
             if (!session?.user?.id) return;
+            setDeletingAccount(true);
             try {
               // The server removes the photos, every row of data and the login itself.
               const { data: { session: live } } = await supabase.auth.getSession();
@@ -2284,10 +2287,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
               resetAnalytics();
               clearWidgetSnapshot();
               await AsyncStorage.clear();
+              // Tell the top of the app so it can show 'Your account has been deleted' once we are signed out.
+              onAccountDeleted?.();
               await supabase.auth.signOut({ scope: 'local' });
             } catch (e) {
               console.error('[DeleteAccount]', e);
               showToast('Failed to delete account. Try again.', 'error');
+            } finally {
+              setDeletingAccount(false);
             }
           }}
           userName={userName}
@@ -2768,6 +2775,17 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied }) => {
       </Modal>
 
       {/* === End Fast Warning Modal === */}
+      {/* Shown while the account is being deleted */}
+      <Modal visible={deletingAccount} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, paddingVertical: 28, paddingHorizontal: 34, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#16201b" />
+            <Text style={{ marginTop: 14, fontSize: 16, fontWeight: '700', color: '#16201b' }}>Deleting your account...</Text>
+            <Text style={{ marginTop: 4, fontSize: 13, color: '#6c7872' }}>This takes a few seconds.</Text>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={showLogoutModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>

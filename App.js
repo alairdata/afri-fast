@@ -9,6 +9,7 @@ import FastingApp from './src/FastingApp';
 import PreAuthOnboarding from './src/components/PreAuthOnboarding';
 import { installErrorTracking } from './src/lib/analytics';
 import { clearWidgetSnapshot } from './src/lib/widgetSync';
+import AccountDeletedModal from './src/components/AccountDeletedModal';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   // Load Inter from Google Fonts
@@ -60,6 +61,8 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [preAuthData, setPreAuthData] = useState(null);
+  // Set when an account has just been deleted, so 'Your account has been deleted' shows over the sign-in screen.
+  const [accountDeleted, setAccountDeleted] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -150,6 +153,7 @@ export default function App() {
 
   if (!session) {
     return (
+      <>
       <AuthScreen
         preAuthData={preAuthData}
         onSavePreAuthData={async (nextData) => {
@@ -161,6 +165,8 @@ export default function App() {
           }
         }}
       />
+      <AccountDeletedModal visible={accountDeleted} onClose={() => setAccountDeleted(false)} />
+      </>
     );
   }
 
@@ -197,6 +203,7 @@ export default function App() {
         <SafeAreaView style={{ flex: 1 }}>
           <FastingApp
             session={session}
+            onAccountDeleted={() => setAccountDeleted(true)}
             pendingPreAuthData={preAuthData}
             onPreAuthDataApplied={async () => {
               setPreAuthData(null);
