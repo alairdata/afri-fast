@@ -165,7 +165,7 @@ function normalizeMealDate(dateStr) {
   return dateStr;
 }
 
-const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccountDeleted }) => {
+const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccountDeleted, darkMode, onToggleDarkMode }) => {
   // True while the server is deleting the account (it can take a few seconds): shows a 'Deleting...' screen.
   const [deletingAccount, setDeletingAccount] = useState(false);
   // === Core fasting state ===
@@ -2267,6 +2267,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
       {activeTab === 'settings' && (
         <SettingsTab
+          darkMode={darkMode}
+          onToggleDarkMode={onToggleDarkMode}
           onBack={() => setActiveTab('today')}
           onLogout={() => setShowLogoutModal(true)}
           onDeleteAccount={async () => {

@@ -10,6 +10,7 @@ import PreAuthOnboarding from './src/components/PreAuthOnboarding';
 import { installErrorTracking } from './src/lib/analytics';
 import { clearWidgetSnapshot } from './src/lib/widgetSync';
 import AccountDeletedModal from './src/components/AccountDeletedModal';
+import { ThemeContext, COLORS } from './src/lib/theme';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   // Load Inter from Google Fonts
@@ -56,6 +57,7 @@ TextInput.defaultProps.style = [
 installErrorTracking();
 
 const PRE_AUTH_STORAGE_KEY = 'afri-fast-preauth';
+const DARK_MODE_KEY = 'logga-dark-mode';
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -63,6 +65,18 @@ export default function App() {
   const [preAuthData, setPreAuthData] = useState(null);
   // Set when an account has just been deleted, so 'Your account has been deleted' shows over the sign-in screen.
   const [accountDeleted, setAccountDeleted] = useState(false);
+
+  // Dark mode: the switch in Settings. The screens already read their colours from ThemeContext; this is what
+  // actually provides it (it used to default to light forever) and remembers the choice.
+  const [darkMode, setDarkMode] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(DARK_MODE_KEY).then((v) => { if (v === '1') setDarkMode(true); }).catch(() => {});
+  }, []);
+  const toggleDarkMode = (on) => {
+    setDarkMode(!!on);
+    AsyncStorage.setItem(DARK_MODE_KEY, on ? '1' : '0').catch(() => {});
+  };
+  const themeValue = React.useMemo(() => ({ isDark: darkMode, colors: darkMode ? COLORS.dark : COLORS.light }), [darkMode]);
 
   useEffect(() => {
     let isMounted = true;
@@ -197,13 +211,16 @@ export default function App() {
   }
 
   return (
+    <ThemeContext.Provider value={themeValue}>
     <SafeAreaProvider>
       <ErrorBoundary>
-        <StatusBar barStyle="dark-content" backgroundColor="#FAFBFF" />
-        <SafeAreaView style={{ flex: 1 }}>
+        <StatusBar barStyle={themeValue.colors.statusBar} backgroundColor={themeValue.colors.appBg} />
+        <SafeAreaView style={{ flex: 1, backgroundColor: themeValue.colors.appBg }}>
           <FastingApp
             session={session}
             onAccountDeleted={() => setAccountDeleted(true)}
+            darkMode={darkMode}
+            onToggleDarkMode={toggleDarkMode}
             pendingPreAuthData={preAuthData}
             onPreAuthDataApplied={async () => {
               setPreAuthData(null);
@@ -213,5 +230,6 @@ export default function App() {
         </SafeAreaView>
       </ErrorBoundary>
     </SafeAreaProvider>
+    </ThemeContext.Provider>
   );
 }
