@@ -5,7 +5,7 @@
 // corrected by the next re-plan (any log happens inside the app, which triggers one).
 //
 // Rules (calm tone, max MAX_PER_DAY a day, nothing before 08:00 or after 21:30):
-//   - Daily insight: one short teaser ping at 10:00 (curiosity line from the insight itself).
+//   - Daily insight: one teaser ping at 10:00 per new insight, written from the insight itself (none without one).
 //   - Streak at risk: 20:30, only if you have a >=3-day logging streak and nothing logged today.
 //   - Water: 15:00, only if you track water and you're under half your goal.
 //   - Movement: 17:30, only if you track steps/activity and today is still quiet.
@@ -71,22 +71,20 @@ export const syncSmartNotifications = async (ctx) => {
 
   // The insight notification is scheduled ahead of time, so tomorrow's insight does not exist yet. For a ping that
   // fires today we can quote today's real insight (first sentence); for later days we say what is waiting.
-  // The notification is a teaser, not an announcement: the AI writes a short curiosity line (the "hook") about
-  // what the insight is really about, and the title names the area (meals, water, ...). Never "insight ready".
-  let todayHook = '';
-  let todayTitle = '';
+  // The notification is a teaser written by the AI from the insight itself (the "hook"); the title names the
+  // area (meals, water, ...). No generic fallback: if there is no real insight with a hook, nothing is sent.
+  // One ping per insight, at the first 10:00 after it was written.
+  let insightPing = null;
   try {
     const card = userId ? await getCachedJustForYou(userId) : null;
-    todayHook = String(card?.hook || '').replace(/\s+/g, ' ').trim();
-    if (/insight|ready/i.test(todayHook)) todayHook = ''; // the model slipped; use the fallback instead
-    todayTitle = HOOK_TITLES[card?.lens] || '';
+    const hook = String(card?.hook || '').replace(/\s+/g, ' ').trim();
+    if (hook && card?.createdAt && !/insight|ready/i.test(hook)) {
+      const fireAt = new Date(card.createdAt);
+      if (fireAt.getHours() >= 10) fireAt.setDate(fireAt.getDate() + 1);
+      fireAt.setHours(10, 0, 0, 0);
+      insightPing = { date: fireAt, title: HOOK_TITLES[card.lens] || 'Something stood out', body: hook };
+    }
   } catch (_) {}
-  const TEASERS = [
-    { title: 'Something stood out', body: 'There is a pattern in your week. Tap to see it.' },
-    { title: 'Noticed something', body: 'Your last few days say more than you think.' },
-    { title: 'One thing to look at', body: 'A small detail in your logs is worth a minute.' },
-    { title: 'Your week, read closely', body: 'There is a connection here you may have missed.' },
-  ];
 
   const hydrationGoalMl = hydrationGoal * (UNIT_TO_ML[volumeUnit] ?? 1);
   const todayStr = now.toDateString();
@@ -121,15 +119,11 @@ export const syncSmartNotifications = async (ctx) => {
     const isToday = day === 0;
     const candidates = [];
 
-    // Daily insight -- deliberately one short line.
-    {
-      const when = at(now, day, 10, 0);
-      const useReal = isToday && !!todayHook;
-      const teaser = TEASERS[when.getDate() % TEASERS.length];
+    // Insight teaser -- only on the day its real insight is due (see insightPing above).
+    if (insightPing && sameDay(insightPing.date, at(now, day, 10, 0))) {
       candidates.push({
-        key: 'insight', date: when, prio: 3,
-        title: useReal ? (todayTitle || 'Something stood out') : teaser.title,
-        body: useReal ? todayHook : teaser.body,
+        key: 'insight', date: insightPing.date, prio: 3,
+        title: insightPing.title, body: insightPing.body,
         data: { type: 'insight' },
       });
     }

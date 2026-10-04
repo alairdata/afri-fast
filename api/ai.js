@@ -96,7 +96,8 @@ The data also tells you who they are: their why, what they struggle with, how th
 
 ## Stick to what the data actually shows
 - Only say something is a pattern if it shows up on at least 3 separate days or entries. One meal, one workout, one glass of water or one bad day is a moment, not a pattern. Never build the whole insight around a single logged item, and never act as if it is a big deal that they logged something.
-- Steps are counted automatically by the phone. They are not something the person chose to do, so never praise or comment on "logging" steps. A workout in WORKOUTS THEY CHOSE TO LOG BY HAND is something they added themselves. Plenty of active days have steps and no logged workout, so a missing workout never means a missing movement day.
+- The data points are connected, so read them together, never one list at a time. DAY BY DAY shows each day's meals, water, steps, workouts, weight and mood side by side; use it to see how one thing affected another (a low-water day before a high-hunger day, a long walk on the day they ate more, a mood dip after a skipped meal).
+- Exercise in this app is EITHER a day with 5,000+ steps OR a workout they logged by hand. Both count the same. Someone walking 5,000+ steps most days IS exercising, even if they have not logged a workout in months. Never tell them they have not been working out, or to "log a workout", when their steps show active days. Judge movement only from the ACTIVE days count and the DAY BY DAY lines.
 - If the data for today's lens is thin (fewer than 3 relevant entries), do not stretch it. Pick the strongest real pattern from any other part of their data instead.
 - Do not tell them what they logged as if it were news. They know. Tell them what it MEANS.
 - Never invent a cause (sleep, stress, a feeling) that the data does not mention. You can wonder out loud, but label it as a guess.
@@ -133,7 +134,7 @@ You will be given a list of recent insight topics that have already been surface
 - Write plainly. No slang you are not sure about, no stacked metaphors, no cute sound effects like "loooong", no pidgin or accent imitation. If a sentence would sound odd read out loud, rewrite it.
 - Humour is optional. Skip it unless it is genuinely natural, and never joke about their body, weight or a bad day.
 - Never use bullet points or headers in the insight — it should read like a message from a person, not a report
-- Keep it conversational and short enough to read in 30 seconds
+- Keep it conversational. Length is fine when every sentence is about their own data.
 - At most one emoji, and only if it fits
 - Mention local foods or context only when it comes from their own data (their meals, cuisines, country). Do not add local colour just for flavour.
 
@@ -451,6 +452,45 @@ function preprocessData(data) {
     }
     lines.push('');
   }
+
+  // Day by day, everything joined. The sections above list each kind of data on its own; this puts them side by
+  // side so the model reads them as one day of one person (a walk, a meal and a mood on the same day are
+  // related). In the app a day with ACTIVE_DAY_STEPS+ steps counts as an active day, the same as a logged workout
+  // (ProgressTab's ACTIVE_DAY_STEPS), so both feed one "active" flag.
+  const ACTIVE_DAY_STEPS = 5000;
+  const dayKey = (d) => { const t = new Date(d); return isNaN(t) ? null : t.toDateString(); };
+  const days = [];
+  for (let i = 13; i >= 0; i--) { const d = new Date(now); d.setDate(d.getDate() - i); days.push(d.toDateString()); }
+  const byDay = Object.fromEntries(days.map((k) => [k, { kcal: 0, protein: 0, meals: 0, water: 0, steps: null, workouts: [], weight: null, moods: [], hunger: null }]));
+  completedMeals.forEach((m) => { const d = byDay[dayKey(m.date)]; if (d) { d.kcal += m.calories || 0; d.protein += m.protein || 0; d.meals += 1; } });
+  completedWaterLogs.forEach((w) => { const d = byDay[dayKey(w.date)]; if (d) d.water += Number(w.amount) || 1; });
+  (stepLogs || []).forEach((s) => { const d = byDay[dayKey(s.date)]; if (d) d.steps = (d.steps || 0) + (s.steps || 0); });
+  (activities || []).forEach((a) => { const d = byDay[dayKey(a.date)]; if (d) d.workouts.push(`${a.type}${a.durationMin ? ` ${a.durationMin}min` : ''}`); });
+  allWeightLogs.forEach((w) => { const d = byDay[dayKey(w.date)]; if (d) d.weight = `${w.weight}${w.unit || ''}`; });
+  completedCheckIns.forEach((c) => {
+    const d = byDay[dayKey(c.date)];
+    if (!d) return;
+    d.moods.push(...(c.moods || []), ...(c.feelings || []));
+    if (c.hungerLevel != null) d.hunger = c.hungerLevel;
+  });
+  const activeDays = days.filter((k) => (byDay[k].steps || 0) >= ACTIVE_DAY_STEPS || byDay[k].workouts.length > 0).length;
+  const unit = profile.volumeUnit || 'glasses';
+  lines.push(`DAY BY DAY, LAST 14 DAYS (oldest first; everything for one day on one line, read these together):`);
+  lines.push(`  Active days: ${activeDays} of 14. An ACTIVE day = ${ACTIVE_DAY_STEPS.toLocaleString()}+ steps OR a logged workout; in this app both count as exercise.`);
+  days.forEach((k) => {
+    const d = byDay[k];
+    const parts = [k.slice(0, 10)];
+    parts.push(d.meals ? `${Math.round(d.kcal)} kcal, ${Math.round(d.protein)}g protein (${d.meals} meals)` : 'no meals logged');
+    parts.push(d.water ? `water ${Math.round(d.water * 10) / 10} ${unit}` : 'no water logged');
+    if (d.steps != null) parts.push(`${d.steps.toLocaleString()} steps`);
+    if (d.workouts.length) parts.push(`workout: ${d.workouts.join(', ')}`);
+    parts.push((d.steps || 0) >= ACTIVE_DAY_STEPS || d.workouts.length ? 'ACTIVE' : 'not active');
+    if (d.weight) parts.push(`weighed ${d.weight}`);
+    if (d.moods.length) parts.push(`felt: ${[...new Set(d.moods)].join(', ')}`);
+    if (d.hunger != null) parts.push(`hunger ${d.hunger}/10`);
+    lines.push(`  ${parts.join(' | ')}`);
+  });
+  lines.push('');
 
   // Check-ins (most recent 30, today excluded)
   const sortedCheckIns = [...completedCheckIns]

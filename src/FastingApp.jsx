@@ -34,6 +34,7 @@ import {
 } from './lib/notifications';
 import { evaluateMilestones } from './lib/milestones';
 import { syncSmartNotifications, clearSmartNotifications, onBurnoutSummaryPublished } from './lib/smartNotifications';
+import { onJustForYouSaved } from './lib/claudeInsights';
 import { pendingWidgetWater, ackWidgetWater, pushWidgetSnapshot, clearWidgetSnapshot } from './lib/widgetSync';
 import { track, EVENTS, startSession, countSessionLog, incrementUserProperty, resetAnalytics } from './lib/analytics';
 import { buildDailyLedgerMap } from './lib/goalHistory';
@@ -1083,7 +1084,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     })().catch((e) => console.log('[Notifications] sync failed:', e?.message));
   }, [notifSettingsLoaded, notifyMealReminder, notifyMilestones, notifySmart, mealReminderTime, milestoneConfig]);
 
-  // Smart nudges: re-planned (after a short pause) whenever the data they depend on changes.
+  // Smart nudges: re-planned (after a short pause) whenever the data they depend on changes, and when a new
+  // "Just for you" insight is saved (its teaser becomes the next 10:00 notification).
+  const [insightTick, setInsightTick] = useState(0);
+  useEffect(() => onJustForYouSaved(() => setInsightTick((t) => t + 1)), []);
   useEffect(() => {
     if (!notifSettingsLoaded || Platform.OS === 'web' || !session?.user?.id) return;
     const t = setTimeout(() => {
@@ -1094,7 +1098,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       })().catch((e) => console.log('[SmartNotifications] sync failed:', e?.message));
     }, 2500);
     return () => clearTimeout(t);
-  }, [notifSettingsLoaded, notifySmart, session?.user?.id, recentMeals, waterLogs, stepLogs, activities, hydrationGoal, volumeUnit]);
+  }, [notifSettingsLoaded, notifySmart, session?.user?.id, recentMeals, waterLogs, stepLogs, activities, hydrationGoal, volumeUnit, insightTick]);
 
   // Analytics: identify the person and open a session (see lib/analytics.js).
   useEffect(() => {
@@ -2797,12 +2801,14 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             <TouchableOpacity style={styles.modalPrimaryBtn} onPress={() => setShowLogoutModal(false)}>
               <Text style={styles.modalPrimaryBtnText}>Stay</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.modalSecondaryBtn} onPress={() => {
+            <TouchableOpacity style={styles.modalSecondaryBtn} onPress={async () => {
               setShowLogoutModal(false);
               track(EVENTS.USER_LOGGED_OUT);
               resetAnalytics();
               clearWidgetSnapshot();
-              AsyncStorage.clear().catch(() => {});
+              // Wipe this person's saved copies BEFORE signing out, so the next account to sign in on this
+              // phone can never load them.
+              await AsyncStorage.clear().catch(() => {});
               supabase.auth.signOut();
             }}>
               <Text style={[styles.modalSecondaryBtnText, { color: '#ef4444' }]}>Log Out</Text>

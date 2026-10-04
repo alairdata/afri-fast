@@ -200,6 +200,13 @@ export async function refreshDailyInsights(data) {
   }
 }
 
+// Lets the notification planner re-run when a new insight (and its teaser) has been saved.
+const jfySavedListeners = new Set();
+export const onJustForYouSaved = (fn) => {
+  jfySavedListeners.add(fn);
+  return () => { jfySavedListeners.delete(fn); };
+};
+
 // Fast path — returns cached insight immediately (no freshness check).
 // Used to show stale insight instantly while a background refresh runs.
 export async function getCachedJustForYou(userId) {
@@ -245,8 +252,9 @@ export async function getJustForYou(data, forceRefresh = false) {
       const todayStr = new Date().toISOString().split('T')[0];
       const newEntry = { date: todayStr, lens: result.lens || todayLens, topic: result.topic || '' };
       const updatedRecent = [newEntry, ...recentInsights].slice(0, 7);
-      const cacheCard = { insight: result.insight, lens: result.lens, topic: result.topic, hook: result.hook || '', recentInsights: updatedRecent };
+      const cacheCard = { insight: result.insight, lens: result.lens, topic: result.topic, hook: result.hook || '', createdAt: Date.now(), recentInsights: updatedRecent };
       await saveCache(JFY_CACHE_KEY, userId, 'just_for_you_v4', { cards: [cacheCard] });
+      jfySavedListeners.forEach((fn) => { try { fn(); } catch (_) {} });
     }
     return { insight: result?.insight || null, fromApi: true };
   } catch (e) {
