@@ -5,7 +5,7 @@
 // corrected by the next re-plan (any log happens inside the app, which triggers one).
 //
 // Rules (calm tone, max MAX_PER_DAY a day, nothing before 08:00 or after 21:30):
-//   - Daily insight: one short "insight ready" ping at 10:00.
+//   - Daily insight: one short teaser ping at 10:00 (curiosity line from the insight itself).
 //   - Streak at risk: 20:30, only if you have a >=3-day logging streak and nothing logged today.
 //   - Water: 15:00, only if you track water and you're under half your goal.
 //   - Movement: 17:30, only if you track steps/activity and today is still quiet.
@@ -22,6 +22,17 @@ const DAY_MS = 86400000;
 export const BURNOUT_SUMMARY_KEY = 'logga-burnout-summary-v1';
 const BURNOUT_NOTIFIED_KEY = 'logga-burnout-notified-v1';
 const BURNOUT_SUMMARY_MAX_AGE_DAYS = 3;
+
+// Notification title per insight lens (the lens names come from api/ai.js).
+const HOOK_TITLES = {
+  MEAL_COMPOSITION: 'About your meals',
+  HYDRATION: 'About your water',
+  MOOD_AND_FOOD: 'Food and feelings',
+  MOVEMENT: 'About your movement',
+  WEIGHT_TREND: 'About your weight',
+  CONSISTENCY: 'About your routine',
+  PROGRESS_REFRAME: 'Look how far you came',
+};
 
 const at = (base, dayOffset, hour, minute = 0) => {
   const d = new Date(base);
@@ -60,20 +71,21 @@ export const syncSmartNotifications = async (ctx) => {
 
   // The insight notification is scheduled ahead of time, so tomorrow's insight does not exist yet. For a ping that
   // fires today we can quote today's real insight (first sentence); for later days we say what is waiting.
-  let todayInsight = '';
+  // The notification is a teaser, not an announcement: the AI writes a short curiosity line (the "hook") about
+  // what the insight is really about, and the title names the area (meals, water, ...). Never "insight ready".
+  let todayHook = '';
+  let todayTitle = '';
   try {
     const card = userId ? await getCachedJustForYou(userId) : null;
-    const text = String(card?.insight || '').replace(/\s+/g, ' ').trim();
-    if (text) {
-      const m = text.match(/^.{20,140}?[.!?](?=\s|$)/);
-      todayInsight = m ? m[0] : text.slice(0, 120).trim() + (text.length > 120 ? '...' : '');
-    }
+    todayHook = String(card?.hook || '').replace(/\s+/g, ' ').trim();
+    if (/insight|ready/i.test(todayHook)) todayHook = ''; // the model slipped; use the fallback instead
+    todayTitle = HOOK_TITLES[card?.lens] || '';
   } catch (_) {}
-  const INSIGHT_LINES = [
-    'Your daily insight is ready: what your eating, water and movement say about today.',
-    'A short read on how you are doing is ready. It takes about 20 seconds.',
-    "Today's insight is in. See what to focus on next.",
-    'New insight for you: one thing to keep doing, one to tweak.',
+  const TEASERS = [
+    { title: 'Something stood out', body: 'There is a pattern in your week. Tap to see it.' },
+    { title: 'Noticed something', body: 'Your last few days say more than you think.' },
+    { title: 'One thing to look at', body: 'A small detail in your logs is worth a minute.' },
+    { title: 'Your week, read closely', body: 'There is a connection here you may have missed.' },
   ];
 
   const hydrationGoalMl = hydrationGoal * (UNIT_TO_ML[volumeUnit] ?? 1);
@@ -112,11 +124,12 @@ export const syncSmartNotifications = async (ctx) => {
     // Daily insight -- deliberately one short line.
     {
       const when = at(now, day, 10, 0);
-      const useReal = isToday && !!todayInsight;
+      const useReal = isToday && !!todayHook;
+      const teaser = TEASERS[when.getDate() % TEASERS.length];
       candidates.push({
         key: 'insight', date: when, prio: 3,
-        title: useReal ? 'Your insight for today' : 'Your daily insight',
-        body: useReal ? todayInsight : INSIGHT_LINES[when.getDate() % INSIGHT_LINES.length],
+        title: useReal ? (todayTitle || 'Something stood out') : teaser.title,
+        body: useReal ? todayHook : teaser.body,
         data: { type: 'insight' },
       });
     }

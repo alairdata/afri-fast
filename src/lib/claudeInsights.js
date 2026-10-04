@@ -245,7 +245,7 @@ export async function getJustForYou(data, forceRefresh = false) {
       const todayStr = new Date().toISOString().split('T')[0];
       const newEntry = { date: todayStr, lens: result.lens || todayLens, topic: result.topic || '' };
       const updatedRecent = [newEntry, ...recentInsights].slice(0, 7);
-      const cacheCard = { insight: result.insight, lens: result.lens, topic: result.topic, recentInsights: updatedRecent };
+      const cacheCard = { insight: result.insight, lens: result.lens, topic: result.topic, hook: result.hook || '', recentInsights: updatedRecent };
       await saveCache(JFY_CACHE_KEY, userId, 'just_for_you_v4', { cards: [cacheCard] });
     }
     return { insight: result?.insight || null, fromApi: true };
