@@ -10,9 +10,11 @@ import PreAuthOnboarding from './src/components/PreAuthOnboarding';
 import { installErrorTracking } from './src/lib/analytics';
 import { clearWidgetSnapshot } from './src/lib/widgetSync';
 import AccountDeletedModal from './src/components/AccountDeletedModal';
+import LoggedOutModal from './src/components/LoggedOutModal';
 import { ThemeContext, COLORS, DARK_MODE_AVAILABLE } from './src/lib/theme';
 import { takeAuthIntent } from './src/lib/authIntent';
 import AccountNotFoundScreen from './src/components/AccountNotFoundScreen';
+import RestoreAccountScreen from './src/components/RestoreAccountScreen';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   // Load Inter from Google Fonts
@@ -66,7 +68,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [preAuthData, setPreAuthData] = useState(null);
   // Set when an account has just been deleted, so 'Your account has been deleted' shows over the sign-in screen.
+  // Set when an account has just been deleted: true, or the date it will be erased ('now' if already erased).
   const [accountDeleted, setAccountDeleted] = useState(false);
+  // Set on log out, so "You're logged out" shows over the sign-in screen.
+  const [loggedOut, setLoggedOut] = useState(false);
 
   // Dark mode: the switch in Settings. The screens already read their colours from ThemeContext; this is what
   // actually provides it (it used to default to light forever) and remembers the choice.
@@ -110,6 +115,7 @@ export default function App() {
         if (event === 'SIGNED_OUT') setPreAuthData(null); // the next person starts their own onboarding
       } else {
         setSession(session);
+        setLoggedOut(false);
       }
     });
 
@@ -187,7 +193,12 @@ export default function App() {
           }
         }}
       />
-      <AccountDeletedModal visible={accountDeleted} onClose={() => setAccountDeleted(false)} />
+      <AccountDeletedModal
+        visible={!!accountDeleted}
+        deleteAfter={typeof accountDeleted === 'string' ? accountDeleted : null}
+        onClose={() => setAccountDeleted(false)}
+      />
+      <LoggedOutModal visible={loggedOut && !accountDeleted} onClose={() => setLoggedOut(false)} />
       </>
     );
   }
@@ -197,6 +208,50 @@ export default function App() {
       <View style={{ flex: 1, backgroundColor: '#F0FDF4', alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color="#059669" />
       </View>
+    );
+  }
+
+  // Logged in to an account they deleted less than 7 days ago: offer to restore it.
+  const deletionScheduledAt = session.user.app_metadata?.deletion_scheduled_at;
+  if (deletionScheduledAt) {
+    const api = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
+    const authed = (body) => ({
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+    });
+    return (
+      <SafeAreaProvider>
+        <RestoreAccountScreen
+          deleteAfter={deletionScheduledAt}
+          onRestore={async () => {
+            try {
+              const r = await fetch(`${api}/api/restore-account`, authed());
+              if (!r.ok) return "We couldn't restore your account. Please try again.";
+              // A fresh token no longer carries the deletion date, so the app opens normally.
+              const { error } = await supabase.auth.refreshSession();
+              return error ? "Your account is restored. Please log in again." : null;
+            } catch (_) {
+              return "Couldn't reach Logga. Check your connection and try again.";
+            }
+          }}
+          onDeleteNow={async () => {
+            try {
+              const r = await fetch(`${api}/api/delete-account`, authed({ mode: 'now' }));
+              if (!r.ok) return "We couldn't delete your account. Please try again.";
+              setAccountDeleted('now');
+              await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+              return null;
+            } catch (_) {
+              return "Couldn't reach Logga. Check your connection and try again.";
+            }
+          }}
+          onLogOut={async () => {
+            await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+            return null;
+          }}
+        />
+      </SafeAreaProvider>
     );
   }
 
@@ -211,7 +266,9 @@ export default function App() {
             // Remove the empty account Apple/Google just made, so nothing is left behind.
             try {
               await fetch(`${Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app'}/api/delete-account`, {
-                method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` },
+                method: 'POST',
+                headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode: 'now' }), // nothing to keep: it was created seconds ago
               });
             } catch (_) {}
             await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
@@ -250,7 +307,8 @@ export default function App() {
             // (profile photo, name, numbers) can carry over, however the switch happened.
             key={session.user.id}
             session={session}
-            onAccountDeleted={() => setAccountDeleted(true)}
+            onAccountDeleted={(deleteAfter) => setAccountDeleted(deleteAfter || true)}
+            onLoggedOut={() => setLoggedOut(true)}
             darkMode={darkMode}
             onToggleDarkMode={toggleDarkMode}
             pendingPreAuthData={preAuthData}
