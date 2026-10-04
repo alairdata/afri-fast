@@ -22,7 +22,7 @@ async function usersInWindow(minAgeDays, maxAgeDays) {
     if (!users.length) break;
     for (const u of users) {
       const created = new Date(u.created_at).getTime();
-      if (created >= from && created < to && u.email && u.email_confirmed_at) found.push(u);
+      if (created >= from && created < to && u.email && u.email_confirmed_at && !u.app_metadata?.deletion_scheduled_at) found.push(u);
     }
     if (new Date(users[users.length - 1].created_at).getTime() < from) break;
   }

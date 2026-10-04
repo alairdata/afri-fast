@@ -1094,7 +1094,7 @@ const SettingsTab = ({
               <>
                 <Text style={[styles.acctTitle, { color: '#DC2626' }]}>Delete your account?</Text>
                 <Text style={[styles.acctBody, { color: colors.textSecondary }]}>
-                  This permanently deletes your account and all your data. This cannot be undone.
+                  Your account and all your data will be permanently deleted after 7 days. Until then you can log back in and restore everything. After that, it cannot be undone.
                 </Text>
                 <Text style={[styles.acctBody, { color: colors.textSecondary, marginBottom: 8 }]}>
                   Type <Text style={{ fontWeight: '800', color: '#DC2626' }}>DELETE</Text> to confirm.
