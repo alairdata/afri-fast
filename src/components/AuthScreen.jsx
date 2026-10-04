@@ -8,6 +8,7 @@ import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../lib/supabase';
 import { signInNative } from '../lib/nativeAuth';
+import { setAuthIntent } from '../lib/authIntent';
 import { track, EVENTS } from '../lib/analytics';
 import PreAuthOnboarding from './PreAuthOnboarding';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -286,6 +287,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [resendIn, setResendIn] = useState(0);
   const [pendingModal, setPendingModal] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+  const [notFoundEmail, setNotFoundEmail] = useState(''); // set when a log-in email has no account
 
   // Resend-email cooldown.
   useEffect(() => {
@@ -368,7 +370,13 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     // Same wording as So-UnFiltered AI, and the same for a wrong password and an unknown email, so
     // nobody can probe which emails have accounts.
     if (loginError.code === 'invalid_credentials' || /invalid login credentials/i.test(loginError.message || '')) {
-      setError('Invalid email or password');
+      // Wrong password, or no account at all? If there's no account, say so and offer to create one.
+      const check = await postJson('/api/account-exists', { email: cleanEmail });
+      if (check.ok && check.data?.exists === false) {
+        setNotFoundEmail(cleanEmail);
+        return;
+      }
+      setError(check.ok && check.data?.exists ? "That password isn't right. Try again, or tap Forgot password." : 'Invalid email or password');
       return;
     }
     setError(loginError.message);
@@ -434,6 +442,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
 
   const handleOAuth = async (provider) => {
     setError('');
+    setAuthIntent(mode === 'login' ? 'login' : 'signup');
     if (Platform.OS !== 'web') {
       const r = await signInNative(provider);
       if (r.error) { track(EVENTS.LOGIN_FAILED, { method: provider, error_type: 'oauth_error' }); setError(r.error); }
@@ -761,6 +770,32 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { setPendingModal(false); setError(''); setMessage(''); }} style={{ paddingVertical: 14 }}>
               <Text style={[ca.terms, { marginTop: 0 }]}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Shown when someone tries to log in with an email that has no Logga account. */}
+      <Modal visible={!!notFoundEmail} transparent animationType="fade" onRequestClose={() => setNotFoundEmail('')}>
+        <View style={ca.modalBackdrop}>
+          <View style={ca.modalCard}>
+            <View style={ca.modalIcon}>
+              <Ionicons name="person-add-outline" size={30} color="#059669" />
+            </View>
+            <Text style={ca.modalTitle}>We couldn't find your account</Text>
+            <Text style={ca.modalBody}>
+              There's no Logga account for <Text style={{ fontWeight: '700', color: '#10201a' }}>{notFoundEmail}</Text>.
+              Check the spelling, or create a new account. It only takes a minute.
+            </Text>
+            <TouchableOpacity
+              style={[ca.createBtn, { marginTop: 4 }]}
+              onPress={() => { setNotFoundEmail(''); setError(''); setPassword(''); setScreen('onboarding'); }}
+              activeOpacity={0.85}
+            >
+              <Text style={ca.createTxt}>Create an account</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setNotFoundEmail('')} style={{ paddingVertical: 14 }}>
+              <Text style={[ca.terms, { marginTop: 0 }]}>Try a different email</Text>
             </TouchableOpacity>
           </View>
         </View>

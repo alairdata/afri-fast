@@ -11,6 +11,8 @@ import { installErrorTracking } from './src/lib/analytics';
 import { clearWidgetSnapshot } from './src/lib/widgetSync';
 import AccountDeletedModal from './src/components/AccountDeletedModal';
 import { ThemeContext, COLORS, DARK_MODE_AVAILABLE } from './src/lib/theme';
+import { takeAuthIntent } from './src/lib/authIntent';
+import AccountNotFoundScreen from './src/components/AccountNotFoundScreen';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   // Load Inter from Google Fonts
@@ -105,6 +107,7 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || event === 'USER_DELETED' || !session) {
         setSession(null);
+        if (event === 'SIGNED_OUT') setPreAuthData(null); // the next person starts their own onboarding
       } else {
         setSession(session);
       }
@@ -131,12 +134,13 @@ export default function App() {
   // So-UnFiltered AI's onboarding_complete flag). Someone who taps Apple/Google on the LOGIN screen
   // creates an account without ever answering the questions; catch that here. We call onboarding done
   // if they answered it before sign-up (preAuthData) or their profile already has any of the answers.
-  const [profileCheck, setProfileCheck] = useState('idle'); // 'idle' | 'checking' | 'needs' | 'ok'
+  const [profileCheck, setProfileCheck] = useState('idle'); // 'idle' | 'checking' | 'needs' | 'ok' | 'notfound'
   useEffect(() => {
     const uid = session?.user?.id;
     if (!uid) { setProfileCheck('idle'); return undefined; }
     if (loading) return undefined;
     let cancelled = false;
+    const intent = takeAuthIntent(); // 'login' when they tapped Apple/Google on the Log in screen
     setProfileCheck('checking');
     supabase.from('profiles')
       .select('goal, height, age, target_weight, starting_weight, daily_calorie_goal')
@@ -145,6 +149,9 @@ export default function App() {
         if (cancelled) return;
         // A network blip must never lock someone out of their own account.
         if (error) { setProfileCheck('ok'); return; }
+        // Tapped Apple/Google to LOG IN, but there was no account: Apple/Google just created an empty one.
+        // Say we couldn't find their account instead of quietly signing them up.
+        if (!data && intent === 'login') { setProfileCheck('notfound'); return; }
         const filled = !!data && Object.values(data).some((v) => v !== null && v !== undefined && v !== '');
         setProfileCheck(filled || preAuthData?.completedAt ? 'ok' : 'needs');
       })
@@ -193,6 +200,27 @@ export default function App() {
     );
   }
 
+  if (profileCheck === 'notfound') {
+    return (
+      <SafeAreaProvider>
+        <AccountNotFoundScreen
+          email={session.user.email}
+          provider={session.user.app_metadata?.provider}
+          onCreate={() => setProfileCheck(preAuthData?.completedAt ? 'ok' : 'needs')}
+          onBack={async () => {
+            // Remove the empty account Apple/Google just made, so nothing is left behind.
+            try {
+              await fetch(`${Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app'}/api/delete-account`, {
+                method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` },
+              });
+            } catch (_) {}
+            await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+          }}
+        />
+      </SafeAreaProvider>
+    );
+  }
+
   if (profileCheck === 'needs') {
     return (
       <SafeAreaProvider>
@@ -218,6 +246,9 @@ export default function App() {
         <StatusBar barStyle={themeValue.colors.statusBar} backgroundColor={themeValue.colors.appBg} />
         <SafeAreaView style={{ flex: 1, backgroundColor: themeValue.colors.appBg }}>
           <FastingApp
+            // A different account gets a completely fresh app: nothing the previous person had on screen
+            // (profile photo, name, numbers) can carry over, however the switch happened.
+            key={session.user.id}
             session={session}
             onAccountDeleted={() => setAccountDeleted(true)}
             darkMode={darkMode}
