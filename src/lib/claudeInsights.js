@@ -37,7 +37,9 @@ async function callApi(type, data) {
   const response = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type, data }),
+    // The phone's own date and time zone, so the server (on UTC) says "today" / "yesterday" and meal times
+    // the way the person lived them.
+    body: JSON.stringify({ type, data: { ...data, clientToday: new Date().toDateString(), tzOffsetMinutes: new Date().getTimezoneOffset() } }),
   });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'API error');

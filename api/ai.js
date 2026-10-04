@@ -149,7 +149,7 @@ You will be given a list of recent insight topics that have already been surface
 
 ## Output
 Return ONLY valid JSON, no markdown, no explanation:
-{"insight":"[3 to 5 short paragraphs, flowing, reads like a voice note turned into text — no headers, no bullet points]","lens":"[todayLens value]","topic":"[5-10 word summary of the insight topic for decay tracking]","hook":"[the push-notification line, see rules below]"}
+{"insight":"[3 to 5 short paragraphs, flowing, reads like a voice note turned into text — no headers, no bullet points. Separate paragraphs with a blank line, i.e. \\n\\n between them]","lens":"[todayLens value]","topic":"[5-10 word summary of the insight topic for decay tracking]","hook":"[the push-notification line, see rules below]"}
 
 ## The hook (push notification line)
 "hook" is the one line on their lock screen. Its only job is to make them curious enough to open the app and read the insight.
@@ -246,7 +246,17 @@ function getGoalAtDate(goalHistory, dateStr, profile) {
 
 function preprocessData(data) {
   const { profile, checkInHistory, recentMeals, weightLogs, waterLogs, enrichedMealLogs, goalHistory, stepLogs, activities } = data;
-  const now = new Date();
+  // "Today" and clock times are the user's own, not the server's (the server runs on UTC). The app sends its
+  // local date and time-zone offset; older app versions don't, so fall back to the server clock.
+  const tzOffsetMin = Number.isFinite(Number(data.tzOffsetMinutes)) ? Number(data.tzOffsetMinutes) : 0;
+  const clientToday = data.clientToday && !isNaN(new Date(data.clientToday)) ? data.clientToday : null;
+  const now = clientToday ? new Date(clientToday) : new Date();
+  const todayKey = now.toDateString();
+  const yesterdayKey = (() => { const y = new Date(now); y.setDate(y.getDate() - 1); return y.toDateString(); })();
+  const relDay = (dateStr) => {
+    const k = new Date(dateStr).toDateString();
+    return k === todayKey ? 'today' : k === yesterdayKey ? 'yesterday' : new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
 
   const daysBetween = (d1, d2) => Math.floor(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24));
 
@@ -259,9 +269,10 @@ function preprocessData(data) {
 
   const fmt12h = (ts) => {
     if (!ts) return '';
-    const d = new Date(typeof ts === 'number' ? ts : ts);
-    if (isNaN(d)) return '';
-    const h = d.getHours(), m = d.getMinutes().toString().padStart(2, '0');
+    const t = new Date(typeof ts === 'number' ? ts : ts).getTime();
+    if (isNaN(t)) return '';
+    const d = new Date(t - tzOffsetMin * 60000); // shift to the user's local clock, read with getUTC*
+    const h = d.getUTCHours(), m = d.getUTCMinutes().toString().padStart(2, '0');
     return `${h % 12 || 12}:${m}${h >= 12 ? 'PM' : 'AM'}`;
   };
 
@@ -283,6 +294,7 @@ function preprocessData(data) {
         return `${d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} (${days} days ago)`;
       })()
     : 'Unknown';
+  lines.push(`TODAY IS ${todayKey} (the user's own date). Anything dated today happened today, not yesterday; all times below are the user's local time.`);
   lines.push(`NAME: ${profile.userName || 'User'} | COUNTRY: ${profile.userCountry || 'Not specified'}`);
   lines.push(`MEMBER SINCE: ${joinDateStr}`);
   lines.push(`GOAL: ${goalLabel}`);
@@ -373,7 +385,7 @@ function preprocessData(data) {
         const repDate = days[0]?.date;
         const goalAtTime = getGoalAtDate(goalHistory, repDate, profile);
         const calGoalAtTime = goalAtTime?.dailyCalorieGoal || profile.dailyCalorieGoal || 2000;
-        const mealList = meals.map(m => `${m.name}(${m.calories}cal,${m.protein || 0}g prot${m.logged_at ? ` @${fmt12h(m.logged_at)}` : ''})`).join('; ');
+        const mealList = meals.map(m => `${m.name}(${m.calories}cal,${m.protein || 0}g prot, ${relDay(m.date)}${m.logged_at ? ` @${fmt12h(m.logged_at)}` : ''})`).join('; ');
         lines.push(`  ${label}: ${meals.length} meals across ${days.length}/7 days | avg daily intake: ${avgDailyCal} kcal (goal: ${calGoalAtTime} kcal) | avg ${avgDailyProt}g protein | avg ${avgDailyCarb}g carbs`);
         lines.push(`    Meals: ${mealList}`);
       } else {
@@ -485,7 +497,7 @@ function preprocessData(data) {
   lines.push(`  Active days: ${activeDays} of ${days.length}. An ACTIVE day = ${ACTIVE_DAY_STEPS.toLocaleString()}+ steps OR a logged workout; in this app both count as exercise.`);
   days.forEach((k) => {
     const d = byDay[k];
-    const parts = [k.slice(0, 10)];
+    const parts = [`${k.slice(0, 10)}${k === todayKey ? ' (TODAY)' : k === yesterdayKey ? ' (yesterday)' : ''}`];
     parts.push(d.meals ? `${Math.round(d.kcal)} kcal, ${Math.round(d.protein)}g protein (${d.meals} meals)` : 'no meals logged');
     parts.push(d.water ? `water ${Math.round(d.water * 10) / 10} ${unit}` : 'no water logged');
     if (d.steps != null) parts.push(`${d.steps.toLocaleString()} steps`);
@@ -557,7 +569,21 @@ async function callClaude(prompt, apiKey, maxTokens = 1024, model = 'claude-sonn
   return result.content?.[0]?.text || '';
 }
 
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
+// The app shows a paragraph break only for a blank line ("\n\n"). Models often use single line breaks, or
+// none at all, which shows as one wall of text. Normalise: single breaks become paragraph breaks, and a long
+// unbroken block is split every few sentences.
+function toParagraphs(text) {
+  let t = String(text || '').replace(/\r/g, '').trim();
+  if (!t) return t;
+  t = t.replace(/\n{2,}/g, '\u0000').replace(/\n/g, '\u0000').replace(/\u0000+/g, '\n\n');
+  if (t.includes('\n\n') || t.length < 280) return t;
+  const sentences = t.match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) || [t];
+  const paras = [];
+  for (let i = 0; i < sentences.length; i += 3) paras.push(sentences.slice(i, i + 3).join('').trim());
+  return paras.filter(Boolean).join('\n\n');
+}
+
+const GEMINI_MODELS =['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
 
 const JUST_FOR_YOU_SCHEMA = {
   type: 'OBJECT',
@@ -698,6 +724,7 @@ or the word: null`;
         result = parseInsight(await callGeminiJson(basePrompt + mustWrite, GEMINI_KEY, JUST_FOR_YOU_SCHEMA)) || result;
       }
       if (!result) return res.status(500).json({ error: 'Could not parse insight' });
+      result.insight = toParagraphs(result.insight);
       return res.status(200).json(result);
     }
 
