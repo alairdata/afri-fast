@@ -166,9 +166,10 @@ function normalizeMealDate(dateStr) {
   return dateStr;
 }
 
-const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccountDeleted, darkMode, onToggleDarkMode }) => {
+const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccountDeleted, onLoggedOut, darkMode, onToggleDarkMode }) => {
   // True while the server is deleting the account (it can take a few seconds): shows a 'Deleting...' screen.
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   // === Core fasting state ===
   const [currentTime, setCurrentTime] = useState(new Date());
   const [fastingHours, setFastingHours] = useState(0);
@@ -866,8 +867,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           const provider = session.user.app_metadata?.provider;
           const isOAuth = provider && provider !== 'email';
           if (isOAuth) {
-            // Create profile for new OAuth user and let them through
-            const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
+            // Create profile for new OAuth user and let them through. The name they chose in onboarding wins
+            // over the full name on their Google / Apple account.
+            const name = pendingPreAuthData?.preferredName || session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
             await supabase.from('profiles').insert({
               id: session.user.id,
               email: session.user.email,
@@ -877,7 +879,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             return;
           }
           // Email user with no profile — create it from user metadata (e.g. profile insert failed at signup)
-          const name = session.user.user_metadata?.name || '';
+          const name = pendingPreAuthData?.preferredName || session.user.user_metadata?.name || '';
           await supabase.from('profiles').insert({
             id: session.user.id,
             email: session.user.email,
@@ -901,7 +903,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           }
         }
 
-        if (data.name) setUserName(data.name);
+        // Fresh from onboarding: the onboarding answers are being saved right now (applyPreAuthData below), and
+        // it sets the name and calorie goal itself once they're stored. Don't let this earlier read overwrite them.
+        const onboardingInFlight = !!pendingPreAuthData?.completedAt && !pendingPreAuthData?.skipped;
+        if (data.name && !onboardingInFlight) setUserName(data.name);
         if (data.country) setUserCountry(data.country);
         if (data.created_at) setUserJoinDate(data.created_at);
         if (data.selected_plan) setSelectedPlan(data.selected_plan);
@@ -912,13 +917,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         if (data.weight_unit) setWeightUnit(data.weight_unit);
         if (data.volume_unit) setVolumeUnit(data.volume_unit);
         if (data.food_measurement) setFoodMeasurement(data.food_measurement);
-        if (data.daily_calorie_goal != null) setDailyCalorieGoal(data.daily_calorie_goal);
+        if (data.daily_calorie_goal != null && !onboardingInFlight) setDailyCalorieGoal(data.daily_calorie_goal);
         if (data.macro_style) setMacroStyle(data.macro_style);
         if (data.eating_style) setEatingStyle(data.eating_style);
         if (data.eating_window) setEatingWindow(data.eating_window);
-        if (data.protein_goal != null) setProteinGoal(data.protein_goal);
-        if (data.carbs_goal != null) setCarbsGoal(data.carbs_goal);
-        if (data.fats_goal != null) setFatsGoal(data.fats_goal);
+        if (data.protein_goal != null && !onboardingInFlight) setProteinGoal(data.protein_goal);
+        if (data.carbs_goal != null && !onboardingInFlight) setCarbsGoal(data.carbs_goal);
+        if (data.fats_goal != null && !onboardingInFlight) setFatsGoal(data.fats_goal);
         if (data.hydration_goal != null) setHydrationGoal(data.hydration_goal);
         if (data.goal) setUserGoal(data.goal);
         if (data.goal_history?.length) setGoalHistory(data.goal_history);
@@ -1434,6 +1439,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
     const applyPreAuthData = async () => {
       if (!pendingPreAuthData.skipped) {
+        // A brand-new account (no profile yet, or one made in the last few minutes) takes the onboarding
+        // calorie target as is. A returning person who went through onboarding again keeps their own goal.
+        const { data: before } = await supabase.from('profiles').select('created_at').eq('id', session.user.id).maybeSingle();
+        const isNewAccount = !before?.created_at || Date.now() - new Date(before.created_at).getTime() < 15 * 60 * 1000;
+
         // Build a single patch with everything from onboarding
         const patch = {};
 
@@ -1517,12 +1527,12 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         }
 
         // The daily target the person saw on the onboarding "Here's your daily target" screen becomes
-        // their starting goal. Only fills in a goal that was never set -- a returning user who already
-        // has one keeps it.
+        // their goal (the number in the calorie circle). It used to apply only when the goal was empty,
+        // but a new profile can already hold a default, so new accounts saw 2,000 instead.
         const onboardingCal = parseInt(pendingPreAuthData.dailyCalorieGoal, 10);
         if (onboardingCal > 0) {
           const split = MACRO_STYLE_SPLITS.balanced;
-          const { data: applied, error: goalError } = await supabase
+          let q = supabase
             .from('profiles')
             .update({
               daily_calorie_goal: onboardingCal,
@@ -1530,11 +1540,22 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
               carbs_goal: Math.round((onboardingCal * split.carbs) / 4),
               fats_goal: Math.round((onboardingCal * split.fats) / 9),
             })
-            .eq('id', session.user.id)
-            .is('daily_calorie_goal', null)
-            .select('id');
+            .eq('id', session.user.id);
+          if (!isNewAccount) q = q.is('daily_calorie_goal', null);
+          const { error: goalError } = await q.select('id');
           if (goalError) console.error('[DB Error - apply onboarding calorie goal]', goalError);
-          else if (applied?.length) updateMacroGoalsFromCalories(onboardingCal);
+        }
+
+        // Show exactly what is now saved (name, calorie goal, macros), so the screen matches the account.
+        const { data: saved } = await supabase.from('profiles')
+          .select('name, daily_calorie_goal, protein_goal, carbs_goal, fats_goal')
+          .eq('id', session.user.id).maybeSingle();
+        if (!cancelled && saved) {
+          if (saved.name) setUserName(saved.name);
+          if (saved.daily_calorie_goal != null) setDailyCalorieGoal(saved.daily_calorie_goal);
+          if (saved.protein_goal != null) setProteinGoal(saved.protein_goal);
+          if (saved.carbs_goal != null) setCarbsGoal(saved.carbs_goal);
+          if (saved.fats_goal != null) setFatsGoal(saved.fats_goal);
         }
 
         if (pendingPreAuthData.currentWeight && weightLogs.length === 0) {
@@ -2279,22 +2300,22 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             if (!session?.user?.id) return;
             setDeletingAccount(true);
             try {
-              // The server removes the photos, every row of data and the login itself.
+              // The server marks the account for deletion in 7 days and signs it out everywhere; logging back
+              // in before then offers "Restore my account". After 7 days everything is erased for good.
               const { data: { session: live } } = await supabase.auth.getSession();
               const resp = await fetch(`${Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app'}/api/delete-account`, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${live?.access_token || session.access_token}` },
+                headers: { Authorization: `Bearer ${live?.access_token || session.access_token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode: 'schedule' }),
               });
-              if (!resp.ok) {
-                const body = await resp.json().catch(() => ({}));
-                throw new Error(body.error || `Delete failed (${resp.status})`);
-              }
+              const result = await resp.json().catch(() => ({}));
+              if (!resp.ok) throw new Error(result.error || `Delete failed (${resp.status})`);
               track(EVENTS.ACCOUNT_DELETED);
               resetAnalytics();
               clearWidgetSnapshot();
               await AsyncStorage.clear();
               // Tell the top of the app so it can show 'Your account has been deleted' once we are signed out.
-              onAccountDeleted?.();
+              onAccountDeleted?.(result.deleteAfter || null);
               await supabase.auth.signOut({ scope: 'local' });
             } catch (e) {
               console.error('[DeleteAccount]', e);
@@ -2792,6 +2813,16 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         </View>
       </Modal>
 
+      {/* Shown while logging out */}
+      <Modal visible={loggingOut} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, paddingVertical: 28, paddingHorizontal: 34, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#16201b" />
+            <Text style={{ marginTop: 14, fontSize: 16, fontWeight: '700', color: '#16201b' }}>Logging you out...</Text>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={showLogoutModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -2803,13 +2834,19 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalSecondaryBtn} onPress={async () => {
               setShowLogoutModal(false);
+              setLoggingOut(true);
+              const startedAt = Date.now();
               track(EVENTS.USER_LOGGED_OUT);
               resetAnalytics();
               clearWidgetSnapshot();
               // Wipe this person's saved copies BEFORE signing out, so the next account to sign in on this
               // phone can never load them.
               await AsyncStorage.clear().catch(() => {});
-              supabase.auth.signOut();
+              // Keep "Logging you out..." up long enough to read, then hand over to the sign-in screen,
+              // where "You're logged out" is shown.
+              await new Promise((r) => setTimeout(r, Math.max(0, 900 - (Date.now() - startedAt))));
+              onLoggedOut?.();
+              await supabase.auth.signOut().catch(() => {});
             }}>
               <Text style={[styles.modalSecondaryBtnText, { color: '#ef4444' }]}>Log Out</Text>
             </TouchableOpacity>
