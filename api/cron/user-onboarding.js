@@ -2,9 +2,12 @@
 //  - Day 2: signed up 2-3 days ago, confirmed their email, has still not logged a meal.
 //  - Day 7: signed up 7-8 days ago and has still not logged a meal.
 // (SUAI's third flow, the upgrade nudge, doesn't apply: Logga has no paid plan.)
+// Also (first) erases accounts whose 7-day restore window has passed -- see api/delete-account.js. It lives in
+// this job because the Hobby plan allows only 12 serverless functions per deployment.
 // Runs once a day from vercel.json. Vercel sends `Authorization: Bearer $CRON_SECRET` when CRON_SECRET is set.
 import { configured, adminHeaders, sendDripEmail } from '../_authEmail.js';
 import { trackServerEvent } from '../_analytics.js';
+import { purgeExpiredDeletions } from '../_purgeUser.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const APP_LINK = 'https://www.logga.space/auth-callback';
@@ -40,9 +43,13 @@ const firstName = (u) => String(u.user_metadata?.name || u.user_metadata?.full_n
 export default async function handler(req, res) {
   const secret = process.env.CRON_SECRET;
   if (!secret || (req.headers.authorization || '') !== `Bearer ${secret}`) return res.status(401).json({ error: 'Unauthorized' });
-  if (!configured()) return res.status(500).json({ error: 'Not configured' });
 
-  const results = { day2: { checked: 0, emailed: 0 }, day7: { checked: 0, emailed: 0 }, errors: [] };
+  // Account erasure must run even if email isn't set up.
+  let purge = null;
+  try { purge = await purgeExpiredDeletions(); } catch (e) { console.error('[cron purge]', e); purge = { error: e.message }; }
+  if (!configured()) return res.status(200).json({ message: 'Emails not configured; purge only', purge });
+
+  const results = { purge, day2: { checked: 0, emailed: 0 }, day7: { checked: 0, emailed: 0 }, errors: [] };
   try {
     for (const u of await usersInWindow(2, 3)) {
       results.day2.checked++;

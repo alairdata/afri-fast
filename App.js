@@ -226,7 +226,7 @@ export default function App() {
           deleteAfter={deletionScheduledAt}
           onRestore={async () => {
             try {
-              const r = await fetch(`${api}/api/restore-account`, authed());
+              const r = await fetch(`${api}/api/delete-account`, authed({ mode: 'restore' }));
               if (!r.ok) return "We couldn't restore your account. Please try again.";
               // A fresh token no longer carries the deletion date, so the app opens normally.
               const { error } = await supabase.auth.refreshSession();

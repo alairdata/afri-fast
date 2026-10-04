@@ -94,3 +94,22 @@ export async function userFromRequest(req) {
   const user = await who.json();
   return user?.id ? { ...user, token } : null;
 }
+
+// Erases every account whose restore window has passed. Run daily by api/cron/user-onboarding.js.
+export async function purgeExpiredDeletions() {
+  const due = [];
+  for (let page = 1; page <= 50; page++) {
+    const r = await fetch(`${process.env.SUPABASE_URL}/auth/v1/admin/users?page=${page}&per_page=200`, { headers: adminHeaders() });
+    if (!r.ok) break;
+    const { users = [] } = await r.json();
+    if (!users.length) break;
+    for (const u of users) {
+      const at = u.app_metadata?.deletion_scheduled_at;
+      if (at && new Date(at).getTime() <= Date.now()) due.push(u.id);
+    }
+    if (users.length < 200) break;
+  }
+  let erased = 0;
+  for (const uid of due) if ((await purgeUser(uid)).ok) erased++;
+  return { due: due.length, erased };
+}

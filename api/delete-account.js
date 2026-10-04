@@ -3,8 +3,10 @@
 //
 //   body { mode: 'schedule' } (default): nothing is erased yet. The account is marked for deletion in 7 days
 //     and signed out everywhere. Logging back in within those days offers "Restore my account".
-//     /api/cron/purge-deleted-accounts erases it once the 7 days have passed.
+//     The daily cron erases it once the 7 days have passed.
 //   body { mode: 'now' }: erase everything immediately (photos, every row of data, the login).
+//   body { mode: 'restore' }: cancel a scheduled deletion.
+// api/cron/user-onboarding.js erases accounts once their 7 days have passed.
 import { purgeUser, setDeletionDate, userFromRequest, RESTORE_WINDOW_DAYS } from './_purgeUser.js';
 
 export default async function handler(req, res) {
@@ -19,6 +21,13 @@ export default async function handler(req, res) {
   try {
     const user = await userFromRequest(req);
     if (!user) return res.status(401).json({ error: 'Invalid session' });
+
+    // "Restore my account" during the 7-day window. (Here rather than its own endpoint: the Hobby plan allows
+    // only 12 serverless functions.)
+    if (req.body?.mode === 'restore') {
+      if (!(await setDeletionDate(user.id, null))) return res.status(500).json({ error: 'Could not restore your account. Please try again.' });
+      return res.status(200).json({ ok: true, restored: true });
+    }
 
     if (req.body?.mode === 'now') {
       const result = await purgeUser(user.id);
