@@ -349,6 +349,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     setTouched({ email: true, password: true });
     if (!email || !password) { setError('Please fill in all fields.'); return; }
     const cleanEmail = email.trim().toLowerCase();
+    setAuthIntent(null); // the Apple/Google "no account" check never applies to email log-ins
     setLoading(true); setError(''); setMessage('');
     const { error: loginError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
     setLoading(false);
@@ -445,6 +446,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     setAuthIntent(mode === 'login' ? 'login' : 'signup');
     if (Platform.OS !== 'web') {
       const r = await signInNative(provider);
+      if (r.error || r.cancelled) setAuthIntent(null); // nothing signed in: don't let the intent leak into a later login
       if (r.error) { track(EVENTS.LOGIN_FAILED, { method: provider, error_type: 'oauth_error' }); setError(r.error); }
       else if (!r.cancelled) track(EVENTS.USER_LOGGED_IN, { method: provider });
       return;

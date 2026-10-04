@@ -157,7 +157,8 @@ export default function App() {
         if (error) { setProfileCheck('ok'); return; }
         // Tapped Apple/Google to LOG IN, but there was no account: Apple/Google just created an empty one.
         // Say we couldn't find their account instead of quietly signing them up.
-        if (!data && intent === 'login') { setProfileCheck('notfound'); return; }
+        const viaSocial = ['apple', 'google'].includes(session.user.app_metadata?.provider);
+        if (!data && intent === 'login' && viaSocial) { setProfileCheck('notfound'); return; }
         const filled = !!data && Object.values(data).some((v) => v !== null && v !== undefined && v !== '');
         setProfileCheck(filled || preAuthData?.completedAt ? 'ok' : 'needs');
       })
