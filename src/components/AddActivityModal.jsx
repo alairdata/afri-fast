@@ -30,7 +30,7 @@ const estimateCalories = (type, durationMin, weightKg) => {
   return Math.round(met * weightKg * (durationMin / 60));
 };
 
-const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null }) => {
+const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null, hideWalking = false }) => {
   const [step, setStep] = useState(1);
   const [type, setType] = useState(null);
   const [name, setName] = useState('');
@@ -108,7 +108,8 @@ const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null }) => 
               <ScrollView contentContainerStyle={styles.pickBody} showsVerticalScrollIndicator={false}>
                 <Text style={styles.lead}>What did you do?</Text>
                 <View style={styles.typeGrid}>
-                  {ACTIVITY_TYPES.map((t) => (
+                  {/* With Apple Health connected, walking already arrives as steps, so it isn't logged twice. */}
+                  {ACTIVITY_TYPES.filter((t) => !(hideWalking && t.id === 'walking')).map((t) => (
                     <TouchableOpacity key={t.id} style={styles.typeCard} onPress={() => selectType(t)} activeOpacity={0.8}>
                       <View style={[styles.typeIconWrap, { backgroundColor: `${t.color}1A` }]}>
                         <Ionicons name={t.icon} size={22} color={t.color} />
@@ -120,7 +121,11 @@ const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null }) => 
                     </TouchableOpacity>
                   ))}
                 </View>
-                <Text style={styles.footnote}>Days with 5,000+ steps already count as active days. Log anything extra here.</Text>
+                <Text style={styles.footnote}>
+                  {hideWalking
+                    ? 'Your walking comes in from Apple Health as steps. Log workouts and other activities here.'
+                    : 'Days with 5,000+ steps already count as active days. Log anything extra here.'}
+                </Text>
               </ScrollView>
             )}
 

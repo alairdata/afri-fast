@@ -303,6 +303,20 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   const setWaterUnit = setVolumeUnit;
   const [waterLogs, setWaterLogs] = useState([]);
   const [stepLogs, setStepLogs] = useState([]);
+  // Apple Health (see the Apple Health section below). Health rows use ids 7000000000000-7999999999999.
+  const APPLE_HEALTH_KEY = 'logga-apple-health-v1';
+  const HEALTH_ID_MIN = 7000000000000;
+  const HEALTH_ID_MAX = 8000000000000;
+  const isHealthRow = (l) => Number(l.id) >= HEALTH_ID_MIN && Number(l.id) < HEALTH_ID_MAX;
+  const [appleHealthOn, setAppleHealthOn] = useState(false);
+  // With Apple Health connected, Health is the one source of steps: on any day it has a total, hand-typed or
+  // Shortcut-webhook rows for that day are left out, so a walk is never counted twice. Everything reads this.
+  const effectiveStepLogs = React.useMemo(() => {
+    if (!appleHealthOn) return stepLogs;
+    const healthDays = new Set(stepLogs.filter(isHealthRow).map((l) => l.date));
+    return stepLogs.filter((l) => isHealthRow(l) || !healthDays.has(l.date));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepLogs, appleHealthOn]);
   const [stepGoal, setStepGoal] = useState(10000);
   const [activities, setActivities] = useState([]);
 
@@ -1100,11 +1114,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       (async () => {
         if (!notifySmart) { await clearSmartNotifications(); return; }
         if (!(await requestNotificationPermissions())) return;
-        await syncSmartNotifications({ recentMeals, waterLogs, stepLogs, activities, hydrationGoal, volumeUnit, userId: session?.user?.id });
+        await syncSmartNotifications({ recentMeals, waterLogs, stepLogs: effectiveStepLogs, activities, hydrationGoal, volumeUnit, userId: session?.user?.id });
       })().catch((e) => console.log('[SmartNotifications] sync failed:', e?.message));
     }, 2500);
     return () => clearTimeout(t);
-  }, [notifSettingsLoaded, notifySmart, session?.user?.id, recentMeals, waterLogs, stepLogs, activities, hydrationGoal, volumeUnit, insightTick]);
+  }, [notifSettingsLoaded, notifySmart, session?.user?.id, recentMeals, waterLogs, effectiveStepLogs, activities, hydrationGoal, volumeUnit, insightTick]);
 
   // Analytics: identify the person and open a session (see lib/analytics.js).
   useEffect(() => {
@@ -1327,11 +1341,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   // Once connected (Steps page), the last 7 days of steps are read from the Health app whenever the app opens or
   // comes back to the foreground, and saved as one row per day. Those rows use ids 7000000000000+ (manual logs use
   // Date.now(), the old Shortcut webhook 8000000000000+), so a day's Health total is updated in place, not added twice.
-  const APPLE_HEALTH_KEY = 'logga-apple-health-v1';
-  const HEALTH_ID_MIN = 7000000000000;
-  const HEALTH_ID_MAX = 8000000000000;
-  const isHealthRow = (l) => Number(l.id) >= HEALTH_ID_MIN && Number(l.id) < HEALTH_ID_MAX;
-  const [appleHealthOn, setAppleHealthOn] = useState(false);
   const stepLogsRef = useRef(stepLogs);
   stepLogsRef.current = stepLogs;
   const healthSyncing = useRef(false);
@@ -2268,7 +2277,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           motivations={motivations}
           accountability={accountability}
           stepGoal={stepGoal}
-          stepLogs={stepLogs}
+          stepLogs={effectiveStepLogs}
           activities={activities}
           dataReady={dataLoadCount >= 8}
           goalHistory={goalHistory}
@@ -2331,7 +2340,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           recentMeals={recentMeals}
           weightLogs={weightLogs}
           waterLogs={waterLogs}
-          stepLogs={stepLogs}
+          stepLogs={effectiveStepLogs}
           stepGoal={stepGoal}
           activities={activities}
           checkInHistory={checkInHistory}
@@ -2554,7 +2563,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         key={`steps-${dayKey}`}
         show={showStepsDetails}
         onClose={() => setShowStepsDetails(false)}
-        stepLogs={stepLogs}
+        stepLogs={effectiveStepLogs}
         setStepLogs={setStepLogs}
         stepGoal={stepGoal}
         appleHealthAvailable={Platform.OS === 'ios' && appleHealthSupported()}
@@ -2569,6 +2578,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         key={`activity-${dayKey}`}
         show={showAddActivity}
         onClose={() => setShowAddActivity(false)}
+        hideWalking={appleHealthOn}
         currentWeightKg={weightLogs.length ? (weightUnit === 'lbs' ? weightLogs[0].weight / 2.20462 : weightLogs[0].weight) : (startingWeight != null ? (weightUnit === 'lbs' ? startingWeight / 2.20462 : startingWeight) : null)}
         onSave={(entry) => {
           track(EVENTS.ACTIVITY_LOGGED, { type: entry.type, duration_min: entry.durationMin });

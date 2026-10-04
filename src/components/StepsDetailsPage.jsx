@@ -30,14 +30,16 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
       displayDate: `${WEEKDAYS[selectedDate.getDay()]}, ${MONTHS_SHORT[selectedDate.getMonth()]} ${selectedDate.getDate()}`,
       steps: parseInt(newSteps, 10),
     };
-    setStepLogs([newLog, ...stepLogs]);
+    setStepLogs((prev) => [newLog, ...prev]);
     onStepsSaved && onStepsSaved(newLog);
     setNewSteps('');
   };
 
+  // stepLogs here can be a filtered view (Apple Health days hide hand-typed rows), so remove by id from the full list.
   const deleteStepLog = (index) => {
     const log = stepLogs[index];
-    setStepLogs(stepLogs.filter((_, i) => i !== index));
+    if (!log) return;
+    setStepLogs((prev) => prev.filter((l) => l.id !== log.id));
     onStepsDeleted && onStepsDeleted(log);
   };
 
@@ -222,16 +224,21 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
                     />
                   </Svg>
                   <View style={styles.inputCircle}>
-                    <TextInput
-                      placeholder="8000"
-                      placeholderTextColor="#ccc"
-                      value={newSteps}
-                      onChangeText={setNewSteps}
-                      style={styles.inputValue}
-                      keyboardType="number-pad"
-                    />
+                    {appleHealthOn ? (
+                      // Steps come from Apple Health, so there's nothing to type: just show the day's total.
+                      <Text style={styles.inputValue}>{loggedSteps.toLocaleString()}</Text>
+                    ) : (
+                      <TextInput
+                        placeholder="8000"
+                        placeholderTextColor="#ccc"
+                        value={newSteps}
+                        onChangeText={setNewSteps}
+                        style={styles.inputValue}
+                        keyboardType="number-pad"
+                      />
+                    )}
                     <Text style={styles.unitLabel}>steps</Text>
-                    {loggedSteps > 0 && (
+                    {loggedSteps > 0 && !appleHealthOn && (
                       <Text style={styles.ringProgressLabel}>
                         {loggedSteps.toLocaleString()} / {stepGoal.toLocaleString()}
                       </Text>
@@ -241,9 +248,15 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
               );
             })()}
 
-            <TouchableOpacity style={styles.logBtn} onPress={saveSteps}>
-              <Text style={styles.logBtnText}>Log Steps</Text>
-            </TouchableOpacity>
+            {appleHealthOn ? (
+              <Text style={styles.ringProgressLabel}>
+                {(logsByDate[selectedStr] || 0) >= stepGoal ? 'Goal reached · from Apple Health' : `of ${stepGoal.toLocaleString()} steps · from Apple Health`}
+              </Text>
+            ) : (
+              <TouchableOpacity style={styles.logBtn} onPress={saveSteps}>
+                <Text style={styles.logBtnText}>Log Steps</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
 
