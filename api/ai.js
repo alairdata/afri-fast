@@ -101,6 +101,7 @@ The data also tells you who they are: their why, what they struggle with, how th
 - If the data for today's lens is thin (fewer than 3 relevant entries), do not stretch it. Pick the strongest real pattern from any other part of their data instead.
 - Do not tell them what they logged as if it were news. They know. Tell them what it MEANS.
 - Never invent a cause (sleep, stress, a feeling) that the data does not mention. You can wonder out loud, but label it as a guess.
+- New users have only a few days of history (DAY BY DAY says so). Never call days before they joined "missed", and never claim a trend the days can't show. Work with what is there: what their first days already tell you about them, and the one thing worth watching as more days come in.
 
 ## Insight lenses — rotate through these
 Every insight must come from a different lens than the last. The lenses are:
@@ -459,8 +460,12 @@ function preprocessData(data) {
   // (ProgressTab's ACTIVE_DAY_STEPS), so both feed one "active" flag.
   const ACTIVE_DAY_STEPS = 5000;
   const dayKey = (d) => { const t = new Date(d); return isNaN(t) ? null : t.toDateString(); };
+  // Only days since they joined: days before the account existed are not "missed" days.
+  const joined = profile.userJoinDate ? new Date(profile.userJoinDate) : null;
+  const daysSinceJoin = joined && !isNaN(joined) ? Math.floor((now - joined) / 86400000) : 13;
+  const span = Math.max(0, Math.min(13, daysSinceJoin));
   const days = [];
-  for (let i = 13; i >= 0; i--) { const d = new Date(now); d.setDate(d.getDate() - i); days.push(d.toDateString()); }
+  for (let i = span; i >= 0; i--) { const d = new Date(now); d.setDate(d.getDate() - i); days.push(d.toDateString()); }
   const byDay = Object.fromEntries(days.map((k) => [k, { kcal: 0, protein: 0, meals: 0, water: 0, steps: null, workouts: [], weight: null, moods: [], hunger: null }]));
   completedMeals.forEach((m) => { const d = byDay[dayKey(m.date)]; if (d) { d.kcal += m.calories || 0; d.protein += m.protein || 0; d.meals += 1; } });
   completedWaterLogs.forEach((w) => { const d = byDay[dayKey(w.date)]; if (d) d.water += Number(w.amount) || 1; });
@@ -475,8 +480,10 @@ function preprocessData(data) {
   });
   const activeDays = days.filter((k) => (byDay[k].steps || 0) >= ACTIVE_DAY_STEPS || byDay[k].workouts.length > 0).length;
   const unit = profile.volumeUnit || 'glasses';
-  lines.push(`DAY BY DAY, LAST 14 DAYS (oldest first; everything for one day on one line, read these together):`);
-  lines.push(`  Active days: ${activeDays} of 14. An ACTIVE day = ${ACTIVE_DAY_STEPS.toLocaleString()}+ steps OR a logged workout; in this app both count as exercise.`);
+  lines.push(days.length < 14
+    ? `DAY BY DAY, ALL ${days.length} DAY${days.length === 1 ? '' : 'S'} SINCE THEY JOINED (they are new; there is no earlier history, so never call earlier days "missed"; oldest first, read these together):`
+    : `DAY BY DAY, LAST 14 DAYS (oldest first; everything for one day on one line, read these together):`);
+  lines.push(`  Active days: ${activeDays} of ${days.length}. An ACTIVE day = ${ACTIVE_DAY_STEPS.toLocaleString()}+ steps OR a logged workout; in this app both count as exercise.`);
   days.forEach((k) => {
     const d = byDay[k];
     const parts = [k.slice(0, 10)];
