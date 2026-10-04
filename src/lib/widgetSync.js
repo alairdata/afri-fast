@@ -19,21 +19,34 @@ const DEFAULT_PROTEIN_GOAL = 90;
 // Same unit table as milestones.js / burnout.js.
 const UNIT_TO_ML = { oz: 29.574, mL: 1, ml: 1, sachet: 500, bottle: 750 };
 
-let storage = null;
-const getStorage = () => {
+// The native side is our own small module (modules/logga-widget-bridge). It replaced the storage helper that
+// ships with @bacons/apple-targets: that one was silently missing from the EAS build, and its JS fallback is a
+// no-op, so the app never wrote anything for the widgets to read (and never saw widget water either).
+let bridge;
+const getBridge = () => {
   if (Platform.OS !== 'ios') return null;
-  if (storage) return storage;
+  if (bridge !== undefined) return bridge;
   try {
-    const { ExtensionStorage } = require('@bacons/apple-targets');
-    storage = new ExtensionStorage(APP_GROUP);
+    bridge = require('expo').requireOptionalNativeModule('LoggaWidgetBridge') || null;
   } catch (_) {
-    storage = null; // e.g. Expo Go or a build without the widget target
+    bridge = null;
   }
-  return storage;
+  if (!bridge) console.log('[widgetSync] native LoggaWidgetBridge is not in this build; widgets will not update');
+  return bridge;
+};
+
+const getStorage = () => {
+  const b = getBridge();
+  if (!b) return null; // Expo Go, or a build without the bridge
+  return {
+    get: (key) => b.getString(key, APP_GROUP),
+    set: (key, value) => b.setString(key, value, APP_GROUP),
+    remove: (key) => b.remove(key, APP_GROUP),
+  };
 };
 
 const reloadWidgets = () => {
-  try { require('@bacons/apple-targets').ExtensionStorage.reloadWidget(); } catch (_) {}
+  try { getBridge()?.reloadWidgets(); } catch (_) {}
 };
 
 const swiftDate = (ms) => ms / 1000 - SWIFT_REFERENCE_EPOCH;
@@ -142,7 +155,10 @@ export async function pushWidgetSnapshot({ recentMeals, waterLogs, hydrationGoal
       ...(burnoutScore != null ? { burnoutScore, burnoutLabel: burnoutLabel(burnoutScore) } : {}),
     };
 
-    st.set(WIDGET_KEY, JSON.stringify(day));
+    if (st.set(WIDGET_KEY, JSON.stringify(day)) === false) {
+      console.log('[widgetSync] App Group is not available to the app; widgets cannot be updated');
+      return;
+    }
     await AsyncStorage.setItem(BASELINE_KEY, String(waterGlasses));
     reloadWidgets();
   } catch (e) {
