@@ -253,6 +253,8 @@ function preprocessData(data) {
   const now = clientToday ? new Date(clientToday) : new Date();
   const todayKey = now.toDateString();
   const yesterdayKey = (() => { const y = new Date(now); y.setDate(y.getDate() - 1); return y.toDateString(); })();
+  // A date with today/yesterday spelled out, so the model never has to work out which day 'Sun Oct 04' is.
+  const dl = (dateStr) => { const k = new Date(dateStr).toDateString(); return k === todayKey ? `${dateStr} (TODAY)` : k === yesterdayKey ? `${dateStr} (yesterday)` : dateStr; };
   const relDay = (dateStr) => {
     const k = new Date(dateStr).toDateString();
     return k === todayKey ? 'today' : k === yesterdayKey ? 'yesterday' : new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -430,7 +432,7 @@ function preprocessData(data) {
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   if (recentSteps.length > 0) {
     lines.push(`STEPS (counted automatically by their phone, last 14 days; goal: ${profile.stepGoal || 10000}/day):`);
-    recentSteps.forEach((r) => lines.push(`  ${r.date}: ${r.steps} steps`));
+    recentSteps.forEach((r) => lines.push(`  ${dl(r.date)}: ${r.steps} steps`));
     lines.push('');
   }
   const recentActivities = (activities || [])
@@ -438,7 +440,7 @@ function preprocessData(data) {
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   if (recentActivities.length > 0) {
     lines.push('WORKOUTS THEY CHOSE TO LOG BY HAND (last 14 days; occasional, and NOT a measure of how active they were; steps above are counted automatically):');
-    recentActivities.forEach((a) => lines.push(`  ${a.date}: ${a.type}${a.durationMin ? `, ${a.durationMin} min` : ''}`));
+    recentActivities.forEach((a) => lines.push(`  ${dl(a.date)}: ${a.type}${a.durationMin ? `, ${a.durationMin} min` : ''}`));
     lines.push('');
   }
 
@@ -446,7 +448,7 @@ function preprocessData(data) {
   const sortedWeights = [...allWeightLogs].sort((a, b) => new Date(a.date) - new Date(b.date));
   if (sortedWeights.length > 0) {
     lines.push('WEIGHT PROGRESS:');
-    sortedWeights.forEach(wl => lines.push(`  ${wl.date}: ${wl.weight} ${wl.unit}`));
+    sortedWeights.forEach(wl => lines.push(`  ${dl(wl.date)}: ${wl.weight} ${wl.unit}`));
     if (sortedWeights.length >= 2) {
       const first = sortedWeights[0];
       const last = sortedWeights[sortedWeights.length - 1];
@@ -518,7 +520,7 @@ function preprocessData(data) {
     lines.push('CHECK-IN HISTORY (most recent first):');
     sortedCheckIns.forEach(c => {
       const timeStr = c.loggedAt ? ` ${fmt12h(c.loggedAt)}` : '';
-      const parts = [`[${c.date}${timeStr}]`];
+      const parts = [`[${dl(c.date)}${timeStr}]`];
       if (c.hungerLevel != null) parts.push(`hunger:${c.hungerLevel}/10`);
       if (c.feelings?.length) parts.push(`feelings:${c.feelings.join(',')}`);
       if (c.moods?.length) parts.push(`mood:${c.moods.join(',')}`);
@@ -535,7 +537,7 @@ function preprocessData(data) {
   if (recentEnriched.length > 0) {
     lines.push('MEALS WITH EMOTIONAL & PHYSICAL CONTEXT (most recent first):');
     recentEnriched.forEach(m => {
-      const parts = [`[${m.date}] ${m.mealName} (${m.totalCalories} kcal)`];
+      const parts = [`[${dl(m.date)}] ${m.mealName} (${m.totalCalories} kcal)`];
       if (m.hungerLevel) parts.push(`hunger:${m.hungerLevel}`);
       if (m.feelings?.length) parts.push(`feelings:${m.feelings.join(',')}`);
       if (m.moods?.length) parts.push(`mood:${m.moods.join(',')}`);
