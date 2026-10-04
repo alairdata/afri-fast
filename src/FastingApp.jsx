@@ -35,6 +35,7 @@ import {
 import { evaluateMilestones } from './lib/milestones';
 import { syncSmartNotifications, clearSmartNotifications, onBurnoutSummaryPublished } from './lib/smartNotifications';
 import { onJustForYouSaved } from './lib/claudeInsights';
+import { appleHealthSupported, connectAppleHealth, readDailySteps } from './lib/appleHealth';
 import { pendingWidgetWater, ackWidgetWater, pushWidgetSnapshot, clearWidgetSnapshot } from './lib/widgetSync';
 import { track, EVENTS, startSession, countSessionLog, incrementUserProperty, resetAnalytics } from './lib/analytics';
 import { buildDailyLedgerMap } from './lib/goalHistory';
@@ -1322,6 +1323,74 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       });
   }, [session]);
 
+  // === Apple Health steps (iPhone) ===
+  // Once connected (Steps page), the last 7 days of steps are read from the Health app whenever the app opens or
+  // comes back to the foreground, and saved as one row per day. Those rows use ids 7000000000000+ (manual logs use
+  // Date.now(), the old Shortcut webhook 8000000000000+), so a day's Health total is updated in place, not added twice.
+  const APPLE_HEALTH_KEY = 'logga-apple-health-v1';
+  const HEALTH_ID_MIN = 7000000000000;
+  const HEALTH_ID_MAX = 8000000000000;
+  const isHealthRow = (l) => Number(l.id) >= HEALTH_ID_MIN && Number(l.id) < HEALTH_ID_MAX;
+  const [appleHealthOn, setAppleHealthOn] = useState(false);
+  const stepLogsRef = useRef(stepLogs);
+  stepLogsRef.current = stepLogs;
+  const healthSyncing = useRef(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !session?.user?.id) return;
+    AsyncStorage.getItem(APPLE_HEALTH_KEY).then((v) => { if (v === session.user.id) setAppleHealthOn(true); }).catch(() => {});
+  }, [session?.user?.id]);
+
+  const syncAppleHealthSteps = async () => {
+    const uid = session?.user?.id;
+    if (!uid || healthSyncing.current) return;
+    healthSyncing.current = true;
+    try {
+      const days = await readDailySteps(7);
+      for (const { date, steps } of days) {
+        const existing = stepLogsRef.current.find((l) => isHealthRow(l) && l.date === date);
+        if (existing && existing.steps === steps) continue;
+        if (existing) {
+          const { error } = await supabase.from('step_logs').update({ steps }).eq('id', existing.id).eq('user_id', uid);
+          if (!error) setStepLogs((prev) => prev.map((l) => (l.id === existing.id ? { ...l, steps } : l)));
+          continue;
+        }
+        const d = new Date(date);
+        const row = {
+          id: HEALTH_ID_MIN + Math.floor(Math.random() * 999999999999),
+          date,
+          displayDate: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+          steps,
+        };
+        const { error } = await supabase.from('step_logs').insert({ id: row.id, user_id: uid, date: row.date, display_date: row.displayDate, steps: row.steps });
+        if (!error) setStepLogs((prev) => [row, ...prev]);
+        else console.log('[AppleHealth] save failed:', error.message);
+      }
+    } catch (e) {
+      console.log('[AppleHealth] sync failed:', e?.message);
+    } finally {
+      healthSyncing.current = false;
+    }
+  };
+
+  const handleConnectAppleHealth = async () => {
+    const ok = await connectAppleHealth();
+    if (!ok) { showToast("Couldn't connect to Apple Health", 'error'); return; }
+    setAppleHealthOn(true);
+    AsyncStorage.setItem(APPLE_HEALTH_KEY, session?.user?.id || '').catch(() => {});
+    track('apple_health_connected');
+    await syncAppleHealthSteps();
+    showToast('Apple Health connected');
+  };
+
+  // Re-read Health when the data has loaded and every time the app comes back to the foreground
+  // (widgetTick counts foreground returns; see the widget sync below).
+  useEffect(() => {
+    if (!appleHealthOn || dataLoadCount < 8) return;
+    syncAppleHealthSteps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appleHealthOn, dataLoadCount >= 8, widgetTick]);
+
   // Fetch the precomputed daily goal ledger (see lib/goalHistory.js's resolveCalorieGoal)
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -2488,6 +2557,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         stepLogs={stepLogs}
         setStepLogs={setStepLogs}
         stepGoal={stepGoal}
+        appleHealthAvailable={Platform.OS === 'ios' && appleHealthSupported()}
+        appleHealthOn={appleHealthOn}
+        onConnectAppleHealth={handleConnectAppleHealth}
+        onSyncAppleHealth={syncAppleHealthSteps}
         onStepsSaved={(log) => { track(EVENTS.STEPS_LOGGED, { steps: log.steps }); countSessionLog(); dbSave(supabase.from('step_logs').insert({ id: log.id, user_id: session?.user?.id, date: log.date, display_date: log.displayDate, steps: log.steps }), 'save step_log', (msg) => showToast(msg, 'error')); }}
         onStepsDeleted={(log) => dbSave(supabase.from('step_logs').delete().eq('id', log.id).eq('user_id', session?.user?.id), 'delete step_log', (msg) => showToast(msg, 'error'))}
       />

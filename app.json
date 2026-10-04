@@ -74,7 +74,15 @@
           "cameraPermission": "Logga needs camera access to scan your meals."
         }
       ],
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Logga reads your daily step count from Apple Health so your steps and active days fill in automatically.",
+          "NSHealthUpdateUsageDescription": false,
+          "background": false
+        }
+      ]
     ]
   }
 }

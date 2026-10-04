@@ -13,7 +13,8 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 10000, onStepsSaved, onStepsDeleted }) => {
+const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 10000, onStepsSaved, onStepsDeleted, appleHealthAvailable = false, appleHealthOn = false, onConnectAppleHealth, onSyncAppleHealth }) => {
+  const [connecting, setConnecting] = useState(false);
   const [newSteps, setNewSteps] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarMonth, setCalendarMonth] = useState(new Date());
@@ -160,6 +161,40 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
         </>}
 
         <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Apple Health: steps come in by themselves once connected */}
+          {appleHealthAvailable && (
+            appleHealthOn ? (
+              <TouchableOpacity style={styles.healthCard} onPress={onSyncAppleHealth} activeOpacity={0.8}>
+                <View style={[styles.healthIcon, { backgroundColor: 'rgba(5,150,105,0.12)' }]}>
+                  <Ionicons name="checkmark" size={18} color="#059669" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.healthTitle}>Synced with Apple Health</Text>
+                  <Text style={styles.healthSub}>Your steps update every time you open Logga. Tap to refresh now.</Text>
+                </View>
+                <Ionicons name="refresh" size={18} color="#6c7872" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.healthCard}>
+                <View style={styles.healthIcon}>
+                  <Ionicons name="heart" size={18} color="#FF2D55" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.healthTitle}>Get your steps automatically</Text>
+                  <Text style={styles.healthSub}>Connect Apple Health and your daily steps fill in by themselves. Logga only reads steps.</Text>
+                  <TouchableOpacity
+                    style={styles.healthBtn}
+                    disabled={connecting}
+                    onPress={async () => { setConnecting(true); await onConnectAppleHealth?.(); setConnecting(false); }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.healthBtnText}>{connecting ? 'Connecting…' : 'Connect Apple Health'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )
+          )}
+
           {/* Steps input */}
           <View style={styles.inputSection}>
             {(() => {
@@ -342,6 +377,16 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
 const CELL_SIZE = Math.floor((SCREEN_WIDTH - 40 - 24) / 7);
 
 const styles = StyleSheet.create({
+  healthCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    marginHorizontal: 16, marginTop: 12, padding: 14, borderRadius: 16,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#E7ECE9',
+  },
+  healthIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,45,85,0.1)', alignItems: 'center', justifyContent: 'center' },
+  healthTitle: { fontSize: 14.5, fontWeight: '700', color: '#16201b' },
+  healthSub: { fontSize: 12.5, color: '#6c7872', lineHeight: 18, marginTop: 2 },
+  healthBtn: { alignSelf: 'flex-start', marginTop: 10, backgroundColor: '#16201b', borderRadius: 12, paddingHorizontal: 14, minHeight: 40, justifyContent: 'center' },
+  healthBtnText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
