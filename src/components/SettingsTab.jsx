@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Modal, Dimensions, Image, Platform, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Modal, Dimensions, Image, Platform, FlatList, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FastingQuizPage from './FastingQuizPage';
 import YourDetails from './YourDetails';
@@ -1073,6 +1073,8 @@ const SettingsTab = ({
 
       {/* Account Options sheet: log out / delete account live here, one deliberate tap away */}
       <Modal visible={showAccountSheet} animationType="fade" transparent onRequestClose={() => setShowAccountSheet(false)}>
+        {/* Keeps the DELETE box above the keyboard */}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <TouchableOpacity style={styles.acctOverlay} activeOpacity={1} onPress={() => setShowAccountSheet(false)}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}} style={[styles.acctSheet, { backgroundColor: colors.card }]}>
             {!confirmDelete ? (
@@ -1122,10 +1124,12 @@ const SettingsTab = ({
             )}
           </TouchableOpacity>
         </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Country Picker Modal */}
       <Modal visible={showCountryPicker} animationType="slide" transparent onRequestClose={() => setShowCountryPicker(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.cpOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowCountryPicker(false)} />
           <View style={styles.cpSheet}>
@@ -1178,6 +1182,7 @@ const SettingsTab = ({
             />
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ─── Time Picker Modal ─── */}

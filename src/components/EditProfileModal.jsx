@@ -1,8 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const EditProfileModal = ({ show, onClose, onSave, userName, userEmail, setUserName, setUserEmail, userCountry, setUserCountry, profileImage, setProfileImage }) => {
+  // Sits below the top of the phone (safe area), which the keyboard lift has to know about.
+  const insets = useSafeAreaInsets();
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -20,7 +23,7 @@ const EditProfileModal = ({ show, onClose, onSave, userName, userEmail, setUserN
   if (!show) return null;
 
   return (
-    <View style={styles.editProfileOverlay}>
+    <KeyboardAvoidingView style={styles.editProfileOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}>
       <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
       <View style={styles.editProfileCard}>
         <View style={styles.editProfileHeader}>
@@ -60,7 +63,7 @@ const EditProfileModal = ({ show, onClose, onSave, userName, userEmail, setUserN
           <Text style={styles.editProfileSaveBtnText}>Save</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
