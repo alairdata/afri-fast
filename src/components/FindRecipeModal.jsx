@@ -23,7 +23,7 @@ const FindRecipeModal = ({ show, onClose }) => {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView style={styles.weightPageContent}>
+        <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" style={styles.weightPageContent}>
           <View style={styles.recipeSearchContainer}>
             <View style={styles.recipeSearchBar}>
               <Text style={styles.searchIcon}>🔍</Text>

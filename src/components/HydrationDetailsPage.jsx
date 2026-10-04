@@ -183,7 +183,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
         </View>
         </>}
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Water input */}
           <View style={styles.inputSection}>
             {(() => {

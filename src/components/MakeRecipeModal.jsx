@@ -25,7 +25,7 @@ const MakeRecipeModal = ({ show, onClose, method }) => {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView style={styles.weightPageContent}>
+        <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" style={styles.weightPageContent}>
           {/* Photo Method */}
           {method === 'photo' && (
             <View style={styles.logMealContent}>

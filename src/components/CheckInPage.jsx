@@ -342,7 +342,7 @@ const CheckInPage = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={ss.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={ss.scrollContent}>
+          <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" style={ss.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={ss.scrollContent}>
 
             {/* ── Overall Mood ─────────────────────────────────────────── */}
             {source !== 'meal' && <SectionCard title="How are you feeling today?" titleStyle={{ fontSize: 17 }}>
@@ -495,7 +495,7 @@ const CheckInPage = ({
             </View>
 
             {/* ── Notes ─────────────────────────────────────────────────── */}
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <View>
               <View style={ss.section}>
                 <Text style={ss.sectionTitle}>📝 Notes</Text>
                 {(noteEntries || []).map((entry, i) => (
@@ -527,7 +527,7 @@ const CheckInPage = ({
                   )}
                 </View>
               </View>
-            </KeyboardAvoidingView>
+            </View>
 
             <View style={{ height: 40 }} />
           </ScrollView>

@@ -159,7 +159,7 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
         </View>
         </>}
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Steps input */}
           <View style={styles.inputSection}>
             {(() => {

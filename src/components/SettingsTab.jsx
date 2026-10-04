@@ -475,7 +475,7 @@ const SettingsTab = ({
             </TouchableOpacity>
             <Text style={[styles.makeItYoursHeaderTitle, { color: colors.text }]}>Make it Yours</Text>
           </View>
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
+          <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
 
             {/* Your Details — onboarding answers, edited with the onboarding screens */}
             <YourDetails
@@ -812,7 +812,7 @@ const SettingsTab = ({
             <Text style={styles.makeItYoursHeaderTitle}>Visual Guide</Text>
           </View>
           <View style={styles.quizContainer}>
-          <ScrollView style={styles.quizContent} showsVerticalScrollIndicator={false}>
+          <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" style={styles.quizContent} showsVerticalScrollIndicator={false}>
             <Text style={styles.guideIntro}>Use your hands and everyday items to estimate portions — no scale needed.</Text>
 
             <Text style={styles.guideSection}>Water</Text>

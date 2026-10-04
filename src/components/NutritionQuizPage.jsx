@@ -504,7 +504,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
               <Ionicons name="close" size={22} color="#999" />
             </TouchableOpacity>
           </View>
-          <ScrollView
+          <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled"
             style={s.scrollBody}
             contentContainerStyle={s.doctorContent}
             showsVerticalScrollIndicator={false}
@@ -548,7 +548,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
               <Ionicons name="close" size={22} color="#999" />
             </TouchableOpacity>
           </View>
-          <ScrollView
+          <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled"
             style={s.scrollBody}
             contentContainerStyle={s.resultContent}
             showsVerticalScrollIndicator={false}

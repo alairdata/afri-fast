@@ -102,7 +102,7 @@ const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null }) => 
           )}
 
           {step === 2 && type && (
-            <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
+            <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
               {type.id === 'other' && (
                 <View style={styles.field}>
                   <Text style={styles.label}>Activity name</Text>

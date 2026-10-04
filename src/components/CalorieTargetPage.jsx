@@ -130,7 +130,7 @@ const CalorieTargetPage = ({
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView automaticallyAdjustKeyboardInsets style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* The target: type it */}
           <Text style={styles.kicker}>YOUR TARGET</Text>
           <View style={styles.numberRow}>

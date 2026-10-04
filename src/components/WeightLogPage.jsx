@@ -131,7 +131,7 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
           </>
         )}
 
-        <ScrollView style={styles.weightPageContent} showsVerticalScrollIndicator={false}>
+        <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" style={styles.weightPageContent} showsVerticalScrollIndicator={false}>
           {/* Compact Weight Input Section */}
           <View style={styles.weightInputCompact}>
             {/* Dash Circle Placeholder - SVG not available in RN, using a simple circle */}
