@@ -25,7 +25,7 @@
           "group.com.logga.app"
         ]
       },
-      "buildNumber": "6"
+      "buildNumber": "7"
     },
     "android": {
       "package": "com.logga.app",
@@ -79,7 +79,7 @@
         "@kingstinct/react-native-healthkit",
         {
           "NSHealthShareUsageDescription": "Logga reads your daily step count from Apple Health so your steps and active days fill in automatically.",
-          "NSHealthUpdateUsageDescription": false,
+          "NSHealthUpdateUsageDescription": "Logga only reads your step count from Apple Health and does not write any health data.",
           "background": false
         }
       ]
