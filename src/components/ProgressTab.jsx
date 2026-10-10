@@ -1920,13 +1920,11 @@ const ProgressTab = ({
                   const uniqueLogs = calorieData.dailyCalData;
                   const hasData = calorieData.hasLoggedCal;
                   const hasMultiple = hasData && uniqueLogs.length >= 2;
-                  // How far the average logged day sits from its target: within 5% reads as on target.
+                  // How far the average logged day sits from its goal, as a percent: +18% over, -18% under, 0% spot on.
                   const goalAvg = calorieData.avgDailyGoal;
-                  const gap = hasData && goalAvg > 0 ? calorieData.avgDailyCal - goalAvg : null;
-                  const onTarget = gap != null && Math.abs(gap) <= goalAvg * 0.05;
-                  const gapText = gap == null ? '--'
-                    : onTarget ? 'On target'
-                    : `${Math.abs(Math.round(gap)).toLocaleString()} ${gap > 0 ? 'over' : 'under'}`;
+                  const gapPct = hasData && goalAvg > 0 ? Math.round(((calorieData.avgDailyCal - goalAvg) / goalAvg) * 100) : null;
+                  const onTarget = gapPct != null && Math.abs(gapPct) <= 5;
+                  const gapText = gapPct == null ? '--' : gapPct > 0 ? `+${gapPct}%` : gapPct < 0 ? `−${Math.abs(gapPct)}%` : '0%';
                   const orderedLogs = uniqueLogs.slice().reverse();
                   const chartData = orderedLogs.map(d => d.calories);
                   const chartLabels = calorieData.buildLabels(orderedLogs);
@@ -1989,7 +1987,7 @@ const ProgressTab = ({
                         <View style={styles.calorieStatDivider} />
                         <View style={styles.calorieStatItem}>
                           <Text style={[styles.calorieStatValue, onTarget && { color: '#10B981' }]}>{gapText}</Text>
-                          <Text style={styles.calorieStatLabel}>Avg vs target</Text>
+                          <Text style={styles.calorieStatLabel}>{gapPct == null ? 'Goal gap' : gapPct > 0 ? 'Over goal' : gapPct < 0 ? 'Under goal' : 'Right on goal'}</Text>
                         </View>
                       </View>
                     </>

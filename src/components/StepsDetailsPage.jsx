@@ -167,16 +167,17 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
           {/* Apple Health: steps come in by themselves once connected */}
           {appleHealthAvailable && (
             appleHealthOn ? (
-              <TouchableOpacity style={styles.healthCard} onPress={onSyncAppleHealth} activeOpacity={0.8}>
-                <View style={[styles.healthIcon, { backgroundColor: 'rgba(5,150,105,0.12)' }]}>
-                  <Ionicons name="checkmark" size={18} color="#059669" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.healthTitle}>Synced with Apple Health</Text>
-                  <Text style={styles.healthSub}>Your steps update every time you open Logga. Tap to refresh now.</Text>
-                </View>
-                <Ionicons name="refresh" size={18} color="#6c7872" />
-              </TouchableOpacity>
+              <View style={styles.healthLine}>
+                <Ionicons name="heart" size={13} color="#FF2D55" />
+                <Text style={styles.healthLineTxt}>Steps from Apple Health</Text>
+                <TouchableOpacity
+                  disabled={connecting}
+                  onPress={async () => { setConnecting(true); await onSyncAppleHealth?.(); setConnecting(false); }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.healthLink}>{connecting ? 'Refreshing…' : 'Refresh'}</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <View style={styles.healthCard}>
                 <View style={styles.healthIcon}>
@@ -397,6 +398,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 16, marginTop: 12, padding: 14, borderRadius: 16,
     backgroundColor: '#fff', borderWidth: 1, borderColor: '#E7ECE9',
   },
+  healthLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 20, marginTop: 14 },
+  healthLineTxt: { flex: 1, fontSize: 13, color: '#6c7872' },
+  healthLink: { fontSize: 13, fontWeight: '700', color: '#16201b' },
   healthIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,45,85,0.1)', alignItems: 'center', justifyContent: 'center' },
   healthTitle: { fontSize: 14.5, fontWeight: '700', color: '#16201b' },
   healthSub: { fontSize: 12.5, color: '#6c7872', lineHeight: 18, marginTop: 2 },

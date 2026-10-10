@@ -36,7 +36,7 @@ export const INSIGHT_HELP = {
   },
   calories: {
     title: 'Calorie intake',
-    body: "The calories you logged each day. Tap a bar to see that day.\n\nAvg daily cal is your average on the days you logged.\n\nAvg vs target shows how far that average is above or below your calorie target. Close to your target counts as on target.",
+    body: "The calories you logged each day. Tap a bar to see that day.\n\nAvg daily cal is your average on the days you logged.\n\nThe percentage shows how far that average is above or below your calorie goal: +18% means about 18% over, −18% means about 18% under, and 0% is right on it. It turns green when you're close to your goal.",
   },
   burnout: {
     title: 'Burnout likelihood',
