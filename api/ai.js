@@ -1,3 +1,4 @@
+import { MEDICAL_SAFETY } from './_safety.js';
 const CARD_COLORS = [
   { color: '#E8F5E9', accent: '#4CAF50' },
   { color: '#FFF3E0', accent: '#FF9800' },
@@ -647,7 +648,7 @@ export default async function handler(req, res) {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = tomorrow.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-      const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}`;
+      const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\n${MEDICAL_SAFETY}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}`;
       const cardText = await callClaude(cardPrompt, CLAUDE_KEY, 1200);
 
       const stripped = cardText.replace(/```json|```/g, '').trim();
@@ -707,7 +708,7 @@ or the word: null`;
         ? `recentInsights: ${JSON.stringify(recentInsights)}`
         : 'recentInsights: []';
 
-      const basePrompt = `${DAILY_COACH_PROMPT}\n\nUSER DATA:\n${processedData}\n\ntodayLens: ${todayLens}\n${recentStr}`;
+      const basePrompt = `${DAILY_COACH_PROMPT}\n\n${MEDICAL_SAFETY}\n\nUSER DATA:\n${processedData}\n\ntodayLens: ${todayLens}\n${recentStr}`;
       const mustWrite = `\n\nIMPORTANT: The "nothing major to flag today" fallback is only for a person with essentially no logged data at all. If they have logged anything (meals, water, weight, check-ins) in the last 14 days, ALWAYS write a genuine insight through today's lens (${todayLens}). If a topic overlaps with recentInsights, pick a different angle on it or a different detail from their data. Never return the fallback.`;
       const isFallback = (r) => /nothing major to flag/i.test(r?.insight || '') || r?.topic === 'no new insight today';
 

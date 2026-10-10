@@ -1292,7 +1292,7 @@ function DoneScreen({ d, onComplete }) {
           </Text>
         ) : null}
 
-        <Text style={s.planNote}>Estimates, not medical advice. You can change your goal any time in Settings.</Text>
+        <Text style={s.planNote}>Estimates, not medical advice. Check with a doctor before starting, especially if you have a health condition, are pregnant or take medication. You can change your goal any time in Settings.</Text>
         <SourcesLink topic="calories" label="Where these numbers come from" color={C.ink} style={{ marginTop: 10 }} />
       </ScrollView>
 

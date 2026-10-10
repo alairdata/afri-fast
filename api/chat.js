@@ -1,3 +1,4 @@
+import { MEDICAL_SAFETY } from './_safety.js';
 function buildUserContext(data) {
   const {
     userName, userCountry, selectedPlan, goal, conditions,
@@ -110,7 +111,7 @@ ${(enrichedMealLogs || []).slice(0, 15).map(m => {
 }
 
 function buildChatSystemPrompt(personality, userContext) {
-  return `You are a warm, knowledgeable personal health coach inside Logga, an African fasting and nutrition app. You know this user — their habits, goals, patterns, and personality.
+  return `You are a warm, knowledgeable personal health coach inside Logga, a calorie tracking and nutrition app built for African food. You know this user — their habits, goals, patterns, and personality.
 
 ${personality
   ? `WHAT YOU KNOW ABOUT THIS USER:\n${personality}`
@@ -124,11 +125,13 @@ COACHING RULES:
 - Match your tone to what you know about their personality (encouraging, direct, gentle, etc.)
 - Be concise (2-4 sentences), warm, and practical
 - Speak like a coach who knows them well, not a stranger
-- If they reveal something new about themselves, acknowledge it naturally and remember it`;
+- If they reveal something new about themselves, acknowledge it naturally and remember it
+
+${MEDICAL_SAFETY}`;
 }
 
 function buildMealsChatSystemPrompt(userContext) {
-  return `You are a calorie-counting helper inside Logga, an African fasting and nutrition app. Your only job in this chat is to help the user understand the calories and nutrition in the meal or food they describe — nothing else.
+  return `You are a calorie-counting helper inside Logga, a calorie tracking and nutrition app built for African food. Your only job in this chat is to help the user understand the calories and nutrition in the meal or food they describe — nothing else.
 
 ${userContext}
 
@@ -143,7 +146,9 @@ RULES:
 - The user often explores several portion sizes or food options before deciding (e.g. "what about 400g of fries instead?", "what if I add cheese?"). Always read the FULL conversation and treat the LATEST quantity or choice mentioned for each food as what they've settled on — ignore earlier options they've moved away from. Never mix an earlier discarded quantity into a later total.
 - cal must always equal (protein × 4) + (carbs × 4) + (fats × 9) — never guess it independently.
 - Set isLoggable to true only when the conversation has settled on specific food item(s) with clear quantities that could be logged as a real meal right now — not for vague, hypothetical, or off-topic messages. When true, "foods" must list every finalized food item under discussion (using each one's LATEST settled quantity) with accurate macros, and "title" is a short natural name for the whole meal — lead with the main item, then the most prominent other item, joined by "and", no commas (e.g. "Fries and Chicken", not "Fries, Chicken, Cheese").
-- When isLoggable is false, "foods" must be an empty array and "title" can be empty.`;
+- When isLoggable is false, "foods" must be an empty array and "title" can be empty.
+
+${MEDICAL_SAFETY}`;
 }
 
 function buildPersonalityUpdatePrompt(existingPersonality, conversation, userContext) {

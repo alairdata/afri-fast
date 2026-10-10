@@ -1136,7 +1136,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       </Text>
                     </View>
                   )}
-                  <Text style={styles.portionNote}>Portions not right? Tap the green label to adjust.</Text>
+                  <Text style={styles.portionNote}>Calories and nutrients are AI estimates. Portions not right? Tap the green label to adjust.</Text>
                   <View style={styles.foodCard}>
                     <View style={styles.foodCardHead}>
                       <Text style={styles.foodCardTitle}>DETECTED FOODS</Text>
@@ -1448,7 +1448,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
               </Text>
             )}
 
-            <Text style={[styles.portionNote, { marginHorizontal: 20 }]}>Portions not right? Tap the green label to adjust.</Text>
+            <Text style={[styles.portionNote, { marginHorizontal: 20 }]}>Calories and nutrients are AI estimates. Portions not right? Tap the green label to adjust.</Text>
 
             <View style={styles.foodCard}>
                     <View style={styles.foodCardHead}>

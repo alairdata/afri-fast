@@ -260,6 +260,11 @@ const ChatScreen = ({
           contentContainerStyle={styles.chatMessagesContent}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
+          <Text style={styles.chatDisclaimer}>
+            {isMeals
+              ? 'Calories here are AI estimates.'
+              : 'AI coach, not a doctor. Check with a doctor before making medical decisions or big changes to your diet.'}
+          </Text>
           {messages.map((msg, index) => (
             <View key={index} style={{ marginBottom: 16 }}>
               <View
@@ -410,6 +415,7 @@ const styles = StyleSheet.create({
   chatHeaderStatus: { fontSize: 12, color: '#6B7280', fontWeight: '500' },
   chatMessages: { flex: 1, paddingHorizontal: 18 },
   chatMessagesContent: { paddingVertical: 18 },
+  chatDisclaimer: { fontSize: 12, lineHeight: 17, color: '#9CA3AF', textAlign: 'center', marginHorizontal: 24, marginBottom: 16 },
   chatBubbleWrapper: {
     flexDirection: 'row', alignItems: 'flex-end', marginBottom: 16,
   },

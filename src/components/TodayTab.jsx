@@ -1048,7 +1048,7 @@ const TodayTab = ({
           </View>
           <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20 }}>
             <FormattedText text={justForYouInsight || ''} bodyStyle={[styles.insightDetailBody, { fontSize: 15.5, lineHeight: 24 }]} />
-            <Text style={styles.articleNote}>Written by AI from your logs. General information, not medical advice.</Text>
+            <Text style={styles.articleNote}>Written by AI from your logs. General information, not medical advice. Check with a doctor before making medical decisions.</Text>
             <SourcesLink style={{ marginTop: 10 }} />
             <View style={{ height: 40 }} />
           </ScrollView>
