@@ -822,10 +822,10 @@ export function AgeScreen(p) {
     <ScreenShell {...p} grow footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} />}>
       <View style={{ marginTop: 14 }}>
         <Text style={s.headline}>How old{'\n'}are you?</Text>
-        <Text style={s.subline}>Drag the dial to your age.</Text>
+        <Text style={s.subline}>Drag the dial to your age. Logga is for adults 18 and over.</Text>
       </View>
       <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 30 }}>
-        <RulerPicker min={14} max={90} value={d.age} onChange={(v) => set('age', v)} unit="yrs" />
+        <RulerPicker min={18} max={90} value={Math.max(18, d.age || 18)} onChange={(v) => set('age', v)} unit="yrs" />
       </View>
     </ScreenShell>
   );

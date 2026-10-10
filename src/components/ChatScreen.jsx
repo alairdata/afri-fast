@@ -1,3 +1,4 @@
+import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, ActivityIndicator, KeyboardAvoidingView, Platform, Animated } from 'react-native';
@@ -40,6 +41,7 @@ const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
 const API_URL = `${BASE}/api/chat`;
 
 async function callChat(body) {
+  if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError(); // no consent, nothing goes to AI
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

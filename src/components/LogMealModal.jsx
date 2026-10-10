@@ -15,6 +15,8 @@ import { collectCheckInIcons } from '../lib/checkinIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { uploadMealPhoto, enqueuePendingMealPhoto } from '../lib/mealPhotoUpload';
+import ManualMealForm from './ManualMealForm';
+import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 
@@ -69,23 +71,28 @@ const matchRecipes = (detectedFoods, recipes) => {
   return [...matched];
 };
 
-// Privacy setting: when the user turns off "Share meal photos with the community", meal photos are
-// never added to the recipe community gallery.
-let communitySharingEnabled = true;
+// Privacy setting "Share meal photos with the community" (opt-in, off by default): only when it is on are meal
+// photos added to the recipe community gallery.
+let communitySharingEnabled = false;
 export const setCommunitySharingEnabled = (enabled) => { communitySharingEnabled = !!enabled; };
 
-export const saveCommunityPhotos = async (mealId, photoUrl, detectedFoods, recipes, userEmail) => {
-  if (!communitySharingEnabled) return;
+// `shareable` comes from the photo scan: true only for a plain food photo (no people, screens, documents or
+// anything offensive). Anything else never reaches other users.
+export const saveCommunityPhotos = async (mealId, photoUrl, detectedFoods, recipes, _userEmail, shareable) => {
+  if (!communitySharingEnabled || shareable !== true) return;
   if (!photoUrl || !detectedFoods?.length) return;
   try {
     const recipeIds = matchRecipes(detectedFoods, recipes);
     console.log('[Community] matched recipe IDs:', recipeIds, 'foods:', detectedFoods.map(f => f.name));
     if (!recipeIds.length) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return;
     const rows = recipeIds.map(recipe_id => ({
       recipe_id,
       meal_id: mealId,
       photo_url: photoUrl,
-      user_email: userEmail || null,
+      user_id: userId,
       items: detectedFoods,
     }));
     const { error } = await supabase.from('recipe_community_photos').insert(rows);
@@ -100,6 +107,8 @@ const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
 const GEMINI_API_URL = `${BASE}/api/gemini`;
 
 async function callGeminiApi(type, data) {
+  // Nothing goes to Google without the person's say-so (guideline 5.1.2(i)); the screen that opened this already asked.
+  if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError();
   const response = await fetch(GEMINI_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -338,6 +347,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const [scanProgress, setScanProgress] = useState(0);
   const [scanError, setScanError] = useState(null);
   const [scanFromScreen, setScanFromScreen] = useState(false);
+  const [scanShareable, setScanShareable] = useState(false);
   const [mealTitle, setMealTitle] = useState(null);
   const scanProgressRef = useRef(null);
   const [editingQtyIdx, setEditingQtyIdx] = useState(null);
@@ -555,6 +565,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setScanProgress(0);
     setScanError(null);
     setScanFromScreen(false);
+    setScanShareable(false);
     setMealTitle(null);
     setLoggedMealId(null);
     setAddingPhoto(false);
@@ -578,6 +589,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         return;
       }
       setScanFromScreen(results?.fromScreen || false);
+      setScanShareable(results?.shareable === true && !results?.fromScreen);
       setMealTitle(results?.title || null);
       setTimeout(() => {
         setDetectedFoods((results?.foods || []).map((f, i) => ({ ...f, id: i })));
@@ -808,7 +820,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         photo: photoUrl,
         foods: detectedFoods,
       });
-      saveCommunityPhotos(mealId, photoUrl, detectedFoods, recipes, userEmail);
+      saveCommunityPhotos(mealId, photoUrl, detectedFoods, recipes, userEmail, scanShareable);
     }
     handleClose();
   };
@@ -992,12 +1004,12 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
           if (photoUrl) {
             Image.prefetch(photoUrl).catch(() => {});
             onSaveMeal({ id: mealId, _updatePhoto: true, photo: photoUrl });
-            saveCommunityPhotos(mealId, photoUrl, detectedFoods, recipes, userEmail);
+            saveCommunityPhotos(mealId, photoUrl, detectedFoods, recipes, userEmail, scanShareable);
           } else {
-            enqueuePendingMealPhoto({ mealId, localUri: capturedPhoto, items: detectedFoods });
+            enqueuePendingMealPhoto({ mealId, localUri: capturedPhoto, items: detectedFoods, shareable: scanShareable });
           }
         }).catch(() => {
-          enqueuePendingMealPhoto({ mealId, localUri: capturedPhoto, items: detectedFoods });
+          enqueuePendingMealPhoto({ mealId, localUri: capturedPhoto, items: detectedFoods, shareable: scanShareable });
         });
       }
     }
@@ -1073,7 +1085,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.headerSubtitle}>LOG FOOD</Text>
             <Text style={styles.headerTitle}>
-              {logMealMethod === 'scan' ? 'Scan your meal' : logMealMethod === 'write' ? 'Write your meal' : logMealMethod === 'recipe' ? 'Make your meal' : logMealMethod === 'chat' ? 'Your meal' : 'Say your meal'}
+              {logMealMethod === 'scan' ? 'Scan your meal' : logMealMethod === 'write' ? 'Write your meal' : logMealMethod === 'recipe' ? 'Make your meal' : logMealMethod === 'chat' ? 'Your meal' : logMealMethod === 'manual' ? 'Add your meal' : 'Say your meal'}
             </Text>
           </View>
         </View>
@@ -1895,7 +1907,11 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
           </ScrollView>
         )}
 
-        <ScrollView style={[styles.weightPageContent, (scanPhase === 'shareCard' || logMealMethod === 'write' || (logMealMethod === 'scan' && scanPhase === 'results')) && { display: 'none', flex: 0 }]}>
+        {logMealMethod === 'manual' && (
+          <ManualMealForm selectedMealDate={selectedMealDate} onSave={(meal) => { onSaveMeal && onSaveMeal(meal); handleClose(); }} />
+        )}
+
+        <ScrollView style={[styles.weightPageContent, (scanPhase === 'shareCard' || logMealMethod === 'write' || logMealMethod === 'manual' || (logMealMethod === 'scan' && scanPhase === 'results')) && { display: 'none', flex: 0 }]}>
 
           {/* Say Method */}
           {logMealMethod === 'say' && (

@@ -35,7 +35,7 @@ const QUESTIONS = [
     units: ['years'],
     defaultUnit: 'years',
     defaultValue: 25,
-    min: 13,
+    min: 18,
     max: 100,
     step: 1,
   },
@@ -658,7 +658,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
           <View style={s.stepperRow}>
             <TouchableOpacity
               style={s.stepperBtn}
-              onPress={() => setAgeValue(Math.max(13, ageValue - 1))}
+              onPress={() => setAgeValue(Math.max(18, ageValue - 1))}
             >
               <Ionicons name="remove" size={28} color="#1F1F1F" />
             </TouchableOpacity>

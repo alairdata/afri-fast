@@ -494,7 +494,7 @@ const TodayTab = ({
     setJfyRefreshing(true);
     getJustForYou(payload, forceRefresh)
       .then(({ insight: freshInsight, fromApi }) => {
-        if (!freshInsight) return;
+        if (!freshInsight) { setJfyLoading(false); return; } // e.g. AI features off: drop the skeleton, keep the articles
         setJustForYouInsight(freshInsight);
         setJfyLoading(false);
         if (fromApi) { setJfyFreshReady(true); setJfyExpanded(false); }

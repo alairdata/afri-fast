@@ -3,6 +3,7 @@
 // reuses the same user_insights caching pattern as claudeInsights.js. Keyed on a fingerprint of
 // the driving numbers (see ProgressTab.jsx's momentumWhyFingerprint): regenerate when the picture
 // actually changes, not on every render, with a 1-hour floor as a cost safety net regardless.
+import { ensureAiConsent, AiConsentError } from './consent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
@@ -20,6 +21,7 @@ const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
 const API_URL = `${BASE}/api/gemini`;
 
 async function callApi(data) {
+  if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError(); // no consent, nothing goes to AI
   const response = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -9,7 +9,7 @@ const ACTIVE_FAST_KEY = 'afri_active_fast_v1';
 const LAST_FAST_END_KEY = 'afri_last_fast_end_v1';
 const SETTINGS_KEY = 'afri_user_settings_v2';
 const NOTIF_SETTINGS_KEY = 'afri_notification_settings_v1';
-const PRIVACY_SETTINGS_KEY = 'afri_privacy_settings_v1';
+const PRIVACY_SETTINGS_KEY = 'afri_privacy_settings_v2'; // v2: community sharing became opt-in
 const MILESTONES_FIRED_KEY = 'afri_milestones_fired_v1';
 // Persists the start-time the user manually set so the conflict check doesn't
 // kill the fast on the next page refresh (the ref resets but this survives).
@@ -78,6 +78,8 @@ import MakeRecipeModal from './components/MakeRecipeModal';
 import FindRecipeModal from './components/FindRecipeModal';
 import EditProfileModal from './components/EditProfileModal';
 import TimeEditModal from './components/TimeEditModal';
+import AiConsentModal from './components/AiConsentModal';
+import { ensureAiConsent } from './lib/consent';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -283,7 +285,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   const [mealReminderTime, setMealReminderTime] = useState({ hour: 19, minute: 0 });
   const [milestoneConfig, setMilestoneConfig] = useState({ streak: true, streakDays: 7, hydration: false, weight: false });
   const [notifSettingsLoaded, setNotifSettingsLoaded] = useState(false);
-  const [shareCommunityPhotos, setShareCommunityPhotos] = useState(true);
+  const [shareCommunityPhotos, setShareCommunityPhotos] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
 
   // === Weight state ===
@@ -961,7 +963,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         // Trigger monthly personality rebuild in background if older than 30 days
         const lastUpdate = data.personality_updated_at ? new Date(data.personality_updated_at) : null;
         const needsRebuild = !lastUpdate || (Date.now() - lastUpdate.getTime() > 30 * 24 * 60 * 60 * 1000);
-        if (needsRebuild) {
+        if (needsRebuild) ensureAiConsent({ silent: true }).then((ok) => ok && 
           fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -974,8 +976,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
                 personality_updated_at: new Date().toISOString(),
               }).eq('id', session.user.id).then(() => {});
             }
-          }).catch(() => {});
-        }
+          }).catch(() => {}));
       });
   }, [session]);
 
@@ -996,6 +997,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     setShareCommunityPhotos(val);
     setCommunitySharingEnabled(val);
     AsyncStorage.setItem(PRIVACY_SETTINGS_KEY, JSON.stringify({ shareCommunityPhotos: val })).catch(() => {});
+    // Withdrawing consent also takes back what was already shared.
+    if (!val && session?.user?.id) {
+      supabase.from('recipe_community_photos').delete().eq('user_id', session.user.id).then(() => {}, () => {});
+    }
   };
 
   // Clear History: wipes everything the user has logged but keeps the account, details and goals.
@@ -2212,7 +2217,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           strokeDashoffset={strokeDashoffset}
           onShowPlanPage={handleOpenPlanPage}
           onShowCheckInPage={() => openCheckInPage('today')}
-          onShowChat={(context) => { setChatOpeningContext(context || null); setChatVariant('coach'); setShowChat(true); }}
+          onShowChat={async (context) => { if (!(await ensureAiConsent())) return; setChatOpeningContext(context || null); setChatVariant('coach'); setShowChat(true); }}
           onStartFast={handleStartFast}
           onEndFast={handleEndFast}
           isRestoringFast={isRestoringFast}
@@ -2298,7 +2303,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           isFasting={isFasting}
           showLogMealOptions={showLogMealOptions}
           setShowLogMealOptions={setShowLogMealOptions}
-          onLogMeal={(method) => {
+          onLogMeal={async (method) => {
+            // Scan, voice and text all go through Google Gemini, so they need AI consent; 'manual' never does.
+            if (['scan', 'say', 'write'].includes(method) && !(await ensureAiConsent())) { setShowLogMealOptions(true); showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; }
             setLogMealMethod(method);
             setLogMealOpenedFromOptions(true);
             setShowLogMealModal(true);
@@ -2306,7 +2313,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           onMealLogBlocked={() => showToast('Log meals only after ending your fast.')}
           onFindRecipe={() => setShowFindRecipePage(true)}
           onShowMakeRecipe={() => setShowMakeRecipePage(true)}
-          onShowChat={(context) => { setChatOpeningContext(context || null); setChatVariant('meals'); setChatOpenedFromLogMealOptions(true); setShowChat(true); }}
+          onShowChat={async (context) => { if (!(await ensureAiConsent())) { showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; } setChatOpeningContext(context || null); setChatVariant('meals'); setChatOpenedFromLogMealOptions(true); setShowChat(true); }}
           onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setLogMealOpenedFromOptions(false); setShowLogMealModal(true); }}
           onDeleteMeal={async (id) => {
             const prevMeals = recentMeals;
@@ -3091,6 +3098,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       />
 
       {/* === Chat (above everything incl. tab bar) === */}
+      <AiConsentModal signedIn={!!session?.user} />
+
       <ChatScreen
         show={showChat}
         onClose={() => {

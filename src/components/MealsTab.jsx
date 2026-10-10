@@ -85,15 +85,6 @@ const swipeStyles = StyleSheet.create({
   },
 });
 
-const REVIEWS = [
-  { name: 'Amina O.', text: 'It actually knew the calories in my jollof rice! I was shocked. Even got the portion right.', stars: 5 },
-  { name: 'Chidi K.', text: 'I scanned my egusi soup and it broke down the macros perfectly. This app gets African food.', stars: 5 },
-  { name: 'Fatima B.', text: 'Finally an app that doesn\'t just say "unknown food" when I log pounded yam and ogbono.', stars: 5 },
-  { name: 'Kwame A.', text: 'The calorie count for my waakye was spot on. Even tracked the shito on the side!', stars: 4 },
-  { name: 'Ngozi E.', text: 'I\'ve tried 5 calorie apps before. This is the first one that understands suya, chin chin, and puff puff.', stars: 5 },
-  { name: 'Yemi D.', text: 'Tracked amala and ewedu for a week. The numbers matched what my nutritionist said. Impressive.', stars: 5 },
-];
-
 const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked, onShowChat, onShowMakeRecipe, showLogMealOptions, setShowLogMealOptions }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -105,8 +96,6 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
   const [expandedMealId, setExpandedMealId] = useState(null);
   const [deletingMealId, setDeletingMealId] = useState(null);
   const [viewingMeal, setViewingMeal] = useState(null);
-  const [reviewIndex, setReviewIndex] = useState(0);
-  const reviewFade = useRef(new Animated.Value(1)).current;
 
   const handleLogButtonPress = () => {
     setShowLogMealOptions(true);
@@ -116,16 +105,6 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
     onLogMeal && onLogMeal(method);
     setShowLogMealOptions(false);
   };
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      Animated.timing(reviewFade, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
-        setReviewIndex(prev => (prev + 1) % (REVIEWS.length - 1));
-        Animated.timing(reviewFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-      });
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <View style={styles.mealsContainerClean}>
@@ -441,23 +420,15 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
             </View>
           </View>
 
-          {/* Reviews — one at a time */}
-          <View style={styles.reviewsSection}>
-            <Text style={styles.reviewsSectionTitle}>What people are saying</Text>
-            <Animated.View style={[styles.reviewsContainer, { opacity: reviewFade }]}>
-              {[REVIEWS[reviewIndex]].map((review, i) => (
-                <View key={i} style={styles.reviewCard}>
-                  <View style={styles.reviewStars}>
-                    {[...Array(review.stars)].map((_, s) => (
-                      <Ionicons key={s} name="star" size={12} color="#F59E0B" />
-                    ))}
-                  </View>
-                  <Text style={styles.reviewText}>"{review.text}"</Text>
-                  <Text style={styles.reviewName}>— {review.name}</Text>
-                </View>
-              ))}
-            </Animated.View>
-          </View>
+          {/* No AI: type the meal in */}
+          <TouchableOpacity style={styles.manualRow} onPress={() => handleLogMethod('manual')} activeOpacity={0.7}>
+            <Ionicons name="create-outline" size={18} color={colors.text} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.manualTitle, { color: colors.text }]}>Enter it yourself</Text>
+              <Text style={styles.manualSub}>Type a food and its calories, no AI</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#ccc" />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -818,6 +789,9 @@ const makeStyles = (c) => StyleSheet.create({
     color: c.textMuted,
     lineHeight: 18,
   },
+  manualRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16, backgroundColor: c.card, borderWidth: 1, borderColor: c.border },
+  manualTitle: { fontSize: 15, fontWeight: '700' },
+  manualSub: { fontSize: 12.5, color: c.textMuted, marginTop: 2 },
   reviewsSection: {
     marginTop: 20,
   },

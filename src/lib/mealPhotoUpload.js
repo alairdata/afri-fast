@@ -91,7 +91,7 @@ export const uploadMealPhoto = async (uri) => {
 
 // Copy a temp camera URI into a stable directory so the retry queue still has the file
 // after an app restart (iOS especially can evict the camera cache).
-export const enqueuePendingMealPhoto = async ({ mealId, localUri, items }) => {
+export const enqueuePendingMealPhoto = async ({ mealId, localUri, items, shareable = false }) => {
   if (!STAGING_DIR || !localUri) return;
   try {
     await ensureStagingDir();
@@ -108,6 +108,7 @@ export const enqueuePendingMealPhoto = async ({ mealId, localUri, items }) => {
       mealId,
       localPath: stagedPath,
       items: items || [],
+      shareable: shareable === true,
       attempts: 0,
       enqueuedAt: Date.now(),
     });
@@ -141,7 +142,7 @@ export const processPendingMealPhotos = async ({
         remaining.push({ ...entry, attempts: (entry.attempts || 0) + 1 });
         continue;
       }
-      try { saveCommunityPhotos?.(entry.mealId, photoUrl, entry.items, recipes, userEmail); } catch (_) {}
+      try { saveCommunityPhotos?.(entry.mealId, photoUrl, entry.items, recipes, userEmail, entry.shareable === true); } catch (_) {}
       onPhotoUploaded?.(entry.mealId, photoUrl);
       try { await FileSystem.deleteAsync(entry.localPath, { idempotent: true }); } catch (_) {}
     } else {

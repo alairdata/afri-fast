@@ -7,6 +7,7 @@
 // here is a harmless no-op. The full event list is documented in MIXPANEL_EVENTS.md.
 import { Platform, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getConsent, loadConsent, onConsentChange } from './consent';
 
 const MIXPANEL_TOKEN = process.env.EXPO_PUBLIC_MIXPANEL_TOKEN || '';
 const APP_VERSION = (() => { try { return require('../../app.json').expo.version; } catch (_) { return ''; } })();
@@ -68,7 +69,10 @@ let flushTimer = null;
 let sessionStartedAt = 0;
 let messagesLogged = 0;
 
-const enabled = () => !!MIXPANEL_TOKEN;
+// Consent (guideline 5.1.1(ii)): events wait on the device until the person says yes on the consent
+// screen, are sent from then on, and are dropped if they say no.
+const enabled = () => !!MIXPANEL_TOKEN && getConsent().analytics !== false;
+const canSend = () => !!MIXPANEL_TOKEN && getConsent().analytics === true;
 const uuid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`;
 const distinctId = () => userId || `$device:${anonId}`;
 
@@ -90,6 +94,7 @@ const init = () => {
   if (ready) return ready;
   ready = (async () => {
     try {
+      await loadConsent();
       anonId = await AsyncStorage.getItem(ANON_KEY);
       if (!anonId) { anonId = uuid(); await AsyncStorage.setItem(ANON_KEY, anonId); }
       userId = await AsyncStorage.getItem(USER_KEY);
@@ -104,7 +109,7 @@ const persistQueue = () => { AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queu
 
 const flush = async () => {
   flushTimer = null;
-  if (!enabled() || !queue.length) return;
+  if (!canSend() || !queue.length) return;
   const batch = queue.splice(0, 50);
   const ok = await post('/track?verbose=0', batch);
   if (!ok) queue = [...batch, ...queue].slice(-MAX_QUEUE); // offline: keep for the next try
@@ -112,6 +117,11 @@ const flush = async () => {
   if (ok && queue.length) scheduleFlush();
 };
 const scheduleFlush = () => { if (!flushTimer) flushTimer = setTimeout(flush, FLUSH_MS); };
+
+onConsentChange((c) => {
+  if (c.analytics === true) scheduleFlush();
+  else if (c.analytics === false) { queue = []; persistQueue(); }
+});
 
 export function track(event, properties = {}) {
   if (!enabled()) return;
@@ -174,7 +184,7 @@ export function resetAnalytics() {
 }
 
 const engage = (op, props) => {
-  if (!enabled()) return;
+  if (!canSend()) return;
   (async () => {
     try {
       await init();

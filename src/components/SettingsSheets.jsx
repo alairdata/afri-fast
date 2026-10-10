@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, Modal, ScrollView, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Switch,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Switch, Linking,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/theme';
+import { loadConsent, saveConsent } from '../lib/consent';
 
 const APP_VERSION = '1.0.0';
 const GREEN = '#059669';
@@ -203,13 +204,35 @@ export function RateSheet({ visible, onClose, userId, userEmail }) {
 // ── Privacy Settings ───────────────────────────────────────────────────────────
 export function PrivacySheet({ visible, onClose, shareCommunityPhotos, onToggleShare }) {
   const { colors } = useTheme();
+  const [consent, setConsent] = useState({ ai: null, analytics: null });
+  useEffect(() => { if (visible) loadConsent().then((c) => setConsent({ ...c })); }, [visible]);
+  const setPart = (patch) => saveConsent(patch).then((c) => setConsent({ ...c }));
+  const openUrl = (path) => Linking.openURL(`https://www.logga.space/${path}`).catch(() => {});
   return (
     <Sheet visible={visible} onClose={onClose} title="Privacy Settings">
       <View style={st.toggleRow}>
         <View style={{ flex: 1 }}>
+          <Text style={[st.toggleLabel, { color: colors.text }]}>AI features</Text>
+          <Text style={[st.toggleDesc, { color: colors.textMuted }]}>
+            Meal photos, voice notes and descriptions go to Google Gemini to estimate calories; coach chats and log summaries go to Anthropic Claude for insights. Off means you log meals by typing them in.
+          </Text>
+        </View>
+        <Switch value={consent.ai === true} onValueChange={(v) => setPart({ ai: v })} trackColor={{ false: '#D1D5DB', true: GREEN }} thumbColor="#fff" />
+      </View>
+      <View style={st.toggleRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={[st.toggleLabel, { color: colors.text }]}>Share anonymous usage stats</Text>
+          <Text style={[st.toggleDesc, { color: colors.textMuted }]}>
+            How the app is used (through Mixpanel), never your photos, voice notes or what you wrote.
+          </Text>
+        </View>
+        <Switch value={consent.analytics === true} onValueChange={(v) => setPart({ analytics: v })} trackColor={{ false: '#D1D5DB', true: GREEN }} thumbColor="#fff" />
+      </View>
+      <View style={st.toggleRow}>
+        <View style={{ flex: 1 }}>
           <Text style={[st.toggleLabel, { color: colors.text }]}>Share meal photos with the community</Text>
           <Text style={[st.toggleDesc, { color: colors.textMuted }]}>
-            When on, photos of meals you log can appear in the recipe community gallery. Turn it off to keep them private.
+            Off unless you turn it on. When on, food-only photos of meals you scan can appear, without your name, under "How others ate this meal" on recipes. Photos showing people or anything inappropriate are never shared, and anyone can report a photo. Turning this off removes the photos you've shared.
           </Text>
         </View>
         <Switch
@@ -224,6 +247,10 @@ export function PrivacySheet({ visible, onClose, shareCommunityPhotos, onToggleS
         <Text style={[st.infoTxt, { color: colors.textSecondary }]}>
           Your meals, weight, water and check-ins are only visible to you. You can ask for a copy of your data or delete everything at any time under Data & Privacy.
         </Text>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 18, marginTop: 14 }}>
+        <TouchableOpacity onPress={() => openUrl('privacy')}><Text style={{ color: GREEN, fontWeight: '700', fontSize: 14 }}>Privacy Policy</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => openUrl('terms')}><Text style={{ color: GREEN, fontWeight: '700', fontSize: 14 }}>Terms of Service</Text></TouchableOpacity>
       </View>
     </Sheet>
   );

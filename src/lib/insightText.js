@@ -3,6 +3,7 @@
 // "fingerprint" of the facts that produced it, so the AI is only called again when the picture
 // has materially changed (plus a 1-hour floor as a cost safety net), never on every render.
 // Also owns "Got it": a dismissed card stays dismissed until its fingerprint changes.
+import { ensureAiConsent, AiConsentError } from './consent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
@@ -14,6 +15,7 @@ const cacheKey = (kind, userId) => `logga-ai-${kind}-v1-${userId}`;
 const dismissKey = (userId) => `logga-dismissed-insights-v1-${userId}`;
 
 async function callApi(type, data) {
+  if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError(); // no consent, nothing goes to AI
   const response = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

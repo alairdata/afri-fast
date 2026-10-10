@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
+import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
 
@@ -72,12 +73,47 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
     setCommunityPhotos([]);
     supabase
       .from('recipe_community_photos')
-      .select('id, photo_url, items, created_at')
+      .select('id, photo_url, items, created_at, user_id')
       .eq('recipe_id', recipe.id)
       .order('created_at', { ascending: false })
       .limit(30)
       .then(({ data }) => { if (data) setCommunityPhotos(data); });
   }, [recipe?.id, visible]);
+
+  // A reported photo is hidden for everyone straight away (database trigger) until it is reviewed.
+  const reportPhoto = (p) => {
+    Alert.alert('Report this photo?', "It will be hidden right away and we'll review it within 24 hours.", [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Report', style: 'destructive', onPress: async () => {
+          const { data: { session } } = await supabase.auth.getSession();
+          const uid = session?.user?.id;
+          if (!uid) return;
+          const { error } = await supabase.from('community_reports').insert({ photo_id: String(p.id), reporter_id: uid, reason: 'inappropriate' });
+          setCommunityPhotos((prev) => prev.filter((x) => x.id !== p.id));
+          setCommunityCard(null);
+          Alert.alert(error ? "Couldn't send the report" : 'Thanks for letting us know', error ? 'Please try again, or contact support from Settings.' : "We've hidden this photo and will review it.");
+        },
+      },
+    ]);
+  };
+
+  // Hide every photo from this person, for this user only.
+  const blockPoster = (p) => {
+    Alert.alert("Hide this person's photos?", "You won't see any community photos from them again.", [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Hide', style: 'destructive', onPress: async () => {
+          const { data: { session } } = await supabase.auth.getSession();
+          const uid = session?.user?.id;
+          if (!uid || !p.user_id || p.user_id === uid) return;
+          await supabase.from('community_blocks').upsert({ blocker_id: uid, blocked_id: p.user_id });
+          setCommunityPhotos((prev) => prev.filter((x) => x.user_id !== p.user_id));
+          setCommunityCard(null);
+        },
+      },
+    ]);
+  };
 
   if (!recipe) return null;
 
@@ -317,6 +353,20 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
                   <TouchableOpacity style={detail.cardDoneBtn} onPress={() => setCommunityCard(null)}>
                     <Text style={detail.cardDoneBtnText}>Done</Text>
                   </TouchableOpacity>
+                </View>
+                {/* Safety (guideline 1.2): report a photo, or hide everything from the person who shared it */}
+                <View style={detail.cardSafetyRow}>
+                  <TouchableOpacity onPress={() => reportPhoto(communityCard)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Text style={detail.cardSafetyTxt}>Report photo</Text>
+                  </TouchableOpacity>
+                  {communityCard.user_id ? (
+                    <>
+                      <Text style={detail.cardSafetyDot}>·</Text>
+                      <TouchableOpacity onPress={() => blockPoster(communityCard)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <Text style={detail.cardSafetyTxt}>Hide this person's photos</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : null}
                 </View>
               </ScrollView>
             );
@@ -616,6 +666,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   }, [makeRecipeMethod]);
 
   const openCamera = async () => {
+    if (!(await ensureAiConsent())) return; // ingredient photos go to Google Gemini
     if (!cameraPermission?.granted) {
       const { granted } = await requestCameraPermission();
       if (!granted) {
@@ -659,6 +710,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
     setPhotoMatches([]);
     setPendingUris([]);
     try {
+      if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError();
       const images = await Promise.all(uris.map(readUriAsBase64));
       const resp = await fetch(`${GEMINI_BASE}/api/gemini`, {
         method: 'POST',
@@ -684,6 +736,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   };
 
   const launchGalleryRecipe = async () => {
+    if (!(await ensureAiConsent())) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Gallery access needed', 'Please allow gallery access to pick photos.');
@@ -1269,6 +1322,9 @@ const detail = StyleSheet.create({
   cardLogBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   cardDoneBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingVertical: 14 },
   cardDoneBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  cardSafetyRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 18 },
+  cardSafetyTxt: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' },
+  cardSafetyDot: { color: 'rgba(255,255,255,0.4)', fontSize: 13 },
 });
 
 export default MakeRecipePage;

@@ -70,6 +70,7 @@ const MEAL_SCHEMA = {
     isFood:             { type: 'BOOLEAN', description: 'True if the input contains edible food.' },
     whatIsItIfNotFood:  { type: 'STRING',  description: 'If isFood is false, briefly describe what it actually is.' },
     fromScreen:         { type: 'BOOLEAN', description: 'True if image is a photo of a digital screen.' },
+    shareable:          { type: 'BOOLEAN', description: 'Photo scans only: true only if the photo shows just food or drink (hands are fine) with no people, faces, documents, screens, nudity, or anything offensive or inappropriate.' },
     title:              { type: 'STRING',  description: 'Primary meal name.' },
     correctedInput:     { type: 'STRING',  description: 'Clean short summary of what the user described (text input only).' },
     foods:              { type: 'ARRAY', items: FOOD_ITEM },
@@ -227,7 +228,7 @@ export default async function handler(req, res) {
     if (type === 'scan_photo') {
       const { base64, userCountry } = data;
       const text = await callGemini(GEMINI_KEY, [
-        { text: `Analyze this plate. Look carefully at the actual contents before identifying anything.\nEstimate portion sizes and look up realistic macro distributions for those portions.${userCountry ? `\nThe user is from ${userCountry} — prioritise local dish names.` : ''}\nIf the image does not contain food, set isFood to false and describe what you see in whatIsItIfNotFood.\nIf the image is a photo of a digital screen, set fromScreen to true.` },
+        { text: `Analyze this plate. Look carefully at the actual contents before identifying anything.\nEstimate portion sizes and look up realistic macro distributions for those portions.${userCountry ? `\nThe user is from ${userCountry} — prioritise local dish names.` : ''}\nIf the image does not contain food, set isFood to false and describe what you see in whatIsItIfNotFood.\nIf the image is a photo of a digital screen, set fromScreen to true.\nSet shareable to true only if the photo shows just food or drink (hands are fine) and nothing that would be inappropriate to show other people: no people or faces, no documents, no screens, no nudity, nothing offensive. When in doubt, set it to false.` },
         { inline_data: { mime_type: 'image/jpeg', data: base64 } },
       ], { systemInstruction: NUTRITION_SYSTEM, schema: MEAL_SCHEMA });
 
@@ -236,6 +237,7 @@ export default async function handler(req, res) {
       if (!parsed.isFood) return res.json({ notFood: true, identified: parsed.whatIsItIfNotFood || '' });
       return res.json({
         fromScreen: !!parsed.fromScreen,
+        shareable: parsed.shareable === true && !parsed.fromScreen,
         title: parsed.title || null,
         foods: (parsed.foods || []).map(f => normalizeFood(f)),
       });
