@@ -383,6 +383,8 @@ const ProgressTab = ({
     const hasLoggedWeight = uniqueWeights.some(w => !w.carried);
     const totalCal = rangeMeals.reduce((sum, m) => sum + (m.calories || 0), 0);
     const calDaysCount = loggedCalDays.length; // real logged days only, not the zero-filled gaps
+    // The target each of those same days had (not today's), so "vs target" lines up with "Avg daily cal".
+    const goalSum = loggedCalDays.reduce((sum, d) => sum + (resolveCalorieGoal(ledgerMap, goalHistory, d.date, dailyCalorieGoal) || 0), 0);
     const monthsCount = Math.max(Math.ceil(days / 30), 1);
 
     return {
@@ -404,6 +406,7 @@ const ProgressTab = ({
       hasLoggedCal: loggedCalDays.length > 0,
       avgDailyCal: calDaysCount > 0 ? Math.round(totalCal / calDaysCount) : 0,
       avgMonthlyCal: calDaysCount > 0 ? Math.round(totalCal / Math.max(monthsCount, 1)) : 0,
+      avgDailyGoal: calDaysCount > 0 ? Math.round(goalSum / calDaysCount) : 0,
       // Water
       uniqueWater,
       waterChartData,
@@ -1915,7 +1918,13 @@ const ProgressTab = ({
                   const uniqueLogs = calorieData.dailyCalData;
                   const hasData = calorieData.hasLoggedCal;
                   const hasMultiple = hasData && uniqueLogs.length >= 2;
-                  const lastMeal = calorieData.rangeMeals.length > 0 ? calorieData.rangeMeals[0] : null;
+                  // How far the average logged day sits from its target: within 5% reads as on target.
+                  const goalAvg = calorieData.avgDailyGoal;
+                  const gap = hasData && goalAvg > 0 ? calorieData.avgDailyCal - goalAvg : null;
+                  const onTarget = gap != null && Math.abs(gap) <= goalAvg * 0.05;
+                  const gapText = gap == null ? '--'
+                    : onTarget ? 'On target'
+                    : `${Math.abs(Math.round(gap)).toLocaleString()} ${gap > 0 ? 'over' : 'under'}`;
                   const orderedLogs = uniqueLogs.slice().reverse();
                   const chartData = orderedLogs.map(d => d.calories);
                   const chartLabels = calorieData.buildLabels(orderedLogs);
@@ -1977,8 +1986,8 @@ const ProgressTab = ({
                         </View>
                         <View style={styles.calorieStatDivider} />
                         <View style={styles.calorieStatItem}>
-                          <Text style={styles.calorieStatValue}>{lastMeal ? lastMeal.calories.toLocaleString() : '--'}</Text>
-                          <Text style={styles.calorieStatLabel}>Last log</Text>
+                          <Text style={[styles.calorieStatValue, onTarget && { color: '#10B981' }]}>{gapText}</Text>
+                          <Text style={styles.calorieStatLabel}>Avg vs target</Text>
                         </View>
                       </View>
                     </>
@@ -2236,11 +2245,16 @@ const ProgressTab = ({
 
             {/* Activities — "Log an activity" now mirrors the meal check-in tap-to-add card */}
             <View style={styles.progressSectionCompact}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <View style={styles.sectionIconBox}>
-                  <Ionicons name="barbell-outline" size={14} color={colors.text} />
+              <View style={styles.progressSectionHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={styles.sectionIconBox}>
+                    <Ionicons name="barbell-outline" size={14} color={colors.text} />
+                  </View>
+                  <Text style={styles.progressSectionTitleCompact}>Activities</Text>
                 </View>
-                <Text style={styles.progressSectionTitleCompact}>Activities</Text>
+                <TouchableOpacity onPress={() => onShowActivityLog && onShowActivityLog()}>
+                  <Text style={styles.seeAllBtnSmall}>See all</Text>
+                </TouchableOpacity>
               </View>
               <View style={styles.chartCardCompact}>
                 <TouchableOpacity style={styles.activityCheckInRow} onPress={() => onShowAddActivity && onShowAddActivity()} activeOpacity={0.7}>
@@ -2272,37 +2286,20 @@ const ProgressTab = ({
                   ))}
                 </View>
 
-                {streakData.weekActivities.length === 0 ? (
-                  <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                    <Text style={styles.chartPlaceholderText}>No activities logged this week</Text>
-                    <Text style={styles.chartPlaceholderSubtext}>Log a walk, run, or workout to start</Text>
-                  </View>
-                ) : (
-                  <View style={{ gap: 8, marginTop: 14 }}>
-                    {streakData.weekActivities.map((a) => {
-                      const icon = a.type === 'walking' ? 'walk-outline' : a.type === 'running' ? 'body-outline'
-                        : a.type === 'cycling' ? 'bicycle-outline' : a.type === 'swimming' ? 'water-outline'
-                        : a.type === 'strength' ? 'barbell-outline' : a.type === 'sports' ? 'football-outline' : 'ellipsis-horizontal-circle-outline';
-                      const parts = [`${a.durationMin} min`];
-                      if (a.distance) parts.push(`${a.distance} ${a.distanceUnit || 'km'}`);
-                      if (a.estimatedCalories) parts.push(`~${a.estimatedCalories} kcal`);
-                      return (
-                        <View key={a.id} style={styles.activityRow}>
-                          <View style={styles.activityIconWrap}>
-                            <Ionicons name={icon} size={16} color="#F97316" />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.activityName}>{a.name}{a.sessionType ? ` · ${a.sessionType}` : ''}</Text>
-                            <Text style={styles.activityMeta}>{parts.join(' · ')}</Text>
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-                <TouchableOpacity style={styles.weightActionLinkCompact} onPress={() => onShowActivityLog && onShowActivityLog()}>
-                  <Text style={[styles.weightActionLinkText, { color: '#F97316' }]}>View all logs</Text>
-                </TouchableOpacity>
+                {/* One line for the week; the full list lives behind "See all" */}
+                {(() => {
+                  const list = streakData.weekActivities;
+                  const mins = list.reduce((s, a) => s + (Number(a.durationMin) || 0), 0);
+                  const kcal = list.reduce((s, a) => s + (Number(a.estimatedCalories) || 0), 0);
+                  const parts = [`${list.length} ${list.length === 1 ? 'activity' : 'activities'} this week`];
+                  if (mins > 0) parts.push(`${mins} min`);
+                  if (kcal > 0) parts.push(`~${kcal.toLocaleString()} kcal`);
+                  return (
+                    <Text style={[styles.chartPlaceholderSubtext, { textAlign: 'center', marginTop: 14 }]}>
+                      {list.length ? parts.join(' · ') : 'No activities logged this week'}
+                    </Text>
+                  );
+                })()}
               </View>
             </View>
 
