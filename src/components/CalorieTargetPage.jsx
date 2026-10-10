@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
 import { computeTdeeSummary, projectGoal, fromKg, MIN_CALORIES, MAX_SURPLUS, MAX_TARGET_NO_TDEE } from '../lib/tdeeSummary';
+import { SourcesLink } from './HealthSourcesPage';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -245,6 +246,7 @@ const CalorieTargetPage = ({
           {changedActivity ? (
             <Text style={styles.actNote}>Saving also updates your activity level, so your daily burn changes across Logga, not just here.</Text>
           ) : null}
+          <SourcesLink topic="calories" label="Health info & sources" style={{ alignSelf: 'center', marginTop: 16 }} />
         </ScrollView>
 
         <View style={styles.footer}>

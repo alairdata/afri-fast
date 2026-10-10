@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { track, EVENTS } from '../lib/analytics';
+import { SourcesLink } from './HealthSourcesPage';
 import Svg, { G, Circle, Ellipse, Path } from 'react-native-svg';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -1292,6 +1293,7 @@ function DoneScreen({ d, onComplete }) {
         ) : null}
 
         <Text style={s.planNote}>Estimates, not medical advice. You can change your goal any time in Settings.</Text>
+        <SourcesLink topic="calories" label="Where these numbers come from" color={C.ink} style={{ marginTop: 10 }} />
       </ScrollView>
 
       {/* Pinned, so it is always on screen without scrolling */}

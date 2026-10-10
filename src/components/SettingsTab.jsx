@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Modal,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FastingQuizPage from './FastingQuizPage';
 import YourDetails from './YourDetails';
+import HealthSourcesPage from './HealthSourcesPage';
 import { FaqSheet, ContactSheet, RateSheet, PrivacySheet, ClearHistorySheet } from './SettingsSheets';
 import { useTheme, DARK_MODE_AVAILABLE } from '../lib/theme';
 
@@ -237,6 +238,7 @@ const SettingsTab = ({
   const [showFaq, setShowFaq] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showRate, setShowRate] = useState(false);
+  const [showSources, setShowSources] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showClear, setShowClear] = useState(false);
   const [showDataRequest, setShowDataRequest] = useState(false);
@@ -772,6 +774,14 @@ const SettingsTab = ({
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowSources(true)}>
+          <View style={styles.settingsActionLeft}>
+            <Ionicons name="book-outline" size={18} color="#374151" />
+            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Health Info & Sources</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowContact(true)}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="mail-outline" size={18} color="#374151" />
@@ -798,6 +808,7 @@ const SettingsTab = ({
           Logga is a tracking tool, not medical advice. Talk to a qualified professional before changing your diet or exercise.
         </Text>
       </View>
+      <HealthSourcesPage visible={showSources} onClose={() => setShowSources(false)} />
 
       <View style={{ height: 40 }} />
       </ScrollView>

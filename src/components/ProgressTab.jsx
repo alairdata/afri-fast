@@ -17,6 +17,7 @@ import { saveBurnoutPredictionSnapshot } from '../lib/burnoutPredictionHistory';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 import { getCachedMomentumWhy, getMomentumWhy } from '../lib/momentumWhy';
+import { SourcesLink } from './HealthSourcesPage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -1823,6 +1824,7 @@ const ProgressTab = ({
               ) : (
                 <Text style={styles.mutedBody}>Add your age, sex, height, and activity level in Settings to see your energy balance (what you burn vs. what you eat) here.</Text>
               )}
+              <SourcesLink topic="calories" label="Estimates · Sources" color={colors.textMuted} style={{ marginTop: 12 }} />
             </View>
 
             {/* Pace to goal */}
@@ -1860,6 +1862,7 @@ const ProgressTab = ({
                   </View>
                 </View>
                 {pace.note && <Text style={[styles.mutedBody, { marginTop: 12 }]}>{pace.note}</Text>}
+                <SourcesLink topic="weight" label="Estimates · Sources" color={colors.textMuted} style={{ marginTop: 12 }} />
               </View>
             )}
             {pace?.insufficientData && (
@@ -2038,6 +2041,7 @@ const ProgressTab = ({
                   </View>
                 </View>
               )}
+              <SourcesLink topic="wellbeing" label="Not a diagnosis · Sources" color={colors.textMuted} style={{ marginTop: 12 }} />
             </View>
 
             {/* Hydration */}

@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef } from 'react';
+import { SourcesLink } from './HealthSourcesPage';
 import {
   View,
   Text,
@@ -607,6 +608,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
                 <Text style={s.statLabel}>TDEE (kcal)</Text>
               </View>
             </View>
+            <SourcesLink topic="calories" label="Health info & sources" style={{ alignSelf: 'center', marginBottom: 14 }} />
 
             {/* Notes */}
             {result.notes.length > 0 && (

@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
+import { SourcesLink } from './HealthSourcesPage';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
@@ -368,6 +369,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
               })}
             </View>
           </View>
+          <SourcesLink topic="water" label="Health info & sources" style={{ alignSelf: 'center', marginTop: 8, marginBottom: 24 }} />
         </ScrollView>
       </View>
     </View>

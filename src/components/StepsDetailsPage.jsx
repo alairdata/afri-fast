@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
+import { SourcesLink } from './HealthSourcesPage';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
@@ -381,6 +382,7 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
               })}
             </View>
           </View>
+          <SourcesLink topic="activity" label="Health info & sources" style={{ alignSelf: 'center', marginTop: 8, marginBottom: 24 }} />
         </ScrollView>
       </View>
     </View>
