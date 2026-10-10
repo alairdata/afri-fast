@@ -18,6 +18,7 @@ import { computeCurrentMealStreak } from '../lib/mealStreak';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 import { getCachedMomentumWhy, getMomentumWhy } from '../lib/momentumWhy';
 import { SourcesLink } from './HealthSourcesPage';
+import InfoTip from './InfoTip';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -1465,7 +1466,7 @@ const ProgressTab = ({
                   <View style={styles.sectionIconBox}>
                     <Ionicons name="flame-outline" size={14} color={colors.text} />
                   </View>
-                  <Text style={styles.progressSectionTitleCompact}>Streaks</Text>
+                  <Text style={styles.progressSectionTitleCompact}>Streaks</Text><InfoTip id="streaks" style={{ marginBottom: 8 }} />
                 </View>
               </View>
               <View style={styles.chartCardCompact}>
@@ -1492,6 +1493,7 @@ const ProgressTab = ({
 
             {/* Momentum gauge */}
             <View style={[styles.card, { alignItems: 'center', paddingTop: 18 }]}>
+              <InfoTip id="momentum" size={18} style={{ position: 'absolute', top: 14, right: 14, zIndex: 2 }} />
               <View style={{ width: 220, height: 132, marginTop: 4 }}>
                 <Svg width={220} height={132} viewBox="0 0 220 132">
                   {gauge.segments.map((s, i) => (
@@ -1535,7 +1537,7 @@ const ProgressTab = ({
 
             {/* Current BMI */}
             <View style={styles.progressSectionCompact}>
-              <Text style={styles.progressSectionTitleCompact}>Current BMI</Text>
+              <View style={styles.titleTipRow}><Text style={styles.progressSectionTitleCompact}>Current BMI</Text><InfoTip id="bmi" style={{ marginBottom: 8 }} /></View>
               {(() => {
                 const latestWeight = streakData.rangeWeights.length > 0
                   ? [...streakData.rangeWeights].sort((a, b) => new Date(b.date) - new Date(a.date))[0]
@@ -1588,7 +1590,7 @@ const ProgressTab = ({
             {/* Weight trend */}
             <View style={styles.progressSectionCompact}>
               <View style={styles.progressSectionHeader}>
-                <Text style={styles.progressSectionTitleCompact}>Weight trend</Text>
+                <View style={styles.titleTipRow}><Text style={styles.progressSectionTitleCompact}>Weight trend</Text><InfoTip id="weight" style={{ marginBottom: 8 }} /></View>
                 <RangeDropdown value={weightRange} onChange={setWeightRange} styles={styles} />
               </View>
               <View style={styles.chartCardCompact}>
@@ -1687,7 +1689,7 @@ const ProgressTab = ({
               <View style={styles.card}>
                 <View style={styles.rowBetween}>
                   <View>
-                    <Text style={styles.kicker}>PREDICTION THIS WEEK</Text>
+                    <View style={styles.titleTipRow}><Text style={styles.kicker}>PREDICTION THIS WEEK</Text><InfoTip id="prediction" /></View>
                     <Text style={styles.bigStat}>
                       {chart.weekChange != null
                         ? `${Math.abs(chart.weekChange).toFixed(2)} ${weightUnit} ${chart.weekChange > 0 ? 'gain' : chart.weekChange < 0 ? 'loss' : 'change'}`
@@ -1753,7 +1755,7 @@ const ProgressTab = ({
             {(projected7Kg != null || projectedGoalDate) && (
               <View style={styles.card}>
                 <View style={styles.rowBetween}>
-                  <Text style={styles.kicker}>FORECAST</Text>
+                  <View style={styles.titleTipRow}><Text style={styles.kicker}>FORECAST</Text><InfoTip id="forecast" /></View>
                   <View style={[styles.pill, { backgroundColor: confidenceBg }]}>
                     <Text style={[styles.pillText, { color: confidenceColor }]}>{confidence} confidence</Text>
                   </View>
@@ -1801,7 +1803,7 @@ const ProgressTab = ({
 
             {/* Energy balance */}
             <View style={styles.card}>
-              <Text style={styles.kicker}>ENERGY BALANCE</Text>
+              <View style={styles.titleTipRow}><Text style={styles.kicker}>ENERGY BALANCE</Text><InfoTip id="energy" /></View>
               {tdee != null ? (
                 <>
                   <View style={styles.statsRow}>
@@ -1835,7 +1837,7 @@ const ProgressTab = ({
               <View style={styles.card}>
                 <View style={styles.rowBetween}>
                   <View>
-                    <Text style={styles.kicker}>PACE TO GOAL</Text>
+                    <View style={styles.titleTipRow}><Text style={styles.kicker}>PACE TO GOAL</Text><InfoTip id="pace" /></View>
                     <Text style={styles.bigStat}>{pace.eta ? fmtShort(pace.eta) : '--'}<Text style={styles.bigStatSub}> at this pace</Text></Text>
                   </View>
                 </View>
@@ -1904,7 +1906,7 @@ const ProgressTab = ({
                   <View style={styles.sectionIconBox}>
                     <Ionicons name="flame-outline" size={14} color={colors.text} />
                   </View>
-                  <Text style={styles.progressSectionTitleCompact}>Calorie Intake</Text>
+                  <Text style={styles.progressSectionTitleCompact}>Calorie Intake</Text><InfoTip id="calories" style={{ marginBottom: 8 }} />
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <RangeDropdown value={calorieRange} onChange={setCalorieRange} styles={styles} />
@@ -2000,7 +2002,7 @@ const ProgressTab = ({
             <View style={styles.card}>
               <View style={styles.rowBetween}>
                 <View>
-                  <Text style={styles.kicker}>BURNOUT LIKELIHOOD</Text>
+                  <View style={styles.titleTipRow}><Text style={styles.kicker}>BURNOUT LIKELIHOOD</Text><InfoTip id="burnout" /></View>
                   {burnoutReady
                     ? <Text style={styles.bigStat}>{burnoutScore}<Text style={styles.bigStatSub}>/100</Text></Text>
                     : <Text style={[styles.bigStat, { color: colors.textMuted }]}>--</Text>}
@@ -2060,7 +2062,7 @@ const ProgressTab = ({
                   <View style={styles.sectionIconBox}>
                     <Ionicons name="water-outline" size={14} color={colors.text} />
                   </View>
-                  <Text style={styles.progressSectionTitleCompact}>Hydration</Text>
+                  <Text style={styles.progressSectionTitleCompact}>Hydration</Text><InfoTip id="hydration" style={{ marginBottom: 8 }} />
                 </View>
                 <RangeDropdown value={waterRange} onChange={setWaterRange} styles={styles} />
               </View>
@@ -2155,7 +2157,7 @@ const ProgressTab = ({
                   <View style={styles.sectionIconBox}>
                     <Ionicons name="footsteps-outline" size={14} color={colors.text} />
                   </View>
-                  <Text style={styles.progressSectionTitleCompact}>Steps</Text>
+                  <Text style={styles.progressSectionTitleCompact}>Steps</Text><InfoTip id="steps" style={{ marginBottom: 8 }} />
                 </View>
                 <RangeDropdown value={stepsRange} onChange={setStepsRange} styles={styles} />
               </View>
@@ -2250,7 +2252,7 @@ const ProgressTab = ({
                   <View style={styles.sectionIconBox}>
                     <Ionicons name="barbell-outline" size={14} color={colors.text} />
                   </View>
-                  <Text style={styles.progressSectionTitleCompact}>Activities</Text>
+                  <Text style={styles.progressSectionTitleCompact}>Activities</Text><InfoTip id="activities" style={{ marginBottom: 8 }} />
                 </View>
                 <TouchableOpacity onPress={() => onShowActivityLog && onShowActivityLog()}>
                   <Text style={styles.seeAllBtnSmall}>See all</Text>
@@ -2419,6 +2421,7 @@ const makeStyles = (c) => StyleSheet.create({
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   rowStart: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   kicker: { color: c.textMuted, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.8 },
+  titleTipRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   bigStat: { color: c.text, fontSize: 19, fontWeight: '800' },
   bigStatSub: { color: c.textSecondary, fontSize: 13, fontWeight: '600' },
   chartInfoRow: { minHeight: 16, marginTop: 6, alignItems: 'center' },
