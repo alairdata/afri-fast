@@ -13,7 +13,9 @@ const CACHE_KEY = 'logga_is_pro_v1';
 
 let Purchases = null;
 let configured = false;
-const GATED = Platform.OS === 'ios' && !!IOS_KEY;
+// EXPO_PUBLIC_PREVIEW_FREE=1 (development only) shows the Free plan's locks anywhere, e.g. on web, to preview them.
+const PREVIEW_FREE = __DEV__ && process.env.EXPO_PUBLIC_PREVIEW_FREE === '1';
+const GATED = (Platform.OS === 'ios' && !!IOS_KEY) || PREVIEW_FREE;
 let state = { isPro: !GATED, ready: false, canPurchase: false, expiresAt: null, willRenew: false, inTrial: false, managementURL: null };
 const listeners = new Set();
 const emit = () => listeners.forEach((fn) => { try { fn(state); } catch (_) {} });
