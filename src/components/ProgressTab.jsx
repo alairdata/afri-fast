@@ -20,7 +20,8 @@ import { getCachedMomentumWhy, getMomentumWhy } from '../lib/momentumWhy';
 import { SourcesLink } from './HealthSourcesPage';
 import InfoTip from './InfoTip';
 import { useSubscription } from '../lib/subscription';
-import { ProLockedBody, ProTag, unlock } from './ProLock';
+import { LockedChartPreview, unlock } from './ProLock';
+import { BlurView } from 'expo-blur';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -194,6 +195,8 @@ const ProgressTab = ({
   // Navigation into external full-page detail modals (owned by FastingApp.jsx)
   onShowWeightModal, onShowFastingDetails, onShowBMIDetails, onShowCalorieDetails, onShowHydrationDetails,
   onShowStepsDetails, onShowAddActivity, onShowActivityLog,
+  // Apple Health (steps): when it isn't connected, the Steps chart is blurred with a Connect button on it
+  appleHealthAvailable = false, appleHealthOn = false, onConnectAppleHealth,
   // Shared data
   fastingSessions = [], recentMeals = [], weightLogs = [], waterLogs = [], stepLogs = [], activities = [], checkInHistory = [],
   height = '', heightUnit = 'cm', weightUnit = 'kg', volumeUnit = 'oz', targetWeight = null, startingWeight = null,
@@ -203,6 +206,8 @@ const ProgressTab = ({
   activityLevel = null, pacePreference = null, proteinGoal = null, carbsGoal = null, fatsGoal = null,
 }) => {
   const { isPro } = useSubscription();
+  const [healthConnecting, setHealthConnecting] = useState(false);
+  const needsHealth = appleHealthAvailable && !appleHealthOn;
   const { colors } = useTheme();
   const styles = makeStyles(colors);
   // Precomputed daily_goal_ledger, keyed for O(1) lookup by date -- see lib/goalHistory.js.
@@ -1469,7 +1474,7 @@ const ProgressTab = ({
                   <View style={styles.sectionIconBox}>
                     <Ionicons name="flame-outline" size={14} color={colors.text} />
                   </View>
-                  <Text style={styles.progressSectionTitleCompact}>Streaks</Text><InfoTip id="streaks" style={{ marginBottom: 8 }} />
+                  <Text style={styles.progressSectionTitleCompact}>Streaks</Text><InfoTip id="streaks" />
                 </View>
               </View>
               <View style={styles.chartCardCompact}>
@@ -1540,7 +1545,7 @@ const ProgressTab = ({
 
             {/* Current BMI */}
             <View style={styles.progressSectionCompact}>
-              <View style={styles.titleTipRow}><Text style={styles.progressSectionTitleCompact}>Current BMI</Text><InfoTip id="bmi" style={{ marginBottom: 8 }} /></View>
+              <View style={[styles.titleTipRow, { marginBottom: 8 }]}><Text style={styles.progressSectionTitleCompact}>Current BMI</Text><InfoTip id="bmi" /></View>
               {(() => {
                 const latestWeight = streakData.rangeWeights.length > 0
                   ? [...streakData.rangeWeights].sort((a, b) => new Date(b.date) - new Date(a.date))[0]
@@ -1593,7 +1598,7 @@ const ProgressTab = ({
             {/* Weight trend */}
             <View style={styles.progressSectionCompact}>
               <View style={styles.progressSectionHeader}>
-                <View style={styles.titleTipRow}><Text style={styles.progressSectionTitleCompact}>Weight trend</Text><InfoTip id="weight" style={{ marginBottom: 8 }} /></View>
+                <View style={styles.titleTipRow}><Text style={styles.progressSectionTitleCompact}>Weight trend</Text><InfoTip id="weight" /></View>
                 <RangeDropdown value={weightRange} onChange={setWeightRange} styles={styles} />
               </View>
               <View style={styles.chartCardCompact}>
@@ -1744,7 +1749,7 @@ const ProgressTab = ({
                 )}
                 <TouchableOpacity style={styles.detailsBtn} onPress={() => (isPro ? setView('details') : unlock('forecast'))}>
                   <Text style={styles.detailsBtnText}>See details</Text>
-                  {!isPro && <ProTag style={{ marginLeft: 6 }} />}
+                  {!isPro && <Ionicons name="sparkles" size={13} color="#F5A524" style={{ marginLeft: 5 }} />}
                   <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
@@ -1765,7 +1770,7 @@ const ProgressTab = ({
                   </View>
                 </View>
                 {!isPro ? (
-                  <ProLockedBody reason="forecast" colors={colors} text="See your weight 7 and 14 days from now, your likely goal date and what's driving it." />
+                  <LockedChartPreview reason="forecast" kind="line" caption="Your 7- and 14-day forecast and likely goal date" />
                 ) : (<>
                 <View style={[styles.statsRow, { marginTop: 10 }]}>
                   <View style={{ flex: 1 }}>
@@ -1837,7 +1842,7 @@ const ProgressTab = ({
               ) : (
                 <Text style={styles.mutedBody}>Add your age, sex, height, and activity level in Settings to see your energy balance (what you burn vs. what you eat) here.</Text>
               )}
-              <SourcesLink topic="calories" label="Estimates · Sources" color={colors.textMuted} style={{ marginTop: 12 }} />
+              <SourcesLink topic="calories" only label="Estimates · Sources" color={colors.textMuted} style={{ marginTop: 12 }} />
             </View>
 
             {/* Pace to goal */}
@@ -1875,7 +1880,7 @@ const ProgressTab = ({
                   </View>
                 </View>
                 {pace.note && <Text style={[styles.mutedBody, { marginTop: 12 }]}>{pace.note}</Text>}
-                <SourcesLink topic="weight" label="Estimates · Sources" color={colors.textMuted} style={{ marginTop: 12 }} />
+                <SourcesLink topic="weight" only label="Estimates · Sources" color={colors.textMuted} style={{ marginTop: 12 }} />
               </View>
             )}
             {pace?.insufficientData && (
@@ -1914,13 +1919,12 @@ const ProgressTab = ({
                   <View style={styles.sectionIconBox}>
                     <Ionicons name="flame-outline" size={14} color={colors.text} />
                   </View>
-                  <Text style={styles.progressSectionTitleCompact}>Calorie Intake</Text><InfoTip id="calories" style={{ marginBottom: 8 }} />
+                  <Text style={styles.progressSectionTitleCompact}>Calorie Intake</Text><InfoTip id="calories" />
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <RangeDropdown value={calorieRange} onChange={setCalorieRange} styles={styles} />
-                  <TouchableOpacity onPress={() => onShowCalorieDetails && onShowCalorieDetails()} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <TouchableOpacity onPress={() => onShowCalorieDetails && onShowCalorieDetails()}>
                     <Text style={styles.seeAllBtnSmall}>See all</Text>
-                    {!isPro && <ProTag />}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1996,7 +2000,7 @@ const ProgressTab = ({
                         <View style={styles.calorieStatDivider} />
                         <View style={styles.calorieStatItem}>
                           <Text style={[styles.calorieStatValue, onTarget && { color: '#10B981' }]}>{gapText}</Text>
-                          <Text style={styles.calorieStatLabel}>{gapPct == null ? 'Goal gap' : gapPct > 0 ? 'Over goal' : gapPct < 0 ? 'Under goal' : 'Right on goal'}</Text>
+                          <Text style={styles.calorieStatLabel}>{gapPct == null ? 'Avg goal gap' : gapPct > 0 ? 'Avg over goal' : gapPct < 0 ? 'Avg under goal' : 'Avg on goal'}</Text>
                         </View>
                       </View>
                     </>
@@ -2009,7 +2013,7 @@ const ProgressTab = ({
             <View style={styles.card}>
               {!isPro ? (<>
                 <View style={styles.titleTipRow}><Text style={styles.kicker}>BURNOUT LIKELIHOOD</Text><InfoTip id="burnout" /></View>
-                <ProLockedBody reason="burnout" colors={colors} text="See how likely you are to burn out this week, what's pushing it up and when you might feel worn out." />
+                <LockedChartPreview reason="burnout" kind="bars" caption="How likely you are to burn out this week, and why" />
               </>) : (<>
               <View style={styles.rowBetween}>
                 <View>
@@ -2074,7 +2078,7 @@ const ProgressTab = ({
                   <View style={styles.sectionIconBox}>
                     <Ionicons name="water-outline" size={14} color={colors.text} />
                   </View>
-                  <Text style={styles.progressSectionTitleCompact}>Hydration</Text><InfoTip id="hydration" style={{ marginBottom: 8 }} />
+                  <Text style={styles.progressSectionTitleCompact}>Hydration</Text><InfoTip id="hydration" />
                 </View>
                 <RangeDropdown value={waterRange} onChange={setWaterRange} styles={styles} />
               </View>
@@ -2169,7 +2173,7 @@ const ProgressTab = ({
                   <View style={styles.sectionIconBox}>
                     <Ionicons name="footsteps-outline" size={14} color={colors.text} />
                   </View>
-                  <Text style={styles.progressSectionTitleCompact}>Steps</Text><InfoTip id="steps" style={{ marginBottom: 8 }} />
+                  <Text style={styles.progressSectionTitleCompact}>Steps</Text><InfoTip id="steps" />
                 </View>
                 <RangeDropdown value={stepsRange} onChange={setStepsRange} styles={styles} />
               </View>
@@ -2231,6 +2235,24 @@ const ProgressTab = ({
                             <Text style={styles.chartPlaceholderSubtext}>{hasStepsData ? 'Log more to see trends' : 'Log steps to start'}</Text>
                           </View>
                         )}
+                        {needsHealth && (
+                          <>
+                            <BlurView intensity={Platform.OS === 'android' ? 30 : 16} tint="light" style={StyleSheet.absoluteFill} />
+                            <View style={styles.healthOverlay}>
+                              <View style={styles.healthIcon}><Ionicons name="heart" size={18} color="#EF4444" /></View>
+                              <Text style={styles.healthTitle}>Connect Apple Health</Text>
+                              <Text style={styles.healthSub}>Your daily steps fill in by themselves. Logga only reads steps.</Text>
+                              <TouchableOpacity
+                                style={[styles.healthBtn, healthConnecting && { opacity: 0.6 }]}
+                                disabled={healthConnecting}
+                                onPress={async () => { setHealthConnecting(true); try { await onConnectAppleHealth?.(); } finally { setHealthConnecting(false); } }}
+                                activeOpacity={0.85}
+                              >
+                                <Text style={styles.healthBtnTxt}>{healthConnecting ? 'Connecting…' : 'Connect'}</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </>
+                        )}
                       </View>
                       <View style={styles.calorieStatsRow}>
                         <View style={styles.calorieStatItem}>
@@ -2264,7 +2286,7 @@ const ProgressTab = ({
                   <View style={styles.sectionIconBox}>
                     <Ionicons name="barbell-outline" size={14} color={colors.text} />
                   </View>
-                  <Text style={styles.progressSectionTitleCompact}>Activities</Text><InfoTip id="activities" style={{ marginBottom: 8 }} />
+                  <Text style={styles.progressSectionTitleCompact}>Activities</Text><InfoTip id="activities" />
                 </View>
                 <TouchableOpacity onPress={() => onShowActivityLog && onShowActivityLog()}>
                   <Text style={styles.seeAllBtnSmall}>See all</Text>
@@ -2543,11 +2565,16 @@ const makeStyles = (c) => StyleSheet.create({
     width: 16, height: 16,
     alignItems: 'center', justifyContent: 'center',
   },
+  healthOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  healthIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  healthTitle: { fontSize: 15, fontWeight: '800', color: '#16201b' },
+  healthSub: { fontSize: 12.5, lineHeight: 17, color: '#4b5563', textAlign: 'center', marginTop: 4 },
+  healthBtn: { marginTop: 10, paddingHorizontal: 22, paddingVertical: 9, borderRadius: 999, backgroundColor: '#16201b' },
+  healthBtnTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
   progressSectionTitleCompact: {
     fontSize: 14,
     fontWeight: '600',
     color: c.text,
-    marginBottom: 8,
   },
   seeAllBtnSmall: {
     color: '#059669',

@@ -2375,7 +2375,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           onShowWeightModal={() => setShowWeightModal(true)}
           onShowFastingDetails={() => setShowFastingDetails(true)}
           onShowBMIDetails={() => setShowBMIDetails(true)}
-          onShowCalorieDetails={() => (isPro ? setShowCalorieDetails(true) : openPaywall('calories'))}
+          onShowCalorieDetails={() => setShowCalorieDetails(true)}
+          appleHealthAvailable={Platform.OS === 'ios' && appleHealthSupported()}
+          appleHealthOn={appleHealthOn}
+          onConnectAppleHealth={handleConnectAppleHealth}
           onShowHydrationDetails={() => setShowHydrationDetails(true)}
           onShowStepsDetails={() => setShowStepsDetails(true)}
           onShowAddActivity={() => setShowAddActivity(true)}

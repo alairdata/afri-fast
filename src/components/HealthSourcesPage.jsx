@@ -41,10 +41,11 @@ export const SourceList = ({ ids, heading = 'Sources' }) => {
 };
 
 // "Health info & sources": where every health number and piece of advice in Logga comes from (guideline 1.4.1).
-// `topic` puts that section first, so a screen can open the page at its own subject.
-const HealthSourcesPage = ({ visible, onClose, topic }) => {
+// `topic` puts that section first, so a screen can open the page at its own subject; with `only`, the page
+// shows just that topic.
+const HealthSourcesPage = ({ visible, onClose, topic, only = false }) => {
   const ordered = topic
-    ? [...TOPICS.filter((t) => t.id === topic), ...TOPICS.filter((t) => t.id !== topic)]
+    ? (only ? TOPICS.filter((t) => t.id === topic) : [...TOPICS.filter((t) => t.id === topic), ...TOPICS.filter((t) => t.id !== topic)])
     : TOPICS;
   return (
     <Modal
@@ -89,7 +90,7 @@ const HealthSourcesPage = ({ visible, onClose, topic }) => {
 };
 
 // Small "Sources" link that opens the page at a topic. Drop it under any health number.
-export const SourcesLink = ({ topic, label = 'Sources', style, color = GREEN }) => {
+export const SourcesLink = ({ topic, label = 'Sources', style, color = GREEN, only = false }) => {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -104,7 +105,7 @@ export const SourcesLink = ({ topic, label = 'Sources', style, color = GREEN }) 
         <Ionicons name="book-outline" size={13} color={color} />
         <Text style={[styles.linkTxt, { color }]}>{label}</Text>
       </TouchableOpacity>
-      <HealthSourcesPage visible={open} onClose={() => setOpen(false)} topic={topic} />
+      <HealthSourcesPage visible={open} onClose={() => setOpen(false)} topic={topic} only={only} />
     </>
   );
 };
