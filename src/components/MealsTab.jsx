@@ -153,9 +153,10 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
     setShowLogMealOptions(true);
   };
 
+  // The app closes this page itself once logging actually starts, so if it can't (daily limit, AI off)
+  // the person stays here on the options instead of being sent back to the Meals page.
   const handleLogMethod = (method) => {
     onLogMeal && onLogMeal(method);
-    setShowLogMealOptions(false);
   };
 
   return (
@@ -462,7 +463,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
 
               <TouchableOpacity
                 style={styles.logMealCard}
-                onPress={() => { setShowLogMealOptions(false); onShowChat && onShowChat(); }}
+                onPress={() => { onShowChat && onShowChat(); }}
               >
                 <View style={[styles.logMealCardIcon, { backgroundColor: colors.cardAlt }]}>
                   <Ionicons name="chatbubble-ellipses-outline" size={26} color="#8B5CF6" />

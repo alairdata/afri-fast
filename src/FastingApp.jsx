@@ -2353,6 +2353,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             if (!canLogMealOn(selectedMealDate)) return;
             // Scan, voice and text all go through Google Gemini, so they need AI consent; 'manual' never does.
             if (['scan', 'say', 'write'].includes(method) && !(await ensureAiConsent())) { setShowLogMealOptions(true); showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; }
+            setShowLogMealOptions(false);
             setLogMealMethod(method);
             setLogMealOpenedFromOptions(true);
             setShowLogMealModal(true);
@@ -2360,7 +2361,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           onMealLogBlocked={() => showToast('Log meals only after ending your fast.')}
           onFindRecipe={() => setShowFindRecipePage(true)}
           onShowMakeRecipe={() => setShowMakeRecipePage(true)}
-          onShowChat={async (context) => { if (!canLogMealOn(selectedMealDate)) return; if (!(await ensureAiConsent())) { showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; } setChatOpeningContext(context || null); setChatVariant('meals'); setChatOpenedFromLogMealOptions(true); setShowChat(true); }}
+          onShowChat={async (context) => { if (!canLogMealOn(selectedMealDate)) return; if (!(await ensureAiConsent())) { showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; } setShowLogMealOptions(false); setChatOpeningContext(context || null); setChatVariant('meals'); setChatOpenedFromLogMealOptions(true); setShowChat(true); }}
           onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setLogMealOpenedFromOptions(false); setShowLogMealModal(true); }}
           onDeleteMeal={async (id) => {
             const prevMeals = recentMeals;
