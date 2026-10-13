@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, Animated, Easing, Platform, useWindowDimensions, Image,
+  TextInput, Animated, Easing, Platform, useWindowDimensions, Image, Alert,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { track, EVENTS } from '../lib/analytics';
@@ -1208,7 +1208,7 @@ function BuildingScreen({ d, next }) {
   );
 }
 
-function DoneScreen({ d, onComplete }) {
+function DoneScreen({ d, onComplete, onStartOver }) {
   const plan = calcPlan(d);
   const first = d.name ? d.name.split(' ')[0] : 'friend';
 
@@ -1265,6 +1265,7 @@ function DoneScreen({ d, onComplete }) {
       {/* Pinned, so it is always on screen without scrolling */}
       <View style={s.footer}>
         <PrimaryBtn label="Create my account" onPress={handleFinish} />
+        <TextBtn label="Start over" onPress={onStartOver} />
       </View>
     </View>
   );
@@ -1283,6 +1284,15 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
   // Choosing an answer only selects it; the Continue button moves on. (It used to jump ahead on its
   // own 0.28s after the tap, which felt abrupt.)
   const pick = (k, v) => set(k, v);
+  // From the plan screen: wipe the answers and begin again at the first question.
+  const startOver = () => {
+    const go = () => { setData({ ...DEFAULT_DATA }); setIdx(FLOW.indexOf('goal')); };
+    if (Platform.OS === 'web') { if (typeof window === 'undefined' || window.confirm('Start over? Your answers will be cleared.')) go(); return; }
+    Alert.alert('Start over?', 'Your answers will be cleared and you can go through the questions again.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Start over', style: 'destructive', onPress: go },
+    ]);
+  };
 
   // Funnel: started -> each screen -> completed (or skipped), the same shape as SUAI's onboarding events.
   useEffect(() => { track(EVENTS.ONBOARDING_STARTED); }, []);
@@ -1323,7 +1333,7 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
     case 'why':            return <WhyScreen {...sharedProps} />;
     case 'accountability': return <AccountabilityScreen {...sharedProps} />;
     case 'building':       return <BuildingScreen d={data} next={next} />;
-    case 'done':           return <DoneScreen d={data} onComplete={handleComplete} />;
+    case 'done':           return <DoneScreen d={data} onComplete={handleComplete} onStartOver={startOver} />;
     default:               return null;
   }
 }
