@@ -38,10 +38,10 @@ function Sheet({ visible, onClose, title, children }) {
 // ── Help & FAQ ─────────────────────────────────────────────────────────────────
 const FAQ = [
   { q: 'How do I log a meal?', a: 'Tap the + button on the Today screen, then snap a photo, type what you ate, or say it out loud. Logga works out the calories and nutrients, and you can adjust the portions before you save.' },
-  { q: 'How is my daily calorie target worked out?', a: "From your age, sex, height, weight, activity level, goal weight and pace. You can change any of them under Make it Yours, then Your Details. If your target should change, we'll suggest the new number and you choose whether to use it." },
+  { q: 'How is my daily calorie target worked out?', a: "From your age, sex, height, weight, activity level, goal weight and pace. You can change any of them in Settings, under Your Details. If your target should change, we'll suggest the new number and you choose whether to use it." },
   { q: 'What is the Momentum score?', a: 'A score from 0 to 100 for how well you are keeping up. It looks at how steady your eating has been, whether you are eating enough of the right things to keep going, and how much you move. It starts at 0 and comes alive once you log your first meal.' },
   { q: 'What does burnout risk mean?', a: "It's an early warning about how likely you are to drop off. It looks at things like eating far under or over your target, big swings from day to day, and low protein or water. A high number is a nudge to ease up, not a grade." },
-  { q: 'Can I change my onboarding answers?', a: 'Yes. Go to Make it Yours, then Your Details, and tap any answer to update it. Changes save straight away.' },
+  { q: 'Can I change my onboarding answers?', a: 'Yes. Go to Settings, then Your Details, and tap any answer to update it. Changes save straight away.' },
   { q: 'How do I change my name, photo or country?', a: 'On the Settings screen, tap the pencil icon at the top to change your username and photo. Tap your country under your name to pick a different one.' },
   { q: 'How do reminders work?', a: "Turn on the meal logging reminder under Notifications and pick a time. Reminders work in the phone app; the website can't send them yet." },
   { q: 'How do I export or delete my data?', a: 'Both are under Data & Privacy. Request My Data lets you ask us for a copy of everything you have logged. Clear History wipes your logs but keeps your account. Account Options lets you delete your account for good.' },

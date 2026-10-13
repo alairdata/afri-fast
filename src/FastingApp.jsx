@@ -2402,7 +2402,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         <SettingsTab
           darkMode={darkMode}
           onToggleDarkMode={onToggleDarkMode}
-          onBack={() => setActiveTab('today')}
           onLogout={() => setShowLogoutModal(true)}
           onDeleteAccount={async () => {
             if (!session?.user?.id) return;

@@ -1,11 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Modal, Dimensions, Image, Platform, FlatList, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Modal, Dimensions, Image, Platform, FlatList, ActivityIndicator, KeyboardAvoidingView, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FastingQuizPage from './FastingQuizPage';
 import YourDetails from './YourDetails';
 import HealthSourcesPage from './HealthSourcesPage';
 import PhotoCreditsPage from './PhotoCreditsPage';
+import { useSubscription, openPaywall, restorePurchases } from '../lib/subscription';
 import { FaqSheet, ContactSheet, RateSheet, PrivacySheet, ClearHistorySheet } from './SettingsSheets';
 import { useTheme, DARK_MODE_AVAILABLE } from '../lib/theme';
 
@@ -241,6 +242,21 @@ const SettingsTab = ({
   const [showRate, setShowRate] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [showCredits, setShowCredits] = useState(false);
+  const sub = useSubscription();
+  const [restoring, setRestoring] = useState(false);
+  const doRestore = async () => {
+    if (restoring) return;
+    setRestoring(true);
+    try {
+      const found = await restorePurchases();
+      Alert.alert(found ? 'Welcome back' : 'No subscription found', found ? 'Your Logga Pro subscription is active again.' : "We couldn't find a Logga Pro subscription on this Apple ID.");
+    } catch (_) {
+      Alert.alert("Couldn't restore", 'Please check your connection and try again.');
+    } finally {
+      setRestoring(false);
+    }
+  };
+  const proDate = sub.expiresAt ? new Date(sub.expiresAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : null;
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showClear, setShowClear] = useState(false);
   const [showDataRequest, setShowDataRequest] = useState(false);
@@ -447,9 +463,11 @@ const SettingsTab = ({
     <View style={[styles.settingsContainer, { backgroundColor: colors.bg }]}>
       {/* Sticky Profile Section */}
       <View style={[styles.settingsProfileCard, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity style={styles.settingsBackBtn} onPress={onBack} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
+        {onBack && (
+          <TouchableOpacity style={styles.settingsBackBtn} onPress={onBack} accessibilityLabel="Back">
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+        )}
         {profileImage ? (
           <Image source={{ uri: profileImage }} style={styles.settingsProfileAvatarImage} />
         ) : (
@@ -477,7 +495,7 @@ const SettingsTab = ({
             <TouchableOpacity onPress={() => setShowMakeItYours(false)}>
               <Ionicons name="chevron-back" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={[styles.makeItYoursHeaderTitle, { color: colors.text }]}>Make it Yours</Text>
+            <Text style={[styles.makeItYoursHeaderTitle, { color: colors.text }]}>Your Details</Text>
           </View>
           <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
 
@@ -659,12 +677,46 @@ const SettingsTab = ({
       )}
 
       <ScrollView style={[styles.settingsScrollContent, { backgroundColor: colors.bg }]} showsVerticalScrollIndicator={false}>
-      {/* Make it Yours entry row */}
+      {/* Logga Pro */}
+      {sub.canPurchase && (
+        <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {sub.isPro ? (
+            <TouchableOpacity style={styles.settingsActionItem} onPress={() => Linking.openURL(sub.managementURL || 'https://apps.apple.com/account/subscriptions').catch(() => {})}>
+              <View style={styles.settingsActionLeft}>
+                <Ionicons name="sparkles" size={18} color="#059669" />
+                <View>
+                  <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Logga Pro{sub.inTrial ? ' · Free trial' : ''}</Text>
+                  {proDate ? <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>{sub.willRenew ? `Renews ${proDate}` : `Ends ${proDate}`} · Manage subscription</Text> : null}
+                </View>
+              </View>
+              <Ionicons name="open-outline" size={16} color="#ccc" />
+            </TouchableOpacity>
+          ) : (
+            <>
+              <TouchableOpacity style={styles.settingsActionItem} onPress={() => openPaywall('settings')}>
+                <View style={styles.settingsActionLeft}>
+                  <Ionicons name="sparkles-outline" size={18} color="#059669" />
+                  <Text style={[styles.settingsActionLabel, { color: '#059669', fontWeight: '700' }]}>Upgrade to Logga Pro</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#ccc" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.settingsActionItem} onPress={doRestore} disabled={restoring}>
+                <View style={styles.settingsActionLeft}>
+                  <Ionicons name="refresh-outline" size={18} color="#374151" />
+                  <Text style={[styles.settingsActionLabel, { color: colors.text }]}>{restoring ? 'Restoring…' : 'Restore Purchases'}</Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      )}
+
+      {/* Your Details entry row */}
       <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowMakeItYours(true)}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="options-outline" size={18} color="#374151" />
-            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Make it Yours</Text>
+            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Your Details</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
@@ -821,7 +873,7 @@ const SettingsTab = ({
       <HealthSourcesPage visible={showSources} onClose={() => setShowSources(false)} />
       <PhotoCreditsPage visible={showCredits} onClose={() => setShowCredits(false)} />
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* Measurement Visual Guide */}

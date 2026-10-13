@@ -3,8 +3,13 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Modal, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
+import { useSubscription } from '../lib/subscription';
+import { unlock } from './ProLock';
 
 const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, onWriteMeal }) => {
+  const { isPro } = useSubscription();
+  // Free plan: the first recipe in each section is open; the rest are blurred with a lock.
+  const lockedAt = (i) => !isPro && i > 0;
   const [recipeSearchInput, setRecipeSearchInput] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [calMin, setCalMin] = useState(0);
@@ -462,8 +467,11 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
               {searchResults.length > 0 ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {searchResults.map((item, i) => (
-                    <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => openMealDetail(item.name)}>
-                      <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" />
+                    <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(item.name))}>
+                      <View>
+                        <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" blurRadius={lockedAt(i) ? 18 : 0} />
+                        {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View></View>}
+                      </View>
                       <Text style={styles.trendingCardTitle}>{item.name}</Text>
                     </TouchableOpacity>
                   ))}
@@ -483,8 +491,11 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
                   const meal = allMeals.find(m => m.name === mealName);
                   if (!meal) return null;
                   return (
-                    <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => openMealDetail(meal.name)}>
-                      <Image source={meal.image} style={styles.trendingCardImage} resizeMode="cover" />
+                    <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(meal.name))}>
+                      <View>
+                        <Image source={meal.image} style={styles.trendingCardImage} resizeMode="cover" blurRadius={lockedAt(i) ? 18 : 0} />
+                        {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View></View>}
+                      </View>
                       <Text style={styles.trendingCardTitle}>{meal.name}</Text>
                     </TouchableOpacity>
                   );
@@ -504,8 +515,11 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {getMealsForCategory(selectedCategory).map((item, i) => (
-                  <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => openMealDetail(item.name)}>
-                    <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" />
+                  <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(item.name))}>
+                    <View>
+                      <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" blurRadius={lockedAt(i) ? 18 : 0} />
+                      {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View></View>}
+                    </View>
                     <Text style={styles.trendingCardTitle}>{item.name}</Text>
                   </TouchableOpacity>
                 ))}
@@ -524,8 +538,11 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
                 { name: 'Injera with Misir Wot', time: '40 min', image: { uri: 'https://www.logga.space/food/injera.jpg' } },
                 { name: 'Waakye with Shito', time: '35 min', image: { uri: 'https://www.logga.space/food/waakye.jpg' } },
               ].map((item, i) => (
-                <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => openMealDetail(item.name)}>
-                  <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" />
+                <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(item.name))}>
+                  <View>
+                    <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" blurRadius={lockedAt(i) ? 18 : 0} />
+                    {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View></View>}
+                  </View>
                   <Text style={styles.trendingCardTitle}>{item.name}</Text>
                 </TouchableOpacity>
               ))}
@@ -541,8 +558,11 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
                 { name: 'Plantain & Egg Sauce', time: '15 min', image: { uri: 'https://www.logga.space/food/plantain-eggs.jpg' } },
                 { name: 'Okra Soup & Fufu', time: '40 min', image: { uri: 'https://www.logga.space/food/okra-soup.jpg' } },
               ].map((item, i) => (
-                <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => openMealDetail(item.name)}>
-                  <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" />
+                <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(item.name))}>
+                  <View>
+                    <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" blurRadius={lockedAt(i) ? 18 : 0} />
+                    {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View></View>}
+                  </View>
                   <Text style={styles.trendingCardTitle}>{item.name}</Text>
                 </TouchableOpacity>
               ))}
@@ -581,8 +601,11 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
               {getMealsForCountry(selectedCountryFilter).length > 0 ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {getMealsForCountry(selectedCountryFilter).map((item, i) => (
-                    <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => openMealDetail(item.name)}>
-                      <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" />
+                    <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(item.name))}>
+                      <View>
+                        <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" blurRadius={lockedAt(i) ? 18 : 0} />
+                        {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View></View>}
+                      </View>
                       <Text style={styles.trendingCardTitle}>{item.name}</Text>
                     </TouchableOpacity>
                   ))}
@@ -1110,6 +1133,8 @@ const styles = StyleSheet.create({
     width: 180,
     marginRight: 12,
   },
+  lockOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 10, alignItems: 'center', justifyContent: 'center' },
+  lockBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(22,32,27,0.72)', alignItems: 'center', justifyContent: 'center' },
   trendingCardImage: {
     width: 180,
     height: 140,

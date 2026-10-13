@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useTheme } from '../lib/theme';
 
 // 'progress' now renders the merged Progress+Insights tab (see ProgressTab.jsx) — kept the
@@ -10,6 +10,7 @@ const ALL_TABS = [
   { id: 'today', label: 'Today', icon: 'home-outline', iconActive: 'home' },
   { id: 'meals', label: 'Meals', icon: 'restaurant-outline', iconActive: 'restaurant' },
   { id: 'progress', label: 'Insights', icon: 'analytics-outline', iconActive: 'analytics' },
+  { id: 'settings', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
 ];
 
 const BottomTabBar = ({ activeTab, onTabChange }) => {

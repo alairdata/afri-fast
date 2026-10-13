@@ -8,6 +8,8 @@ import { supabase } from '../lib/supabase';
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
+import { useSubscription } from '../lib/subscription';
+import { unlock } from './ProLock';
 
 // ── Ingredient amount scaler ─────────────────────────────────────────────────
 
@@ -379,7 +381,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
 
 // ── Make Recipe Page ─────────────────────────────────────────────────────────
 
-const SHOW_RECIPE_CREATORS = false;
+const SHOW_RECIPE_CREATORS = true;
 
 const CATEGORY_META = {
   'Weight Loss Friendly': { icon: 'flag-outline', subtitle: 'Low calorie, big satisfaction' },
@@ -456,167 +458,6 @@ const scoreRecipe = (recipe, identifiedIngredients) => {
   return score;
 };
 
-const BENEFITS = [
-  { icon: 'camera-outline',  color: '#db6a3f', bg: '#fbeee7', title: 'Snap your fridge or pantry',   desc: 'Point your camera — the AI reads what you have and suggests real African dishes you can make right now.' },
-  { icon: 'mic-outline',     color: '#db6a3f', bg: '#fbeee7', title: 'Type or say your ingredients', desc: "No photo needed. List what's in the kitchen and get matched to meals that fit." },
-  { icon: 'receipt-outline', color: '#f0a534', bg: '#fdf3e0', title: 'Log any recipe in one tap',    desc: "Cook it, love it, add it straight to today's diary — no manual entry." },
-];
-
-const ProPaywall = ({ visible, onClose }) => {
-  const scanY = useRef(new Animated.Value(0)).current;
-  const pulse = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!visible) return;
-    Animated.loop(Animated.sequence([
-      Animated.timing(scanY, { toValue: 1, duration: 2800, useNativeDriver: true }),
-      Animated.timing(scanY, { toValue: 0, duration: 0,    useNativeDriver: true }),
-    ])).start();
-    Animated.loop(Animated.sequence([
-      Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
-      Animated.timing(pulse, { toValue: 0, duration: 900, useNativeDriver: true }),
-    ])).start();
-    return () => { scanY.stopAnimation(); pulse.stopAnimation(); };
-  }, [visible]);
-
-  if (!visible) return null;
-
-  const scanTranslate = scanY.interpolate({ inputRange: [0, 1], outputRange: [0, 90] });
-  const pulseScale    = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] });
-  const pulseOpacity  = pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.6, 0.2, 0] });
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={pw.backdrop}>
-        <ScrollView style={pw.sheet} contentContainerStyle={pw.sheetContent} showsVerticalScrollIndicator={false} bounces={false}>
-
-          {/* Close */}
-          <TouchableOpacity style={pw.closeBtn} onPress={onClose}>
-            <Ionicons name="close" size={18} color="#6c7872" />
-          </TouchableOpacity>
-
-          {/* Viewfinder illustration */}
-          <View style={pw.vfWrap}>
-            <View style={[pw.ch, { top: 0, left: 0 }]} /><View style={[pw.cv, { top: 0, left: 0 }]} />
-            <View style={[pw.ch, { top: 0, right: 0 }]} /><View style={[pw.cv, { top: 0, right: 0 }]} />
-            <View style={[pw.ch, { bottom: 0, left: 0 }]} /><View style={[pw.cv, { bottom: 0, left: 0 }]} />
-            <View style={[pw.ch, { bottom: 0, right: 0 }]} /><View style={[pw.cv, { bottom: 0, right: 0 }]} />
-            <Text style={[pw.food, { top: 20, left: 18 }]}>🍅</Text>
-            <Text style={[pw.food, { top: 44, left: 66 }]}>🍊</Text>
-            <Text style={[pw.food, { top: 14, right: 44 }]}>🧄</Text>
-            <Text style={[pw.food, { top: 38, right: 10 }]}>🫑</Text>
-            <Animated.View style={[pw.scanLine, { transform: [{ translateY: scanTranslate }] }]} />
-            <View style={pw.dotWrap}>
-              <Animated.View style={[pw.dotRing, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]} />
-              <View style={pw.dot} />
-            </View>
-          </View>
-
-          {/* Badge */}
-          <View style={pw.badge}><Text style={pw.badgeText}>✦  AI RECIPE CREATOR</Text></View>
-
-          {/* Headline + sub */}
-          <Text style={pw.headline}>Turn what's in your{'\n'}kitchen into dinner.</Text>
-          <Text style={pw.sub}>Snap it, say it, or type it — get a real recipe, made from real African dishes, in seconds.</Text>
-
-          {/* Benefits */}
-          {BENEFITS.map((b, i) => (
-            <View key={i} style={pw.benefit}>
-              <View style={[pw.benefitIcon, { backgroundColor: b.bg }]}>
-                <Ionicons name={b.icon} size={20} color={b.color} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={pw.benefitTitle}>{b.title}</Text>
-                <Text style={pw.benefitDesc}>{b.desc}</Text>
-              </View>
-            </View>
-          ))}
-
-          {/* Pricing row */}
-          <View style={pw.pricingRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={pw.pricingMain}>7 days free</Text>
-              <Text style={pw.pricingSub}>Then $4.99/month · cancel anytime</Text>
-            </View>
-            <View style={pw.pricingPill}><Text style={pw.pricingPillText}>$0 today</Text></View>
-          </View>
-
-          {/* CTA */}
-          <TouchableOpacity style={pw.cta} activeOpacity={0.85} onPress={onClose}>
-            <Text style={pw.ctaText}>Start free trial</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={pw.restoreBtn} onPress={onClose}>
-            <Text style={pw.restoreText}>Restore purchase</Text>
-          </TouchableOpacity>
-
-        </ScrollView>
-      </View>
-    </Modal>
-  );
-};
-
-const pw = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: '#fbfbf7' },
-  sheet: { flex: 1, backgroundColor: '#fbfbf7' },
-  sheetContent: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 18, paddingBottom: 44 },
-  closeBtn: {
-    alignSelf: 'flex-end', width: 32, height: 32, borderRadius: 16,
-    backgroundColor: '#eeeee8', alignItems: 'center', justifyContent: 'center', marginBottom: 20,
-  },
-  vfWrap: { width: 210, height: 130, marginBottom: 24, position: 'relative' },
-  ch: { position: 'absolute', width: 22, height: 3, backgroundColor: '#059669', borderRadius: 2 },
-  cv: { position: 'absolute', width: 3, height: 22, backgroundColor: '#059669', borderRadius: 2 },
-  food: { position: 'absolute', fontSize: 26 },
-  scanLine: { position: 'absolute', left: 4, right: 4, height: 1.5, backgroundColor: 'rgba(5,150,105,0.45)' },
-  dotWrap: { position: 'absolute', top: -8, right: -8, width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
-  dotRing: { position: 'absolute', width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(5,150,105,0.35)' },
-  dot: { width: 11, height: 11, borderRadius: 6, backgroundColor: '#059669' },
-  badge: { backgroundColor: '#fbeee7', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6, marginBottom: 16 },
-  badgeText: { fontSize: 10, fontWeight: '700', color: '#db6a3f', letterSpacing: 1.4 },
-  headline: { fontSize: 27, fontWeight: '900', color: '#16201b', textAlign: 'center', lineHeight: 33, marginBottom: 10 },
-  sub: { fontSize: 14, color: '#6c7872', textAlign: 'center', lineHeight: 20, marginBottom: 26 },
-  benefit: { flexDirection: 'row', gap: 14, marginBottom: 18, alignItems: 'flex-start', width: '100%' },
-  benefitIcon: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  benefitTitle: { fontSize: 15, fontWeight: '700', color: '#16201b', marginBottom: 3 },
-  benefitDesc: { fontSize: 13, color: '#6c7872', lineHeight: 18 },
-  pricingRow: {
-    flexDirection: 'row', alignItems: 'center', width: '100%',
-    borderWidth: 1.5, borderColor: '#e9e9e1', borderRadius: 999,
-    paddingVertical: 14, paddingLeft: 20, paddingRight: 10, marginBottom: 12, marginTop: 4,
-  },
-  pricingMain: { fontSize: 15, fontWeight: '800', color: '#16201b' },
-  pricingSub: { fontSize: 12, color: '#97a19b', marginTop: 1 },
-  pricingPill: { backgroundColor: '#059669', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  pricingPillText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  cta: { width: '100%', backgroundColor: '#059669', borderRadius: 999, paddingVertical: 17, alignItems: 'center', marginBottom: 14 },
-  ctaText: { fontSize: 16, fontWeight: '800', color: '#fff' },
-  restoreBtn: { paddingVertical: 6 },
-  restoreText: { fontSize: 13, color: '#97a19b' },
-});
-
-// Quiet country filter for the Ideas tab: recipes tagged for the user's country (plus "Universal" and
-// region-wide tags) come first, and non-matching ones are hidden -- but only when there are enough
-// matches to fill the page. The recipe library is mostly West African, so a Kenyan or Ethiopian user
-// would otherwise land on an almost empty tab; they get everything, their country's dishes first.
-const WEST_AFRICA = new Set(['Nigeria', 'Ghana', 'Benin', 'Togo', 'Sierra Leone', 'Liberia', 'Gambia', 'Senegal', 'Ivory Coast', 'Niger', 'Burkina Faso', 'Guinea', 'Guinea-Bissau', 'Mali', 'Mauritania', 'Cabo Verde']);
-const MIN_COUNTRY_RECIPES = 8;
-
-const recipeMatchesCountry = (recipe, country) =>
-  !!recipe.countries?.some(c =>
-    c === country ||
-    c.startsWith(`${country} (`) ||
-    c === 'Universal' ||
-    ((c === 'West Africa' || c === 'All West African countries') && WEST_AFRICA.has(country))
-  );
-
-const recipesForCountry = (country) => {
-  if (!country) return AFRICAN_RECIPES;
-  const matched = AFRICAN_RECIPES.filter(r => recipeMatchesCountry(r, country));
-  if (matched.length >= MIN_COUNTRY_RECIPES) return matched;
-  return [...matched, ...AFRICAN_RECIPES.filter(r => !matched.includes(r))];
-};
-
 const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   // The search box is well down the page. When the keyboard opens we scroll the page so the box sits at the
   // top of what is left on screen (and add room at the bottom so there is something to scroll into).
@@ -633,11 +474,36 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   const [photoError, setPhotoError] = useState(null);
   const [showCamera, setShowCamera] = useState(false);
   const [pendingUris, setPendingUris] = useState([]);
-  const [paywallVisible, setPaywallVisible] = useState(false);
+  const { isPro } = useSubscription();
+  const [listOpen, setListOpen] = useState(false);
+  const [listText, setListText] = useState('');
   const cameraRef = useRef(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const visibleRecipes = useMemo(() => recipesForCountry(userCountry), [userCountry]);
+  const freeRecipeIds = useMemo(() => {
+    const ids = new Set();
+    RECIPE_CATEGORIES.forEach(cat => { const first = visibleRecipes.find(r => r.category === cat); if (first) ids.add(first.id); });
+    return ids;
+  }, [visibleRecipes]);
+  const isLocked = (recipe) => !isPro && !freeRecipeIds.has(recipe.id);
+
+  // 'List it': match recipes to the ingredients you type (no AI needed).
+  const findFromList = () => {
+    const ingredients = listText.split(/[,\n]+/).map(t => t.trim()).filter(Boolean);
+    if (!ingredients.length) return;
+    const scored = AFRICAN_RECIPES
+      .map(r => ({ r, s: scoreRecipe(r, ingredients) }))
+      .filter(({ s }) => s > 0)
+      .sort((x, y) => y.s - x.s)
+      .slice(0, 8)
+      .map(({ r }) => r);
+    setPhotoIngredients(ingredients);
+    setPhotoMatches(scored);
+    setPhotoError(scored.length ? null : "No recipes match those ingredients yet. Try adding a few more.");
+    setPhotoPhase(scored.length ? 'results' : 'error');
+    setListOpen(false);
+  };
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -754,10 +620,18 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   const renderRecipeCard = (recipe) => {
     const displayName = getLocalName(recipe, userCountry);
     const isLocalised = displayName !== recipe.name;
+    const locked = isLocked(recipe);
     return (
-      <TouchableOpacity key={recipe.id} style={styles.recipeCard} onPress={() => openRecipe(recipe)}>
+      <TouchableOpacity key={recipe.id} style={styles.recipeCard} onPress={() => (locked ? unlock('recipe') : openRecipe(recipe))}>
         {recipe.imageUrl ? (
-          <Image source={{ uri: recipe.imageUrl }} style={styles.recipeCardImg} resizeMode="cover" />
+          <View>
+            <Image source={{ uri: recipe.imageUrl }} style={styles.recipeCardImg} resizeMode="cover" blurRadius={locked ? 18 : 0} />
+            {locked && (
+              <View style={styles.lockOverlay}>
+                <View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View>
+              </View>
+            )}
+          </View>
         ) : (
           <View style={[styles.recipeCardImg, { alignItems: 'center', justifyContent: 'center' }]}>
             <Text style={styles.recipeCardEmoji}>🍽️</Text>
@@ -812,35 +686,56 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
         >
           {/* Action cards — hidden for now */}
           {SHOW_RECIPE_CREATORS && (<View style={styles.actionRow}>
-            <TouchableOpacity style={styles.actionCard} onPress={() => setPaywallVisible(true)}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => (isPro ? openCamera() : unlock('recipe_photo'))}>
               <View style={[styles.actionIconBg, { backgroundColor: '#ECFDF5' }]}>
                 <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
                   <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                   <Circle cx="12" cy="13" r="4" />
                 </Svg>
               </View>
-              <View style={styles.actionProBadge}>
-                <Ionicons name="lock-closed" size={8} color="#6EE7B7" />
-                <Text style={styles.actionProBadgeText}>PRO</Text>
-              </View>
-              <Text style={styles.actionTitle}>Take a{'\n'}Picture</Text>
-              <Text style={styles.actionDesc}>Snap your fridge or pantry</Text>
+              {!isPro && (
+                <View style={styles.actionProBadge}>
+                  <Ionicons name="lock-closed" size={8} color="#6EE7B7" />
+                  <Text style={styles.actionProBadgeText}>PRO</Text>
+                </View>
+              )}
+              <Text style={styles.actionTitle}>Snap it</Text>
+              <Text style={styles.actionDesc}>Photo your fridge or pantry</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionCard} onPress={() => setPaywallVisible(true)}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => (isPro ? setListOpen(v => !v) : unlock('recipe_photo'))}>
               <View style={[styles.actionIconBg, { backgroundColor: '#EFF6FF' }]}>
                 <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
                   <Path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                   <Path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </Svg>
               </View>
-              <View style={styles.actionProBadge}>
-                <Ionicons name="lock-closed" size={8} color="#6EE7B7" />
-                <Text style={styles.actionProBadgeText}>PRO</Text>
-              </View>
-              <Text style={styles.actionTitle}>List{'\n'}Ingredients</Text>
-              <Text style={styles.actionDesc}>Type or say what you have</Text>
+              {!isPro && (
+                <View style={styles.actionProBadge}>
+                  <Ionicons name="lock-closed" size={8} color="#6EE7B7" />
+                  <Text style={styles.actionProBadgeText}>PRO</Text>
+                </View>
+              )}
+              <Text style={styles.actionTitle}>List it</Text>
+              <Text style={styles.actionDesc}>Type what you have</Text>
             </TouchableOpacity>
           </View>)}
+
+          {listOpen && isPro && (
+            <View style={styles.listBox}>
+              <TextInput
+                style={styles.listInput}
+                placeholder="e.g. rice, tomatoes, chicken, onions"
+                placeholderTextColor="#999"
+                value={listText}
+                onChangeText={setListText}
+                multiline
+                autoFocus
+              />
+              <TouchableOpacity style={[styles.listBtn, !listText.trim() && { opacity: 0.5 }]} onPress={findFromList} disabled={!listText.trim()}>
+                <Text style={styles.listBtnTxt}>Find recipes</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Photo analysis states */}
           {photoPhase === 'analyzing' && (
@@ -853,7 +748,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
           {photoPhase === 'error' && (
             <View style={styles.photoErrorBox}>
               <Text style={styles.photoErrorText}>{photoError || 'Could not analyse the photo.'}</Text>
-              <TouchableOpacity onPress={openCamera} style={styles.photoRetryBtn}>
+              <TouchableOpacity onPress={() => (photoIngredients.length && listText ? setListOpen(true) : openCamera())} style={styles.photoRetryBtn}>
                 <Text style={styles.photoRetryText}>Try again</Text>
               </TouchableOpacity>
             </View>
@@ -1019,7 +914,6 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
         onLogMeal={onLogMeal}
         userCountry={userCountry}
       />
-      <ProPaywall visible={paywallVisible} onClose={() => setPaywallVisible(false)} />
     </View>
   );
 };
@@ -1070,6 +964,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 3,
   },
   actionProBadgeText: { fontSize: 9, fontWeight: '800', color: '#6EE7B7', letterSpacing: 0.8 },
+  listBox: { backgroundColor: '#fff', borderRadius: 16, padding: 12, marginBottom: 20, borderWidth: 1.5, borderColor: 'rgba(5,150,105,0.12)' },
+  listInput: { minHeight: 64, fontSize: 15, color: '#1F1F1F', textAlignVertical: 'top' },
+  listBtn: { marginTop: 8, height: 44, borderRadius: 12, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' },
+  listBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  lockOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  lockBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(22,32,27,0.72)', alignItems: 'center', justifyContent: 'center' },
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
