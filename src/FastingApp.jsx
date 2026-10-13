@@ -2360,7 +2360,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           onMealLogBlocked={() => showToast('Log meals only after ending your fast.')}
           onFindRecipe={() => setShowFindRecipePage(true)}
           onShowMakeRecipe={() => setShowMakeRecipePage(true)}
-          onShowChat={async (context) => { if (!(await ensureAiConsent())) { showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; } setChatOpeningContext(context || null); setChatVariant('meals'); setChatOpenedFromLogMealOptions(true); setShowChat(true); }}
+          onShowChat={async (context) => { if (!canLogMealOn(selectedMealDate)) return; if (!(await ensureAiConsent())) { showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; } setChatOpeningContext(context || null); setChatVariant('meals'); setChatOpenedFromLogMealOptions(true); setShowChat(true); }}
           onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setLogMealOpenedFromOptions(false); setShowLogMealModal(true); }}
           onDeleteMeal={async (id) => {
             const prevMeals = recentMeals;
