@@ -560,15 +560,6 @@ export const PHOTO_CREDITS = [
     "page": "https://commons.wikimedia.org/wiki/File:Escali_digital_kitchen_scale.jpg"
   },
   {
-    "file": "articles/calorie-deficit-sweet-spot.jpg",
-    "what": "Article: Deficit sweet spot",
-    "title": "Liat Portal for Foodie Disorder - Healthy low-fat chicken, rice, broccoli, and s",
-    "author": "HaJunkiyada",
-    "license": "CC BY-SA 4.0",
-    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "page": "https://commons.wikimedia.org/wiki/File:Liat_Portal_for_Foodie_Disorder_-_Healthy_low-fat_chicken,_rice,_broccoli,_and_sweet_potato_plate.jpg"
-  },
-  {
     "file": "articles/calories-not-whole-story.jpg",
     "what": "Article: Calories aren't everything",
     "title": "DFC 2197 A colorful assortment of fresh fruits and vegetables - apples mango dra",
@@ -585,15 +576,6 @@ export const PHOTO_CREDITS = [
     "license": "CC0",
     "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
     "page": "https://commons.wikimedia.org/wiki/File:Paperlist.jpg"
-  },
-  {
-    "file": "articles/electrolytes-matter.jpg",
-    "what": "Article: Electrolytes",
-    "title": "Coconut Drink, Ubud, Bali, 20220822 1345 0126",
-    "author": "Jakub Hałun",
-    "license": "CC BY-SA 4.0",
-    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
-    "page": "https://commons.wikimedia.org/wiki/File:Coconut_Drink,_Ubud,_Bali,_20220822_1345_0126.jpg"
   },
   {
     "file": "articles/fat-burning-starts-here.jpg",
@@ -657,15 +639,6 @@ export const PHOTO_CREDITS = [
     "license": "CC BY-SA 2.0",
     "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
     "page": "https://commons.wikimedia.org/wiki/File:Bedroom_@_night_(3119861751).jpg"
-  },
-  {
-    "file": "articles/starting-your-day-right.jpg",
-    "what": "Article: Starting your day",
-    "title": "Breakfast in Île d'Orléans 072",
-    "author": "Wilfredor",
-    "license": "CC0",
-    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-    "page": "https://commons.wikimedia.org/wiki/File:Breakfast_in_%C3%8Ele_d%27Orl%C3%A9ans_072.jpg"
   },
   {
     "file": "articles/stress-stalls-weight-loss.jpg",
