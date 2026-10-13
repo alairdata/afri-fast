@@ -708,6 +708,8 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
       <ScrollView contentContainerStyle={ca.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <AuthTop onBack={() => setScreen('onboarding')} />
 
+        {/* Sits a little lower than the other auth screens, so it isn't crowded at the top */}
+        <View style={{ height: 40 }} />
         <Text style={ca.eyebrow}>WELCOME BACK</Text>
         <Text style={ca.headline}>Log back in.</Text>
         <Text style={ca.subtitle}>Pick up right where you left off.</Text>
