@@ -1,4 +1,4 @@
-// Logga Pro through Apple in-app purchase, managed by RevenueCat (entitlement 'pro', offering 'default'
+// Logga Pro through Apple in-app purchase, managed by RevenueCat (entitlement 'logga_pro', offering 'default'
 // with a Monthly and an Annual package; the yearly product carries the 7-day free trial).
 // Only iOS can buy, so the Free/Pro split only applies there: on web and Android (no way to pay yet)
 // everything stays unlocked.
@@ -6,8 +6,9 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 
-const IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || '';
-export const ENTITLEMENT = 'pro';
+// RevenueCat public SDK key for the App Store app (public by design; safe to ship in the app).
+const IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || 'appl_vZinLvIPrzgYbpiLBwZItkfHBHV';
+export const ENTITLEMENT = 'logga_pro';
 export const FREE_MEALS_PER_DAY = 2;
 const CACHE_KEY = 'logga_is_pro_v1';
 
