@@ -36,8 +36,8 @@ const BENEFITS = [
 
 // Real quotes from people who used Pro before launch (with their permission). No star ratings: they gave words, not stars.
 const TESTIMONIALS = [
-  { quote: 'To be honest, Pro changed how I see my relationship with food.', by: 'Early tester' },
-  { quote: 'Best decision ever!', by: 'Samuel, early tester' },
+  { quote: 'To be honest, Pro changed how I see my relationship with food.', by: 'Abena' },
+  { quote: 'Best decision ever!', by: 'Samuel' },
 ];
 
 // Food floating around the header (instead of a mascot): [emoji, left %, top, size, rotation].
@@ -223,7 +223,7 @@ const PaywallModal = ({ goal }) => {
               </View>
             )}
 
-            {/* What early testers said */}
+            {/* What people said */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 22, marginHorizontal: -22 }} contentContainerStyle={{ paddingHorizontal: 22, gap: 10 }}>
               {TESTIMONIALS.map((t) => (
                 <View key={t.quote} style={styles.quoteCard}>
