@@ -612,10 +612,10 @@ async function callGeminiJson(prompt, apiKey, schema) {
     });
     if (response.status === 503) continue;
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error?.message || 'Gemini API error');
+    if (!response.ok) throw new Error(result.error?.message || 'AI service error');
     return result?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim() || '';
   }
-  throw new Error('All Gemini models unavailable');
+  throw new Error('AI service unavailable');
 }
 
 export default async function handler(req, res) {
@@ -632,7 +632,7 @@ export default async function handler(req, res) {
   const CLAUDE_KEY = process.env.CLAUDE_KEY;
   const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   if (type === 'just_for_you') {
-    if (!GEMINI_KEY) return res.status(500).json({ error: 'Gemini API key not configured' });
+    if (!GEMINI_KEY) return res.status(500).json({ error: 'AI service not configured' });
   } else if (!CLAUDE_KEY) {
     return res.status(500).json({ error: 'API key not configured' });
   }

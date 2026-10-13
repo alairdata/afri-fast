@@ -214,7 +214,7 @@ export function PrivacySheet({ visible, onClose, shareCommunityPhotos, onToggleS
         <View style={{ flex: 1 }}>
           <Text style={[st.toggleLabel, { color: colors.text }]}>AI features</Text>
           <Text style={[st.toggleDesc, { color: colors.textMuted }]}>
-            Meal photos, voice notes and descriptions go to Google Gemini to estimate calories; coach chats and log summaries go to Anthropic Claude for insights. Off means you log meals by typing them in.
+            Meal photos, voice notes and descriptions, coach chats and log summaries are sent to third-party AI providers to estimate calories and write your insights. Off means you log meals by typing them in.
           </Text>
         </View>
         <Switch value={consent.ai === true} onValueChange={(v) => setPart({ ai: v })} trackColor={{ false: '#D1D5DB', true: GREEN }} thumbColor="#fff" />

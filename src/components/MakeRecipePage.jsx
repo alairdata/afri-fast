@@ -666,7 +666,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   }, [makeRecipeMethod]);
 
   const openCamera = async () => {
-    if (!(await ensureAiConsent())) return; // ingredient photos go to Google Gemini
+    if (!(await ensureAiConsent())) return; // ingredient photos go to the AI provider
     if (!cameraPermission?.granted) {
       const { granted } = await requestCameraPermission();
       if (!granted) {

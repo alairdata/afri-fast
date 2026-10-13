@@ -49,14 +49,14 @@ const AiConsentModal = ({ signedIn }) => {
           <View style={styles.iconWrap}><Ionicons name="sparkles-outline" size={26} color={GREEN} /></View>
           <Text style={styles.title}>How Logga uses AI</Text>
           <Text style={styles.body}>
-            To estimate the calories in your meals and write your insights, Logga sends some of your data to outside AI services, only to create a response for you. Logga never uses your data for advertising.
+            To estimate the calories in your meals and write your insights, Logga sends some of your data to trusted third-party AI providers, only to create a response for you. Logga never uses your data for advertising.
           </Text>
 
           <View style={styles.card}>
-            <Text style={styles.provider}>Google Gemini</Text>
-            <Text style={styles.what}>Meal photos, voice notes and food descriptions you log, and short summaries of your logs to explain your scores.</Text>
+            <Text style={styles.provider}>Meal logging</Text>
+            <Text style={styles.what}>The meal photos, voice notes and food descriptions you log, to identify the food and estimate calories, plus short summaries of your logs to explain your scores.</Text>
             <View style={styles.divider} />
-            <Text style={styles.provider}>Anthropic Claude</Text>
+            <Text style={styles.provider}>Coach and insights</Text>
             <Text style={styles.what}>Your messages to the coach, and a summary of your recent logs (meals, weight, water, steps, activities, check-ins and goals) for your daily insight.</Text>
           </View>
 

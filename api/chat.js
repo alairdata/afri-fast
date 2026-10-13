@@ -298,7 +298,7 @@ export default async function handler(req, res) {
   const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
   const callGemini = async (systemPrompt, userMessages, schema) => {
     const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-    if (!GEMINI_KEY) throw new Error('Gemini API key not configured');
+    if (!GEMINI_KEY) throw new Error('AI service not configured');
     const contents = userMessages.map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
@@ -319,10 +319,10 @@ export default async function handler(req, res) {
       });
       if (response.status === 503) continue;
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error?.message || 'Gemini API error');
+      if (!response.ok) throw new Error(result.error?.message || 'AI service error');
       return result?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim() || '';
     }
-    throw new Error('All Gemini models unavailable');
+    throw new Error('AI service unavailable');
   };
 
   try {

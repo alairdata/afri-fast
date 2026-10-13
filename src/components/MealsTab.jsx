@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platf
 import { useTheme } from '../lib/theme';
 import { TAB_BAR_HEIGHT } from '../lib/tokens';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
+import { getConsent, loadConsent, onConsentChange } from '../lib/consent';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -86,6 +87,12 @@ const swipeStyles = StyleSheet.create({
 });
 
 const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMeal, onFindRecipe, onViewMeal, onDeleteMeal, isFasting = false, onMealLogBlocked, onShowChat, onShowMakeRecipe, showLogMealOptions, setShowLogMealOptions }) => {
+  // 'Enter it yourself' is only for people who turned AI off; everyone else logs with AI.
+  const [aiOff, setAiOff] = useState(getConsent().ai === false);
+  useEffect(() => {
+    loadConsent().then((c) => setAiOff(c.ai === false));
+    return onConsentChange((c) => setAiOff(c.ai === false));
+  }, []);
   const { colors } = useTheme();
   const styles = makeStyles(colors);
 
@@ -420,15 +427,15 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
             </View>
           </View>
 
-          {/* No AI: type the meal in */}
-          <TouchableOpacity style={styles.manualRow} onPress={() => handleLogMethod('manual')} activeOpacity={0.7}>
+          {/* No AI: type the meal in (only shown when AI is off) */}
+          {aiOff && <TouchableOpacity style={styles.manualRow} onPress={() => handleLogMethod('manual')} activeOpacity={0.7}>
             <Ionicons name="create-outline" size={18} color={colors.text} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.manualTitle, { color: colors.text }]}>Enter it yourself</Text>
               <Text style={styles.manualSub}>Type a food and its calories, no AI</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#ccc" />
-          </TouchableOpacity>
+          </TouchableOpacity>}
         </View>
       )}
 

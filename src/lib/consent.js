@@ -1,6 +1,6 @@
 // What the person has agreed to (App Store guidelines 5.1.1(ii) and 5.1.2(i)):
 //  - ai: sending their meal photos, voice notes, descriptions and log summaries to third-party AI
-//        (Google Gemini, Anthropic Claude). null = not asked yet.
+//        providers. null = not asked yet.
 //  - analytics: anonymous usage events to Mixpanel. null = not asked yet (events wait, unsent).
 // Stored on the device; asked once after sign-in and changeable any time in Privacy Settings.
 import AsyncStorage from '@react-native-async-storage/async-storage';
