@@ -807,11 +807,8 @@ const TodayTab = ({
   };
   const calHistory = getWeekCalHistory();
 
-  // Pull 6 so the Just for You resource card and the Based on Your Pattern
-  // row never show the same article on the same day.
-  const dailyArticlePool = getDailyArticles(6);
-  const resourceArticle = dailyArticlePool[0];
-  const patternCards = dailyArticlePool.slice(1);
+  // Today's articles for the Based on Your Pattern row (Just for You shows insights only).
+  const patternCards = getDailyArticles(5);
 
   const [selectedArticle, setSelectedArticle] = useState(null);
 
@@ -941,18 +938,6 @@ const TodayTab = ({
                 />
               )))}
 
-            {resourceArticle && (
-              <TouchableOpacity
-                style={[styles.patternCardLarge, { width: 260, minHeight: 160, justifyContent: 'space-between' }]}
-                onPress={() => setSelectedArticle(resourceArticle)}
-              >
-                <Image source={resourceArticle.image} style={[styles.patternImageArea, { width: 260, height: 96 }]} resizeMode="cover" />
-                <View>
-                  <Text style={styles.patternTitleLarge}>{resourceArticle.title}</Text>
-                  <Text style={styles.patternTimeLarge}>{resourceArticle.time}</Text>
-                </View>
-              </TouchableOpacity>
-            )}
           </ScrollView>
         </View>
 
