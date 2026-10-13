@@ -59,9 +59,11 @@ const FOOD_ITEM = {
     carbs:   { type: 'NUMBER', description: 'Grams of carbohydrates.' },
     fats:    { type: 'NUMBER', description: 'Grams of fat.' },
     fiber:   { type: 'NUMBER', description: 'Grams of fiber.' },
+    sugar:   { type: 'NUMBER', description: 'Grams of total sugars (natural and added).' },
+    sodium:  { type: 'NUMBER', description: 'Milligrams of sodium, including salt and seasoning cubes used in cooking.' },
     cal:     { type: 'NUMBER', description: 'Calories: (protein*4)+(carbs*4)+(fats*9).' },
   },
-  required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'cal'],
+  required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'sugar', 'sodium', 'cal'],
 };
 
 const MEAL_SCHEMA = {
@@ -87,9 +89,11 @@ const SINGLE_FOOD_SCHEMA = {
     carbs:   { type: 'NUMBER' },
     fats:    { type: 'NUMBER' },
     fiber:   { type: 'NUMBER' },
+    sugar:   { type: 'NUMBER' },
+    sodium:  { type: 'NUMBER' },
     cal:     { type: 'NUMBER' },
   },
-  required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'cal'],
+  required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'sugar', 'sodium', 'cal'],
 };
 
 const INGREDIENTS_SCHEMA = {
@@ -203,9 +207,11 @@ function normalizeFood(f, fallback = 'Unknown food') {
   const carbs   = Number(f.carbs)   || 0;
   const fats    = Number(f.fats)    || 0;
   const fiber   = Number(f.fiber)   || 0;
+  const sugar   = Number(f.sugar)   || 0;
+  const sodium  = Number(f.sodium)  || 0;
   const macroCal = Math.round(protein * 4 + carbs * 4 + fats * 9);
   const cal = macroCal > 0 ? macroCal : (Number(f.cal) || 0);
-  return { name: f.name || fallback, qty: f.qty || '1 serving', cal, protein, carbs, fats, fiber };
+  return { name: f.name || fallback, qty: f.qty || '1 serving', cal, protein, carbs, fats, fiber, sugar, sodium };
 }
 
 // ── Route handler ────────────────────────────────────────────────────────────
@@ -292,7 +298,7 @@ export default async function handler(req, res) {
     if (type === 'recalculate_portion') {
       const { foodName, oldQty, newQty, currentNutrition: n } = data;
       const text = await callGemini(GEMINI_KEY, [{
-        text: `Food: "${foodName}"\nPrevious portion: ${oldQty} → cal: ${n?.cal ?? 0} kcal, protein: ${n?.protein ?? 0}g, carbs: ${n?.carbs ?? 0}g, fats: ${n?.fats ?? 0}g, fiber: ${n?.fiber ?? 0}g\nNew portion: "${newQty}"\n\nIf the new portion is a precise weight or volume (e.g. 200g, 150ml, 3oz), calculate directly from nutrition knowledge for that exact amount and return the qty as that exact figure verbatim — do not convert it into an approximate description.\nIf same unit type but different quantity, scale proportionally.\nIf the unit type changed without a precise weight, recalculate from scratch.\nIf the new portion text contains a food name (e.g. "1.5 cups of beans"), use that as the name.`,
+        text: `Food: "${foodName}"\nPrevious portion: ${oldQty} → cal: ${n?.cal ?? 0} kcal, protein: ${n?.protein ?? 0}g, carbs: ${n?.carbs ?? 0}g, fats: ${n?.fats ?? 0}g, fiber: ${n?.fiber ?? 0}g, sugar: ${n?.sugar ?? 0}g, sodium: ${n?.sodium ?? 0}mg\nNew portion: "${newQty}"\n\nIf the new portion is a precise weight or volume (e.g. 200g, 150ml, 3oz), calculate directly from nutrition knowledge for that exact amount and return the qty as that exact figure verbatim — do not convert it into an approximate description.\nIf same unit type but different quantity, scale proportionally.\nIf the unit type changed without a precise weight, recalculate from scratch.\nIf the new portion text contains a food name (e.g. "1.5 cups of beans"), use that as the name.`,
       }], { systemInstruction: NUTRITION_SYSTEM, schema: SINGLE_FOOD_SCHEMA });
 
       const parsed = parseJson(text);

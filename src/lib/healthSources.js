@@ -120,6 +120,11 @@ export const SOURCES = {
     by: 'World Health Organization',
     url: 'https://www.who.int/news-room/fact-sheets/detail/salt-reduction',
   },
+  whoSugars: {
+    title: 'Guideline: sugars intake for adults and children',
+    by: 'World Health Organization, 2015',
+    url: 'https://www.who.int/publications/i/item/9789241549028',
+  },
   nhsMinerals: {
     title: 'Vitamins and minerals: others (magnesium, potassium and more)',
     by: 'NHS (UK National Health Service)',
@@ -281,8 +286,8 @@ export const TOPICS = [
   {
     id: 'food',
     title: 'Healthy eating and food tips',
-    summary: 'General food guidance in articles and tips follows WHO healthy-diet advice and research on fibre, whole grains and pulses. Food calorie values in Logga are estimates.',
-    sources: ['whoHealthyDiet', 'reynolds2019', 'li2014'],
+    summary: 'General food guidance in articles and tips follows WHO healthy-diet advice and research on fibre, whole grains and pulses. Sugar and sodium reference amounts follow WHO guidance. Food calorie values in Logga are estimates.',
+    sources: ['whoHealthyDiet', 'reynolds2019', 'li2014', 'whoSugars', 'whoSalt'],
   },
   {
     id: 'sleep',

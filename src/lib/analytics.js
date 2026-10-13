@@ -58,6 +58,14 @@ export const EVENTS = {
   // Growth
   EMAIL_SENT: 'email_sent',
   NOTIFICATION_OPENED: 'notification_opened',
+  // Logga Pro
+  PAYWALL_VIEWED: 'paywall_viewed',
+  PURCHASE_STARTED: 'purchase_started',
+  SUBSCRIBED: 'subscribed',
+  PURCHASE_CANCELLED: 'purchase_cancelled',
+  PURCHASE_FAILED: 'purchase_failed',
+  PURCHASES_RESTORED: 'purchases_restored',
+  PRO_LOCK_TAPPED: 'pro_lock_tapped',
   WIDGET_OPENED: 'widget_opened',
 };
 

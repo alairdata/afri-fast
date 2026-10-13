@@ -19,6 +19,8 @@ import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '.
 import { getCachedMomentumWhy, getMomentumWhy } from '../lib/momentumWhy';
 import { SourcesLink } from './HealthSourcesPage';
 import InfoTip from './InfoTip';
+import { useSubscription } from '../lib/subscription';
+import { ProLockedBody, ProTag, unlock } from './ProLock';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -200,6 +202,7 @@ const ProgressTab = ({
   userId = null, userName = '', goalDate = null, userJoinDate = null, age = null, sex = null,
   activityLevel = null, pacePreference = null, proteinGoal = null, carbsGoal = null, fatsGoal = null,
 }) => {
+  const { isPro } = useSubscription();
   const { colors } = useTheme();
   const styles = makeStyles(colors);
   // Precomputed daily_goal_ledger, keyed for O(1) lookup by date -- see lib/goalHistory.js.
@@ -1739,8 +1742,9 @@ const ProgressTab = ({
                     </Text>
                   </View>
                 )}
-                <TouchableOpacity style={styles.detailsBtn} onPress={() => setView('details')}>
+                <TouchableOpacity style={styles.detailsBtn} onPress={() => (isPro ? setView('details') : unlock('forecast'))}>
                   <Text style={styles.detailsBtnText}>See details</Text>
+                  {!isPro && <ProTag style={{ marginLeft: 6 }} />}
                   <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
@@ -1760,6 +1764,9 @@ const ProgressTab = ({
                     <Text style={[styles.pillText, { color: confidenceColor }]}>{confidence} confidence</Text>
                   </View>
                 </View>
+                {!isPro ? (
+                  <ProLockedBody reason="forecast" colors={colors} text="See your weight 7 and 14 days from now, your likely goal date and what's driving it." />
+                ) : (<>
                 <View style={[styles.statsRow, { marginTop: 10 }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + 7 * DAY_MS)).toUpperCase()} (7D)</Text>
@@ -1782,6 +1789,7 @@ const ProgressTab = ({
                 </View>
                 {forecastAnchorNote ? <Text style={[styles.mutedSmall, { marginTop: 10 }]}>{forecastAnchorNote}</Text> : null}
                 <Text style={[styles.mutedSmall, { marginTop: 10 }]}>Confidence is based on your logging streak and how recent your last weigh-in is — {Math.round(today.confidence * 100)}% right now.</Text>
+                </>)}
               </View>
             )}
 
@@ -1910,8 +1918,9 @@ const ProgressTab = ({
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <RangeDropdown value={calorieRange} onChange={setCalorieRange} styles={styles} />
-                  <TouchableOpacity onPress={() => onShowCalorieDetails && onShowCalorieDetails()}>
+                  <TouchableOpacity onPress={() => onShowCalorieDetails && onShowCalorieDetails()} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                     <Text style={styles.seeAllBtnSmall}>See all</Text>
+                    {!isPro && <ProTag />}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1998,6 +2007,10 @@ const ProgressTab = ({
 
             {/* Burnout likelihood */}
             <View style={styles.card}>
+              {!isPro ? (<>
+                <View style={styles.titleTipRow}><Text style={styles.kicker}>BURNOUT LIKELIHOOD</Text><InfoTip id="burnout" /></View>
+                <ProLockedBody reason="burnout" colors={colors} text="See how likely you are to burn out this week, what's pushing it up and when you might feel worn out." />
+              </>) : (<>
               <View style={styles.rowBetween}>
                 <View>
                   <View style={styles.titleTipRow}><Text style={styles.kicker}>BURNOUT LIKELIHOOD</Text><InfoTip id="burnout" /></View>
@@ -2051,6 +2064,7 @@ const ProgressTab = ({
                 </View>
               )}
               <SourcesLink topic="wellbeing" label="Not a diagnosis · Sources" color={colors.textMuted} style={{ marginTop: 12 }} />
+              </>)}
             </View>
 
             {/* Hydration */}

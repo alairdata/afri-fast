@@ -398,7 +398,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       protein: recipeToLog.protein || 0,
       carbs: recipeToLog.carbs || 0,
       fats: recipeToLog.fats || 0,
-      fiber: recipeToLog.fiber || 0,
+      fiber: recipeToLog.fiber || 0, sugar: recipeToLog.sugar || 0, sodium: recipeToLog.sodium || 0,
     }]);
     setMealTitle(recipeToLog.name);
     if (recipeToLog.imageUrl) {
@@ -428,7 +428,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         protein: foods.reduce((sum, f) => sum + (f.protein || 0), 0),
         carbs: foods.reduce((sum, f) => sum + (f.carbs || 0), 0),
         fats: foods.reduce((sum, f) => sum + (f.fats || 0), 0),
-        fiber: foods.reduce((sum, f) => sum + (f.fiber || 0), 0),
+        fiber: foods.reduce((sum, f) => sum + (f.fiber || 0), 0), sugar: foods.reduce((sum, f) => sum + (f.sugar || 0), 0), sodium: foods.reduce((sum, f) => sum + (f.sodium || 0), 0),
         time: timeStr,
         date: mealDate.toDateString(),
         photo: null,
@@ -813,7 +813,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         protein: detectedFoods.reduce((sum, f) => sum + (f.protein || 0), 0),
         carbs: detectedFoods.reduce((sum, f) => sum + (f.carbs || 0), 0),
         fats: detectedFoods.reduce((sum, f) => sum + (f.fats || 0), 0),
-        fiber: detectedFoods.reduce((sum, f) => sum + (f.fiber || 0), 0),
+        fiber: detectedFoods.reduce((sum, f) => sum + (f.fiber || 0), 0), sugar: detectedFoods.reduce((sum, f) => sum + (f.sugar || 0), 0), sodium: detectedFoods.reduce((sum, f) => sum + (f.sodium || 0), 0),
         time: timeStr,
         items: detectedFoods.map(f => `${f.name} (${f.qty})`),
         date: mealDate.toDateString(),
@@ -963,7 +963,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       setDetectedFoods((result.foods || []).map((f, i) => ({
         name: f.name || 'Unknown', qty: f.qty || '1 serving',
         cal: f.cal || 0, protein: f.protein || 0,
-        carbs: f.carbs || 0, fats: f.fats || 0, fiber: f.fiber || 0, id: i,
+        carbs: f.carbs || 0, fats: f.fats || 0, fiber: f.fiber || 0, sugar: f.sugar || 0, sodium: f.sodium || 0, id: i,
       })));
       setSayPhase('results');
     } catch (e) {
@@ -989,7 +989,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         protein: detectedFoods.reduce((sum, f) => sum + (f.protein || 0), 0),
         carbs: detectedFoods.reduce((sum, f) => sum + (f.carbs || 0), 0),
         fats: detectedFoods.reduce((sum, f) => sum + (f.fats || 0), 0),
-        fiber: detectedFoods.reduce((sum, f) => sum + (f.fiber || 0), 0),
+        fiber: detectedFoods.reduce((sum, f) => sum + (f.fiber || 0), 0), sugar: detectedFoods.reduce((sum, f) => sum + (f.sugar || 0), 0), sodium: detectedFoods.reduce((sum, f) => sum + (f.sodium || 0), 0),
         time: timeStr,
         items: detectedFoods.map(f => `${f.name} (${f.qty})`),
         date: mealDate.toDateString(),
@@ -1030,7 +1030,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         protein: recipeToLog.protein || 0,
         carbs: recipeToLog.carbs || 0,
         fats: recipeToLog.fats || 0,
-        fiber: recipeToLog.fiber || 0,
+        fiber: recipeToLog.fiber || 0, sugar: recipeToLog.sugar || 0, sodium: recipeToLog.sodium || 0,
         time: timeStr,
         date: mealDate.toDateString(),
         photo: recipeToLog.imageUrl || null,
@@ -1202,7 +1202,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                     protein: recalculated?.protein ?? f.protein ?? 0,
                                     carbs: recalculated?.carbs ?? f.carbs ?? 0,
                                     fats: recalculated?.fats ?? f.fats ?? 0,
-                                    fiber: recalculated?.fiber ?? f.fiber ?? 0,
+                                    fiber: recalculated?.fiber ?? f.fiber ?? 0, sugar: recalculated?.sugar ?? f.sugar ?? 0, sodium: recalculated?.sodium ?? f.sodium ?? 0,
                                   } : f));
 
                                   setUpdatingQtyIdx(null);
@@ -1223,7 +1223,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         </View>
                         {editingQtyIdx !== i && (
                           <View style={styles.qtyControl}>
-                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = Math.max(0, f.cal - 25); const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats }; }))}>
+                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = Math.max(0, f.cal - 25); const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats, fiber: ratio > 0 ? Math.round((f.fiber || 0) * ratio * 10) / 10 : f.fiber, sugar: ratio > 0 ? Math.round((f.sugar || 0) * ratio * 10) / 10 : f.sugar, sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium }; }))}>
                               <Text style={styles.qtyBtnText}>−</Text>
                             </TouchableOpacity>
                             <View style={{ alignItems: 'center', minWidth: 50 }}>
@@ -1248,7 +1248,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                           cal: val,
                                           protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein,
                                           carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs,
-                                          fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats,
+                                          fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats, fiber: ratio > 0 ? Math.round((f.fiber || 0) * ratio * 10) / 10 : f.fiber, sugar: ratio > 0 ? Math.round((f.sugar || 0) * ratio * 10) / 10 : f.sugar, sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium,
                                         };
                                       }));
                                     }
@@ -1265,7 +1265,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                               )}
                               <Text style={styles.foodCalLabel}>CAL</Text>
                             </View>
-                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = f.cal + 25; const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats }; }))}>
+                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = f.cal + 25; const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats, fiber: ratio > 0 ? Math.round((f.fiber || 0) * ratio * 10) / 10 : f.fiber, sugar: ratio > 0 ? Math.round((f.sugar || 0) * ratio * 10) / 10 : f.sugar, sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium }; }))}>
                               <Text style={styles.qtyBtnText}>+</Text>
                             </TouchableOpacity>
                           </View>
@@ -1296,7 +1296,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                 name: newItemName.trim(),
                                 qty: '1 serving',
                                 cal: 0,
-                                protein: 0, carbs: 0, fats: 0, fiber: 0,
+                                protein: 0, carbs: 0, fats: 0, fiber: 0, sugar: 0, sodium: 0,
                               }]);
                               setNewItemName('');
                               setAddItemDetecting(false);
@@ -1509,7 +1509,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                     protein: recalculated?.protein ?? f.protein ?? 0,
                                     carbs: recalculated?.carbs ?? f.carbs ?? 0,
                                     fats: recalculated?.fats ?? f.fats ?? 0,
-                                    fiber: recalculated?.fiber ?? f.fiber ?? 0,
+                                    fiber: recalculated?.fiber ?? f.fiber ?? 0, sugar: recalculated?.sugar ?? f.sugar ?? 0, sodium: recalculated?.sodium ?? f.sodium ?? 0,
                                   } : f));
                                   setUpdatingQtyIdx(null);
                                 }}
@@ -1529,7 +1529,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         </View>
                         {editingQtyIdx !== i && (
                           <View style={styles.qtyControl}>
-                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = Math.max(0, f.cal - 25); const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats }; }))}>
+                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = Math.max(0, f.cal - 25); const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats, fiber: ratio > 0 ? Math.round((f.fiber || 0) * ratio * 10) / 10 : f.fiber, sugar: ratio > 0 ? Math.round((f.sugar || 0) * ratio * 10) / 10 : f.sugar, sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium }; }))}>
                               <Text style={styles.qtyBtnText}>−</Text>
                             </TouchableOpacity>
                             <View style={{ alignItems: 'center', minWidth: 50 }}>
@@ -1554,7 +1554,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                           cal: val,
                                           protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein,
                                           carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs,
-                                          fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats,
+                                          fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats, fiber: ratio > 0 ? Math.round((f.fiber || 0) * ratio * 10) / 10 : f.fiber, sugar: ratio > 0 ? Math.round((f.sugar || 0) * ratio * 10) / 10 : f.sugar, sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium,
                                         };
                                       }));
                                     }
@@ -1571,7 +1571,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                               )}
                               <Text style={styles.foodCalLabel}>CAL</Text>
                             </View>
-                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = f.cal + 25; const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats }; }))}>
+                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = f.cal + 25; const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats, fiber: ratio > 0 ? Math.round((f.fiber || 0) * ratio * 10) / 10 : f.fiber, sugar: ratio > 0 ? Math.round((f.sugar || 0) * ratio * 10) / 10 : f.sugar, sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium }; }))}>
                               <Text style={styles.qtyBtnText}>+</Text>
                             </TouchableOpacity>
                           </View>
@@ -2021,7 +2021,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                     protein: recalculated?.protein ?? f.protein ?? 0,
                                     carbs: recalculated?.carbs ?? f.carbs ?? 0,
                                     fats: recalculated?.fats ?? f.fats ?? 0,
-                                    fiber: recalculated?.fiber ?? f.fiber ?? 0,
+                                    fiber: recalculated?.fiber ?? f.fiber ?? 0, sugar: recalculated?.sugar ?? f.sugar ?? 0, sodium: recalculated?.sodium ?? f.sodium ?? 0,
                                   } : f));
                                   setUpdatingQtyIdx(null);
                                 }}
@@ -2041,7 +2041,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         </View>
                         {editingQtyIdx !== i && (
                           <View style={styles.qtyControl}>
-                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = Math.max(0, f.cal - 25); const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats }; }))}>
+                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = Math.max(0, f.cal - 25); const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats, fiber: ratio > 0 ? Math.round((f.fiber || 0) * ratio * 10) / 10 : f.fiber, sugar: ratio > 0 ? Math.round((f.sugar || 0) * ratio * 10) / 10 : f.sugar, sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium }; }))}>
                               <Text style={styles.qtyBtnText}>−</Text>
                             </TouchableOpacity>
                             <View style={{ alignItems: 'center', minWidth: 50 }}>
@@ -2066,7 +2066,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                           cal: val,
                                           protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein,
                                           carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs,
-                                          fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats,
+                                          fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats, fiber: ratio > 0 ? Math.round((f.fiber || 0) * ratio * 10) / 10 : f.fiber, sugar: ratio > 0 ? Math.round((f.sugar || 0) * ratio * 10) / 10 : f.sugar, sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium,
                                         };
                                       }));
                                     }
@@ -2083,7 +2083,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                               )}
                               <Text style={styles.foodCalLabel}>CAL</Text>
                             </View>
-                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = f.cal + 25; const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats }; }))}>
+                            <TouchableOpacity style={styles.qtyBtn} onPress={() => setDetectedFoods(prev => prev.map((f, idx) => { if (idx !== i) return f; const newCal = f.cal + 25; const ratio = f.cal > 0 ? newCal / f.cal : 0; return { ...f, cal: newCal, protein: ratio > 0 ? Math.round(f.protein * ratio * 10) / 10 : f.protein, carbs: ratio > 0 ? Math.round(f.carbs * ratio * 10) / 10 : f.carbs, fats: ratio > 0 ? Math.round(f.fats * ratio * 10) / 10 : f.fats, fiber: ratio > 0 ? Math.round((f.fiber || 0) * ratio * 10) / 10 : f.fiber, sugar: ratio > 0 ? Math.round((f.sugar || 0) * ratio * 10) / 10 : f.sugar, sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium }; }))}>
                               <Text style={styles.qtyBtnText}>+</Text>
                             </TouchableOpacity>
                           </View>
@@ -2114,7 +2114,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                 name: newItemName.trim(),
                                 qty: '1 serving',
                                 cal: 0,
-                                protein: 0, carbs: 0, fats: 0, fiber: 0,
+                                protein: 0, carbs: 0, fats: 0, fiber: 0, sugar: 0, sodium: 0,
                               }]);
                               setNewItemName('');
                               setAddItemDetecting(false);

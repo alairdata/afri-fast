@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
+import { SourcesLink } from './HealthSourcesPage';
 import { LineChart } from 'react-native-chart-kit';
 import { Rect } from 'react-native-svg';
 
@@ -12,11 +13,15 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   const [carbsTooltip, setCarbsTooltip] = useState(null);
   const [fatsTooltip, setFatsTooltip] = useState(null);
   const [fiberTooltip, setFiberTooltip] = useState(null);
+  const [sugarTooltip, setSugarTooltip] = useState(null);
+  const [sodiumTooltip, setSodiumTooltip] = useState(null);
 
   useEffect(() => { if (!proteinTooltip) return; const t = setTimeout(() => setProteinTooltip(null), 2000); return () => clearTimeout(t); }, [proteinTooltip]);
   useEffect(() => { if (!carbsTooltip) return; const t = setTimeout(() => setCarbsTooltip(null), 2000); return () => clearTimeout(t); }, [carbsTooltip]);
   useEffect(() => { if (!fatsTooltip) return; const t = setTimeout(() => setFatsTooltip(null), 2000); return () => clearTimeout(t); }, [fatsTooltip]);
   useEffect(() => { if (!fiberTooltip) return; const t = setTimeout(() => setFiberTooltip(null), 2000); return () => clearTimeout(t); }, [fiberTooltip]);
+  useEffect(() => { if (!sugarTooltip) return; const t = setTimeout(() => setSugarTooltip(null), 2000); return () => clearTimeout(t); }, [sugarTooltip]);
+  useEffect(() => { if (!sodiumTooltip) return; const t = setTimeout(() => setSodiumTooltip(null), 2000); return () => clearTimeout(t); }, [sodiumTooltip]);
 
   if (!show) return null;
 
@@ -30,12 +35,14 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   });
   const byDate = {};
   rangeMeals.forEach(m => {
-    if (!byDate[m.date]) byDate[m.date] = { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 };
+    if (!byDate[m.date]) byDate[m.date] = { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, sugar: 0, sodium: 0 };
     byDate[m.date].calories += m.calories || 0;
     byDate[m.date].protein += m.protein || 0;
     byDate[m.date].carbs += m.carbs || 0;
     byDate[m.date].fats += m.fats || 0;
     byDate[m.date].fiber += m.fiber || 0;
+    byDate[m.date].sugar += m.sugar || 0;
+    byDate[m.date].sodium += m.sodium || 0;
   });
   const daysCount = Object.keys(byDate).length;
   const totals = rangeMeals.reduce((s, m) => ({
@@ -44,7 +51,16 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
     carbs: s.carbs + (m.carbs || 0),
     fats: s.fats + (m.fats || 0),
     fiber: s.fiber + (m.fiber || 0),
-  }), { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 });
+    sugar: s.sugar + (m.sugar || 0),
+    sodium: s.sodium + (m.sodium || 0),
+  }), { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, sugar: 0, sodium: 0 });
+  // Sugar and sodium are only known for meals logged since they were added; average over those days.
+  const sugarDays = Object.values(byDate).filter(d => d.sugar > 0 || d.sodium > 0);
+  const hasSugarData = sugarDays.length > 0;
+  const avgOver = (key) => hasSugarData ? Math.round(sugarDays.reduce((t, d) => t + d[key], 0) / sugarDays.length) : 0;
+  const daysOver = (key, ref) => sugarDays.filter(d => d[key] > ref).length;
+  // Which meals brought the most of each, over the range.
+  const topMeals = (key) => rangeMeals.filter(m => (m[key] || 0) > 0).sort((a, b) => (b[key] || 0) - (a[key] || 0)).slice(0, 3);
   const hasData = daysCount > 0;
   const avg = (val) => hasData ? Math.round(val / daysCount) : 0;
   const dailyVals = Object.values(byDate).map(d => d.calories);
@@ -276,6 +292,84 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
             </View>
           </View>
 
+          {/* Sugar Intake (Pro) */}
+          <View style={styles.detailSection}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <Ionicons name="cube-outline" size={14} color="#1F1F1F" />
+              <Text style={styles.detailSectionTitleNoMargin}>Sugar Intake</Text>
+            </View>
+            <View style={styles.chartCardCompact}>
+              {hasMultiple && hasSugarData ? makeMacroChart(dailyData.map(d => Math.round(d.sugar || 0)), 'rgba(236, 72, 153, 1)', '#EC4899', sugarTooltip, setSugarTooltip)
+                : <View style={{ height: 120, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasSugarData ? `${avgOver('sugar')}g avg` : 'Log a meal to start tracking this'}</Text></View>}
+              <View style={styles.macroStatsRowCompact}>
+                <View style={styles.macroStatItemCompact}>
+                  <Text style={styles.macroStatValueSmall}>{hasSugarData ? `${avgOver('sugar')}g` : '--'}</Text>
+                  <Text style={styles.macroStatLabelSmall}>Avg daily</Text>
+                </View>
+                <View style={styles.macroStatItemCompact}>
+                  <Text style={styles.macroStatValueSmall}>{hasSugarData ? `${Math.round(Math.max(0, ...sugarDays.map(d => d.sugar)))}g` : '--'}</Text>
+                  <Text style={styles.macroStatLabelSmall}>Highest day</Text>
+                </View>
+                <View style={styles.macroStatItemCompact}>
+                  <Text style={styles.macroStatValueSmall}>{hasSugarData ? `${daysOver('sugar', 50)} of ${sugarDays.length}` : '--'}</Text>
+                  <Text style={styles.macroStatLabelSmall}>Days over 50g</Text>
+                </View>
+              </View>
+              {topMeals('sugar').length > 0 && (
+                <View style={styles.topMeals}>
+                  <Text style={styles.topMealsTitle}>Most from</Text>
+                  {topMeals('sugar').map(m => (
+                    <View key={m.id} style={styles.topMealRow}>
+                      <Text style={styles.topMealName} numberOfLines={1}>{m.name}</Text>
+                      <Text style={styles.topMealVal}>{`${Math.round(m.sugar)}g`}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              <Text style={styles.refNote}>Total sugars, including the natural sugar in fruit and milk. WHO suggests keeping added sugars to about 50g a day or less.</Text>
+            </View>
+          </View>
+
+          {/* Sodium Intake (Pro) */}
+          <View style={styles.detailSection}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <Ionicons name="water-outline" size={14} color="#1F1F1F" />
+              <Text style={styles.detailSectionTitleNoMargin}>Sodium Intake</Text>
+            </View>
+            <View style={styles.chartCardCompact}>
+              {hasMultiple && hasSugarData ? makeMacroChart(dailyData.map(d => Math.round(d.sodium || 0)), 'rgba(14, 165, 233, 1)', '#0EA5E9', sodiumTooltip, setSodiumTooltip)
+                : <View style={{ height: 120, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasSugarData ? `${(avgOver('sodium')).toLocaleString()} mg avg` : 'Log a meal to start tracking this'}</Text></View>}
+              <View style={styles.macroStatsRowCompact}>
+                <View style={styles.macroStatItemCompact}>
+                  <Text style={styles.macroStatValueSmall}>{hasSugarData ? `${(avgOver('sodium')).toLocaleString()} mg` : '--'}</Text>
+                  <Text style={styles.macroStatLabelSmall}>Avg daily</Text>
+                </View>
+                <View style={styles.macroStatItemCompact}>
+                  <Text style={styles.macroStatValueSmall}>{hasSugarData ? `${(Math.round(Math.max(0, ...sugarDays.map(d => d.sodium)))).toLocaleString()} mg` : '--'}</Text>
+                  <Text style={styles.macroStatLabelSmall}>Highest day</Text>
+                </View>
+                <View style={styles.macroStatItemCompact}>
+                  <Text style={styles.macroStatValueSmall}>{hasSugarData ? `${daysOver('sodium', 2000)} of ${sugarDays.length}` : '--'}</Text>
+                  <Text style={styles.macroStatLabelSmall}>Days over 2,000mg</Text>
+                </View>
+              </View>
+              {topMeals('sodium').length > 0 && (
+                <View style={styles.topMeals}>
+                  <Text style={styles.topMealsTitle}>Most from</Text>
+                  {topMeals('sodium').map(m => (
+                    <View key={m.id} style={styles.topMealRow}>
+                      <Text style={styles.topMealName} numberOfLines={1}>{m.name}</Text>
+                      <Text style={styles.topMealVal}>{`${(Math.round(m.sodium)).toLocaleString()} mg`}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              <Text style={styles.refNote}>Includes salt and seasoning cubes. WHO suggests under 2,000mg of sodium a day (about one teaspoon of salt).</Text>
+            </View>
+          </View>
+
+          <SourcesLink topic="food" label="Estimates · Sources" color="#6B7280" style={{ marginTop: 4, marginBottom: 8 }} />
+
           {/* Macro Distribution */}
           <View style={styles.detailSection}>
             <Text style={styles.detailSectionTitle}>Macro Distribution</Text>
@@ -310,6 +404,12 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
 };
 
 const styles = StyleSheet.create({
+  topMeals: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F1EC' },
+  topMealsTitle: { fontSize: 11, fontWeight: '800', color: '#9CA3AF', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  topMealRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
+  topMealName: { flex: 1, fontSize: 13, color: '#1F1F1F', marginRight: 10 },
+  topMealVal: { fontSize: 13, fontWeight: '700', color: '#1F1F1F' },
+  refNote: { fontSize: 11.5, lineHeight: 16, color: '#6B7280', marginTop: 10 },
   weightPageOverlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0,

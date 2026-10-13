@@ -209,9 +209,11 @@ const MEALS_CHAT_FOOD_ITEM = {
     carbs:   { type: 'NUMBER', description: 'Grams of carbohydrates.' },
     fats:    { type: 'NUMBER', description: 'Grams of fat.' },
     fiber:   { type: 'NUMBER', description: 'Grams of fiber.' },
+    sugar:   { type: 'NUMBER', description: 'Grams of total sugars (natural and added).' },
+    sodium:  { type: 'NUMBER', description: 'Milligrams of sodium, including salt and seasoning cubes used in cooking.' },
     cal:     { type: 'NUMBER', description: 'Calories: (protein*4)+(carbs*4)+(fats*9).' },
   },
-  required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'cal'],
+  required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'sugar', 'sodium', 'cal'],
 };
 
 const MEALS_CHAT_SCHEMA = {
@@ -239,9 +241,11 @@ function normalizeFood(f, fallback = 'Unknown food') {
   const carbs   = Number(f.carbs)   || 0;
   const fats    = Number(f.fats)    || 0;
   const fiber   = Number(f.fiber)   || 0;
+  const sugar   = Number(f.sugar)   || 0;
+  const sodium  = Number(f.sodium)  || 0;
   const macroCal = Math.round(protein * 4 + carbs * 4 + fats * 9);
   const cal = macroCal > 0 ? macroCal : (Number(f.cal) || 0);
-  return { name: f.name || fallback, qty: f.qty || '1 serving', cal, protein, carbs, fats, fiber };
+  return { name: f.name || fallback, qty: f.qty || '1 serving', cal, protein, carbs, fats, fiber, sugar, sodium };
 }
 
 async function logToSupabase(supabaseUrl, supabaseKey, rows) {

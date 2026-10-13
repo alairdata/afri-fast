@@ -79,6 +79,8 @@ import FindRecipeModal from './components/FindRecipeModal';
 import EditProfileModal from './components/EditProfileModal';
 import TimeEditModal from './components/TimeEditModal';
 import AiConsentModal from './components/AiConsentModal';
+import PaywallModal from './components/PaywallModal';
+import { initSubscriptions, signOutSubscriptions, useSubscription, openPaywall, FREE_MEALS_PER_DAY } from './lib/subscription';
 import { ensureAiConsent } from './lib/consent';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -168,6 +170,9 @@ function normalizeMealDate(dateStr) {
   if (m) return new Date(+m[1], +m[2] - 1, +m[3]).toDateString();
   return dateStr;
 }
+
+// Meal columns read from the database (sugar and sodium are added on top where available).
+const MEAL_COLUMNS = 'id, user_id, name, calories, protein, carbs, fats, fiber, date, logged_at, method, image_url, notes, photo, detected_name, foods';
 
 const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccountDeleted, onLoggedOut, darkMode, onToggleDarkMode }) => {
   // True while the server is deleting the account (it can take a few seconds): shows a 'Deleting...' screen.
@@ -417,6 +422,16 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
   // === Meals state ===
   const [selectedMealDate, setSelectedMealDate] = useState(new Date());
+  const { isPro } = useSubscription();
+  // Free plan: FREE_MEALS_PER_DAY saved meals per day, whatever the logging method. Returns false
+  // (and shows the upgrade screen) when the day is full.
+  const canLogMealOn = (date) => {
+    if (isPro) return true;
+    const day = (date instanceof Date ? date : new Date(date || Date.now())).toDateString();
+    if (recentMeals.filter((m) => m.date === day).length < FREE_MEALS_PER_DAY) return true;
+    openPaywall('meal_limit');
+    return false;
+  };
   const [recentMeals, setRecentMeals] = useState([]);
   const [savedRecipes, setSavedRecipes] = useState([]);
 
@@ -1129,6 +1144,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   useEffect(() => {
     const u = session?.user;
     if (!u?.id) return;
+    initSubscriptions(u.id);
     startSession({
       id: u.id,
       name: u.user_metadata?.name || u.user_metadata?.full_name,
@@ -1207,10 +1223,15 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   useEffect(() => {
     if (!session?.user?.id) return;
     supabase.from('meals')
-      .select('id, user_id, name, calories, protein, carbs, fats, fiber, date, logged_at, method, image_url, notes, photo, detected_name, foods')
+      .select(`${MEAL_COLUMNS}, sugar, sodium`)
       .eq('user_id', session.user.id)
       .order('logged_at', { ascending: false })
-      .then(({ data, error }) => {
+      .then(async ({ data, error }) => {
+        // Before the sugar/sodium migration has run (Postgres 42703: no such column), load without them.
+        if (error?.code === '42703') {
+          ({ data, error } = await supabase.from('meals').select(MEAL_COLUMNS)
+            .eq('user_id', session.user.id).order('logged_at', { ascending: false }));
+        }
         if (error) { console.error('[DB Error - fetch meals]', error); }
         if (data) setRecentMeals(data.map(m => ({
           ...m,
@@ -2233,6 +2254,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           eatingWindow={eatingWindow}
           onNavigateToMeals={() => setActiveTab('meals')}
           onLogMeal={(recipe) => {
+            if (!canLogMealOn(selectedMealDate)) return;
             setRecipeToLog(recipe);
             setLogMealMethod('recipe');
             setLogMealOpenedFromOptions(false);
@@ -2304,6 +2326,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           showLogMealOptions={showLogMealOptions}
           setShowLogMealOptions={setShowLogMealOptions}
           onLogMeal={async (method) => {
+            if (!canLogMealOn(selectedMealDate)) return;
             // Scan, voice and text all go through Google Gemini, so they need AI consent; 'manual' never does.
             if (['scan', 'say', 'write'].includes(method) && !(await ensureAiConsent())) { setShowLogMealOptions(true); showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; }
             setLogMealMethod(method);
@@ -2334,7 +2357,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           onShowWeightModal={() => setShowWeightModal(true)}
           onShowFastingDetails={() => setShowFastingDetails(true)}
           onShowBMIDetails={() => setShowBMIDetails(true)}
-          onShowCalorieDetails={() => setShowCalorieDetails(true)}
+          onShowCalorieDetails={() => (isPro ? setShowCalorieDetails(true) : openPaywall('calories'))}
           onShowHydrationDetails={() => setShowHydrationDetails(true)}
           onShowStepsDetails={() => setShowStepsDetails(true)}
           onShowAddActivity={() => setShowAddActivity(true)}
@@ -2397,6 +2420,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
               if (!resp.ok) throw new Error(result.error || `Delete failed (${resp.status})`);
               track(EVENTS.ACCOUNT_DELETED);
               resetAnalytics();
+              signOutSubscriptions();
               clearWidgetSnapshot();
               await AsyncStorage.clear();
               // Tell the top of the app so it can show 'Your account has been deleted' once we are signed out.
@@ -2695,6 +2719,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
               });
             return;
           }
+          // Free plan backstop: a brand-new meal beyond the daily limit isn't saved (edits always are).
+          if (!recentMeals.some(m => m.id === meal.id) && !canLogMealOn(meal.date)) return;
           // Analytics: the core loop. Only brand-new meals count (an edit re-saves an existing id).
           if (!recentMeals.some(m => m.id === meal.id)) {
             const totalMeals = recentMeals.length + 1;
@@ -2714,7 +2740,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             const { localPhoto, ...dbMeal } = mealToSave;
             // Never persist local file URIs — only save photo to DB once we have a real https URL
             const photoForDb = dbMeal.photo?.startsWith('https://') ? dbMeal.photo : null;
-            const { error } = await supabase.from('meals').insert({ ...dbMeal, photo: photoForDb, user_id: session.user.id });
+            let { error } = await supabase.from('meals').insert({ ...dbMeal, photo: photoForDb, user_id: session.user.id });
+            if (error?.code === 'PGRST204' && /sugar|sodium/.test(error.message || '')) {
+              const { sugar, sodium, ...withoutNew } = dbMeal;
+              ({ error } = await supabase.from('meals').insert({ ...withoutNew, photo: photoForDb, user_id: session.user.id }));
+            }
             if (error) {
               console.log('[DB Error - insert meal]', error.message, error.code);
               // Roll back the optimistic add so DB and UI agree
@@ -2783,6 +2813,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         onClose={() => setShowMakeRecipePage(false)}
         userCountry={userCountry}
         onLogMeal={(recipe) => {
+          if (!canLogMealOn(selectedMealDate)) return;
           setShowMakeRecipePage(false);
           setActiveTab('meals');
           setRecipeToLog(recipe);
@@ -2928,6 +2959,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
               const startedAt = Date.now();
               track(EVENTS.USER_LOGGED_OUT);
               resetAnalytics();
+              signOutSubscriptions();
               clearWidgetSnapshot();
               // Wipe this person's saved copies BEFORE signing out, so the next account to sign in on this
               // phone can never load them.
@@ -3099,6 +3131,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
       {/* === Chat (above everything incl. tab bar) === */}
       <AiConsentModal signedIn={!!session?.user} />
+      <PaywallModal />
 
       <ChatScreen
         show={showChat}
@@ -3138,6 +3171,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           upsertProfile({ personality: updated }, 'update personality from chat');
         }}
         onLogMealFromChat={(meal) => {
+          if (!canLogMealOn(selectedMealDate)) return;
           setShowChat(false);
           setChatOpeningContext(null);
           setChatOpenedFromLogMealOptions(false);
