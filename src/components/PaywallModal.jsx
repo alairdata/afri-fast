@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Platform, Linking, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Platform, Linking, ActivityIndicator, Alert, Image } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { setPaywallPresenter, loadPlans, purchasePlan, restorePurchases, getSubscription } from '../lib/subscription';
 import { track, EVENTS } from '../lib/analytics';
 
@@ -8,9 +9,10 @@ const INK = '#16201b';
 const INK500 = '#6c7872';
 const INK400 = '#97a19b';
 const GREEN = '#059669';
-const LINE = '#e9e9e1';
+const GREEN_DARK = '#047857';
+const LINE = '#e6e8e3';
 
-// Why the screen opened, so the headline matches what the person just tried to do.
+// Why the screen opened, so the copy matches what the person just tried to do.
 const HEADLINES = {
   meal_limit: ["You've logged 2 meals today", 'Free includes 2 meal logs a day. Go Pro to log every meal, snack and drink.'],
   forecast: ['See your full forecast', 'Your 7- and 14-day weight forecast, goal date and what is driving it.'],
@@ -24,25 +26,46 @@ const HEADLINES = {
 const DEFAULT_HEADLINE = ['Get more from Logga', 'Unlimited logging, deeper insights and every recipe.'];
 
 const BENEFITS = [
-  ['infinite-outline', 'Unlimited meal logging', 'Log every meal, snack and drink, any way you like'],
-  ['trending-down-outline', 'Full weight forecast', 'Your 7- and 14-day forecast and goal date'],
-  ['flame-outline', 'Burnout risk analysis', 'Spot a hard stretch before it knocks you off track'],
-  ['bulb-outline', '4 daily insights', 'Three more personal insights every day, not just one'],
-  ['nutrition-outline', 'Advanced nutrition', 'Calorie analysis plus fibre, sugar and sodium'],
-  ['restaurant-outline', 'Every recipe', 'All recipes, and recipes from a photo of your ingredients'],
+  'Unlimited meal logging',
+  'Full weight forecast',
+  'Burnout risk analysis',
+  '4 daily insights',
+  'Fibre, sugar & sodium',
+  'Every recipe',
+];
+
+// Real quotes from people who used Pro before launch (with their permission). No star ratings: they gave words, not stars.
+const TESTIMONIALS = [
+  { quote: 'To be honest, Pro changed how I see my relationship with food.', by: 'Early tester' },
+  { quote: 'Best decision ever!', by: 'Samuel, early tester' },
+];
+
+// Food floating around the header (instead of a mascot): [emoji, left %, top, size, rotation].
+const FLOATERS = [
+  ['🍎', '8%', 34, 30, '-12deg'], ['🥑', '80%', 26, 32, '14deg'], ['🍗', '4%', 128, 30, '10deg'],
+  ['🥗', '84%', 120, 30, '-8deg'], ['🍌', '22%', 192, 26, '18deg'], ['🍳', '70%', 196, 26, '-14deg'],
+  ['🥕', '44%', 18, 22, '24deg'],
 ];
 
 const openUrl = (url) => Linking.openURL(url).catch(() => {});
 
-const monthlyEquivalent = (pkg) => {
-  const p = pkg?.product;
-  if (!p?.price) return null;
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: p.currencyCode }).format(Math.floor((p.price / 12) * 100) / 100);
-  } catch (_) { return null; }
+const fmtMoney = (amount, currency) => {
+  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount); } catch (_) { return null; }
 };
 
-const PaywallModal = () => {
+// "72 kg by 14 March" from the person's own goal, if they have a dated weight goal.
+const goalLine = (goal) => {
+  if (!goal || goal.targetWeight == null || !goal.goalDate) return null;
+  const date = new Date(`${goal.goalDate}T12:00:00`);
+  if (isNaN(date.getTime()) || date.getTime() < Date.now()) return null;
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  const when = date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', ...(sameYear ? {} : { year: 'numeric' }) });
+  const w = Math.round(parseFloat(goal.targetWeight) * 10) / 10;
+  if (!isFinite(w)) return null;
+  return { weight: `${w % 1 === 0 ? w.toFixed(0) : w} ${goal.weightUnit || 'kg'}`, when };
+};
+
+const PaywallModal = ({ goal }) => {
   const [visible, setVisible] = useState(false);
   const [reason, setReason] = useState(null);
   const [plans, setPlans] = useState(null);
@@ -68,14 +91,18 @@ const PaywallModal = () => {
   }, [visible]);
 
   const close = () => { if (!busy) setVisible(false); };
-  const [headline, sub] = HEADLINES[reason] || DEFAULT_HEADLINE;
+  const [reasonTitle, reasonSub] = HEADLINES[reason] || DEFAULT_HEADLINE;
+  const target = goalLine(goal);
   const canPurchase = getSubscription().canPurchase;
   const yearly = plans?.yearly;
   const monthly = plans?.monthly;
   const selected = choice === 'yearly' ? yearly : monthly;
   const trial = choice === 'yearly' && plans?.trialEligible;
-  const savePct = yearly?.product?.price && monthly?.product?.price
-    ? Math.round((1 - yearly.product.price / (monthly.product.price * 12)) * 100) : null;
+  const yp = yearly?.product;
+  const mp = monthly?.product;
+  // A true comparison only: 12 months at the monthly price, crossed out next to the yearly price.
+  const twelveMonthly = yp && mp && mp.price * 12 > yp.price ? fmtMoney(mp.price * 12, mp.currencyCode) : null;
+  const yearlyPerMonth = yp ? fmtMoney(Math.floor((yp.price / 12) * 100) / 100, yp.currencyCode) : null;
 
   const buy = async () => {
     if (!selected || busy) return;
@@ -112,28 +139,6 @@ const PaywallModal = () => {
     }
   };
 
-  const PlanRow = ({ id, pkg, title, note, badge }) => {
-    const on = choice === id;
-    return (
-      <TouchableOpacity style={[styles.plan, on && styles.planOn]} onPress={() => setChoice(id)} activeOpacity={0.8} accessibilityRole="radio" accessibilityState={{ selected: on }}>
-        <View style={[styles.radio, on && styles.radioOn]}>{on && <View style={styles.radioDot} />}</View>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={styles.planTitle}>{title}</Text>
-            {badge ? <View style={styles.badge}><Text style={styles.badgeTxt}>{badge}</Text></View> : null}
-          </View>
-          {note ? <Text style={styles.planNote}>{note}</Text> : null}
-        </View>
-        <Text style={styles.planPrice}>{pkg?.product?.priceString || '--'}</Text>
-      </TouchableOpacity>
-    );
-  };
-
-  const yearlyNote = [
-    plans?.trialEligible ? '7 days free, then billed yearly' : 'Billed yearly',
-    monthlyEquivalent(yearly) ? `${monthlyEquivalent(yearly)}/month` : null,
-  ].filter(Boolean).join(' · ');
-
   const terms = selected
     ? (trial
       ? `Free for 7 days, then ${selected.product.priceString} a year. `
@@ -145,53 +150,119 @@ const PaywallModal = () => {
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'} onRequestClose={close}>
-      <View style={[styles.page, Platform.OS === 'android' && { paddingTop: 44 }]}>
-        <TouchableOpacity onPress={close} style={styles.closeBtn} accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="close" size={22} color={INK} />
-        </TouchableOpacity>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.proPill}><Ionicons name="sparkles" size={13} color={GREEN} /><Text style={styles.proPillTxt}>LOGGA PRO</Text></View>
-          <Text style={styles.title}>{headline}</Text>
-          <Text style={styles.body}>{sub}</Text>
-
-          <View style={styles.card}>
-            {BENEFITS.map(([icon, t, d], i) => (
-              <View key={t} style={[styles.benefit, i === BENEFITS.length - 1 && { borderBottomWidth: 0 }]}>
-                <View style={styles.benefitIcon}><Ionicons name={icon} size={17} color={GREEN} /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.benefitTitle}>{t}</Text>
-                  <Text style={styles.benefitSub}>{d}</Text>
-                </View>
-              </View>
+      <View style={styles.page}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false} bounces={false}>
+          {/* Header: soft mint gradient with food floating around the Logga mark */}
+          <LinearGradient colors={['#E3F8EE', '#BDEBD4']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.hero}>
+            {FLOATERS.map(([e, left, top, size, rot]) => (
+              <Text key={e} style={[styles.floater, { left, top, fontSize: size, transform: [{ rotate: rot }] }]}>{e}</Text>
             ))}
-          </View>
-
-          {!canPurchase ? (
-            <Text style={styles.small}>Logga Pro is available in the Logga iPhone app.</Text>
-          ) : loading ? (
-            <ActivityIndicator color={GREEN} style={{ marginTop: 24 }} />
-          ) : !plans ? (
-            <Text style={styles.small}>Plans couldn't load right now. Check your connection and try again.</Text>
-          ) : (
-            <View style={{ marginTop: 18, gap: 10 }}>
-              {yearly && <PlanRow id="yearly" pkg={yearly} title="Yearly" note={yearlyNote} badge={savePct > 0 ? `SAVE ${savePct}%` : null} />}
-              {monthly && <PlanRow id="monthly" pkg={monthly} title="Monthly" note="Billed monthly" />}
+            <View style={styles.markWrap}>
+              <Image source={require('../../assets/logga-mark.png')} style={styles.mark} resizeMode="contain" />
             </View>
-          )}
+            <View style={styles.proPill}><Ionicons name="sparkles" size={12} color={GREEN_DARK} /><Text style={styles.proPillTxt}>LOGGA PRO</Text></View>
+          </LinearGradient>
 
-          {terms ? <Text style={styles.terms}>{terms}</Text> : null}
-          <View style={styles.links}>
-            {canPurchase && <Text style={styles.linkTxt} onPress={restore}>Restore purchases</Text>}
-            <Text style={styles.linkTxt} onPress={() => openUrl('https://www.logga.space/terms')}>Terms of Use</Text>
-            <Text style={styles.linkTxt} onPress={() => openUrl('https://www.logga.space/privacy')}>Privacy Policy</Text>
+          <View style={styles.body}>
+            {target ? (
+              <Text style={styles.title}>
+                We'll help you reach <Text style={styles.titleAccent}>{target.weight}</Text> by <Text style={styles.titleAccent}>{target.when}</Text>!
+              </Text>
+            ) : (
+              <Text style={styles.title}>{reasonTitle}</Text>
+            )}
+            <Text style={styles.sub}>{target && reason ? `${reasonTitle}. ${reasonSub}` : reasonSub}</Text>
+
+            {!canPurchase ? (
+              <Text style={styles.small}>Logga Pro is available in the Logga iPhone app.</Text>
+            ) : loading ? (
+              <ActivityIndicator color={GREEN} style={{ marginTop: 28 }} />
+            ) : !plans ? (
+              <Text style={styles.small}>Plans couldn't load right now. Check your connection and try again.</Text>
+            ) : (
+              <View style={{ marginTop: 20, gap: 12 }}>
+                {yearly && (
+                  <TouchableOpacity
+                    style={[styles.plan, choice === 'yearly' && styles.planOn]}
+                    onPress={() => setChoice('yearly')}
+                    activeOpacity={0.85}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: choice === 'yearly' }}
+                  >
+                    <View style={styles.badge}><Text style={styles.badgeTxt}>BEST VALUE</Text></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.planTitle}>12 months</Text>
+                      <Text style={styles.planPrices}>
+                        {twelveMonthly ? <Text style={styles.strike}>{twelveMonthly}</Text> : null}
+                        {twelveMonthly ? '  ' : ''}{yp.priceString}
+                      </Text>
+                      {plans.trialEligible ? (
+                        <View style={styles.trialChip}><Text style={styles.trialTxt}>7 days free</Text></View>
+                      ) : null}
+                    </View>
+                    {yearlyPerMonth ? (
+                      <Text style={styles.perMonth}>{yearlyPerMonth}<Text style={styles.perMonthUnit}>/mo</Text></Text>
+                    ) : null}
+                  </TouchableOpacity>
+                )}
+                {monthly && (
+                  <TouchableOpacity
+                    style={[styles.plan, choice === 'monthly' && styles.planOn]}
+                    onPress={() => setChoice('monthly')}
+                    activeOpacity={0.85}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: choice === 'monthly' }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.planTitle}>1 month</Text>
+                      <Text style={styles.planPrices}>Billed monthly</Text>
+                    </View>
+                    <Text style={styles.perMonth}>{mp.priceString}<Text style={styles.perMonthUnit}>/mo</Text></Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {/* What early testers said */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 22, marginHorizontal: -22 }} contentContainerStyle={{ paddingHorizontal: 22, gap: 10 }}>
+              {TESTIMONIALS.map((t) => (
+                <View key={t.quote} style={styles.quoteCard}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={16} color={GREEN} />
+                  <Text style={styles.quoteTxt}>“{t.quote}”</Text>
+                  <Text style={styles.quoteBy}>— {t.by}</Text>
+                </View>
+              ))}
+            </ScrollView>
+
+            {/* What Pro unlocks */}
+            <View style={styles.benefits}>
+              {BENEFITS.map((b) => (
+                <View key={b} style={styles.benefit}>
+                  <Ionicons name="checkmark-circle" size={16} color={GREEN} />
+                  <Text style={styles.benefitTxt}>{b}</Text>
+                </View>
+              ))}
+            </View>
+
+            {terms ? <Text style={styles.terms}>{terms}</Text> : null}
+            <View style={styles.links}>
+              {canPurchase && <Text style={styles.linkTxt} onPress={restore}>Restore purchases</Text>}
+              <Text style={styles.linkTxt} onPress={() => openUrl('https://www.logga.space/terms')}>Terms of Use</Text>
+              <Text style={styles.linkTxt} onPress={() => openUrl('https://www.logga.space/privacy')}>Privacy Policy</Text>
+            </View>
           </View>
         </ScrollView>
+
+        <TouchableOpacity onPress={close} style={styles.closeBtn} accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name="close" size={20} color={INK} />
+        </TouchableOpacity>
+
         {canPurchase && plans && selected && (
           <View style={styles.footer}>
+            <Text style={styles.cancelAny}>{trial ? `7 days free, then ${selected.product.priceString}/year · ` : ''}Cancel anytime</Text>
             <TouchableOpacity style={[styles.cta, busy && { opacity: 0.6 }]} onPress={buy} disabled={busy} activeOpacity={0.85}>
-              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaTxt}>{trial ? 'Start 7-day free trial' : 'Continue'}</Text>}
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaTxt}>{trial ? 'Start my free week' : 'Continue'}</Text>}
             </TouchableOpacity>
-            <Text style={styles.ctaSub}>{trial ? `Then ${selected.product.priceString}/year · Cancel anytime` : 'Cancel anytime'}</Text>
           </View>
         )}
       </View>
@@ -200,36 +271,46 @@ const PaywallModal = () => {
 };
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#F8FAFC' },
-  closeBtn: { position: 'absolute', top: Platform.OS === 'android' ? 50 : 14, right: 16, zIndex: 2, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 24, paddingTop: 36, width: '100%', maxWidth: 560, alignSelf: 'center' },
-  proPill: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(5,150,105,0.1)' },
-  proPillTxt: { fontSize: 11.5, fontWeight: '800', color: GREEN, letterSpacing: 1.2 },
-  title: { fontSize: 26, fontWeight: '800', color: INK, letterSpacing: -0.5, marginTop: 14 },
-  body: { fontSize: 15, lineHeight: 22, color: INK500, marginTop: 8 },
-  card: { marginTop: 18, paddingHorizontal: 14, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: LINE },
-  benefit: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: LINE },
-  benefitIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(5,150,105,0.08)', alignItems: 'center', justifyContent: 'center' },
-  benefitTitle: { fontSize: 14.5, fontWeight: '700', color: INK },
-  benefitSub: { fontSize: 12.5, lineHeight: 17, color: INK500, marginTop: 1 },
-  plan: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1.5, borderColor: LINE },
-  planOn: { borderColor: GREEN, backgroundColor: 'rgba(5,150,105,0.04)' },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#cfd6d2', alignItems: 'center', justifyContent: 'center' },
-  radioOn: { borderColor: GREEN },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: GREEN },
-  planTitle: { fontSize: 16, fontWeight: '800', color: INK },
-  planNote: { fontSize: 12.5, color: INK500, marginTop: 2 },
-  planPrice: { fontSize: 16, fontWeight: '800', color: INK },
-  badge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: GREEN },
-  badgeTxt: { fontSize: 10.5, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
-  small: { fontSize: 13.5, lineHeight: 19, color: INK500, marginTop: 18, textAlign: 'center' },
-  terms: { fontSize: 11.5, lineHeight: 16, color: INK400, marginTop: 16 },
-  links: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 18, marginTop: 14, marginBottom: 12 },
+  page: { flex: 1, backgroundColor: '#fff' },
+  hero: { height: 250, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  floater: { position: 'absolute' },
+  markWrap: {
+    width: 96, height: 96, borderRadius: 30, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#0B3D2E', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
+  },
+  mark: { width: 64, height: 64 },
+  proPill: { position: 'absolute', bottom: 18, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.75)' },
+  proPillTxt: { fontSize: 11.5, fontWeight: '800', color: GREEN_DARK, letterSpacing: 1.2 },
+  closeBtn: { position: 'absolute', top: Platform.OS === 'android' ? 44 : 14, right: 16, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.8)', alignItems: 'center', justifyContent: 'center' },
+  body: { paddingHorizontal: 22, paddingTop: 22, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  title: { fontSize: 25, fontWeight: '800', color: INK, letterSpacing: -0.5, lineHeight: 31, textAlign: 'center' },
+  titleAccent: { color: GREEN },
+  sub: { fontSize: 14.5, lineHeight: 21, color: INK500, marginTop: 8, textAlign: 'center' },
+  plan: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 16, borderRadius: 18, backgroundColor: '#fff', borderWidth: 1.5, borderColor: LINE },
+  planOn: { borderColor: GREEN, borderWidth: 2.5, backgroundColor: '#F2FBF6' },
+  badge: { position: 'absolute', top: -11, right: 16, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8, backgroundColor: GREEN },
+  badgeTxt: { fontSize: 10.5, fontWeight: '800', color: '#fff', letterSpacing: 0.6 },
+  planTitle: { fontSize: 17, fontWeight: '800', color: INK },
+  planPrices: { fontSize: 13.5, color: INK500, marginTop: 3, fontWeight: '600' },
+  strike: { textDecorationLine: 'line-through', color: INK400, fontWeight: '500' },
+  trialChip: { alignSelf: 'flex-start', marginTop: 7, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(5,150,105,0.12)' },
+  trialTxt: { fontSize: 11.5, fontWeight: '800', color: GREEN_DARK },
+  perMonth: { fontSize: 19, fontWeight: '800', color: INK },
+  perMonthUnit: { fontSize: 13, fontWeight: '600', color: INK500 },
+  benefits: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 22, rowGap: 10 },
+  benefit: { width: '50%', flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 6 },
+  benefitTxt: { fontSize: 13.5, color: INK, fontWeight: '600', flexShrink: 1 },
+  quoteCard: { width: 230, padding: 14, borderRadius: 16, backgroundColor: '#F6F8F5', borderWidth: 1, borderColor: LINE },
+  quoteTxt: { fontSize: 14, lineHeight: 20, color: INK, fontWeight: '600', marginTop: 6 },
+  quoteBy: { fontSize: 12.5, color: INK500, marginTop: 8, fontWeight: '600' },
+  small: { fontSize: 13.5, lineHeight: 19, color: INK500, marginTop: 22, textAlign: 'center' },
+  terms: { fontSize: 11, lineHeight: 16, color: INK400, marginTop: 20 },
+  links: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 18, marginTop: 12 },
   linkTxt: { fontSize: 12.5, fontWeight: '700', color: INK500, textDecorationLine: 'underline' },
-  footer: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 34 : 22, borderTopWidth: 1, borderTopColor: LINE, backgroundColor: '#F8FAFC' },
-  cta: { height: 54, borderRadius: 14, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' },
-  ctaTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  ctaSub: { fontSize: 12, color: INK500, textAlign: 'center', marginTop: 8 },
+  footer: { paddingHorizontal: 22, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 34 : 22, borderTopWidth: 1, borderTopColor: LINE, backgroundColor: '#fff' },
+  cancelAny: { fontSize: 12.5, color: INK500, textAlign: 'center', marginBottom: 8, fontWeight: '600' },
+  cta: { height: 56, borderRadius: 999, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' },
+  ctaTxt: { color: '#fff', fontSize: 17, fontWeight: '800' },
 });
 
 export default PaywallModal;

@@ -3148,7 +3148,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
       {/* === Chat (above everything incl. tab bar) === */}
       <AiConsentModal signedIn={!!session?.user} />
-      <PaywallModal />
+      <PaywallModal goal={{ targetWeight, weightUnit, goalDate }} />
 
       <ChatScreen
         show={showChat}
