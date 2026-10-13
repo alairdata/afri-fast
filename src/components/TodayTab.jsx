@@ -941,8 +941,8 @@ const TodayTab = ({
           </ScrollView>
         </View>
 
-        {/* Based on Your Pattern */}
-        <View style={[styles.sectionTight, { marginTop: 36 }]}>
+        {/* Based on Your Pattern (same 24pt gap as This Week -> Your Stats) */}
+        <View style={[styles.sectionTight, { marginTop: 24 }]}>
           <Text style={styles.sectionTitleTight}>Based on Your Pattern</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.patternScrollCompact}>
             {patternCards.map((card, i) => (
@@ -956,7 +956,7 @@ const TodayTab = ({
         </View>
 
         {/* This Week */}
-        <View style={[styles.sectionTight, { marginTop: 36 }]}>
+        <View style={[styles.sectionTight, { marginTop: 24 }]}>
           <View style={styles.historyHeader}>
             <Text style={styles.sectionTitleTightInline}>This Week</Text>
             <TouchableOpacity onPress={onNavigateToProgress}>
@@ -968,16 +968,20 @@ const TodayTab = ({
             <View style={styles.historyDots}>
               {weekDays.map((day, i) => (
                 <View key={i} style={styles.historyDay}>
-                  <View style={[
-                    styles.historyDot,
-                    {
-                      backgroundColor: calHistory[i] === null ? colors.cardAlt : calHistory[i] ? '#059669' : 'transparent',
-                      borderWidth: calHistory[i] === false ? 2 : 0,
-                      borderColor: calHistory[i] === false ? colors.border : 'transparent',
-                    }
-                  ]}>
-                    {calHistory[i] === true && <Text style={styles.dotCheck}>{'\u2713'}</Text>}
-                  </View>
+                  {calHistory[i] === true ? (
+                    <LinearGradient colors={['#6EE7B7', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.historyDot}>
+                      <Ionicons name="checkmark" size={18} color="#fff" />
+                    </LinearGradient>
+                  ) : (
+                    <View style={[
+                      styles.historyDot,
+                      {
+                        backgroundColor: calHistory[i] === null ? colors.cardAlt : 'transparent',
+                        borderWidth: calHistory[i] === false ? 2 : 0,
+                        borderColor: calHistory[i] === false ? colors.border : 'transparent',
+                      }
+                    ]} />
+                  )}
                   <Text style={[styles.dayLabel, { color: i === (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1) ? '#059669' : colors.textMuted }]}>{day}</Text>
                 </View>
               ))}
