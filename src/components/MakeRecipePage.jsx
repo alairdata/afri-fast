@@ -458,6 +458,24 @@ const scoreRecipe = (recipe, identifiedIngredients) => {
   return score;
 };
 
+const WEST_AFRICA = new Set(['Nigeria', 'Ghana', 'Benin', 'Togo', 'Sierra Leone', 'Liberia', 'Gambia', 'Senegal', 'Ivory Coast', 'Niger', 'Burkina Faso', 'Guinea', 'Guinea-Bissau', 'Mali', 'Mauritania', 'Cabo Verde']);
+const MIN_COUNTRY_RECIPES = 8;
+
+const recipeMatchesCountry = (recipe, country) =>
+  !!recipe.countries?.some(c =>
+    c === country ||
+    c.startsWith(`${country} (`) ||
+    c === 'Universal' ||
+    ((c === 'West Africa' || c === 'All West African countries') && WEST_AFRICA.has(country))
+  );
+
+const recipesForCountry = (country) => {
+  if (!country) return AFRICAN_RECIPES;
+  const matched = AFRICAN_RECIPES.filter(r => recipeMatchesCountry(r, country));
+  if (matched.length >= MIN_COUNTRY_RECIPES) return matched;
+  return [...matched, ...AFRICAN_RECIPES.filter(r => !matched.includes(r))];
+};
+
 const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
   // The search box is well down the page. When the keyboard opens we scroll the page so the box sits at the
   // top of what is left on screen (and add room at the bottom so there is something to scroll into).
