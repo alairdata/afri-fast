@@ -266,3 +266,50 @@ export async function getJustForYou(data, forceRefresh = false) {
     return { insight: null, fromApi: false };
   }
 }
+
+// ── Logga Pro: three more Just for You insights ───────────────────────────────
+// Same daily refresh slot as the main insight, each through a different lens from today's main one (and
+// from recent days where possible), so the four cards never say the same thing. Only called for Pro.
+const JFY_PRO_CACHE_KEY = 'claude_just_for_you_pro_v1';
+export const LENS_LABELS = {
+  MEAL_COMPOSITION: 'Your plate', HYDRATION: 'Water', MOOD_AND_FOOD: 'Mood & food', MOVEMENT: 'Movement',
+  WEIGHT_TREND: 'Weight trend', CONSISTENCY: 'Consistency', PROGRESS_REFRAME: 'Your progress',
+};
+
+export async function getCachedProJustForYou(userId) {
+  if (!userId) return null;
+  const cached = await getLocalCache(JFY_PRO_CACHE_KEY, userId);
+  return cached?.cards?.length ? cached.cards : null;
+}
+
+// Returns { cards: [{ insight, lens }], fromApi }.
+export async function getProJustForYou(data, forceRefresh = false) {
+  const userId = data?.profile?.userId;
+  if (!userId) return { cards: null, fromApi: false };
+  const hasActivity = (data.recentMeals?.length || 0) + (data.waterLogs?.length || 0) + (data.checkInHistory?.length || 0) > 0;
+  if (!hasActivity) return { cards: null, fromApi: false };
+
+  if (!forceRefresh) {
+    const cached = await getCached(JFY_PRO_CACHE_KEY, userId, 'just_for_you_pro_v1');
+    if (cached?.cards?.length && cached.timestamp >= lastJfySlot()) return { cards: cached.cards, fromApi: false };
+  }
+
+  const main = await getLocalCache(JFY_CACHE_KEY, userId);
+  const recentInsights = main?.cards?.[0]?.recentInsights || [];
+  const avoid = new Set([main?.cards?.[0]?.lens, ...recentInsights.slice(0, 3).map(r => r.lens)].filter(Boolean));
+  const lenses = [...LENSES.filter(l => !avoid.has(l)), ...LENSES.filter(l => avoid.has(l) && l !== main?.cards?.[0]?.lens)].slice(0, 3);
+
+  try {
+    const { userId: _omit, ...profileWithoutId } = data.profile || {};
+    const results = await Promise.all(lenses.map((todayLens) =>
+      callApi('just_for_you', { ...data, profile: profileWithoutId, todayLens, recentInsights }).catch(() => null)));
+    const cards = results
+      .map((r, i) => (r?.insight ? { insight: r.insight, lens: r.lens || lenses[i], topic: r.topic || '' } : null))
+      .filter(Boolean);
+    if (cards.length) await saveCache(JFY_PRO_CACHE_KEY, userId, 'just_for_you_pro_v1', { cards });
+    return { cards: cards.length ? cards : null, fromApi: true };
+  } catch (e) {
+    console.error('[JustForYou Pro error]', e);
+    return { cards: null, fromApi: false };
+  }
+}

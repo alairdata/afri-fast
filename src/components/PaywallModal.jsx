@@ -19,6 +19,7 @@ const HEADLINES = {
   macros: ['Go deeper than calories', 'Fibre, sugar and sodium, and which meals bring the most of each.'],
   recipe: ['Unlock every recipe', 'Every recipe in every section, with calories and macros for each.'],
   recipe_photo: ['Cook with what you have', 'Snap your ingredients and Logga builds recipes around them.'],
+  jfy: ['More insights, every day', 'Three more personal insights written from your own logs, fresh every day.'],
 };
 const DEFAULT_HEADLINE = ['Get more from Logga', 'Unlimited logging, deeper insights and every recipe.'];
 
@@ -26,6 +27,7 @@ const BENEFITS = [
   ['infinite-outline', 'Unlimited meal logging', 'Log every meal, snack and drink, any way you like'],
   ['trending-down-outline', 'Full weight forecast', 'Your 7- and 14-day forecast and goal date'],
   ['flame-outline', 'Burnout risk analysis', 'Spot a hard stretch before it knocks you off track'],
+  ['bulb-outline', '4 daily insights', 'Three more personal insights every day, not just one'],
   ['nutrition-outline', 'Advanced nutrition', 'Calorie analysis plus fibre, sugar and sodium'],
   ['restaurant-outline', 'Every recipe', 'All recipes, and recipes from a photo of your ingredients'],
 ];

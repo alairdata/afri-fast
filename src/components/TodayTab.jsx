@@ -3,7 +3,10 @@ import { quickWaterLabel } from '../lib/waterQuickAdd';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, Animated, RefreshControl } from 'react-native';
 import { useTheme } from '../lib/theme';
-import { getJustForYou, getCachedJustForYou } from '../lib/claudeInsights';
+import { getJustForYou, getCachedJustForYou, getProJustForYou, getCachedProJustForYou, LENS_LABELS } from '../lib/claudeInsights';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSubscription } from '../lib/subscription';
+import { unlock } from './ProLock';
 import FormattedText from '../lib/FormattedText';
 import { resolveCalorieGoal, resolveCaloriesEaten, buildDailyLedgerMap } from '../lib/goalHistory';
 import LiquidCalorieRing from './LiquidCalorieRing';
@@ -251,6 +254,60 @@ const skeletonStyles = StyleSheet.create({
   },
 });
 
+// ── Just for You cards ────────────────────────────────────────────────────────
+// Soft two-tone gradients (two light shades of one colour) with dark text, one colour per card.
+const JFY_PALETTES = [
+  { colors: ['#EAF9F1', '#C7EEDA'], ink: '#0B3D2E', chip: 'rgba(11,61,46,0.08)' },   // mint
+  { colors: ['#FFF3EA', '#FFD9C2'], ink: '#5A2A10', chip: 'rgba(90,42,16,0.08)' },   // peach
+  { colors: ['#F3EFFF', '#DCD1FF'], ink: '#2E1F5E', chip: 'rgba(46,31,94,0.08)' },   // lavender
+  { colors: ['#EAF5FF', '#CBE4FF'], ink: '#0F2F52', chip: 'rgba(15,47,82,0.08)' },   // sky
+];
+
+const JfyCard = ({ palette, label, text, onPress, width }) => (
+  <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={{ width, marginRight: 12 }}>
+    <LinearGradient colors={palette.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={jfyStyles.card}>
+      {label ? <View style={[jfyStyles.chip, { backgroundColor: palette.chip }]}><Text style={[jfyStyles.chipTxt, { color: palette.ink }]}>{label}</Text></View> : null}
+      <Text style={[jfyStyles.text, { color: palette.ink }]} numberOfLines={label ? 3 : 4}>{text}</Text>
+      <View style={[jfyStyles.btn, { borderColor: palette.chip, backgroundColor: 'rgba(255,255,255,0.55)' }]}>
+        <Text style={[jfyStyles.btnTxt, { color: palette.ink }]}>Read more</Text>
+      </View>
+    </LinearGradient>
+  </TouchableOpacity>
+);
+
+// Free plan: what a Pro insight card looks like, with the words hidden. Tapping opens the upgrade screen.
+const LockedJfyCard = ({ palette, label, onPress, width }) => (
+  <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={{ width, marginRight: 12 }} accessibilityRole="button" accessibilityLabel={`${label} insight. Unlock with Logga Pro`}>
+    <LinearGradient colors={palette.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={jfyStyles.card}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={[jfyStyles.chip, { backgroundColor: palette.chip, marginBottom: 0 }]}><Text style={[jfyStyles.chipTxt, { color: palette.ink }]}>{label}</Text></View>
+        <View style={[jfyStyles.lock, { backgroundColor: palette.chip }]}><Ionicons name="lock-closed" size={12} color={palette.ink} /></View>
+      </View>
+      <View style={{ marginTop: 14, marginBottom: 16, gap: 8 }}>
+        {[1, 0.92, 0.7].map((w, i) => (
+          <View key={i} style={{ height: 11, width: `${w * 100}%`, borderRadius: 6, backgroundColor: palette.ink, opacity: 0.12 }} />
+        ))}
+      </View>
+      <View style={[jfyStyles.btn, { borderColor: palette.chip, backgroundColor: 'rgba(255,255,255,0.55)', flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+        <Ionicons name="lock-closed" size={11} color={palette.ink} />
+        <Text style={[jfyStyles.btnTxt, { color: palette.ink }]}>Read with Pro</Text>
+      </View>
+    </LinearGradient>
+  </TouchableOpacity>
+);
+
+const LOCKED_LENSES = ['MOOD_AND_FOOD', 'MOVEMENT', 'WEIGHT_TREND'];
+
+const jfyStyles = StyleSheet.create({
+  card: { borderRadius: 16, padding: 16, minHeight: 160, justifyContent: 'space-between' },
+  chip: { alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, marginBottom: 8 },
+  chipTxt: { fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
+  text: { fontSize: 15, fontWeight: '700', lineHeight: 22, flex: 1, marginBottom: 16 },
+  btn: { paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12, borderWidth: 1, alignSelf: 'flex-start' },
+  btnTxt: { fontSize: 13.5, fontWeight: '700' },
+  lock: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+});
+
 const JfySkeletonCard = ({ style }) => {
   const shimmer = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -402,6 +459,9 @@ const TodayTab = ({
   const [jfyRefreshing, setJfyRefreshing] = useState(false);
   const [jfyFreshReady, setJfyFreshReady] = useState(false);
   const [jfyExpanded, setJfyExpanded] = useState(false);
+  const [jfyOpen, setJfyOpen] = useState(null); // { text, title } of the card being read
+  const [proCards, setProCards] = useState(null);
+  const { isPro } = useSubscription();
   const [refreshing, setRefreshing] = useState(false);
   const [undoWaterId, setUndoWaterId] = useState(null);
   const undoWaterTimer = useRef(null);
@@ -501,6 +561,15 @@ const TodayTab = ({
       })
       .catch(() => {})
       .finally(() => setJfyRefreshing(false));
+    fetchProInsights(payload, forceRefresh);
+  };
+
+  // Logga Pro: three more insights. Free users never call this; they see locked cards instead.
+  const fetchProInsights = async (payload, forceRefresh = false) => {
+    if (!isPro) return;
+    const cachedPro = await getCachedProJustForYou(payload?.profile?.userId);
+    if (cachedPro) setProCards(cachedPro);
+    getProJustForYou(payload, forceRefresh).then(({ cards }) => { if (cards) setProCards(cards); }).catch(() => {});
   };
 
   const handleRefresh = () => {
@@ -513,6 +582,12 @@ const TodayTab = ({
     if (!userId || !dataReady) return;
     fetchInsights(buildPayload());
   }, [userId, dataReady]);
+
+  // Became Pro (just subscribed, or the subscription status loaded after the first fetch): load the extra cards.
+  useEffect(() => {
+    if (!isPro || !userId || !dataReady) return;
+    fetchProInsights(buildPayload());
+  }, [isPro, userId, dataReady]);
 
   // Time since last fast counter
   useEffect(() => {
@@ -836,19 +911,35 @@ const TodayTab = ({
             {jfyLoading ? (
               <JfySkeletonCard style={{ width: SCROLL_CARD_WIDTH, marginRight: 12 }} />
             ) : justForYouInsight ? (
-              <TouchableOpacity
-                activeOpacity={0.88}
-                onPress={() => { setJfyExpanded(true); setJfyFreshReady(false); }}
-                style={{ width: SCROLL_CARD_WIDTH, marginRight: 12, backgroundColor: '#047857', borderRadius: 16, padding: 16, minHeight: 160, justifyContent: 'space-between' }}
-              >
-                <Text style={{ fontSize: 15, fontWeight: '700', lineHeight: 22, color: 'rgba(255,255,255,0.92)', flex: 1, marginBottom: 16 }} numberOfLines={4}>
-                  {justForYouInsight}
-                </Text>
-                <View style={styles.eduBtn}>
-                  <Text style={styles.eduBtnText}>Read more</Text>
-                </View>
-              </TouchableOpacity>
+              <JfyCard
+                palette={JFY_PALETTES[0]}
+                text={justForYouInsight}
+                width={SCROLL_CARD_WIDTH}
+                onPress={() => { setJfyOpen({ text: justForYouInsight, title: "Today's Insight" }); setJfyExpanded(true); setJfyFreshReady(false); }}
+              />
             ) : null}
+
+            {/* Three more insights: real ones for Pro, locked previews for Free */}
+            {!jfyLoading && justForYouInsight && (isPro
+              ? (proCards || []).slice(0, 3).map((c, i) => (
+                <JfyCard
+                  key={`pro-${i}`}
+                  palette={JFY_PALETTES[i + 1]}
+                  label={LENS_LABELS[c.lens] || 'Insight'}
+                  text={c.insight}
+                  width={SCROLL_CARD_WIDTH}
+                  onPress={() => { setJfyOpen({ text: c.insight, title: LENS_LABELS[c.lens] || 'Insight' }); setJfyExpanded(true); }}
+                />
+              ))
+              : LOCKED_LENSES.map((lens, i) => (
+                <LockedJfyCard
+                  key={`locked-${lens}`}
+                  palette={JFY_PALETTES[i + 1]}
+                  label={LENS_LABELS[lens]}
+                  width={SCROLL_CARD_WIDTH}
+                  onPress={() => unlock('jfy')}
+                />
+              )))}
 
             {resourceArticle && (
               <TouchableOpacity
@@ -1043,11 +1134,11 @@ const TodayTab = ({
             <TouchableOpacity onPress={() => setJfyExpanded(false)} style={styles.articleCloseBtn}>
               <Text style={styles.articleCloseText}>✕</Text>
             </TouchableOpacity>
-            <Text style={styles.articleHeaderTitle}>Today's Insight</Text>
+            <Text style={styles.articleHeaderTitle}>{jfyOpen?.title || "Today's Insight"}</Text>
             <View style={{ width: 40 }} />
           </View>
           <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20 }}>
-            <FormattedText text={justForYouInsight || ''} bodyStyle={[styles.insightDetailBody, { fontSize: 15.5, lineHeight: 24 }]} />
+            <FormattedText text={jfyOpen?.text || justForYouInsight || ''} bodyStyle={[styles.insightDetailBody, { fontSize: 15.5, lineHeight: 24 }]} />
             <Text style={styles.articleNote}>Written by AI from your logs. General information, not medical advice. Check with a doctor before making medical decisions.</Text>
             <SourcesLink style={{ marginTop: 10 }} />
             <View style={{ height: 40 }} />
