@@ -172,6 +172,8 @@ function normalizeMealDate(dateStr) {
 }
 
 // Meal columns read from the database (sugar and sodium are added on top where available).
+// An account counts as just created (so onboarding answers belong to it) for this long after its profile is made.
+const NEW_ACCOUNT_WINDOW_MS = 15 * 60 * 1000;
 const MEAL_COLUMNS = 'id, user_id, name, calories, protein, carbs, fats, fiber, date, logged_at, method, image_url, notes, photo, detected_name, foods';
 
 const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccountDeleted, onLoggedOut, darkMode, onToggleDarkMode }) => {
@@ -937,7 +939,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
         // Fresh from onboarding: the onboarding answers are being saved right now (applyPreAuthData below), and
         // it sets the name and calorie goal itself once they're stored. Don't let this earlier read overwrite them.
-        const onboardingInFlight = !!pendingPreAuthData?.completedAt && !pendingPreAuthData?.skipped;
+        // Only for a brand-new account: an existing account signed into after someone went through onboarding
+        // again keeps its own name and details (those answers are discarded in applyPreAuthData).
+        const profileAgeMs = data.created_at ? Date.now() - new Date(data.created_at).getTime() : 0;
+        const onboardingInFlight = !!pendingPreAuthData?.completedAt && !pendingPreAuthData?.skipped
+          && profileAgeMs < NEW_ACCOUNT_WINDOW_MS;
         if (data.name && !onboardingInFlight) setUserName(data.name);
         if (data.country) setUserCountry(data.country);
         if (data.created_at) setUserJoinDate(data.created_at);
@@ -1546,7 +1552,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         // A brand-new account (no profile yet, or one made in the last few minutes) takes the onboarding
         // calorie target as is. A returning person who went through onboarding again keeps their own goal.
         const { data: before } = await supabase.from('profiles').select('created_at').eq('id', session.user.id).maybeSingle();
-        const isNewAccount = !before?.created_at || Date.now() - new Date(before.created_at).getTime() < 15 * 60 * 1000;
+        const isNewAccount = !before?.created_at || Date.now() - new Date(before.created_at).getTime() < NEW_ACCOUNT_WINDOW_MS;
+        // Signing into an existing account after going through onboarding again (e.g. someone tried sign-up
+        // with another name, then logged into their real account): keep that account's own name and details.
+        if (!isNewAccount) {
+          if (!cancelled) onPreAuthDataApplied?.();
+          return;
+        }
 
         // Build a single patch with everything from onboarding
         const patch = {};
