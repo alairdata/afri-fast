@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { track, EVENTS } from '../lib/analytics';
-import { SourcesLink } from './HealthSourcesPage';
 import Svg, { G, Circle, Ellipse, Path } from 'react-native-svg';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -1243,18 +1242,6 @@ function DoneScreen({ d, onComplete }) {
     }, d);
   };
 
-  const reachDate = plan.weeks > 0 ? new Date(Date.now() + plan.weeks * 7 * 24 * 60 * 60 * 1000) : null;
-  const reachText = reachDate
-    ? reachDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', ...(reachDate.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) })
-    : null;
-
-  const Row = ({ label, value, strong, last }) => (
-    <View style={[s.planRow, last && { borderBottomWidth: 0 }]}>
-      <Text style={[s.planRowLabel, strong && { fontWeight: '800', color: C.ink }]}>{label}</Text>
-      <Text style={[s.planRowVal, strong && { fontWeight: '800' }]}>{value}</Text>
-    </View>
-  );
-
   return (
     <View style={[s.shell, { backgroundColor: C.bg }]}>
       <ScrollView
@@ -1272,28 +1259,7 @@ function DoneScreen({ d, onComplete }) {
           <Text style={s.planNumberUnit}>calories a day</Text>
         </View>
 
-        <Text style={s.planSection}>How we got there</Text>
-        <View>
-          <Row label="What your body burns" value={`${plan.tdee.toLocaleString()} kcal`} />
-          {plan.deficit > 0 ? <Row label="Daily deficit" value={`−${plan.deficit} kcal`} /> : null}
-          <Row label="Your target" value={`${plan.target.toLocaleString()} kcal`} strong last />
-        </View>
-
-        <Text style={s.planSection}>Each day, aim for</Text>
-        <View>
-          <Row label="Protein" value={`about ${plan.protein} g`} />
-          <Row label="Water" value={`about ${plan.water} L`} last />
-        </View>
-
-        {reachText ? (
-          <Text style={s.planProjection}>
-            At this pace you'd reach <Text style={{ fontWeight: '800', color: C.ink }}>{Math.round(d.targetKg)} kg</Text> around{' '}
-            <Text style={{ fontWeight: '800', color: C.ink }}>{reachText}</Text>.
-          </Text>
-        ) : null}
-
-        <Text style={s.planNote}>Estimates, not medical advice. Check with a doctor before starting, especially if you have a health condition, are pregnant or take medication. You can change your goal any time in Settings.</Text>
-        <SourcesLink topic="calories" label="Where these numbers come from" color={C.ink} style={{ marginTop: 10 }} />
+        <Text style={s.planNote}>Logga is a tracking tool, not medical advice. Talk to a qualified professional before changing your diet or exercise.</Text>
       </ScrollView>
 
       {/* Pinned, so it is always on screen without scrolling */}
