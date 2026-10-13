@@ -55,6 +55,15 @@ const shimmerStyles = StyleSheet.create({
   sweep: { position: 'absolute', top: -20, bottom: -20, left: 0, width: 60 },
 });
 
+const REVIEWS = [
+  { name: 'Amina O.', text: 'It actually knew the calories in my jollof rice! I was shocked. Even got the portion right.', stars: 5 },
+  { name: 'Chidi K.', text: 'I scanned my egusi soup and it broke down the macros perfectly. This app gets African food.', stars: 5 },
+  { name: 'Fatima B.', text: 'Finally an app that doesn\'t just say "unknown food" when I log pounded yam and ogbono.', stars: 5 },
+  { name: 'Kwame A.', text: 'The calorie count for my waakye was spot on. Even tracked the shito on the side!', stars: 4 },
+  { name: 'Ngozi E.', text: 'I\'ve tried 5 calorie apps before. This is the first one that understands suya, chin chin, and puff puff.', stars: 5 },
+  { name: 'Yemi D.', text: 'Tracked amala and ewedu for a week. The numbers matched what my nutritionist said. Impressive.', stars: 5 },
+];
+
 const SWIPE_DELETE_WIDTH = 76;
 
 // Swipe-left-to-delete wrapper for a recent meal row. Reveals a red delete
@@ -148,6 +157,19 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
   const [expandedMealId, setExpandedMealId] = useState(null);
   const [deletingMealId, setDeletingMealId] = useState(null);
   const [viewingMeal, setViewingMeal] = useState(null);
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const reviewFade = useRef(new Animated.Value(1)).current;
+
+  // Rotate through the reviews, one at a time.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      Animated.timing(reviewFade, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+        setReviewIndex(prev => (prev + 1) % REVIEWS.length);
+        Animated.timing(reviewFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+      });
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogButtonPress = () => {
     setShowLogMealOptions(true);
@@ -483,6 +505,24 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
             </View>
             <Ionicons name="chevron-forward" size={16} color="#ccc" />
           </TouchableOpacity>}
+
+          {/* Reviews — one at a time */}
+          <View style={styles.reviewsSection}>
+            <Text style={styles.reviewsSectionTitle}>What people are saying</Text>
+            <Animated.View style={[styles.reviewsContainer, { opacity: reviewFade }]}>
+              {[REVIEWS[reviewIndex]].map((review, i) => (
+                <View key={i} style={styles.reviewCard}>
+                  <View style={styles.reviewStars}>
+                    {[...Array(review.stars)].map((_, s) => (
+                      <Ionicons key={s} name="star" size={12} color="#F59E0B" />
+                    ))}
+                  </View>
+                  <Text style={styles.reviewText}>"{review.text}"</Text>
+                  <Text style={styles.reviewName}>— {review.name}</Text>
+                </View>
+              ))}
+            </Animated.View>
+          </View>
         </View>
       )}
 
@@ -947,6 +987,13 @@ const makeStyles = (c) => StyleSheet.create({
   historyName: { fontSize: 14.5, fontWeight: '600', color: c.text, lineHeight: 19 },
   historyTime: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   historyCal: { fontSize: 14, fontWeight: '700', color: c.text },
+  reviewsSection: { marginTop: 20 },
+  reviewsSectionTitle: { fontSize: 13, fontWeight: '600', color: '#BDBDBD', marginBottom: 12 },
+  reviewsContainer: { gap: 10 },
+  reviewCard: { backgroundColor: c.bg, borderRadius: 14, padding: 16 },
+  reviewStars: { flexDirection: 'row', gap: 2, marginBottom: 8 },
+  reviewText: { fontSize: 14, color: c.text, lineHeight: 20, fontStyle: 'italic' },
+  reviewName: { fontSize: 12, color: c.textMuted, fontWeight: '600', marginTop: 8 },
   historyIconBtn: {
     width: 36,
     height: 36,
