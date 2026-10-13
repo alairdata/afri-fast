@@ -5,10 +5,55 @@ import { useTheme } from '../lib/theme';
 import { TAB_BAR_HEIGHT } from '../lib/tokens';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
 import { getConsent, loadConsent, onConsentChange } from '../lib/consent';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const CARD_WIDTH = (SCREEN_WIDTH - 40 - 12) / 2; // 40 = page padding, 12 = gap
+
+// "Log Meal": green gradient with a soft light sweep every few seconds, to draw the eye.
+const ShimmerLogButton = ({ onPress, label = 'Log Meal' }) => {
+  const sweep = useRef(new Animated.Value(0)).current;
+  const [w, setW] = useState(200);
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.delay(1400),
+      Animated.timing(sweep, { toValue: 1, duration: 1100, useNativeDriver: true }),
+      Animated.timing(sweep, { toValue: 0, duration: 0, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [sweep]);
+  const translateX = sweep.interpolate({ inputRange: [0, 1], outputRange: [-90, w + 90] });
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={shimmerStyles.touch} accessibilityRole="button" accessibilityLabel={label}>
+      <LinearGradient
+        colors={['#34D399', '#059669']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={shimmerStyles.btn}
+        onLayout={(e) => setW(e.nativeEvent.layout.width)}
+      >
+        <View style={shimmerStyles.iconWrap}><Ionicons name="add" size={17} color="#fff" /></View>
+        <Text style={shimmerStyles.txt}>{label}</Text>
+        <Animated.View pointerEvents="none" style={[shimmerStyles.sweep, { transform: [{ translateX }, { rotate: '18deg' }] }]}>
+          <LinearGradient colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.45)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ flex: 1 }} />
+        </Animated.View>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+};
+
+const shimmerStyles = StyleSheet.create({
+  touch: {
+    marginTop: 16, borderRadius: 16,
+    shadowColor: '#059669', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 18, elevation: 8,
+  },
+  btn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 15, paddingHorizontal: 30, borderRadius: 16, overflow: 'hidden' },
+  iconWrap: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  txt: { fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: 0.2 },
+  sweep: { position: 'absolute', top: -20, bottom: -20, left: 0, width: 60 },
+});
 
 const SWIPE_DELETE_WIDTH = 76;
 
@@ -155,9 +200,6 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
           >
             <Ionicons name="chevron-forward" size={18} color="#059669" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.historyIconBtn} onPress={() => setShowHistory(true)}>
-            <Ionicons name="time-outline" size={18} color="#059669" />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -175,16 +217,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
         </View>
 
         {/* Log Meal Button */}
-        <TouchableOpacity
-          style={styles.logMealBtnIntegrated}
-          onPress={handleLogButtonPress}
-          activeOpacity={0.8}
-        >
-          <View style={styles.logMealBtnIconWrapper}>
-            <Text style={styles.logMealBtnIcon}>+</Text>
-          </View>
-          <Text style={styles.logMealBtnText}>Log Meal</Text>
-        </TouchableOpacity>
+        <ShimmerLogButton onPress={handleLogButtonPress} />
       </View>
 
       {/* Selected Day's Nutrition */}
@@ -222,7 +255,13 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
 
       {/* Meals for selected day */}
       <View style={styles.recentMealsSectionClean}>
-        <Text style={styles.recentMealsTitleClean}>{selectedMealDate.toDateString() === new Date().toDateString() ? 'Recent Meals' : `Meals on ${selectedMealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}</Text>
+        <View style={styles.recentMealsHeaderRow}>
+          <Text style={[styles.recentMealsTitleClean, { marginBottom: 0 }]}>{selectedMealDate.toDateString() === new Date().toDateString() ? 'Recent Meals' : `Meals on ${selectedMealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}</Text>
+          <TouchableOpacity onPress={() => setShowHistory(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={styles.mealHistoryLink}>
+            <Text style={styles.mealHistoryLinkTxt}>Meal history</Text>
+            <Ionicons name="chevron-forward" size={14} color="#059669" />
+          </TouchableOpacity>
+        </View>
         <View style={styles.recentMealsListClean}>
           {recentMeals.filter(m => m.date === selectedMealDate.toDateString()).length === 0 && (
             <View style={{ alignItems: 'center', paddingVertical: 32 }}>
@@ -247,14 +286,17 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
                   onPress={() => onViewMeal ? onViewMeal(meal) : setViewingMeal(meal)}
                 >
                   <View style={styles.recentMealLeftClean}>
-                    <View style={styles.recentMealIconClean}>
-                      {(meal.photo || meal.localPhoto || meal.image_url)
-                        ? <Image source={{ uri: meal.photo || meal.localPhoto || meal.image_url }} style={styles.recentMealPhoto} resizeMode="cover" />
-                        : <Text style={{ fontSize: 16 }}>{'\u{1F37D}\uFE0F'}</Text>
-                      }
-                    </View>
+                    {(meal.photo || meal.localPhoto || meal.image_url) ? (
+                      <View style={styles.recentMealIconClean}>
+                        <Image source={{ uri: meal.photo || meal.localPhoto || meal.image_url }} style={styles.recentMealPhoto} resizeMode="cover" />
+                      </View>
+                    ) : (
+                      <View style={[styles.recentMealIconClean, styles.recentMealIconPlain]}>
+                        <Ionicons name="restaurant" size={20} color={colors.text} />
+                      </View>
+                    )}
                     <View style={styles.recentMealInfoClean}>
-                      <Text style={styles.recentMealNameClean} numberOfLines={1} ellipsizeMode="tail">
+                      <Text style={styles.recentMealNameClean} numberOfLines={2} ellipsizeMode="tail">
                         {meal.name.split(',')[0].trim()}
                       </Text>
                       <View style={styles.recentMealMetaRow}>
@@ -279,19 +321,18 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
 
       </ScrollView>
 
-      {/* Past Meals History */}
+      {/* Meal history */}
       {showHistory && (
-        <View style={[styles.logMealPage, Platform.OS === 'web' && { position: 'fixed', bottom: 0, overflowY: 'auto' }]}>
-          <View style={styles.logMealPageHeader}>
-            <TouchableOpacity onPress={() => setShowHistory(false)}>
-              <Ionicons name="chevron-back" size={24} color="#1F1F1F" />
+        <View style={[styles.historyPage, Platform.OS === 'web' && { position: 'fixed', bottom: 0, overflowY: 'auto' }]}>
+          <View style={styles.historyTopBar}>
+            <TouchableOpacity onPress={() => setShowHistory(false)} style={styles.historyBack} accessibilityLabel="Back" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="chevron-back" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.logMealPageTitle}>Past Meals</Text>
-          <Text style={styles.logMealPageSub}>Everything you've logged</Text>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+            <Text style={styles.historyTitle}>Meal history</Text>
+            <Text style={styles.historySub}>{recentMeals.length === 1 ? '1 meal logged' : `${recentMeals.length} meals logged`}</Text>
             {(() => {
-              // Group meals by date, most recent first
               const grouped = recentMeals.reduce((acc, meal) => {
                 const d = meal.date || new Date().toDateString();
                 if (!acc[d]) acc[d] = [];
@@ -301,7 +342,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
               const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
               if (sortedDates.length === 0) return (
                 <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-                  <Text style={{ fontSize: 36 }}>🍽️</Text>
+                  <Ionicons name="restaurant-outline" size={30} color={colors.textMuted} />
                   <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 12 }}>No meals logged yet</Text>
                 </View>
               );
@@ -310,39 +351,44 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
                 const totalCal = meals.reduce((s, m) => s + (m.calories || 0), 0);
                 const label = (() => {
                   const d = new Date(dateStr);
-                  const today = new Date(); today.setHours(0,0,0,0);
+                  const today = new Date(); today.setHours(0, 0, 0, 0);
                   const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
                   if (d.toDateString() === today.toDateString()) return 'Today';
                   if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-                  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
                 })();
                 return (
-                  <View key={dateStr} style={styles.historyGroup}>
-                    <View style={styles.historyGroupHeader}>
-                      <Text style={styles.historyGroupDate}>{label}</Text>
-                      <Text style={styles.historyGroupCal}>{totalCal} kcal</Text>
+                  <View key={dateStr} style={styles.historyDay}>
+                    <View style={styles.historyDayHeader}>
+                      <Text style={styles.historyDayLabel}>{label}</Text>
+                      <Text style={styles.historyDayTotal}>{totalCal.toLocaleString()} cal</Text>
                     </View>
-                    {meals.map((meal, mi) => (
-                      <TouchableOpacity
-                        key={`${dateStr}-${meal.id ?? mi}`}
-                        style={styles.historyMealRow}
-                        onPress={() => { setShowHistory(false); onViewMeal && onViewMeal(meal); }}
-                      >
-                        {meal.photo || meal.localPhoto ? (
-                          <Image source={{ uri: meal.localPhoto || meal.photo }} style={styles.historyMealPhoto} />
-                        ) : (
-                          <View style={[styles.historyMealPhoto, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cardAlt }]}>
-                            <Text style={{ fontSize: 20 }}>🍽️</Text>
-                          </View>
-                        )}
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.historyMealName} numberOfLines={1}>{meal.name}</Text>
-                          {meal.time && <Text style={styles.historyMealTime}>{meal.time}</Text>}
-                        </View>
-                        <Text style={styles.historyMealCal}>{meal.calories} cal</Text>
-                        <Ionicons name="chevron-forward" size={16} color="#ccc" />
-                      </TouchableOpacity>
-                    ))}
+                    <View style={styles.historyCard}>
+                      {meals.map((meal, mi) => {
+                        const photo = meal.localPhoto || meal.photo || meal.image_url;
+                        return (
+                          <TouchableOpacity
+                            key={`${dateStr}-${meal.id ?? mi}`}
+                            style={[styles.historyRow, mi < meals.length - 1 && styles.historyRowDivider]}
+                            activeOpacity={0.7}
+                            onPress={() => { setShowHistory(false); onViewMeal && onViewMeal(meal); }}
+                          >
+                            {photo ? (
+                              <Image source={{ uri: photo }} style={styles.historyThumb} />
+                            ) : (
+                              <View style={[styles.historyThumb, styles.historyThumbPlain]}>
+                                <Ionicons name="restaurant" size={17} color={colors.text} />
+                              </View>
+                            )}
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.historyName} numberOfLines={2}>{meal.name}</Text>
+                              {meal.time ? <Text style={styles.historyTime}>{meal.time}</Text> : null}
+                            </View>
+                            <Text style={styles.historyCal}>{meal.calories} cal</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   </View>
                 );
               });
@@ -879,6 +925,27 @@ const makeStyles = (c) => StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
+  recentMealsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  mealHistoryLink: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  mealHistoryLinkTxt: { fontSize: 13, fontWeight: '600', color: '#059669' },
+  recentMealIconPlain: { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border },
+  historyPage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: -120, backgroundColor: c.bg, zIndex: 9999 },
+  historyTopBar: { paddingTop: Platform.OS === 'ios' ? 54 : 24, paddingHorizontal: 12, paddingBottom: 4 },
+  historyBack: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  historyTitle: { fontSize: 28, fontWeight: '800', color: c.text, letterSpacing: -0.5 },
+  historySub: { fontSize: 14, color: c.textMuted, marginTop: 4, marginBottom: 20 },
+  historyDay: { marginBottom: 22 },
+  historyDayHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 4 },
+  historyDayLabel: { fontSize: 15, fontWeight: '700', color: c.text },
+  historyDayTotal: { fontSize: 13, fontWeight: '600', color: c.textMuted },
+  historyCard: { backgroundColor: c.card, borderRadius: 16, paddingHorizontal: 14, borderWidth: 1, borderColor: c.border },
+  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  historyRowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  historyThumb: { width: 40, height: 40, borderRadius: 10 },
+  historyThumbPlain: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border },
+  historyName: { fontSize: 14.5, fontWeight: '600', color: c.text, lineHeight: 19 },
+  historyTime: { fontSize: 12, color: c.textMuted, marginTop: 2 },
+  historyCal: { fontSize: 14, fontWeight: '700', color: c.text },
   historyIconBtn: {
     width: 36,
     height: 36,
