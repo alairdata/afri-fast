@@ -320,7 +320,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   const [waterLogs, setWaterLogs] = useState([]);
   const [stepLogs, setStepLogs] = useState([]);
   // Apple Health (see the Apple Health section below). Health rows use ids 7000000000000-7999999999999.
+  // Accounts on this phone that connected Apple Health (a list of user ids). It survives logging out, so
+  // signing back in doesn't ask to connect again; iOS keeps the Health permission itself anyway.
   const APPLE_HEALTH_KEY = 'logga-apple-health-v1';
+  const readHealthUsers = (v) => { try { const p = JSON.parse(v); return Array.isArray(p) ? p : (v ? [v] : []); } catch (_) { return v ? [v] : []; } };
   const HEALTH_ID_MIN = 7000000000000;
   const HEALTH_ID_MAX = 8000000000000;
   const isHealthRow = (l) => Number(l.id) >= HEALTH_ID_MIN && Number(l.id) < HEALTH_ID_MAX;
@@ -1385,7 +1388,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
   useEffect(() => {
     if (Platform.OS !== 'ios' || !session?.user?.id) return;
-    AsyncStorage.getItem(APPLE_HEALTH_KEY).then((v) => { if (v === session.user.id) setAppleHealthOn(true); }).catch(() => {});
+    AsyncStorage.getItem(APPLE_HEALTH_KEY).then((v) => { if (readHealthUsers(v).includes(session.user.id)) setAppleHealthOn(true); }).catch(() => {});
   }, [session?.user?.id]);
 
   const syncAppleHealthSteps = async () => {
@@ -1424,7 +1427,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     const ok = await connectAppleHealth();
     if (!ok) { showToast("Couldn't connect to Apple Health", 'error'); return; }
     setAppleHealthOn(true);
-    AsyncStorage.setItem(APPLE_HEALTH_KEY, session?.user?.id || '').catch(() => {});
+    AsyncStorage.getItem(APPLE_HEALTH_KEY).then((v) => {
+      const ids = readHealthUsers(v).filter((id) => id !== session?.user?.id);
+      return AsyncStorage.setItem(APPLE_HEALTH_KEY, JSON.stringify([...ids, session?.user?.id].filter(Boolean)));
+    }).catch(() => {});
     track('apple_health_connected');
     await syncAppleHealthSteps();
     showToast('Apple Health connected');
@@ -2982,8 +2988,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
               signOutSubscriptions();
               clearWidgetSnapshot();
               // Wipe this person's saved copies BEFORE signing out, so the next account to sign in on this
-              // phone can never load them.
+              // phone can never load them. Which accounts connected Apple Health is kept (ids only, no data).
+              const healthUsers = await AsyncStorage.getItem(APPLE_HEALTH_KEY).catch(() => null);
               await AsyncStorage.clear().catch(() => {});
+              if (healthUsers) await AsyncStorage.setItem(APPLE_HEALTH_KEY, healthUsers).catch(() => {});
               // Keep "Logging you out..." up long enough to read, then hand over to the sign-in screen,
               // where "You're logged out" is shown.
               await new Promise((r) => setTimeout(r, Math.max(0, 900 - (Date.now() - startedAt))));
