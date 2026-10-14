@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, Animated, PanResponder, Image, Modal } from 'react-native';
 import { useTheme } from '../lib/theme';
@@ -315,7 +316,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
                       </View>
                     ) : (
                       <View style={[styles.recentMealIconClean, styles.recentMealIconPlain]}>
-                        <Ionicons name="restaurant" size={20} color={colors.text} />
+                        <MaterialCommunityIcons name="silverware-fork-knife" size={20} color={colors.text} />
                       </View>
                     )}
                     <View style={styles.recentMealInfoClean}>
@@ -351,10 +352,12 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
             <TouchableOpacity onPress={() => setShowHistory(false)} style={styles.historyBack} accessibilityLabel="Back" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="chevron-back" size={22} color={colors.text} />
             </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.historyTitle}>Meal history</Text>
+              <Text style={styles.historySub}>{recentMeals.length === 1 ? '1 meal logged' : `${recentMeals.length} meals logged`}</Text>
+            </View>
           </View>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-            <Text style={styles.historyTitle}>Meal history</Text>
-            <Text style={styles.historySub}>{recentMeals.length === 1 ? '1 meal logged' : `${recentMeals.length} meals logged`}</Text>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
             {(() => {
               const grouped = recentMeals.reduce((acc, meal) => {
                 const d = meal.date || new Date().toDateString();
@@ -400,7 +403,7 @@ const MealsTab = ({ selectedMealDate, setSelectedMealDate, recentMeals, onLogMea
                               <Image source={{ uri: photo }} style={styles.historyThumb} />
                             ) : (
                               <View style={[styles.historyThumb, styles.historyThumbPlain]}>
-                                <Ionicons name="restaurant" size={17} color={colors.text} />
+                                <MaterialCommunityIcons name="silverware-fork-knife" size={17} color={colors.text} />
                               </View>
                             )}
                             <View style={{ flex: 1 }}>
@@ -971,10 +974,10 @@ const makeStyles = (c) => StyleSheet.create({
   mealHistoryLinkTxt: { fontSize: 13, fontWeight: '600', color: '#059669' },
   recentMealIconPlain: { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border },
   historyPage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: -120, backgroundColor: c.bg, zIndex: 9999 },
-  historyTopBar: { paddingTop: Platform.OS === 'ios' ? 54 : 24, paddingHorizontal: 12, paddingBottom: 4 },
+  historyTopBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 16, paddingBottom: 12, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
   historyBack: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  historyTitle: { fontSize: 28, fontWeight: '800', color: c.text, letterSpacing: -0.5 },
-  historySub: { fontSize: 14, color: c.textMuted, marginTop: 4, marginBottom: 20 },
+  historyTitle: { fontSize: 20, fontWeight: '800', color: c.text, letterSpacing: -0.3 },
+  historySub: { fontSize: 13, color: c.textMuted, marginTop: 1 },
   historyDay: { marginBottom: 22 },
   historyDayHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 4 },
   historyDayLabel: { fontSize: 15, fontWeight: '700', color: c.text },
@@ -1068,6 +1071,8 @@ const makeStyles = (c) => StyleSheet.create({
   recentMealInfoClean: {
     gap: 3,
     flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   recentMealNameClean: {
     fontSize: 13,

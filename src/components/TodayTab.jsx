@@ -19,6 +19,9 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SCROLL_CARD_GUTTER = 20;
 const SCROLL_CARD_PEEK = 28;
 const SCROLL_CARD_WIDTH = SCREEN_WIDTH - SCROLL_CARD_GUTTER * 2 - SCROLL_CARD_PEEK;
+// Just for You cards are narrower, so a good part of the next coloured card shows.
+const JFY_CARD_PEEK = 88;
+const JFY_CARD_WIDTH = SCREEN_WIDTH - SCROLL_CARD_GUTTER * 2 - JFY_CARD_PEEK;
 
 const getInitials = (name) => {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean);
@@ -290,7 +293,7 @@ const LockedJfyCard = ({ palette, label, onPress, width }) => (
       </View>
       <View style={[jfyStyles.btn, { borderColor: palette.chip, backgroundColor: 'rgba(255,255,255,0.55)', flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
         <Ionicons name="lock-closed" size={11} color={palette.ink} />
-        <Text style={[jfyStyles.btnTxt, { color: palette.ink }]}>Read with Pro</Text>
+        <Text style={[jfyStyles.btnTxt, { color: palette.ink }]}>See more</Text>
       </View>
     </LinearGradient>
   </TouchableOpacity>
@@ -906,12 +909,12 @@ const TodayTab = ({
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eduScrollCompact}>
             {jfyLoading ? (
-              <JfySkeletonCard style={{ width: SCROLL_CARD_WIDTH, marginRight: 12 }} />
+              <JfySkeletonCard style={{ width: JFY_CARD_WIDTH, marginRight: 12 }} />
             ) : justForYouInsight ? (
               <JfyCard
                 palette={JFY_PALETTES[0]}
                 text={justForYouInsight}
-                width={SCROLL_CARD_WIDTH}
+                width={JFY_CARD_WIDTH}
                 onPress={() => { setJfyOpen({ text: justForYouInsight, title: "Today's Insight" }); setJfyExpanded(true); setJfyFreshReady(false); }}
               />
             ) : null}
@@ -924,7 +927,7 @@ const TodayTab = ({
                   palette={JFY_PALETTES[i + 1]}
                   label={LENS_LABELS[c.lens] || 'Insight'}
                   text={c.insight}
-                  width={SCROLL_CARD_WIDTH}
+                  width={JFY_CARD_WIDTH}
                   onPress={() => { setJfyOpen({ text: c.insight, title: LENS_LABELS[c.lens] || 'Insight' }); setJfyExpanded(true); }}
                 />
               ))
@@ -933,7 +936,7 @@ const TodayTab = ({
                   key={`locked-${lens}`}
                   palette={JFY_PALETTES[i + 1]}
                   label={LENS_LABELS[lens]}
-                  width={SCROLL_CARD_WIDTH}
+                  width={JFY_CARD_WIDTH}
                   onPress={() => unlock('jfy')}
                 />
               )))}
