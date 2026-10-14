@@ -80,6 +80,7 @@ import EditProfileModal from './components/EditProfileModal';
 import TimeEditModal from './components/TimeEditModal';
 import AiConsentModal from './components/AiConsentModal';
 import PaywallModal from './components/PaywallModal';
+import { LinearGradient } from 'expo-linear-gradient';
 import { initSubscriptions, signOutSubscriptions, useSubscription, openPaywall, FREE_MEALS_PER_DAY } from './lib/subscription';
 import { ensureAiConsent } from './lib/consent';
 
@@ -1898,7 +1899,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       return;
     }
     Animated.sequence([
-      Animated.spring(toastAnim, { toValue: 50, useNativeDriver: true, tension: 80, friction: 10 }),
+      Animated.spring(toastAnim, { toValue: 50, useNativeDriver: true, tension: 90, friction: 7 }),
       Animated.delay(2500),
       Animated.timing(toastAnim, { toValue: -80, duration: 300, useNativeDriver: true }),
     ]).start(() => setToastMessage(''));
@@ -3240,13 +3241,20 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         }}
       />
 
-      {/* Toast notification */}
+      {/* Toast notification: a soft pill that drops in at the top */}
       {toastMessage !== '' && (
-        <Animated.View style={[styles.toast, { transform: [{ translateY: toastAnim }] }]}>
-          <View style={[styles.toastIconCircle, toastType === 'error' && { backgroundColor: '#DC2626' }]}>
-            <Text style={styles.toastCheckmark}>{toastType === 'error' ? '✕' : '✓'}</Text>
-          </View>
-          <Text style={styles.toastTitle}>{toastMessage}</Text>
+        <Animated.View pointerEvents="none" style={[styles.toastWrap, { transform: [{ translateY: toastAnim }] }]}>
+          <LinearGradient
+            colors={toastType === 'error' ? ['#FFF1F2', '#FFE0E4'] : ['#F0FDF7', '#D5F7E6']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.toast, { borderColor: toastType === 'error' ? 'rgba(220,38,38,0.18)' : 'rgba(5,150,105,0.18)' }]}
+          >
+            <View style={[styles.toastIconCircle, { backgroundColor: toastType === 'error' ? '#F43F5E' : '#10B981' }]}>
+              <Ionicons name={toastType === 'error' ? 'alert' : 'checkmark'} size={15} color="#fff" />
+            </View>
+            <Text style={[styles.toastTitle, { color: toastType === 'error' ? '#881337' : '#064E3B' }]} numberOfLines={3}>{toastMessage}</Text>
+          </LinearGradient>
         </Animated.View>
       )}
     </View>
@@ -3270,46 +3278,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  toastWrap: { position: 'absolute', top: 0, left: 16, right: 16, alignItems: 'center', zIndex: 9999 },
   toast: {
-    position: 'absolute',
-    top: 0,
-    left: 12,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 12,
-    zIndex: 9999,
+    flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: 380,
+    paddingLeft: 8, paddingRight: 18, paddingVertical: 8, borderRadius: 22, borderWidth: 1,
+    shadowColor: '#0B3D2E', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.16, shadowRadius: 20, elevation: 10,
   },
-  toastIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toastCheckmark: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#fff',
-  },
-  toastContent: {
-    flex: 1,
-  },
-  toastTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F1F1F',
-  },
+  toastIconCircle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  toastTitle: { flexShrink: 1, fontSize: 14, fontWeight: '700', lineHeight: 19 },
   toastSubtitle: {
     fontSize: 12,
     color: '#9CA3AF',
