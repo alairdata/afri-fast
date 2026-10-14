@@ -81,16 +81,17 @@ export async function loadPlans() {
   if (!current) return null;
   const yearly = current.annual || current.availablePackages.find((p) => p.packageType === 'ANNUAL') || null;
   const monthly = current.monthly || current.availablePackages.find((p) => p.packageType === 'MONTHLY') || null;
-  let trialEligible = false;
-  if (yearly?.product?.introPrice) {
-    try {
-      const elig = await Purchases.checkTrialOrIntroductoryPriceEligibility([yearly.product.identifier]);
-      // 2 = eligible; 0 (unknown) is treated as eligible, as Apple decides at purchase time.
-      const s = elig?.[yearly.product.identifier]?.status;
-      trialEligible = s === 2 || s === 0;
-    } catch (_) { trialEligible = true; }
+  // Whether this Apple ID can still get each plan's free trial (only plans that have one in App Store Connect).
+  const ids = [yearly, monthly].filter((p) => p?.product?.introPrice).map((p) => p.product.identifier);
+  let elig = {};
+  if (ids.length) {
+    try { elig = await Purchases.checkTrialOrIntroductoryPriceEligibility(ids); } catch (_) { elig = null; }
   }
-  return { yearly, monthly, trialEligible };
+  // 2 = eligible; 0 (unknown) counts as eligible, as Apple decides at purchase time.
+  const canTrial = (p) => !!p?.product?.introPrice && (elig === null || [0, 2].includes(elig?.[p.product.identifier]?.status));
+  const trialYearly = canTrial(yearly);
+  const trialMonthly = canTrial(monthly);
+  return { yearly, monthly, trialYearly, trialMonthly, trialEligible: trialYearly };
 }
 
 // Returns 'purchased', 'cancelled' or throws.

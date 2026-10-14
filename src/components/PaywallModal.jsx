@@ -97,7 +97,7 @@ const PaywallModal = ({ goal }) => {
   const yearly = plans?.yearly;
   const monthly = plans?.monthly;
   const selected = choice === 'yearly' ? yearly : monthly;
-  const trial = choice === 'yearly' && plans?.trialEligible;
+  const trial = choice === 'yearly' ? !!plans?.trialYearly : !!plans?.trialMonthly;
   const yp = yearly?.product;
   const mp = monthly?.product;
   // A true comparison only: 12 months at the monthly price, crossed out next to the yearly price.
@@ -141,7 +141,7 @@ const PaywallModal = ({ goal }) => {
 
   const terms = selected
     ? (trial
-      ? `Free for 7 days, then ${selected.product.priceString} a year. `
+      ? `Free for 7 days, then ${selected.product.priceString} a ${choice === 'yearly' ? 'year' : 'month'}. `
       : `${selected.product.priceString} a ${choice === 'yearly' ? 'year' : 'month'}. `)
       + 'Payment is charged to your Apple ID. The subscription renews automatically unless you cancel at least 24 hours before the end of the current period'
       + (trial ? ' or free trial' : '')
@@ -180,7 +180,7 @@ const PaywallModal = ({ goal }) => {
             ) : !plans ? (
               <Text style={styles.small}>Plans couldn't load right now. Check your connection and try again.</Text>
             ) : (
-              <View style={{ marginTop: 20, gap: 12 }}>
+              <View style={styles.planRow}>
                 {yearly && (
                   <TouchableOpacity
                     style={[styles.plan, choice === 'yearly' && styles.planOn]}
@@ -190,19 +190,11 @@ const PaywallModal = ({ goal }) => {
                     accessibilityState={{ selected: choice === 'yearly' }}
                   >
                     <View style={styles.badge}><Text style={styles.badgeTxt}>BEST VALUE</Text></View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.planTitle}>12 months</Text>
-                      <Text style={styles.planPrices}>
-                        {twelveMonthly ? <Text style={styles.strike}>{twelveMonthly}</Text> : null}
-                        {twelveMonthly ? '  ' : ''}{yp.priceString}
-                      </Text>
-                      {plans.trialEligible ? (
-                        <View style={styles.trialChip}><Text style={styles.trialTxt}>7 days free</Text></View>
-                      ) : null}
-                    </View>
-                    {yearlyPerMonth ? (
-                      <Text style={styles.perMonth}>{yearlyPerMonth}<Text style={styles.perMonthUnit}>/mo</Text></Text>
-                    ) : null}
+                    <Text style={styles.planTitle}>12 months</Text>
+                    {twelveMonthly ? <Text style={styles.strike}>{twelveMonthly}</Text> : <Text style={styles.strike}> </Text>}
+                    <Text style={styles.planPrice}>{yp.priceString}</Text>
+                    {yearlyPerMonth ? <Text style={styles.planPer}>{yearlyPerMonth}/mo</Text> : null}
+                    {plans.trialYearly ? <View style={styles.trialChip}><Text style={styles.trialTxt}>7 days free</Text></View> : null}
                   </TouchableOpacity>
                 )}
                 {monthly && (
@@ -213,11 +205,11 @@ const PaywallModal = ({ goal }) => {
                     accessibilityRole="radio"
                     accessibilityState={{ selected: choice === 'monthly' }}
                   >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.planTitle}>1 month</Text>
-                      <Text style={styles.planPrices}>Billed monthly</Text>
-                    </View>
-                    <Text style={styles.perMonth}>{mp.priceString}<Text style={styles.perMonthUnit}>/mo</Text></Text>
+                    <Text style={styles.planTitle}>1 month</Text>
+                    <Text style={styles.strike}> </Text>
+                    <Text style={styles.planPrice}>{mp.priceString}</Text>
+                    <Text style={styles.planPer}>billed monthly</Text>
+                    {plans.trialMonthly ? <View style={styles.trialChip}><Text style={styles.trialTxt}>7 days free</Text></View> : null}
                   </TouchableOpacity>
                 )}
               </View>
@@ -259,7 +251,7 @@ const PaywallModal = ({ goal }) => {
 
         {canPurchase && plans && selected && (
           <View style={styles.footer}>
-            <Text style={styles.cancelAny}>{trial ? `7 days free, then ${selected.product.priceString}/year · ` : ''}Cancel anytime</Text>
+            <Text style={styles.cancelAny}>{trial ? `7 days free, then ${selected.product.priceString}/${choice === 'yearly' ? 'year' : 'month'} · ` : ''}Cancel anytime</Text>
             <TouchableOpacity style={[styles.cta, busy && { opacity: 0.6 }]} onPress={buy} disabled={busy} activeOpacity={0.85}>
               {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaTxt}>{trial ? 'Start my free week' : 'Continue'}</Text>}
             </TouchableOpacity>
@@ -286,14 +278,17 @@ const styles = StyleSheet.create({
   title: { fontSize: 25, fontWeight: '800', color: INK, letterSpacing: -0.5, lineHeight: 31, textAlign: 'center' },
   titleAccent: { color: GREEN },
   sub: { fontSize: 14.5, lineHeight: 21, color: INK500, marginTop: 8, textAlign: 'center' },
-  plan: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 16, borderRadius: 18, backgroundColor: '#fff', borderWidth: 1.5, borderColor: LINE },
+  planRow: { flexDirection: 'row', gap: 12, marginTop: 22 },
+  plan: { flex: 1, alignItems: 'center', paddingHorizontal: 12, paddingTop: 20, paddingBottom: 16, borderRadius: 18, backgroundColor: '#fff', borderWidth: 1.5, borderColor: LINE },
   planOn: { borderColor: GREEN, borderWidth: 2.5, backgroundColor: '#F2FBF6' },
-  badge: { position: 'absolute', top: -11, right: 16, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8, backgroundColor: GREEN },
+  badge: { position: 'absolute', top: -11, alignSelf: 'center', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8, backgroundColor: GREEN },
   badgeTxt: { fontSize: 10.5, fontWeight: '800', color: '#fff', letterSpacing: 0.6 },
-  planTitle: { fontSize: 17, fontWeight: '800', color: INK },
+  planTitle: { fontSize: 15, fontWeight: '800', color: INK },
+  planPrice: { fontSize: 22, fontWeight: '800', color: INK, marginTop: 2 },
+  planPer: { fontSize: 12.5, color: INK500, fontWeight: '600', marginTop: 2 },
   planPrices: { fontSize: 13.5, color: INK500, marginTop: 3, fontWeight: '600' },
-  strike: { textDecorationLine: 'line-through', color: INK400, fontWeight: '500' },
-  trialChip: { alignSelf: 'flex-start', marginTop: 7, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(5,150,105,0.12)' },
+  strike: { textDecorationLine: 'line-through', color: INK400, fontWeight: '500', fontSize: 13, marginTop: 6 },
+  trialChip: { alignSelf: 'center', marginTop: 8, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(5,150,105,0.12)' },
   trialTxt: { fontSize: 11.5, fontWeight: '800', color: GREEN_DARK },
   perMonth: { fontSize: 19, fontWeight: '800', color: INK },
   perMonthUnit: { fontSize: 13, fontWeight: '600', color: INK500 },
