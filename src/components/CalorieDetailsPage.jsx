@@ -7,6 +7,20 @@ import { Rect } from 'react-native-svg';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Reference amounts for sugar and sodium (WHO guidance), and the nutrients the trend chart can show.
+const SUGAR_REF_G = 50;
+const SODIUM_REF_MG = 2000;
+const TRENDS = [
+  { key: 'protein', label: 'Protein', hex: '#EF4444', rgba: 'rgba(239, 68, 68, 1)', unit: 'g' },
+  { key: 'carbs', label: 'Carbs', hex: '#F59E0B', rgba: 'rgba(245, 158, 11, 1)', unit: 'g' },
+  { key: 'fats', label: 'Fats', hex: '#8B5CF6', rgba: 'rgba(139, 92, 246, 1)', unit: 'g' },
+  { key: 'fiber', label: 'Fibre', hex: '#22C55E', rgba: 'rgba(34, 197, 94, 1)', unit: 'g' },
+  { key: 'sugar', label: 'Sugar', hex: '#EC4899', rgba: 'rgba(236, 72, 153, 1)', unit: 'g', ref: SUGAR_REF_G,
+    note: 'Total sugars, including the natural sugar in fruit and milk. WHO suggests keeping added sugars to about 50g a day or less.' },
+  { key: 'sodium', label: 'Sodium', hex: '#0EA5E9', rgba: 'rgba(14, 165, 233, 1)', unit: 'mg', ref: SODIUM_REF_MG,
+    note: 'Includes salt and seasoning cubes. WHO suggests under 2,000mg of sodium a day (about one teaspoon of salt).' },
+];
+
 const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   const [calorieRange, setCalorieRange] = useState('7 days');
   const [proteinTooltip, setProteinTooltip] = useState(null);
@@ -15,6 +29,8 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   const [fiberTooltip, setFiberTooltip] = useState(null);
   const [sugarTooltip, setSugarTooltip] = useState(null);
   const [sodiumTooltip, setSodiumTooltip] = useState(null);
+  const [trendKey, setTrendKey] = useState('protein');
+  const [trendTooltip, setTrendTooltip] = useState(null);
 
   useEffect(() => { if (!proteinTooltip) return; const t = setTimeout(() => setProteinTooltip(null), 2000); return () => clearTimeout(t); }, [proteinTooltip]);
   useEffect(() => { if (!carbsTooltip) return; const t = setTimeout(() => setCarbsTooltip(null), 2000); return () => clearTimeout(t); }, [carbsTooltip]);
@@ -22,6 +38,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   useEffect(() => { if (!fiberTooltip) return; const t = setTimeout(() => setFiberTooltip(null), 2000); return () => clearTimeout(t); }, [fiberTooltip]);
   useEffect(() => { if (!sugarTooltip) return; const t = setTimeout(() => setSugarTooltip(null), 2000); return () => clearTimeout(t); }, [sugarTooltip]);
   useEffect(() => { if (!sodiumTooltip) return; const t = setTimeout(() => setSodiumTooltip(null), 2000); return () => clearTimeout(t); }, [sodiumTooltip]);
+  useEffect(() => { if (!trendTooltip) return; const t = setTimeout(() => setTrendTooltip(null), 2000); return () => clearTimeout(t); }, [trendTooltip]);
 
   if (!show) return null;
 
@@ -78,7 +95,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
     return isNaN(dt.getTime()) ? '' : `${dt.getDate()}/${dt.getMonth() + 1}`;
   });
 
-  const makeMacroChart = (dataPoints, rgbaColor, hexColor, tooltip, setTooltip) => (
+  const makeMacroChart = (dataPoints, rgbaColor, hexColor, tooltip, setTooltip, unit = 'g') => (
     <View style={{ marginHorizontal: -12, height: 190, overflow: 'hidden', position: 'relative' }}>
       <LineChart
         data={{
@@ -119,7 +136,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
       />
       {tooltip && (
         <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(tooltip.x - 30, SCREEN_WIDTH - 120)), top: tooltip.y - 12 }]} pointerEvents="none">
-          <Text style={styles.chartTooltipText}>{tooltip.value}g</Text>
+          <Text style={styles.chartTooltipText}>{tooltip.value}{unit}</Text>
         </View>
       )}
     </View>
@@ -184,219 +201,102 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
             </View>
           </View>
 
-          {/* Protein Intake Trend */}
-          <View style={styles.detailSection}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              <Ionicons name="barbell-outline" size={14} color="#1F1F1F" />
-              <Text style={styles.detailSectionTitleNoMargin}>Protein Intake</Text>
-            </View>
-            <View style={styles.chartCardCompact}>
-              {hasMultiple ? makeMacroChart(dailyData.map(d => d.protein || 0), 'rgba(239, 68, 68, 1)', '#EF4444', proteinTooltip, setProteinTooltip)
-                : <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasData ? `${avg(totals.protein)}g avg` : 'No data'}</Text></View>}
-
-              <View style={styles.macroStatsRowCompact}>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${avg(totals.protein)}g` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Avg daily</Text>
-                </View>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${pct(totals.protein, 4)}%` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Of total</Text>
-                </View>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${totals.protein}g` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Total</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* Carbs Intake Trend */}
-          <View style={styles.detailSection}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              <Ionicons name="restaurant-outline" size={14} color="#1F1F1F" />
-              <Text style={styles.detailSectionTitleNoMargin}>Carbohydrate Intake</Text>
-            </View>
-            <View style={styles.chartCardCompact}>
-              {hasMultiple ? makeMacroChart(dailyData.map(d => d.carbs || 0), 'rgba(245, 158, 11, 1)', '#F59E0B', carbsTooltip, setCarbsTooltip)
-                : <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasData ? `${avg(totals.carbs)}g avg` : 'No data'}</Text></View>}
-
-              <View style={styles.macroStatsRowCompact}>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${avg(totals.carbs)}g` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Avg daily</Text>
-                </View>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${pct(totals.carbs, 4)}%` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Of total</Text>
-                </View>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${totals.carbs}g` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Total</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* Fats Intake Trend */}
-          <View style={styles.detailSection}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              <Ionicons name="water-outline" size={14} color="#1F1F1F" />
-              <Text style={styles.detailSectionTitleNoMargin}>Fat Intake</Text>
-            </View>
-            <View style={styles.chartCardCompact}>
-              {hasMultiple ? makeMacroChart(dailyData.map(d => d.fats || 0), 'rgba(139, 92, 246, 1)', '#8B5CF6', fatsTooltip, setFatsTooltip)
-                : <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasData ? `${avg(totals.fats)}g avg` : 'No data'}</Text></View>}
-
-              <View style={styles.macroStatsRowCompact}>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${avg(totals.fats)}g` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Avg daily</Text>
-                </View>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${pct(totals.fats, 9)}%` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Of total</Text>
-                </View>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${totals.fats}g` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Total</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* Fiber Intake Trend */}
-          <View style={styles.detailSection}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              <Ionicons name="leaf-outline" size={14} color="#1F1F1F" />
-              <Text style={styles.detailSectionTitleNoMargin}>Fiber Intake</Text>
-            </View>
-            <View style={styles.chartCardCompact}>
-              {hasMultiple ? makeMacroChart(dailyData.map(d => Math.round(d.fiber || 0)), 'rgba(34, 197, 94, 1)', '#22C55E', fiberTooltip, setFiberTooltip)
-                : <View style={{ height: 170, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasData && totals.fiber > 0 ? `${avg(totals.fiber)}g avg` : 'No fiber data yet'}</Text></View>}
-
-              <View style={styles.macroStatsRowCompact}>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${avg(totals.fiber)}g` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Avg daily</Text>
-                </View>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${Math.round(Math.max(0, ...dailyData.map(d => d.fiber || 0)))}g` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Best day</Text>
-                </View>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasData ? `${Math.round(totals.fiber)}g` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Total</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* Sugar Intake (Pro) */}
-          <View style={styles.detailSection}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              <Ionicons name="cube-outline" size={14} color="#1F1F1F" />
-              <Text style={styles.detailSectionTitleNoMargin}>Sugar Intake</Text>
-            </View>
-            <View style={styles.chartCardCompact}>
-              {hasMultiple && hasSugarData ? makeMacroChart(dailyData.map(d => Math.round(d.sugar || 0)), 'rgba(236, 72, 153, 1)', '#EC4899', sugarTooltip, setSugarTooltip)
-                : <View style={{ height: 120, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasSugarData ? `${avgOver('sugar')}g avg` : 'Log a meal to start tracking this'}</Text></View>}
-              <View style={styles.macroStatsRowCompact}>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasSugarData ? `${avgOver('sugar')}g` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Avg daily</Text>
-                </View>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasSugarData ? `${Math.round(Math.max(0, ...sugarDays.map(d => d.sugar)))}g` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Highest day</Text>
-                </View>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasSugarData ? `${daysOver('sugar', 50)} of ${sugarDays.length}` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Days over 50g</Text>
-                </View>
-              </View>
-              {topMeals('sugar').length > 0 && (
-                <View style={styles.topMeals}>
-                  <Text style={styles.topMealsTitle}>Most from</Text>
-                  {topMeals('sugar').map(m => (
-                    <View key={m.id} style={styles.topMealRow}>
-                      <Text style={styles.topMealName} numberOfLines={1}>{m.name}</Text>
-                      <Text style={styles.topMealVal}>{`${Math.round(m.sugar)}g`}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-              <Text style={styles.refNote}>Total sugars, including the natural sugar in fruit and milk. WHO suggests keeping added sugars to about 50g a day or less.</Text>
-            </View>
-          </View>
-
-          {/* Sodium Intake (Pro) */}
-          <View style={styles.detailSection}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              <Ionicons name="water-outline" size={14} color="#1F1F1F" />
-              <Text style={styles.detailSectionTitleNoMargin}>Sodium Intake</Text>
-            </View>
-            <View style={styles.chartCardCompact}>
-              {hasMultiple && hasSugarData ? makeMacroChart(dailyData.map(d => Math.round(d.sodium || 0)), 'rgba(14, 165, 233, 1)', '#0EA5E9', sodiumTooltip, setSodiumTooltip)
-                : <View style={{ height: 120, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasSugarData ? `${(avgOver('sodium')).toLocaleString()} mg avg` : 'Log a meal to start tracking this'}</Text></View>}
-              <View style={styles.macroStatsRowCompact}>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasSugarData ? `${(avgOver('sodium')).toLocaleString()} mg` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Avg daily</Text>
-                </View>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasSugarData ? `${(Math.round(Math.max(0, ...sugarDays.map(d => d.sodium)))).toLocaleString()} mg` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Highest day</Text>
-                </View>
-                <View style={styles.macroStatItemCompact}>
-                  <Text style={styles.macroStatValueSmall}>{hasSugarData ? `${daysOver('sodium', 2000)} of ${sugarDays.length}` : '--'}</Text>
-                  <Text style={styles.macroStatLabelSmall}>Days over 2,000mg</Text>
-                </View>
-              </View>
-              {topMeals('sodium').length > 0 && (
-                <View style={styles.topMeals}>
-                  <Text style={styles.topMealsTitle}>Most from</Text>
-                  {topMeals('sodium').map(m => (
-                    <View key={m.id} style={styles.topMealRow}>
-                      <Text style={styles.topMealName} numberOfLines={1}>{m.name}</Text>
-                      <Text style={styles.topMealVal}>{`${(Math.round(m.sodium)).toLocaleString()} mg`}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-              <Text style={styles.refNote}>Includes salt and seasoning cubes. WHO suggests under 2,000mg of sodium a day (about one teaspoon of salt).</Text>
-            </View>
-          </View>
-
-          <SourcesLink topic="food" label="Estimates · Sources" color="#6B7280" style={{ marginTop: 4, marginBottom: 8 }} />
-
-          {/* Macro Distribution */}
+          {/* Macro distribution, with fibre, sugar and sodium in the same card */}
           <View style={styles.detailSection}>
             <Text style={styles.detailSectionTitle}>Macro Distribution</Text>
             <View style={styles.macroCardCompact}>
-              <View style={styles.macroDistribution}>
-                <View style={styles.macroDistBarCompact}>
-                  <View style={{ width: hasData ? `${pct(totals.protein, 4)}%` : '33%', height: '100%', backgroundColor: '#EF4444', borderTopLeftRadius: 6, borderBottomLeftRadius: 6 }} />
-                  <View style={{ width: hasData ? `${pct(totals.carbs, 4)}%` : '34%', height: '100%', backgroundColor: '#F59E0B' }} />
-                  <View style={{ width: hasData ? `${pct(totals.fats, 9)}%` : '33%', height: '100%', backgroundColor: '#8B5CF6', borderTopRightRadius: 6, borderBottomRightRadius: 6 }} />
-                </View>
-                <View style={styles.macroDistLegendCompact}>
-                  <View style={styles.macroDistItemCompact}>
-                    <View style={[styles.macroDistDotSmall, { backgroundColor: '#EF4444' }]} />
-                    <Text style={styles.macroDistLabelSmall}>Protein {hasData ? `${pct(totals.protein, 4)}%` : '--'}</Text>
+              <View style={styles.macroDistBarCompact}>
+                <View style={{ width: hasData ? `${pct(totals.protein, 4)}%` : '33%', height: '100%', backgroundColor: '#EF4444', borderTopLeftRadius: 6, borderBottomLeftRadius: 6 }} />
+                <View style={{ width: hasData ? `${pct(totals.carbs, 4)}%` : '34%', height: '100%', backgroundColor: '#F59E0B' }} />
+                <View style={{ width: hasData ? `${pct(totals.fats, 9)}%` : '33%', height: '100%', backgroundColor: '#8B5CF6', borderTopRightRadius: 6, borderBottomRightRadius: 6 }} />
+              </View>
+              <View style={styles.macroDistLegendCompact}>
+                {[['Protein', '#EF4444', pct(totals.protein, 4), avg(totals.protein)], ['Carbs', '#F59E0B', pct(totals.carbs, 4), avg(totals.carbs)], ['Fats', '#8B5CF6', pct(totals.fats, 9), avg(totals.fats)]].map(([label, color, p, g]) => (
+                  <View key={label} style={styles.distCol}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <View style={[styles.macroDistDotSmall, { backgroundColor: color }]} />
+                      <Text style={styles.distLabel}>{label}</Text>
+                    </View>
+                    <Text style={styles.distValue}>{hasData ? `${p}%` : '--'}</Text>
+                    <Text style={styles.distSub}>{hasData ? `${g}g a day` : ' '}</Text>
                   </View>
-                  <View style={styles.macroDistItemCompact}>
-                    <View style={[styles.macroDistDotSmall, { backgroundColor: '#F59E0B' }]} />
-                    <Text style={styles.macroDistLabelSmall}>Carbs {hasData ? `${pct(totals.carbs, 4)}%` : '--'}</Text>
+                ))}
+              </View>
+              <View style={styles.extraDivider} />
+              <Text style={styles.extraTitle}>Also in your food (daily average)</Text>
+              <View style={styles.extraRow}>
+                {[
+                  ['Fibre', hasData ? `${avg(totals.fiber)}g` : '--', null],
+                  ['Sugar', hasSugarData ? `${avgOver('sugar')}g` : '--', hasSugarData ? avgOver('sugar') > SUGAR_REF_G : null],
+                  ['Sodium', hasSugarData ? `${avgOver('sodium').toLocaleString()}mg` : '--', hasSugarData ? avgOver('sodium') > SODIUM_REF_MG : null],
+                ].map(([label, value, over]) => (
+                  <View key={label} style={styles.extraCol}>
+                    <Text style={[styles.extraValue, over === true && { color: '#D97706' }, over === false && { color: '#059669' }]}>{value}</Text>
+                    <Text style={styles.extraLabel}>{label}</Text>
                   </View>
-                  <View style={styles.macroDistItemCompact}>
-                    <View style={[styles.macroDistDotSmall, { backgroundColor: '#8B5CF6' }]} />
-                    <Text style={styles.macroDistLabelSmall}>Fats {hasData ? `${pct(totals.fats, 9)}%` : '--'}</Text>
-                  </View>
-                </View>
+                ))}
               </View>
             </View>
           </View>
+
+          {/* One trend chart, switchable by nutrient */}
+          <View style={styles.detailSection}>
+            <Text style={styles.detailSectionTitle}>Daily Trends</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 10 }}>
+              {TRENDS.map((t) => (
+                <TouchableOpacity
+                  key={t.key}
+                  onPress={() => { setTrendKey(t.key); setTrendTooltip(null); }}
+                  style={[styles.trendTab, trendKey === t.key && { backgroundColor: t.hex, borderColor: t.hex }]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.trendTabTxt, trendKey === t.key && { color: '#fff' }]}>{t.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {(() => {
+              const t = TRENDS.find((x) => x.key === trendKey) || TRENDS[0];
+              const isLimit = t.key === 'sugar' || t.key === 'sodium';
+              const ok = isLimit ? hasSugarData : hasData;
+              const fmt = (v) => (t.unit === 'mg' ? `${Math.round(v).toLocaleString()}mg` : `${Math.round(v)}g`);
+              const avgVal = isLimit ? avgOver(t.key) : avg(totals[t.key]);
+              const series = dailyData.map((d) => Math.round(d[t.key] || 0));
+              const stats = isLimit
+                ? [[fmt(avgVal), 'Avg daily'], [fmt(Math.max(0, ...sugarDays.map((d) => d[t.key]))), 'Highest day'], [`${daysOver(t.key, t.ref)} of ${sugarDays.length}`, `Days over ${t.unit === 'mg' ? '2,000mg' : '50g'}`]]
+                : t.key === 'fiber'
+                  ? [[fmt(avgVal), 'Avg daily'], [fmt(Math.max(0, ...dailyData.map((d) => d.fiber || 0))), 'Best day'], [fmt(totals.fiber), 'Total']]
+                  : [[fmt(avgVal), 'Avg daily'], [`${pct(totals[t.key], t.key === 'fats' ? 9 : 4)}%`, 'Of calories'], [fmt(totals[t.key]), 'Total']];
+              return (
+                <View style={styles.chartCardCompact}>
+                  {hasMultiple && ok
+                    ? makeMacroChart(series, t.rgba, t.hex, trendTooltip, setTrendTooltip, t.unit)
+                    : <View style={{ height: 150, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{ok ? `${fmt(avgVal)} avg` : isLimit ? 'Log a meal to start tracking this' : 'No data yet'}</Text></View>}
+                  <View style={styles.macroStatsRowCompact}>
+                    {stats.map(([v, l]) => (
+                      <View key={l} style={styles.macroStatItemCompact}>
+                        <Text style={styles.macroStatValueSmall}>{ok ? v : '--'}</Text>
+                        <Text style={styles.macroStatLabelSmall}>{l}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  {isLimit && topMeals(t.key).length > 0 && (
+                    <View style={styles.topMeals}>
+                      <Text style={styles.topMealsTitle}>Most from</Text>
+                      {topMeals(t.key).map((m) => (
+                        <View key={m.id} style={styles.topMealRow}>
+                          <Text style={styles.topMealName} numberOfLines={1}>{m.name}</Text>
+                          <Text style={styles.topMealVal}>{fmt(m[t.key])}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  {t.note ? <Text style={styles.refNote}>{t.note}</Text> : null}
+                </View>
+              );
+            })()}
+          </View>
+
+          <SourcesLink topic="food" only label="Estimates · Sources" color="#6B7280" style={{ marginTop: 4, marginBottom: 24 }} />
         </ScrollView>
       </View>
     </View>
@@ -404,6 +304,18 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
 };
 
 const styles = StyleSheet.create({
+  distCol: { flex: 1, alignItems: 'center' },
+  distLabel: { fontSize: 12, color: '#6B7280', fontWeight: '600' },
+  distValue: { fontSize: 18, fontWeight: '800', color: '#1F1F1F', marginTop: 4 },
+  distSub: { fontSize: 11, color: '#9CA3AF', marginTop: 1 },
+  extraDivider: { height: 1, backgroundColor: '#F1F1EC', marginTop: 14, marginBottom: 12 },
+  extraTitle: { fontSize: 11, fontWeight: '800', color: '#9CA3AF', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 },
+  extraRow: { flexDirection: 'row' },
+  extraCol: { flex: 1, alignItems: 'center' },
+  extraValue: { fontSize: 16, fontWeight: '800', color: '#1F1F1F' },
+  extraLabel: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  trendTab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#fff' },
+  trendTabTxt: { fontSize: 13, fontWeight: '700', color: '#374151' },
   topMeals: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F1EC' },
   topMealsTitle: { fontSize: 11, fontWeight: '800', color: '#9CA3AF', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   topMealRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
