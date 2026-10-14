@@ -8,7 +8,7 @@ export const INSIGHT_HELP = {
   },
   momentum: {
     title: 'Momentum',
-    body: "A score from 0 to 100 that shows how well your recent days are moving you toward your goal. Higher is better.\n\nIt looks at how you've been eating, whether your meals keep you full, and how much you move. Tap \"See why\" to see what's helping and what's holding you back.\n\nThe small bars underneath show how steady you've been each week for the last 6 weeks.",
+    body: "A score from 0 to 100 that shows how well your recent days are moving you toward your goal. Higher is better.\n\nIt reflects your recent habits as a whole. Tap \"See why\" to see what's helping and what's holding you back.\n\nThe small bars underneath show how steady you've been each week for the last 6 weeks.",
   },
   bmi: {
     title: 'Current BMI',
@@ -20,7 +20,7 @@ export const INSIGHT_HELP = {
   },
   prediction: {
     title: 'Prediction this week',
-    body: "How much your weight is likely to change by the end of this week, based on what you've eaten and how active you've been.\n\nThe label tells you how that compares with the pace you chose: ahead, on track, drifting or stalled.",
+    body: "How much your weight is likely to change by the end of this week if you keep going as you are.\n\nThe label tells you how that compares with the pace you chose: ahead, on track, drifting or stalled.",
   },
   forecast: {
     title: 'Forecast',
@@ -28,7 +28,7 @@ export const INSIGHT_HELP = {
   },
   energy: {
     title: 'Energy balance',
-    body: "Calories out versus calories in.\n\nTDEE is roughly how many calories your body burns in a day. Today is what you've eaten so far.\n\nA deficit means you ate less than you burn, which leads to weight loss over time. A surplus means you ate more.",
+    body: "Calories out versus calories in.\n\nBurn is roughly how many calories your body uses in a day. Today is what you've eaten so far.\n\nA deficit means you ate less than you burn, which leads to weight loss over time. A surplus means you ate more.",
   },
   pace: {
     title: 'Pace to goal',
@@ -40,7 +40,7 @@ export const INSIGHT_HELP = {
   },
   burnout: {
     title: 'Burnout likelihood',
-    body: "How likely you are to feel worn out and slip off your plan soon, from 0 (low) to 100 (high).\n\nIt tends to rise when you eat very little for a while, run low on protein or water, or your eating swings a lot from day to day. The bars show each day of this week.\n\nIt's a wellbeing guide, not a medical diagnosis.",
+    body: "How likely you are to feel worn out and slip off your plan soon, from 0 (low) to 100 (high).\n\nIt reflects how your recent days have been going. The bars show each day of this week, and the card tells you what's pushing it up.\n\nIt's a wellbeing guide, not a medical diagnosis.",
   },
   hydration: {
     title: 'Hydration',
@@ -52,6 +52,6 @@ export const INSIGHT_HELP = {
   },
   activities: {
     title: 'Activities',
-    body: "Workouts and activities you've logged.\n\nA dot is filled on each day this week where you logged an activity or walked 5,000 steps or more. Tap See all for your full list.",
+    body: "Workouts and activities you've logged.\n\nA dot is filled on each active day this week. Tap See all for your full list.",
   },
 };

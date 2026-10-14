@@ -601,11 +601,11 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
             <View style={s.statsRow}>
               <View style={s.statBox}>
                 <Text style={s.statValue}>{result.bmr}</Text>
-                <Text style={s.statLabel}>BMR (kcal)</Text>
+                <Text style={s.statLabel}>At rest (kcal)</Text>
               </View>
               <View style={s.statBox}>
                 <Text style={s.statValue}>{result.tdee}</Text>
-                <Text style={s.statLabel}>TDEE (kcal)</Text>
+                <Text style={s.statLabel}>Daily burn (kcal)</Text>
               </View>
             </View>
             <SourcesLink topic="calories" label="Health info & sources" style={{ alignSelf: 'center', marginBottom: 14 }} />

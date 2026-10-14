@@ -206,7 +206,7 @@ const CalorieTargetPage = ({
             <View style={styles.row}>
               <View style={{ flex: 1, paddingRight: 12 }}>
                 <Text style={styles.rowLabel}>Your daily burn</Text>
-                <Text style={styles.rowSub}>{tdee == null ? 'Needs your details' : usesLogs ? 'Calibrated from your logs' : 'Estimated from your details'}</Text>
+                <Text style={styles.rowSub}>{tdee == null ? 'Needs your details' : 'Your personal estimate'}</Text>
               </View>
               <Text style={styles.rowVal}>{tdee != null ? `${fmt(tdee)} kcal` : '--'}</Text>
             </View>

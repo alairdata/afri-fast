@@ -733,7 +733,7 @@ const ProgressTab = ({
   };
   const forecastAnchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
   const forecastAnchorNote = forecastAnchorKg != null && currentWeightKg != null && Math.abs(forecastAnchorKg - currentWeightKg) > 0.05
-    ? `Starts from ${fromKg(forecastAnchorKg, weightUnit).toFixed(1)} ${weightUnit}: your weight with day-to-day water swings smoothed out, so it can differ a little from your last weigh-in.`
+    ? `Starts from ${fromKg(forecastAnchorKg, weightUnit).toFixed(1)} ${weightUnit}, which can differ a little from your last weigh-in.`
     : null;
   const projected7Kg = weeklyPace.projectDay(7)?.projectedKg ?? null;
   const projected14Kg = weeklyPace.projectDay(14)?.projectedKg ?? null;
@@ -768,7 +768,7 @@ const ProgressTab = ({
         return {
           eta: projectedGoalDate,
           pct: Math.min(100, Math.round((lostEst / totalGapKg) * 100)), planPct: null,
-          note: 'Estimated from what you have eaten so far. It gets sharper with each weigh-in.',
+          note: 'An estimate that gets sharper as you keep logging.',
           lost: fromKg(lostEst, weightUnit),
           togo: fromKg(togoKg, weightUnit),
           weeklyRate: fromKg(Math.abs(predictedWeekly), weightUnit),
@@ -793,7 +793,7 @@ const ProgressTab = ({
     const predictedWeeklyKg = weeklyPace && weeklyPace.dailyRateKg != null ? weeklyPace.dailyRateKg * 7 : null;
     if (predictedWeeklyKg != null && Math.abs(weeklyWeightChangeKg - predictedWeeklyKg) > Math.max(0.5, (currentWeightKg || 70) * 0.006)) {
       noteSuffix = weeklyWeightChangeKg < predictedWeeklyKg
-        ? " Your scale is dropping faster than your eating alone explains. That's often water weight or weigh-in timing, so trust the trend over a few weeks."
+        ? " Your weight is moving faster than expected. That's often water weight or weigh-in timing, so trust the trend over a few weeks."
         : " Your scale is moving slower than your eating alone suggests. Water and timing can hide progress for a while, so keep going.";
     }
     if (trajectory && requiredWeeklyRateKg) {
@@ -1296,13 +1296,13 @@ const ProgressTab = ({
     const label = trendBadge?.label;
     if (!label || label === 'On Pace') return null;
     if (label === 'Too Aggressive') {
-      return `This isn't about going too fast — your last 3 logged days are averaging ${Math.round(weeklyPace.threeDayAvgCalories).toLocaleString()} kcal, under the safe floor for what your organs need at rest (~${weeklyPace.bmrSafetyFloor ? Math.round(weeklyPace.bmrSafetyFloor).toLocaleString() : ''} kcal). That's under-eating, not overachieving. Bring your calories back up.`;
+      return `This isn't about going too fast — your recent days are averaging ${Math.round(weeklyPace.threeDayAvgCalories).toLocaleString()} kcal, which is less than your body needs to run well. That's under-eating, not overachieving. Bring your calories back up.`;
     }
-    if (label === 'Faster Than Planned') return "You're running a bigger deficit than your chosen pace calls for, but it's still within a safe range for your body — nothing to fix, unless you'd rather update your pace in Settings to match.";
+    if (label === 'Faster Than Planned') return "You're moving faster than your chosen pace, but it's still within a safe range for your body — nothing to fix, unless you'd rather update your pace in Settings to match.";
     if (label === 'Needs Weigh-in') return "It's been over a week since your last weigh-in — log one so this pace reading actually means something.";
-    if (label === 'Tracking Only') return "No weigh-in in over two weeks. This is running on your meal logs alone, so treat the projection as a rough guess, not a forecast.";
-    if (label === 'Off Pace') return "You're behind the deficit your chosen pace needs — nothing urgent, just a nudge to close the gap.";
-    if (label === 'Stalled') return "Your average deficit this week is well under target — worth checking your portions, or whether your TDEE still matches your day-to-day.";
+    if (label === 'Tracking Only') return "No weigh-in in over two weeks, so treat the projection as a rough guess, not a forecast.";
+    if (label === 'Off Pace') return "You're a little behind your chosen pace — nothing urgent, just a nudge to close the gap.";
+    if (label === 'Stalled') return "Progress has slowed this week — worth checking your portions and logging everything you eat and drink.";
     return null;
   }, [trendBadge, weeklyPace, bmr]);
 
@@ -1890,7 +1890,7 @@ const ProgressTab = ({
                   </View>
                 </View>
                 {forecastAnchorNote ? <Text style={[styles.mutedSmall, { marginTop: 10 }]}>{forecastAnchorNote}</Text> : null}
-                <Text style={[styles.mutedSmall, { marginTop: 10 }]}>Confidence is based on your logging streak and how recent your last weigh-in is — {Math.round(today.confidence * 100)}% right now.</Text>
+                <Text style={[styles.mutedSmall, { marginTop: 10 }]}>Confidence grows as you log and weigh in regularly — {Math.round(today.confidence * 100)}% right now.</Text>
                 </>)}
               </View>
             )}
@@ -1899,13 +1899,13 @@ const ProgressTab = ({
             {checkpointNotice && (
               <View style={[styles.card, { backgroundColor: colors.accentLight, borderColor: accent }]}>
                 <View style={styles.rowBetween}>
-                  <Text style={styles.cardTitleSmall}>TDEE re-adjusted</Text>
+                  <Text style={styles.cardTitleSmall}>Your daily burn has changed</Text>
                   <TouchableOpacity onPress={dismissCheckpointNotice} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Ionicons name="close" size={18} color={colors.textMuted} />
                   </TouchableOpacity>
                 </View>
                 <Text style={[styles.mutedBody, { marginTop: 6 }]}>
-                  You've {checkpointNotice.newKg < checkpointNotice.prevKg ? 'lost' : 'gained'} enough for your TDEE to be recalculated —
+                  Your weight has changed enough that your daily calorie needs have shifted —
                   {pacePreference ? ` worth updating your daily calorie target in Settings to stay on your ${pacePreference} pace.` : ' worth updating your daily calorie target in Settings to keep it matched to your goal.'}
                 </Text>
               </View>
@@ -1918,7 +1918,7 @@ const ProgressTab = ({
                 <>
                   <View style={styles.statsRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.statLabel}>TDEE</Text>
+                      <Text style={styles.statLabel}>BURN</Text>
                       <Text style={styles.statValue}>{Math.round(tdee).toLocaleString()}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
@@ -1932,7 +1932,7 @@ const ProgressTab = ({
                   </View>
                   {weeklyPace.dailyRateKg != null && (
                     <Text style={[styles.mutedBody, { marginTop: 10 }]}>
-                      At this week's average intake, your calories alone predict about {weeklyPace.dailyRateKg <= 0 ? '-' : '+'}{Math.abs(fromKg(weeklyPace.dailyRateKg * 7, weightUnit)).toFixed(2)} {weightUnit}/week.
+                      At this week's pace, that's about {weeklyPace.dailyRateKg <= 0 ? '-' : '+'}{Math.abs(fromKg(weeklyPace.dailyRateKg * 7, weightUnit)).toFixed(2)} {weightUnit}/week.
                     </Text>
                   )}
                 </>
@@ -2303,7 +2303,7 @@ const ProgressTab = ({
                   </View>
                 </TouchableOpacity>
 
-                <Text style={styles.weekActivitySubtitle}>Days you logged an activity or hit 5,000 steps this week</Text>
+                <Text style={styles.weekActivitySubtitle}>Your active days this week</Text>
                 <View style={styles.weekDots}>
                   {WEEK_DAY_LABELS.map((label, i) => (
                     <View key={i} style={styles.weekDay}>

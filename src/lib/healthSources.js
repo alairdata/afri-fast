@@ -238,31 +238,31 @@ export const TOPICS = [
   {
     id: 'calories',
     title: 'Daily calorie needs',
-    summary: 'Your daily burn is estimated from your age, sex, height, weight and activity level using the Mifflin-St Jeor equation, with standard activity levels from the FAO/WHO/UNU energy report. Once you have logged for a while, the estimate is fine-tuned to your own progress.',
+    summary: 'Your daily calorie needs are an estimate based on your details, guided by established research on how much energy the body uses. Everyone is a little different, so treat it as a starting point.',
     sources: ['mifflin1990', 'fao2001', 'westerterp2004'],
   },
   {
     id: 'weight',
     title: 'Weight change and goal dates',
-    summary: 'Weekly pace and goal dates come from the energy content of body tissue (roughly 7,700 kcal per kilogram). They are estimates: real weight change is usually slower over time and varies with water, food and hormones.',
+    summary: 'Weekly pace and goal dates are estimates guided by research on how body weight changes when you eat less. Real weight change varies with water, food and hormones, and often slows over time.',
     sources: ['wishnofsky1958', 'hall2011', 'niddkPlanner', 'kreitzman1992'],
   },
   {
     id: 'limits',
     title: 'Safe calorie targets',
-    summary: 'Health guidance says daily intake should not fall below about 1,200 kcal for women or 1,500 kcal for men except under medical supervision, and recommends losing weight gradually. Logga will not set a target below 1,200 kcal and warns you when your eating stays very low.',
+    summary: 'Health guidance says daily intake should not fall below about 1,200 kcal for women or 1,500 kcal for men except under medical supervision, and recommends losing weight gradually. Logga follows this guidance and lets you know when your eating stays very low.',
     sources: ['harvardCalories', 'niddkSafe', 'rosenbaum2010'],
   },
   {
     id: 'protein',
     title: 'Protein',
-    summary: 'Protein suggestions follow sports-nutrition guidance of about 1.4 to 2.2 g per kg of body weight a day, which helps keep muscle while losing fat.',
+    summary: 'Protein suggestions follow sports-nutrition research on keeping muscle while losing fat.',
     sources: ['issnProtein2017', 'schoenfeld2018', 'morton2018'],
   },
   {
     id: 'water',
     title: 'Water',
-    summary: 'Water goals are based on the European Food Safety Authority reference values (about 2.0 L a day for women and 2.5 L for men from all drinks and food), scaled to your body weight.',
+    summary: 'Water goals follow European Food Safety Authority guidance on how much fluid adults need each day.',
     sources: ['efsaWater2010', 'dennis2010'],
   },
   {
@@ -274,7 +274,7 @@ export const TOPICS = [
   {
     id: 'wellbeing',
     title: 'Burnout likelihood and check-ins',
-    summary: "These are Logga's own wellbeing indicators. They look at how your eating, protein and water compare with the guidance above and with research on how the body responds to eating less. They are not a medical diagnosis.",
+    summary: "These are Logga's own wellbeing indicators, informed by research on how the body responds to eating less. They are not a medical diagnosis.",
     sources: ['rosenbaum2010', 'mifflin1990', 'issnProtein2017', 'efsaWater2010'],
   },
   {
