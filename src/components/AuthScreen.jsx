@@ -142,6 +142,9 @@ const ca = StyleSheet.create({
     borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.09)',
   },
   googleTxt: { fontSize: 16, fontWeight: '600', color: '#111' },
+  lumi: { width: 220, height: 200, alignSelf: 'center', marginTop: 4, marginBottom: 22 },
+  emailToggle: { height: 46, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  emailToggleTxt: { fontSize: 15, fontWeight: '700', color: '#4b5a52' },
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 22, gap: 12 },
   divLine: { flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' },
   divTxt: { fontSize: 11, fontWeight: '700', color: 'rgba(0,0,0,0.32)', letterSpacing: 1 },
@@ -613,39 +616,51 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         <ScrollView contentContainerStyle={ca.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <AuthTop onBack={() => setScreen('onboarding')} />
 
-          <Text style={ca.eyebrow}>LAST STEP</Text>
-          <Text style={ca.headline}>
-            Save your plan{shownName ? ', ' : '.'}
-            {shownName ? <Text style={ca.headlineAccent}>{shownName}.</Text> : null}
+          <Text style={[ca.headline, { textAlign: 'center' }]}>
+            Save your plan{shownName ? ', ' : ''}
+            {shownName ? <Text style={ca.headlineAccent}>{shownName}</Text> : null}
           </Text>
-          <Text style={ca.subtitle}>A free account keeps your goal, meals and streak safe, and on every device you use.</Text>
+          <Text style={[ca.subtitle, { textAlign: 'center' }]}>Create your account so your plan and progress are safe on any phone.</Text>
 
-          <View style={ca.perks}>
-            {['Free forever', 'Takes 20 seconds', 'Your data stays yours'].map((p) => (
-              <View key={p} style={ca.perk}>
-                <Ionicons name="checkmark" size={13} color="#059669" />
-                <Text style={ca.perkTxt}>{p}</Text>
+          {!showEmailForm ? (
+            <Image source={require('../../assets/lumi/lumi-account.png')} style={ca.lumi} resizeMode="contain" accessibilityLabel="Lumi" />
+          ) : null}
+
+          <TouchableOpacity style={ca.appleBtn} activeOpacity={0.85} onPress={() => handleOAuth('apple')}>
+            <Ionicons name="logo-apple" size={20} color="#fff" />
+            <Text style={ca.appleTxt}>Continue with Apple</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={ca.googleBtn} activeOpacity={0.85} onPress={() => handleOAuth('google')}>
+            <Ionicons name="logo-google" size={18} color="#444" />
+            <Text style={ca.googleTxt}>Continue with Google</Text>
+          </TouchableOpacity>
+
+          {!showEmailForm ? (
+            <TouchableOpacity style={ca.emailToggle} onPress={() => setShowEmailForm(true)} activeOpacity={0.7}>
+              <Text style={ca.emailToggleTxt}>Use email instead</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <View style={ca.divider}>
+                <View style={ca.divLine} />
+                <Text style={ca.divTxt}>OR USE EMAIL</Text>
+                <View style={ca.divLine} />
               </View>
-            ))}
-          </View>
-
-          {socialButtons}
-
-          <View style={ca.divider}>
-            <View style={ca.divLine} />
-            <Text style={ca.divTxt}>OR USE EMAIL</Text>
-            <View style={ca.divLine} />
-          </View>
-
-          {emailField}
-          {passwordField('Create a password', true)}
+              {emailField}
+              {passwordField('Create a password', true)}
+            </>
+          )}
 
           {error ? <Text style={ca.error}>{error}</Text> : null}
           {message ? <Text style={ca.success}>{message}</Text> : null}
 
-          <TouchableOpacity style={[ca.createBtn, loading && { opacity: 0.6 }]} onPress={handleSignUp} disabled={loading} activeOpacity={0.85}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={ca.createTxt}>Create account</Text>}
-          </TouchableOpacity>
+          {showEmailForm ? (
+            <TouchableOpacity style={[ca.createBtn, loading && { opacity: 0.6 }]} onPress={handleSignUp} disabled={loading} activeOpacity={0.85}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={ca.createTxt}>Create account</Text>}
+            </TouchableOpacity>
+          ) : null}
+
+          <Text style={[ca.terms, { marginTop: 12 }]}>If you started Pro on the way here, it moves onto this account automatically.</Text>
 
           <Text style={ca.terms}>
             Already have an account?{' '}

@@ -1,46 +1,103 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, Animated, Easing, Platform, useWindowDimensions, Image, Alert,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Animated, Easing,
+  Platform, useWindowDimensions, Image, Alert, ActivityIndicator, Linking,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Path, Circle, Rect, Defs, LinearGradient as SvgGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { track, EVENTS } from '../lib/analytics';
-import Svg, { G, Circle, Ellipse, Path } from 'react-native-svg';
+import { appleHealthSupported, connectAppleHealth } from '../lib/appleHealth';
+import { requestNotificationPermissions } from '../lib/notifications';
+import {
+  initAnonymousSubscriptions, loadPlans, loadIntroOffer, purchasePlan, restorePurchases, getSubscription,
+} from '../lib/subscription';
+import HealthSourcesPage from './HealthSourcesPage';
 
-// ── Design tokens ──────────────────────────────────────────────────────────────
+// ── Design tokens (the onboarding canvas) ──────────────────────────────────────
 const C = {
   primary:     '#059669',
+  primaryDark: '#047857',
   primarySoft: '#ecfdf5',
+  selBg:       '#F2FBF6',
+  mint:        '#E6F8EF',
   terra:       '#db6a3f',
   terraSoft:   '#fbeee7',
-  amber:       '#f0a534',
   ink:         '#16201b',
   ink700:      '#3a4640',
+  ink600:      '#4b5a52',
   ink500:      '#6c7872',
   ink400:      '#97a19b',
-  bg:          '#fbfbf7',
+  bg:          '#F7F8F5',
+  plan:        '#fbfbf7',
   surface:     '#ffffff',
-  sunken:      '#f4f4ee',
+  sunken:      '#E9ECE8',
   line:        '#e9e9e1',
-  line2:       '#deded4',
-  green50:     '#ecfdf5',
+  cardLine:    '#E6E8E3',
+  track:       '#E3E7E2',
+  checkLine:   '#CBD2CD',
+};
+
+const LUMI = {
+  welcome:  require('../../assets/lumi/lumi-welcome.png'),
+  avatar:   require('../../assets/lumi/lumi-avatar.png'),
+  think:    require('../../assets/lumi/lumi-think.png'),
+  wave:     require('../../assets/lumi/lumi-wave.png'),
+  cheer:    require('../../assets/lumi/lumi-cheer.png'),
+  heart:    require('../../assets/lumi/lumi-heart.png'),
+  auntie:   require('../../assets/lumi/lumi-auntie.png'),
+  elder:    require('../../assets/lumi/lumi-elder.png'),
+  stand:    require('../../assets/lumi/lumi-stand.png'),
+  phone:    require('../../assets/lumi/lumi-phone.png'),
+  target:   require('../../assets/lumi/lumi-target.png'),
+  food:     require('../../assets/lumi/lumi-food.png'),
+  idea:     require('../../assets/lumi/lumi-idea.png'),
+  water:    require('../../assets/lumi/lumi-water.png'),
+  building: require('../../assets/lumi/lumi-building.png'),
+  forecast: require('../../assets/lumi/lumi-forecast.png'),
+  gift:     require('../../assets/lumi/lumi-gift.png'),
+  shocked:  require('../../assets/lumi/lumi-shocked.png'),
 };
 
 export const DEFAULT_DATA = {
-  goal: '', struggles: [], name: '', country: '', gender: '', age: 28,
+  goal: '', struggles: [], name: '', tone: 'cheerleader', country: '', gender: '', age: 28,
   heightCm: 170, weightKg: 82, targetKg: 72, unitH: 'cm', unitW: 'kg',
   pace: 'moderate', activity: '', eatingStyle: '',
   foodContext: '', cuisines: [], whys: [], accountability: '',
+  reminders: [], remindersOn: false, healthConnect: false, waterHabit: '', mealsPerDay: '',
 };
 
-const FLOW = [
-  'hook', 'goal', 'demo', 'struggle', 'name', 'country', 'gender', 'age',
-  'bodyIntro', 'height', 'weight', 'target', 'pace', 'activity',
-  'eating', 'food', 'why', 'accountability', 'building', 'done',
+// Five chapters, as on the canvas. The breather, the plan build-up and everything after the plan sit
+// outside them (no chapter bar).
+const CHAPTERS = [
+  { name: 'Your goal',   ids: ['goal', 'demo', 'struggle'] },
+  { name: 'About you',   ids: ['name', 'tone', 'country', 'gender', 'age'] },
+  { name: 'Your body',   ids: ['height', 'weight', 'target', 'pace', 'activity'] },
+  { name: 'Your eating', ids: ['eating', 'food', 'why'] },
+  { name: 'Support',     ids: ['care', 'reminders', 'health'] },
 ];
-const FULL_BLEED = new Set(['hook', 'bodyIntro', 'building', 'done']);
-const COUNTED = FLOW.filter(id => !FULL_BLEED.has(id)).length;
+const FLOW = [
+  'hook',
+  ...CHAPTERS[0].ids, ...CHAPTERS[1].ids, 'bodyIntro', ...CHAPTERS[2].ids, ...CHAPTERS[3].ids, ...CHAPTERS[4].ids,
+  'building', 'done', 'pro', 'offer', 'widget', 'widgetSteps',
+];
+const chapterOf = (id) => {
+  const c = CHAPTERS.findIndex((ch) => ch.ids.includes(id));
+  if (c < 0) return null;
+  const ids = CHAPTERS[c].ids;
+  return { index: c, name: CHAPTERS[c].name, fill: (ids.indexOf(id) + 1) / (ids.length + 0.33) };
+};
+
+const OFFER_DEADLINE_KEY = 'logga_onboarding_offer_deadline_v1';
+const OFFER_DONE_KEY = 'logga_onboarding_offer_done_v1';
+const OFFER_WINDOW_MS = 2 * 60 * 60 * 1000;
+
+const tap = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
+const tick = () => { if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {}); };
+const openUrl = (url) => Linking.openURL(url).catch(() => {});
+const firstName = (d) => (d.name ? d.name.trim().split(' ')[0] : '');
 
 // ── Calorie calculator (Mifflin-St Jeor → TDEE) ───────────────────────────────
 export function calcPlan(d) {
@@ -62,171 +119,117 @@ export function calcPlan(d) {
   return { tdee: Math.round(tdee), target, weeks, protein, water, deficit };
 }
 
-// ── Horizontal ruler picker ────────────────────────────────────────────────────
-function RulerPicker({ min, max, value, onChange, unit, accent }) {
-  const GAP = 14;
-  const { width: SW } = useWindowDimensions();
-  const scrollRef = useRef(null);
-  const rangeKey = `${min}-${max}`;
-  const prevRange = useRef(rangeKey);
-  const [liveVal, setLiveVal] = useState(value);
+const PACE_RATE = { slow: 0.25, moderate: 0.5, aggressive: 0.75, extreme: 1.0 };
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  // sync liveVal when parent value changes externally
-  useEffect(() => { setLiveVal(value); lastSent.current = value; }, [value]);
+// The month the goal lands in and the month after, e.g. "Aug – Sep 2027" (an estimate, so a range).
+function predictedWindow(d, pace = d.pace) {
+  const gap = d.weightKg - d.targetKg;
+  if (!(gap > 0.5)) return null;
+  const weeks = Math.max(1, Math.round(gap / (PACE_RATE[pace] || 0.5)));
+  const a = new Date(Date.now() + weeks * 7 * 864e5);
+  const b = new Date(a.getFullYear(), a.getMonth() + 1, 1);
+  const sameYear = a.getFullYear() === b.getFullYear();
+  return {
+    long: sameYear
+      ? `${MONTHS[a.getMonth()]} – ${MONTHS[b.getMonth()]} ${b.getFullYear()}`
+      : `${MONTHS[a.getMonth()]} ${a.getFullYear()} – ${MONTHS[b.getMonth()]} ${b.getFullYear()}`,
+    short: `${MONTHS[a.getMonth()]}–${MONTHS[b.getMonth()]} ${String(b.getFullYear()).slice(2)}`,
+    end: `${MONTHS[b.getMonth()]} ${b.getFullYear()}`,
+  };
+}
 
-  useEffect(() => {
-    const changed = prevRange.current !== rangeKey;
-    prevRange.current = rangeKey;
-    const offset = Math.max(0, (value - min)) * GAP;
-    const t = setTimeout(() => {
-      scrollRef.current?.scrollTo({ x: offset, animated: false });
-    }, changed ? 20 : 80);
-    return () => clearTimeout(t);
-  }, [rangeKey]);
+const weightText = (kg, unitW) => (unitW === 'lb' ? `${Math.round(kg * 2.2046)} lb` : `${Math.round(kg * 10) / 10} kg`);
 
-  const snapVal = useCallback((x) => {
-    const idx = Math.round(x / GAP);
-    return Math.max(min, Math.min(max, min + idx));
-  }, [min, max]);
+// What onboarding hands back to the app (saved to the profile after sign-up).
+function buildAnswers(d) {
+  const plan = calcPlan(d);
+  const goalDate = plan.weeks > 0
+    ? new Date(Date.now() + plan.weeks * 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    : null;
+  const r = d.reminders || [];
+  const accountability = d.accountability
+    || (r.includes('alone') ? 'alone' : r.includes('firm') ? 'firm' : r.length ? 'gentle' : '');
+  return {
+    preferredName: d.name,
+    gender: d.gender,
+    age: String(d.age),
+    height: String(Math.round(d.heightCm)),
+    heightUnit: 'cm',
+    goal: d.goal,
+    currentWeight: String(Math.round(d.weightKg * 10) / 10),
+    targetWeight: String(Math.round(d.targetKg * 10) / 10),
+    weightUnit: 'kg',
+    conditions: '',
+    completedAt: Date.now(),
+    country: d.country,
+    pace: d.pace,
+    activity: d.activity,
+    eatingStyle: d.eatingStyle,
+    accountability,
+    tone: d.tone,
+    remindersOn: !!d.remindersOn && !r.includes('alone'),
+    healthConnect: !!d.healthConnect,
+    waterHabit: d.waterHabit,
+    mealsPerDay: d.mealsPerDay,
+    struggles: d.struggles,
+    foodContext: d.foodContext,
+    cuisines: d.cuisines,
+    whys: d.whys,
+    goalDate,
+    dailyCalorieGoal: plan.target,
+  };
+}
 
-  // live update while dragging — keeps the readout in sync
-  const lastSent = useRef(value);
-  const handleScroll = useCallback((e) => {
-    const v = snapVal(e.nativeEvent.contentOffset.x);
-    setLiveVal(v);
-    if (v !== lastSent.current) { lastSent.current = v; onChange(v); }
-  }, [snapVal, onChange]);
-
-  // commit to parent only when scroll settles
-  const handleScrollEnd = useCallback((e) => {
-    const v = snapVal(e.nativeEvent.contentOffset.x);
-    setLiveVal(v);
-    if (v !== lastSent.current) { lastSent.current = v; onChange(v); }
-  }, [snapVal, onChange]);
-
-  const count = max - min;
-  const ac = accent || C.primary;
-  const halfW = SW / 2;
-
+// ── Small pieces ───────────────────────────────────────────────────────────────
+function Sparkle({ size = 16, style }) {
   return (
-    <View>
-      <View style={{ alignItems: 'center', marginBottom: 12 }}>
-        <Text style={s.rulerVal}>{liveVal}</Text>
-        <Text style={s.rulerUnit}>{unit}</Text>
-      </View>
-      <View style={{ position: 'relative' }}>
-        <View style={[s.rulerCursorWrap, { left: halfW - 1.5 }]}>
-          <View style={[s.rulerArrow, { borderTopColor: ac }]} />
-          <View style={[s.rulerLine, { backgroundColor: ac }]} />
-        </View>
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={GAP}
-          decelerationRate="fast"
-          onScroll={handleScroll}
-          onMomentumScrollEnd={handleScrollEnd}
-          onScrollEndDrag={handleScrollEnd}
-          scrollEventThrottle={16}
-        >
-          <View style={{ flexDirection: 'row', paddingHorizontal: halfW }}>
-            {Array.from({ length: count + 1 }, (_, i) => {
-              const v = min + i;
-              const major = v % 5 === 0;
-              const active = v === liveVal;
-              return (
-                <View key={i} style={{ width: GAP, alignItems: 'center', justifyContent: 'flex-end', height: 68 }}>
-                  {major && (
-                    <Text style={{
-                      fontSize: 10, color: active ? ac : C.ink400,
-                      fontWeight: active ? '700' : '400',
-                      marginBottom: 4,
-                    }}>{v}</Text>
-                  )}
-                  <View style={{
-                    width: active ? 3 : 2,
-                    borderRadius: 2,
-                    height: major ? 34 : 18,
-                    backgroundColor: active ? ac : major ? C.ink400 : C.line2,
-                  }} />
-                </View>
-              );
-            })}
-          </View>
-        </ScrollView>
-      </View>
-    </View>
+    <Svg width={size} height={size} viewBox="0 0 24 24" style={[{ position: 'absolute' }, style]}>
+      <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill="#34D399" />
+    </Svg>
   );
 }
 
-// ── Option card ────────────────────────────────────────────────────────────────
-function OptionCard({ icon, title, subtitle, selected, onPress, multi, compact }) {
-  // Only emoji flags (a <Text>) are kept as a leading mark; the generic outline icons are gone.
-  const flag = icon && icon.type === Text ? icon : null;
+function Sparkles() {
   return (
-    <TouchableOpacity
-      style={[s.optCard, selected && s.optCardSel, compact && s.optCardCompact]}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      {flag ? <View style={{ marginRight: 12 }}>{flag}</View> : null}
-      <View style={s.optText}>
-        <Text style={s.optTitle}>{title}</Text>
-        {subtitle ? <Text style={s.optSub}>{subtitle}</Text> : null}
-      </View>
-      {multi ? (
-        <View style={[s.optSel, s.optSelMulti, selected && s.optSelOn]}>
-          {selected ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
-        </View>
-      ) : selected ? (
-        <Ionicons name="checkmark" size={20} color={C.ink} />
-      ) : null}
-    </TouchableOpacity>
+    <>
+      <Sparkle size={18} style={{ left: '6%', top: '12%' }} />
+      <Sparkle size={14} style={{ left: '86%', top: '6%' }} />
+      <Sparkle size={16} style={{ left: '90%', top: '58%' }} />
+      <Sparkle size={12} style={{ left: '2%', top: '64%' }} />
+    </>
   );
 }
 
-// ── Chip ───────────────────────────────────────────────────────────────────────
-function Chip({ label, selected, onPress }) {
-  return (
-    <TouchableOpacity style={[s.chip, selected && s.chipSel]} onPress={onPress} activeOpacity={0.8}>
-      <Text style={[s.chipText, selected && s.chipTextSel]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-// ── Buttons ────────────────────────────────────────────────────────────────────
-function PrimaryBtn({ label, onPress, disabled }) {
+function PrimaryBtn({ label, onPress, disabled, busy }) {
   return (
     <TouchableOpacity
       style={[s.primaryBtn, disabled && s.primaryBtnDis]}
-      onPress={disabled ? undefined : onPress}
+      onPress={disabled || busy ? undefined : onPress}
       activeOpacity={disabled ? 1 : 0.85}
+      accessibilityRole="button"
     >
-      <Text style={[s.primaryBtnTxt, disabled && s.primaryBtnTxtDis]}>{label}</Text>
+      {busy ? <ActivityIndicator color="#fff" /> : <Text style={[s.primaryBtnTxt, disabled && s.primaryBtnTxtDis]}>{label}</Text>}
     </TouchableOpacity>
   );
 }
 
 function TextBtn({ label, onPress }) {
   return (
-    <TouchableOpacity style={s.textBtn} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity style={s.textBtn} onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
       <Text style={s.textBtnTxt}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-// ── Segmented unit toggle ──────────────────────────────────────────────────────
 function Seg({ options, value, onChange }) {
   return (
     <View style={s.seg}>
-      {options.map(o => {
-        const v = typeof o === 'string' ? o : o.value;
-        const label = typeof o === 'string' ? o : o.label;
-        const on = v === value;
+      {options.map((o) => {
+        const on = o.value === value;
         return (
-          <TouchableOpacity key={v} style={[s.segBtn, on && s.segBtnOn]} onPress={() => onChange(v)}>
-            <Text style={[s.segBtnTxt, on && s.segBtnTxtOn]}>{label}</Text>
+          <TouchableOpacity key={o.value} style={[s.segBtn, on && s.segBtnOn]} onPress={() => onChange(o.value)} accessibilityRole="button">
+            <Text style={[s.segBtnTxt, on && s.segBtnTxtOn]}>{o.label}</Text>
           </TouchableOpacity>
         );
       })}
@@ -234,41 +237,152 @@ function Seg({ options, value, onChange }) {
   );
 }
 
-// ── Progress bar + back ────────────────────────────────────────────────────────
-function ProgressTop({ step, total, onBack, showBack }) {
-  const pct = Math.max(0, Math.min(1, step / total));
+// Five chapter bars: finished chapters full, the current one part-filled.
+function ChapterBars({ index, fill, dim }) {
   return (
-    <View style={s.progressWrap}>
-      <TouchableOpacity
-        style={[s.backBtn, !showBack && { opacity: 0 }]}
-        onPress={showBack ? onBack : undefined}
-        disabled={!showBack}
-      >
-        <Ionicons name="chevron-back" size={18} color={C.ink700} />
-      </TouchableOpacity>
-      <View style={s.progressTrack}>
-        <View style={[s.progressFill, { width: `${pct * 100}%` }]} />
+    <View style={{ flex: 1, flexDirection: 'row', gap: 6 }}>
+      {CHAPTERS.map((_, i) => (
+        <View key={i} style={[s.bar, dim && { backgroundColor: 'rgba(22,32,27,0.12)' }]}>
+          {i < index ? <View style={[s.barFill, { width: '100%' }]} /> : null}
+          {i === index && fill > 0 ? <View style={[s.barFill, { width: `${Math.round(fill * 100)}%` }]} /> : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function TopBar({ chapter, onBack, showBack, noLabel }) {
+  return (
+    <View style={s.topWrap}>
+      <View style={s.topRow}>
+        <TouchableOpacity
+          style={[s.backBtn, !showBack && { opacity: 0 }]}
+          onPress={showBack ? onBack : undefined}
+          disabled={!showBack}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Ionicons name="chevron-back" size={22} color={C.ink} />
+        </TouchableOpacity>
+        {chapter ? <ChapterBars index={chapter.index} fill={chapter.fill} /> : <View style={{ flex: 1 }} />}
+      </View>
+      {chapter && !noLabel ? <Text style={s.chapterLabel}>Chapter {chapter.index + 1} of 5 · {chapter.name}</Text> : null}
+    </View>
+  );
+}
+
+// Lumi asks the question in a chat bubble.
+function Bubble({ lumi = 'avatar', title, sub, hideLumi }) {
+  return (
+    <View style={s.bubbleRow}>
+      {!hideLumi ? (
+        <View style={s.bubbleAvatar}>
+          <Image source={LUMI[lumi]} style={{ width: 56, height: 54 }} resizeMode="contain" accessibilityLabel="Lumi" />
+        </View>
+      ) : null}
+      <View style={[s.bubble, hideLumi && { borderBottomLeftRadius: 18 }]}>
+        <Text style={s.bubbleTitle}>{title}</Text>
+        {sub ? <Text style={s.bubbleSub}>{sub}</Text> : null}
       </View>
     </View>
   );
 }
 
-// ── Screen shell ───────────────────────────────────────────────────────────────
-function ScreenShell({ children, footer, step, total, onBack, showBack, hideProgress, grow }) {
+// One answer. Single answers show a filled tick when chosen, multi answers a square box.
+function Option({ icon, title, subtitle, selected, onPress, multi, compact, lead }) {
+  return (
+    <TouchableOpacity
+      style={[s.opt, compact && s.optCompact, selected && s.optSel]}
+      onPress={onPress}
+      activeOpacity={0.8}
+      accessibilityRole={multi ? 'checkbox' : 'radio'}
+      accessibilityState={{ checked: !!selected }}
+    >
+      {lead || (icon ? <Ionicons name={icon} size={22} color={selected ? C.primary : C.ink500} style={{ marginRight: 14 }} /> : null)}
+      <View style={{ flex: 1 }}>
+        <Text style={s.optTitle}>{title}</Text>
+        {subtitle ? <Text style={s.optSub}>{subtitle}</Text> : null}
+      </View>
+      {multi ? (
+        <View style={[s.box, selected && s.boxOn]}>
+          {selected ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+        </View>
+      ) : selected ? (
+        <View style={s.radioOn}><Ionicons name="checkmark" size={13} color="#fff" /></View>
+      ) : null}
+    </TouchableOpacity>
+  );
+}
+
+function Chip({ label, selected, onPress }) {
+  return (
+    <TouchableOpacity style={[s.chip, selected && s.chipSel]} onPress={onPress} activeOpacity={0.8} accessibilityRole="checkbox" accessibilityState={{ checked: !!selected }}>
+      <Text style={[s.chipText, selected && s.chipTextSel]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+// ── Vertical number wheel (age, height, weights) ──────────────────────────────
+const ROW = 58;
+function WheelPicker({ min, max, value, onChange, unit, unitColor = C.primary }) {
+  const ref = useRef(null);
+  const clamp = (v) => Math.max(min, Math.min(max, v));
+  const [live, setLive] = useState(clamp(value));
+  const lastSent = useRef(value);
+  const rangeKey = `${min}-${max}`;
+
+  useEffect(() => { setLive(clamp(value)); lastSent.current = value; }, [value]);
+  useEffect(() => {
+    const t = setTimeout(() => ref.current?.scrollTo({ y: (clamp(value) - min) * ROW, animated: false }), 30);
+    return () => clearTimeout(t);
+  }, [rangeKey]);
+
+  const onScroll = useCallback((e) => {
+    const v = clamp(min + Math.round(e.nativeEvent.contentOffset.y / ROW));
+    setLive((prev) => { if (prev !== v) tick(); return v; });
+    if (v !== lastSent.current) { lastSent.current = v; onChange(v); }
+  }, [min, max, onChange]);
+
+  return (
+    <View style={{ height: ROW * 5, alignSelf: 'stretch' }}>
+      <View pointerEvents="none" style={[s.wheelPill, { top: ROW * 2 - 8, height: ROW + 16 }]} />
+      <ScrollView
+        ref={ref}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ROW}
+        decelerationRate="fast"
+        onScroll={onScroll}
+        onMomentumScrollEnd={onScroll}
+        scrollEventThrottle={16}
+        nestedScrollEnabled
+        contentContainerStyle={{ paddingVertical: ROW * 2 }}
+      >
+        {Array.from({ length: max - min + 1 }, (_, i) => {
+          const v = min + i;
+          const dist = Math.abs(v - live);
+          return (
+            <View key={v} style={s.wheelRow}>
+              <Text style={dist === 0 ? s.wheelOn : dist === 1 ? s.wheelNear : s.wheelFar}>{v}</Text>
+              {dist === 0 ? <Text style={[s.wheelUnit, { color: unitColor }]}>{unit}</Text> : null}
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+// ── Screen shell: top bar, Lumi bubble, body, footer ───────────────────────────
+function ScreenShell({ children, footer, chapter, onBack, showBack, hideProgress, fixed, editing }) {
+  const Body = fixed ? View : ScrollView;
+  const bodyProps = fixed
+    ? { style: [{ flex: 1 }, s.shellContent] }
+    : { style: { flex: 1 }, contentContainerStyle: s.shellContent, showsVerticalScrollIndicator: false, keyboardShouldPersistTaps: 'handled' };
   return (
     <View style={s.shell}>
-      {!hideProgress && (
-        <ProgressTop step={step} total={total} onBack={onBack} showBack={showBack} />
-      )}
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={[s.shellContent, grow && { flexGrow: 1 }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {children}
-      </ScrollView>
-      {footer ? <View style={s.footer}>{footer}</View> : null}
+      {!hideProgress ? <TopBar chapter={chapter} onBack={onBack} showBack={showBack} /> : null}
+      <Body {...bodyProps}>{children}</Body>
+      {footer ? <View style={[s.footer, editing && { paddingTop: 8 }]}>{footer}</View> : null}
     </View>
   );
 }
@@ -277,247 +391,25 @@ function ScreenShell({ children, footer, step, total, onBack, showBack, hideProg
 // SCREENS
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function MascotFace({ happy }) {
-  const bob = useRef(new Animated.Value(0)).current;
-  const pop = useRef(new Animated.Value(1)).current;
-  const prevHappy = useRef(happy);
-  const [eyeOpen, setEyeOpen] = useState(true);
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bob, { toValue: -6, duration: 1500, useNativeDriver: true }),
-        Animated.timing(bob, { toValue: 0,  duration: 1500, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-
-  useEffect(() => {
-    const blink = () => {
-      setEyeOpen(false);
-      setTimeout(() => setEyeOpen(true), 140);
-    };
-    const iv = setInterval(blink, 2800 + Math.random() * 1400);
-    return () => clearInterval(iv);
-  }, []);
-
-  useEffect(() => {
-    if (happy && !prevHappy.current) {
-      Animated.sequence([
-        Animated.timing(pop, { toValue: 1.18, duration: 160, useNativeDriver: true }),
-        Animated.timing(pop, { toValue: 1,    duration: 160, useNativeDriver: true }),
-      ]).start();
-    }
-    prevHappy.current = happy;
-  }, [happy]);
-
-  const AMBER = C.amber;
-  const TERRA = C.terra;
-  const INK   = C.ink;
-  const BG    = C.bg;
-  const GREEN = C.primary;
-
-  return (
-    <Animated.View style={{ transform: [{ translateY: bob }, { scale: pop }] }}>
-      <Svg width={152} height={160} viewBox="0 0 140 150" fill="none">
-
-        {/* Sparkle — amber left */}
-        <Path
-          d="M20 44l1.8-7 1.8 7 7 1.8-7 1.8-1.8 7-1.8-7-7-1.8 7-1.8Z"
-          fill={AMBER} stroke={AMBER} strokeWidth={1.4} strokeLinejoin="round"
-          opacity={happy ? 1 : 0.55}
-        />
-        {/* Sparkle — green right */}
-        <Path
-          d="M118 54l1.6-6 1.6 6 6 1.6-6 1.6-1.6 6-1.6-6-6-1.6 6-1.6Z"
-          fill={GREEN} stroke={GREEN} strokeWidth={1.3} strokeLinejoin="round"
-          opacity={happy ? 1 : 0.55}
-        />
-
-        {/* Happy doodle marks */}
-        {happy && (
-          <G stroke={TERRA} strokeWidth={2.4} strokeLinecap="round" fill="none">
-            <Path d="M16 78l-6 2M124 80l6 2M30 30l-3-5" />
-          </G>
-        )}
-
-        {/* Drop shadow */}
-        <Ellipse cx="70" cy="140" rx="34" ry="7" fill="rgba(22,32,27,0.07)" />
-
-        {/* Neck */}
-        <Path d="M60 118v12h20v-12" stroke={INK} strokeWidth={3} strokeLinecap="round"
-              fill={BG} />
-
-        {/* Coily afro — 7 overlapping circles */}
-        <G fill={INK}>
-          <Circle cx="70" cy="40" r="20" />
-          <Circle cx="46" cy="50" r="16" />
-          <Circle cx="94" cy="50" r="16" />
-          <Circle cx="34" cy="68" r="13" />
-          <Circle cx="106" cy="68" r="13" />
-          <Circle cx="38" cy="86" r="11" />
-          <Circle cx="102" cy="86" r="11" />
-        </G>
-        {/* Coil sheen */}
-        <G stroke="rgba(255,255,255,0.22)" strokeWidth={2} strokeLinecap="round" fill="none">
-          <Path d="M60 36c4-4 9-4 13 0M40 52c3-3 7-3 10 0M88 52c3-3 7-3 10 0" />
-        </G>
-
-        {/* Face */}
-        <Ellipse cx="70" cy="90" rx="31" ry="31" fill={BG} stroke={INK} strokeWidth={3.2} />
-
-        {/* Hoop earrings */}
-        <Circle cx="40" cy="100" r="4" fill="none" stroke={AMBER} strokeWidth={2.6} />
-        <Circle cx="100" cy="100" r="4" fill="none" stroke={AMBER} strokeWidth={2.6} />
-
-        {/* Eyes */}
-        {!eyeOpen ? (
-          <G stroke={INK} strokeWidth={2.5} strokeLinecap="round" fill="none">
-            <Path d="M56 84q4 3 8 0" />
-            <Path d="M77 84q4 3 8 0" />
-          </G>
-        ) : happy ? (
-          <G stroke={INK} strokeWidth={3} strokeLinecap="round" fill="none">
-            <Path d="M53 86q6-7 12 0" />
-            <Path d="M75 86q6-7 12 0" />
-          </G>
-        ) : (
-          <G>
-            <Circle cx="60" cy="84" r="3.6" fill={INK} />
-            <Circle cx="81" cy="84" r="3.6" fill={INK} />
-            <Circle cx="61.4" cy="82.6" r="1.2" fill="#fff" />
-            <Circle cx="82.4" cy="82.6" r="1.2" fill="#fff" />
-          </G>
-        )}
-
-        {/* Brows */}
-        <Path d={happy ? 'M52 75q6-4 12-1' : 'M53 78q6-3 12 0'}
-              stroke={INK} fill="none" strokeWidth={2.4} strokeLinecap="round" />
-        <Path d={happy ? 'M76 74q6-3 12 1' : 'M75 78q6-3 12 0'}
-              stroke={INK} fill="none" strokeWidth={2.4} strokeLinecap="round" />
-
-        {/* Nose */}
-        <Path d="M70 88q-2 5 2 6" stroke={INK} fill="none" strokeWidth={2.4} strokeLinecap="round" />
-
-        {/* Rosy cheeks */}
-        {happy && (
-          <G>
-            <Circle cx="48" cy="98" r="5.5" fill={TERRA} opacity={0.32} />
-            <Circle cx="92" cy="98" r="5.5" fill={TERRA} opacity={0.32} />
-          </G>
-        )}
-
-        {/* Mouth */}
-        {happy
-          ? <Path d="M58 100a13 12 0 0 0 24 0c-8 5-16 5-24 0Z"
-                  fill={TERRA} stroke={INK} strokeWidth={2.4} strokeLinecap="round" />
-          : <Path d="M61 102q9 6 18 0"
-                  stroke={INK} fill="none" strokeWidth={2.8} strokeLinecap="round" />
-        }
-      </Svg>
-    </Animated.View>
-  );
-}
-
-const HOOK_FOODS = [
-  { src: require('../../assets/hook-waakye.jpg'), mode: 'cover' },
-  { src: require('../../assets/hook-eba.jpg'), mode: 'cover' },
-  { src: require('../../assets/hook-jollof.jpg'), mode: 'cover' },
-  { src: require('../../assets/hook-beans.jpg'), mode: 'cover' },
-];
-
 function HookScreen({ next, onLogin }) {
-  const scanY = useRef(new Animated.Value(0)).current;
-  const { width: SW } = useWindowDimensions();
-  const HERO_SIZE = Math.min(SW - 64, 380);
-  // One opacity value per photo — all four stay mounted (preloaded/decoded) at all times,
-  // we just crossfade which one is visible instead of swapping `source` (which caused a visible re-decode flash).
-  const fadeAnims = useRef(HOOK_FOODS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
-
-  useEffect(() => {
-    let live = true;
-    let current = 0;
-    const runCycle = () => {
-      scanY.setValue(0);
-      Animated.sequence([
-        Animated.timing(scanY, { toValue: 1, duration: 14000, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.delay(700),
-      ]).start(() => {
-        if (!live) return;
-        const next = (current + 1) % HOOK_FOODS.length;
-        Animated.parallel([
-          Animated.timing(fadeAnims[current], { toValue: 0, duration: 400, useNativeDriver: true }),
-          Animated.timing(fadeAnims[next], { toValue: 1, duration: 400, useNativeDriver: true }),
-        ]).start();
-        current = next;
-        runCycle();
-      });
-    };
-    runCycle();
-    return () => { live = false; };
-  }, []);
-
-  const scanTranslate = scanY.interpolate({ inputRange: [0, 1], outputRange: [0, HERO_SIZE - 4] });
-
   return (
-    <View style={[s.shell, { backgroundColor: C.bg }]}>
-      {/* Brand */}
-      <View style={s.hookBrand}>
-        <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 96, height: 37 }} resizeMode="contain" />
-      </View>
-
-      {/* Hero */}
+    <LinearGradient colors={['#E6F8EF', C.bg]} locations={[0, 0.6]} style={[s.shell, s.hook]}>
+      <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 92, height: 34 }} resizeMode="contain" accessibilityLabel="Logga" />
       <View style={s.hookHero}>
-        <View style={[s.hookFrame, { width: HERO_SIZE, height: HERO_SIZE }]}>
-          {HOOK_FOODS.map((food, i) => (
-            <Animated.Image
-              key={i}
-              source={food.src}
-              style={[
-                { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
-                food.mode === 'contain' && { backgroundColor: '#fff' },
-                { opacity: fadeAnims[i] },
-              ]}
-              resizeMode={food.mode}
-            />
-          ))}
-          <Animated.View style={[s.demoScanLine, { transform: [{ translateY: scanTranslate }] }]} />
-          {[
-            { top: 10, left: 10 },
-            { top: 10, right: 10 },
-            { bottom: 10, left: 10 },
-            { bottom: 10, right: 10 },
-          ].map((pos, i) => (
-            <View key={i} style={[s.demoBracket, pos,
-              i === 1 || i === 3 ? { transform: [{ scaleX: -1 }] } : null,
-              i === 2 || i === 3 ? { transform: [{ scaleY: -1 }] } : null,
-            ]} />
-          ))}
-        </View>
-        <View style={{ height: 26 }} />
+        <Sparkles />
+        <Image source={LUMI.welcome} style={s.hookLumi} resizeMode="contain" accessibilityLabel="Lumi giving a thumbs up" />
       </View>
-
-      {/* Statement */}
-      <View style={s.hookStatement}>
-        <Text style={s.hookHeadline}>
-          Eat the food you{' '}
-          <Text style={{ color: C.primary }}>love.</Text>{' '}
-          Reach the body you want.
-        </Text>
-        <Text style={s.hookSubline}>
-          The first nutrition app that truly knows jollof, fufu and suya — counted the way you actually eat.
-        </Text>
-      </View>
-
-      {/* CTA */}
+      <Text style={s.hookHeadline}>
+        Eat the food you <Text style={{ color: C.primary }}>love</Text>. Reach the body you want.
+      </Text>
+      <Text style={s.hookSubline}>The best nutrition app that truly knows jollof, fufu and suya – counted the way you actually eat.</Text>
       <View style={s.hookCta}>
-        <PrimaryBtn label="Let's start →" onPress={next} />
-        <TouchableOpacity onPress={onLogin} style={s.hookLoginBtn} activeOpacity={0.7}>
+        <PrimaryBtn label="Get started" onPress={next} />
+        <TouchableOpacity onPress={onLogin} style={s.hookLoginBtn} activeOpacity={0.7} accessibilityRole="button">
           <Text style={s.hookLoginTxt}>I already have an account</Text>
         </TouchableOpacity>
-        <Text style={s.hookNotice}>Takes about 3 minutes · No card needed</Text>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -529,14 +421,14 @@ const DEMO_TAGS = [
 
 function DemoScreen(p) {
   const { next } = p;
-  const { width: SW } = useWindowDimensions();
-  const imgH = SW * 1.35;
   const [phase, setPhase] = useState('capture');
+  const [imgH, setImgH] = useState(400);
   const scanY    = useRef(new Animated.Value(0)).current;
   const barSlide = useRef(new Animated.Value(-72)).current;
   const tagFades = useRef(DEMO_TAGS.map(() => new Animated.Value(0))).current;
 
   const handleShutter = () => {
+    tap();
     setPhase('scanning');
     Animated.timing(scanY, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.quad), useNativeDriver: true })
       .start(() => setPhase('result'));
@@ -546,126 +438,68 @@ function DemoScreen(p) {
     if (phase !== 'result') return;
     Animated.sequence([
       Animated.spring(barSlide, { toValue: 0, useNativeDriver: true, tension: 90, friction: 11 }),
-      Animated.stagger(180, tagFades.map(f =>
-        Animated.spring(f, { toValue: 1, useNativeDriver: true, tension: 130, friction: 14 })
-      )),
+      Animated.stagger(180, tagFades.map((f) => Animated.spring(f, { toValue: 1, useNativeDriver: true, tension: 130, friction: 14 }))),
     ]).start();
   }, [phase]);
 
   const scanTranslate = scanY.interpolate({ inputRange: [0, 1], outputRange: [0, imgH - 4] });
 
   return (
-    <View style={[s.shell, { backgroundColor: C.bg }]}>
-      <ProgressTop {...p} />
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+    <View style={s.shell}>
+      <TopBar chapter={p.chapter} onBack={p.onBack} showBack={p.showBack} />
+      <View style={{ paddingHorizontal: 22, paddingTop: 18 }}>
+        <Text style={s.eyebrow}>SEE IT IN ACTION</Text>
+        <Text style={s.demoHeadline}>{phase !== 'result' ? "Let's see the magic." : 'Boom, it knows your plate.'}</Text>
+        <Text style={s.demoSub}>
+          {phase !== 'result'
+            ? 'Tap the shutter. Point Logga at any plate, even jollof, and watch it read the calories.'
+            : 'No weighing. No searching. This is how every meal will feel.'}
+        </Text>
+      </View>
 
-        {/* Header — swaps after scan */}
-        <View style={{ paddingHorizontal: 22, paddingTop: 16, paddingBottom: 18 }}>
-          <Text style={s.eyebrow}>SEE IT IN ACTION +</Text>
-          {phase !== 'result' ? (
-            <>
-              <Text style={[s.headline, { marginTop: 6 }]}>Let's see the magic.</Text>
-              <Text style={[s.subline, { marginTop: 8 }]}>
-                Tap the shutter — point Logga at any plate, even jollof, and watch it read the calories.
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text style={[s.headline, { marginTop: 6 }]}>Boom — it knows your plate.</Text>
-              <Text style={[s.subline, { marginTop: 8 }]}>
-                No weighing. No searching. This is how every meal will feel.
-              </Text>
-            </>
-          )}
-        </View>
-
-        {/* Frame wrapper — detection bar slides OUTSIDE overflow so it isn't clipped */}
-        <View style={{ marginHorizontal: 16 }}>
-
-          {/* Image + scan + tags (overflow hidden for border radius) */}
-          <View style={{ borderRadius: 20, overflow: 'hidden', height: imgH }}>
-            <Image
-              source={require('../../assets/jollof-demo.jpg')}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="cover"
-            />
-
-            {/* Green sweep */}
-            {phase === 'scanning' && (
-              <Animated.View style={[s.demoScanLine, { transform: [{ translateY: scanTranslate }] }]} />
-            )}
-
-            {/* Food tags — each is dot + pill */}
-            {phase === 'result' && DEMO_TAGS.map((tag, i) => (
-              <Animated.View key={tag.label} style={[s.demoTagRow, {
-                top: tag.top, left: tag.left, right: tag.right,
-                opacity: tagFades[i],
-                transform: [{ scale: tagFades[i].interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }],
-              }]}>
-                {/* Glowing dot — sits outside the pill */}
-                <View style={s.demoTagDotWrap}>
-                  <View style={s.demoTagDotGlow} />
-                  <View style={s.demoTagDot} />
-                </View>
-                {/* White pill */}
-                <View style={s.demoTagPill}>
-                  <Text style={s.demoTagTxt}>{tag.label}</Text>
-                  <Text style={s.demoTagKcal}> {tag.kcal}</Text>
-                </View>
-              </Animated.View>
-            ))}
-
-            {/* Capture — brackets + shutter */}
-            {phase === 'capture' && <>
-              {[
-                { top: 14, left: 14 },
-                { top: 14, right: 14 },
-                { bottom: 60, left: 14 },
-                { bottom: 60, right: 14 },
-              ].map((pos, i) => (
-                <View key={i} style={[s.demoBracket, pos,
-                  i === 1 || i === 3 ? { transform: [{ scaleX: -1 }] } : null,
-                  i === 2 || i === 3 ? { transform: [{ scaleY: -1 }] } : null,
-                ]} />
-              ))}
-              <View style={{ position: 'absolute', bottom: 14, left: 0, right: 0, alignItems: 'center' }}>
-                <TouchableOpacity style={s.demoShutter} onPress={handleShutter} activeOpacity={0.85}>
-                  <View style={s.demoShutterInner} />
-                </TouchableOpacity>
-              </View>
-            </>}
-          </View>
-
-          {/* Detection bar — absolutely overlays the TOP of the image, slides in from above */}
-          {phase === 'result' && (
-            <Animated.View style={[s.demoDetectBar, { transform: [{ translateY: barSlide }] }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="checkmark-circle" size={16} color={C.primary} />
-                <View style={{ marginLeft: 7 }}>
-                  <Text style={s.demoDetectTitle}>Detected · 3 items</Text>
-                  <Text style={s.demoDetectSub}>Tap any tag to adjust portion</Text>
-                </View>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={s.demoKcal}>1010</Text>
-                <Text style={s.demoKcalUnit}>KCAL</Text>
+      <View style={{ flex: 1, marginHorizontal: 16, marginTop: 16 }} onLayout={(e) => setImgH(e.nativeEvent.layout.height)}>
+        <View style={{ flex: 1, borderRadius: 20, overflow: 'hidden' }}>
+          <Image source={require('../../assets/jollof-demo.jpg')} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          {phase === 'scanning' && <Animated.View style={[s.demoScanLine, { transform: [{ translateY: scanTranslate }] }]} />}
+          {phase === 'result' && DEMO_TAGS.map((tag, i) => (
+            <Animated.View key={tag.label} style={[s.demoTagRow, {
+              top: tag.top, left: tag.left, right: tag.right,
+              opacity: tagFades[i],
+              transform: [{ scale: tagFades[i].interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }],
+            }]}>
+              <View style={s.demoTagDot} />
+              <View style={s.demoTagPill}>
+                <Text style={s.demoTagTxt}>{tag.label} <Text style={{ color: C.primary }}>{tag.kcal}</Text></Text>
               </View>
             </Animated.View>
+          ))}
+          {phase === 'capture' && (
+            <View style={{ position: 'absolute', bottom: 16, left: 0, right: 0, alignItems: 'center' }}>
+              <TouchableOpacity style={s.demoShutter} onPress={handleShutter} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Take a photo">
+                <View style={s.demoShutterInner} />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
-
-        {/* Skip → Continue */}
-        {phase !== 'result' ? (
-          <TouchableOpacity onPress={next} style={s.demoSkip} activeOpacity={0.7}>
-            <Text style={s.demoSkipTxt}>Skip the demo</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={{ paddingHorizontal: 16, paddingTop: 20 }}>
-            <PrimaryBtn label="That's the magic — continue →" onPress={next} />
-          </View>
+        {phase === 'result' && (
+          <Animated.View style={[s.demoDetectBar, { transform: [{ translateY: barSlide }] }]}>
+            <View>
+              <Text style={s.demoDetectTitle}>Detected · 3 items</Text>
+              <Text style={s.demoDetectSub}>Tap any tag to adjust portion</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={s.demoKcal}>1010</Text>
+              <Text style={s.demoKcalUnit}>KCAL</Text>
+            </View>
+          </Animated.View>
         )}
+      </View>
 
-      </ScrollView>
+      <View style={s.footer}>
+        {phase !== 'result'
+          ? <TextBtn label="Skip the demo" onPress={next} />
+          : <PrimaryBtn label="That's the magic, continue" onPress={next} />}
+      </View>
     </View>
   );
 }
@@ -673,26 +507,17 @@ function DemoScreen(p) {
 export function GoalScreen(p) {
   const { d, pick, next } = p;
   const opts = [
-    { v: 'lose',       t: 'Lose weight',        s: 'Shed kilos at a healthy, steady pace',   icon: 'trending-down-outline' },
-    { v: 'eat',        t: 'Eat better',          s: 'More balance, less guilt',                icon: 'nutrition-outline' },
-    { v: 'consistent', t: 'Stay consistent',     s: 'Build a habit that finally sticks',       icon: 'flame-outline' },
-    { v: 'understand', t: 'Understand my body',  s: 'Learn what my meals really do',           icon: 'search-outline' },
+    { v: 'lose',       t: 'Lose weight',       s: 'Shed kilos at a healthy, steady pace', icon: 'trending-down-outline' },
+    { v: 'eat',        t: 'Eat better',        s: 'More balance, less guilt',             icon: 'leaf-outline' },
+    { v: 'consistent', t: 'Stay consistent',   s: 'Build a habit that finally sticks',    icon: 'flame-outline' },
+    { v: 'understand', t: 'Understand my body', s: 'Learn what my meals really do',       icon: 'search-outline' },
   ];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.goal} />}>
-      <View style={{ marginTop: 14 }}>
-        <Text style={s.headline}>What brings you here?</Text>
-        <Text style={s.subline}>Pick the one that matters most right now.</Text>
-      </View>
-      <View style={{ marginTop: 24 }}>
-        {opts.map((o, i) => (
-          <View key={o.v} style={i > 0 && { marginTop: 11 }}>
-            <OptionCard
-              icon={<Ionicons name={o.icon} size={24} color={d.goal === o.v ? C.primary : C.ink700} />}
-              title={o.t} subtitle={o.s}
-              selected={d.goal === o.v} onPress={() => pick('goal', o.v)}
-            />
-          </View>
+    <ScreenShell {...p} footer={p.editing ? <PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.goal} /> : null}>
+      <Bubble hideLumi={p.editing} title="What brings you here?" sub="Pick the one that matters most right now." />
+      <View style={s.opts}>
+        {opts.map((o) => (
+          <Option key={o.v} icon={o.icon} title={o.t} subtitle={o.s} selected={d.goal === o.v} onPress={() => pick('goal', o.v)} />
         ))}
       </View>
     </ScreenShell>
@@ -702,13 +527,13 @@ export function GoalScreen(p) {
 export function StruggleScreen(p) {
   const { d, set, next } = p;
   const opts = [
-    { v: 'forget',     t: 'I forget to track',                 s: 'Life gets busy and logging slips',      icon: 'notifications-off-outline' },
-    { v: 'local',      t: "Don't know local food calories",     s: 'No app counts a wrap of fufu',          icon: 'help-circle-outline' },
-    { v: 'motivation', t: 'I lose motivation',                  s: 'I start strong, then fade',             icon: 'battery-half-outline' },
-    { v: 'eatout',     t: 'I eat out a lot',                    s: 'Buka, mama-put, restaurants',           icon: 'storefront-outline' },
+    { v: 'forget',     t: 'I forget to track',             s: 'Life gets busy and logging slips', icon: 'notifications-off-outline' },
+    { v: 'local',      t: "Don't know local food calories", s: 'No app counts a wrap of fufu',     icon: 'help-circle-outline' },
+    { v: 'motivation', t: 'I lose motivation',              s: 'I start strong, then fade',        icon: 'battery-half-outline' },
+    { v: 'eatout',     t: 'I eat out a lot',                s: 'Buka, mama-put, restaurants',      icon: 'storefront-outline' },
   ];
   const list = d.struggles || [];
-  const toggle = (v) => set('struggles', list.includes(v) ? list.filter(x => x !== v) : [...list, v]);
+  const toggle = (v) => { tap(); set('struggles', list.includes(v) ? list.filter((x) => x !== v) : [...list, v]); };
   return (
     <ScreenShell {...p} footer={
       <>
@@ -716,20 +541,10 @@ export function StruggleScreen(p) {
         {!p.editing && <TextBtn label="Skip" onPress={next} />}
       </>
     }>
-      <View style={{ marginTop: 14 }}>
-        <Text style={s.headline}>What's tripped you up before?</Text>
-        <Text style={s.subline}>Pick all that ring true — no judgement.</Text>
-      </View>
-      <View style={{ marginTop: 24 }}>
-        {opts.map((o, i) => (
-          <View key={o.v} style={i > 0 && { marginTop: 11 }}>
-            <OptionCard
-              multi
-              icon={<Ionicons name={o.icon} size={24} color={list.includes(o.v) ? C.primary : C.ink700} />}
-              title={o.t} subtitle={o.s}
-              selected={list.includes(o.v)} onPress={() => toggle(o.v)}
-            />
-          </View>
+      <Bubble lumi="think" hideLumi={p.editing} title="What's tripped you up before?" sub="Pick all that ring true. No judgement." />
+      <View style={s.opts}>
+        {opts.map((o) => (
+          <Option key={o.v} multi icon={o.icon} title={o.t} subtitle={o.s} selected={list.includes(o.v)} onPress={() => toggle(o.v)} />
         ))}
       </View>
     </ScreenShell>
@@ -738,51 +553,106 @@ export function StruggleScreen(p) {
 
 function NameScreen(p) {
   const { d, set, next } = p;
-  const happy = d.name.trim().length > 0;
-  const first = d.name.trim().split(' ')[0];
+  const first = firstName(d);
+  const pop = useRef(new Animated.Value(first ? 1 : 0)).current;
+  const shown = useRef(!!first);
+  useEffect(() => {
+    if (first && !shown.current) {
+      shown.current = true;
+      Animated.spring(pop, { toValue: 1, useNativeDriver: true, tension: 120, friction: 9 }).start();
+    } else if (!first && shown.current) {
+      shown.current = false;
+      pop.setValue(0);
+    }
+  }, [first]);
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.name.trim()} />}>
-      <View style={{ marginTop: 14 }}>
-        <Text style={s.headline}>First, what should we call you?</Text>
-        <Text style={s.subline}>Just a first name is fine.</Text>
-      </View>
-      <View style={s.nameInputWrap}>
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} disabled={!d.name.trim()} />}>
+      <Bubble title="Nice! What should I call you?" sub="Just a first name is fine." />
+      <View style={{ marginTop: 44, alignItems: 'center' }}>
         <TextInput
           style={s.nameInput}
           value={d.name}
           onChangeText={(v) => set('name', v)}
-          placeholder="Type your name"
+          placeholder="Your name"
           placeholderTextColor={C.ink400}
           autoCapitalize="words"
           returnKeyType="done"
           onSubmitEditing={() => d.name.trim() && next()}
+          accessibilityLabel="Your name"
         />
+        <View style={s.nameUnderline} />
+      </View>
+      <Animated.View style={{ marginTop: 28, alignItems: 'center', opacity: pop, transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] }}>
+        <Image source={LUMI.wave} style={{ width: 210, height: 210 }} resizeMode="contain" accessibilityLabel="Lumi waving" />
+        <View style={s.nameGreet}><Text style={s.nameGreetTxt}>Lovely to meet you{first ? `, ${first}` : ''}!</Text></View>
+      </Animated.View>
+    </ScreenShell>
+  );
+}
+
+const TONES = [
+  { v: 'cheerleader', t: 'Cheerleader',     s: 'Hype me up, celebrate every win',        img: 'cheer',  sample: (n) => `"Breakfast logged! That's three days in a row${n ? `, ${n}` : ''}. You're on a roll!"` },
+  { v: 'gentle',      t: 'Gentle & kind',   s: 'Soft nudges, no pressure',               img: 'heart',  sample: (n) => `"Breakfast logged${n ? `, ${n}` : ''}. Three days in a row, that's lovely. Go easy on yourself today."` },
+  { v: 'auntie',      t: 'Straight Auntie', s: 'Loving, but she will tell you the truth', img: 'auntie', sample: (n) => `"Breakfast logged. Three days straight, good. Now don't let lunch run away from you o${n ? `, ${n}` : ''}."` },
+  { v: 'elder',       t: 'Wise Elder',      s: 'Calm, patient, the long view',           img: 'elder',  sample: (n) => `"Breakfast logged${n ? `, ${n}` : ''}. Three days in a row. Small steps, taken daily, carry you far."` },
+];
+
+function ToneScreen(p) {
+  const { d, set, next } = p;
+  const first = firstName(d);
+  const picked = TONES.find((t) => t.v === d.tone) || TONES[0];
+  return (
+    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
+      <Bubble title={`How should I talk to you${first ? `, ${first}` : ''}?`} />
+      <View style={s.toneGrid}>
+        {TONES.map((t) => {
+          const on = t.v === picked.v;
+          return (
+            <TouchableOpacity
+              key={t.v}
+              style={[s.toneCard, on && s.toneCardOn]}
+              onPress={() => { tap(); set('tone', t.v); }}
+              activeOpacity={0.85}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on }}
+            >
+              <Image source={LUMI[t.img]} style={{ width: 84, height: 72 }} resizeMode="contain" accessibilityLabel="" />
+              <Text style={s.toneTitle}>{t.t}</Text>
+              <Text style={s.toneSub}>{t.s}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <View style={s.toneSample}>
+        <Text style={s.toneSampleLabel}>{picked.t.toUpperCase()} SOUNDS LIKE</Text>
+        <Text style={s.toneSampleTxt}>{picked.sample(first)}</Text>
       </View>
     </ScreenShell>
   );
 }
 
 function CountryScreen(p) {
-  const { d, pick, next } = p;
+  const { d, pick } = p;
   const FLAGS = {
     Nigeria: '🇳🇬', Ghana: '🇬🇭', Kenya: '🇰🇪', Tanzania: '🇹🇿',
-    Uganda: '🇺🇬', Senegal: '🇸🇳', Cameroon: '🇨🇲', Ethiopia: '🇪🇹', Other: '🌍',
+    Uganda: '🇺🇬', Senegal: '🇸🇳', Cameroon: '🇨🇲', Ethiopia: '🇪🇹',
   };
-  const list = ['Nigeria','Ghana','Kenya','Tanzania','Uganda','Senegal','Cameroon','Ethiopia','Other'];
+  const list = ['Nigeria', 'Ghana', 'Kenya', 'Tanzania', 'Uganda', 'Senegal', 'Cameroon', 'Ethiopia', 'Other'];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.country} />}>
-      <View style={{ marginTop: 14 }}>
-        <Text style={s.headline}>Where are you{'\n'}cooking from?</Text>
-        <Text style={s.subline}>So we match dishes and portions to your kitchen.</Text>
-      </View>
-      <View style={{ marginTop: 24 }}>
-        {list.map((c, i) => (
-          <View key={c} style={i > 0 && { marginTop: 9 }}>
-            <OptionCard compact
-              icon={<Text style={{ fontSize: 22 }}>{FLAGS[c]}</Text>}
-              title={c} selected={d.country === c} onPress={() => pick('country', c)}
-            />
-          </View>
+    <ScreenShell {...p}>
+      <Bubble title="Where are you cooking from?" sub="So we match dishes and portions to your kitchen." />
+      <View style={[s.opts, { gap: 8 }]}>
+        {list.map((c) => (
+          <Option
+            key={c}
+            compact
+            lead={c === 'Other'
+              ? <Ionicons name="earth-outline" size={22} color={d.country === c ? C.primary : C.ink500} style={{ marginRight: 14, width: 30, textAlign: 'center' }} />
+              : <Text style={{ fontSize: 24, marginRight: 14, width: 30, textAlign: 'center' }}>{FLAGS[c]}</Text>}
+            title={c === 'Other' ? 'Somewhere else' : c}
+            selected={d.country === c}
+            onPress={() => pick('country', c)}
+          />
         ))}
       </View>
     </ScreenShell>
@@ -794,24 +664,21 @@ export function GenderScreen(p) {
   const opts = [
     { v: 'Female', t: 'Female',                    icon: 'female-outline' },
     { v: 'Male',   t: 'Male',                      icon: 'male-outline' },
-    { v: 'Other',  t: 'Other / prefer not to say', icon: 'transgender-outline' },
+    { v: 'Other',  t: 'Other / prefer not to say', icon: 'ellipse-outline' },
   ];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.gender} />}>
-      <View style={{ marginTop: 14 }}>
-        <Text style={s.headline}>What's your sex?</Text>
-        <Text style={s.subline}>This sharpens your calorie maths — nothing else.</Text>
-      </View>
-      <View style={{ marginTop: 24 }}>
-        {opts.map((o, i) => (
-          <View key={o.v} style={i > 0 && { marginTop: 11 }}>
-            <OptionCard
-              icon={<Ionicons name={o.icon} size={24} color={d.gender === o.v ? C.primary : C.ink700} />}
-              title={o.t} selected={d.gender === o.v} onPress={() => pick('gender', o.v)}
-            />
-          </View>
+    <ScreenShell {...p} footer={p.editing ? <PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.gender} /> : null}>
+      <Bubble hideLumi={p.editing} title="What's your sex?" sub="This sharpens your calorie maths, nothing else." />
+      <View style={s.opts}>
+        {opts.map((o) => (
+          <Option key={o.v} icon={o.icon} title={o.t} selected={d.gender === o.v} onPress={() => pick('gender', o.v)} />
         ))}
       </View>
+      {!p.editing ? (
+        <View style={{ alignItems: 'center', marginTop: 18 }}>
+          <Image source={LUMI.stand} style={{ width: 260, height: 270, marginRight: 24 }} resizeMode="contain" accessibilityLabel="" />
+        </View>
+      ) : null}
     </ScreenShell>
   );
 }
@@ -819,61 +686,56 @@ export function GenderScreen(p) {
 export function AgeScreen(p) {
   const { d, set, next } = p;
   return (
-    <ScreenShell {...p} grow footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} />}>
-      <View style={{ marginTop: 14 }}>
-        <Text style={s.headline}>How old{'\n'}are you?</Text>
-        <Text style={s.subline}>Drag the dial to your age. Logga is for adults 18 and over.</Text>
-      </View>
-      <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 30 }}>
-        <RulerPicker min={18} max={90} value={Math.max(18, d.age || 18)} onChange={(v) => set('age', v)} unit="yrs" />
+    <ScreenShell {...p} fixed footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} />}>
+      <Bubble lumi="think" hideLumi={p.editing} title="How old are you?" sub="Logga is for adults 18 and over." />
+      <View style={s.wheelArea}>
+        <WheelPicker min={18} max={90} value={Math.max(18, d.age || 18)} onChange={(v) => set('age', v)} unit="yrs" />
       </View>
     </ScreenShell>
   );
 }
 
 function BodyIntroScreen({ d, next }) {
-  const first = d.name ? d.name.split(' ')[0] : '';
+  const first = firstName(d);
   return (
-    <View style={[s.shell, s.centeredScreen, { backgroundColor: C.bg }]}>
-      <Text style={[s.headline, { textAlign: 'center' }]}>{first ? `${first}, a few body basics` : 'A few body basics'}</Text>
-      <Text style={[s.subline, { textAlign: 'center', maxWidth: 290 }]}>
-        Height, weight and a goal. They give us your calorie target, and take about a minute.
-      </Text>
-      <View style={[s.footer, { width: '100%' }]}>
-        <PrimaryBtn label="Continue" onPress={next} />
+    <LinearGradient colors={['#EAF5FF', '#F3EFFF']} style={[s.shell, s.breather]}>
+      <View style={{ alignSelf: 'stretch', paddingHorizontal: 4 }}>
+        <ChapterBars index={2} fill={0} dim />
       </View>
-    </View>
+      <Text style={s.breatherCount}>2 of 5 chapters done</Text>
+      <View style={s.breatherMid}>
+        <View style={{ width: 300, alignItems: 'center' }}>
+          <Sparkles />
+          <Image source={LUMI.phone} style={{ width: 270, height: 270 }} resizeMode="contain" accessibilityLabel="Lumi" />
+        </View>
+        <Text style={s.breatherTitle}>Great start{first ? `, ${first}` : ''}!</Text>
+        <Text style={s.breatherSub}>Now a few quick ones about your body, so your plan fits you.</Text>
+      </View>
+      <View style={{ alignSelf: 'stretch' }}>
+        <PrimaryBtn label="Let's go" onPress={next} />
+      </View>
+    </LinearGradient>
   );
 }
 
 export function HeightScreen(p) {
   const { d, set, next } = p;
   const inCm = d.unitH === 'cm';
-  const rulerMin = inCm ? 130 : 48;
-  const rulerMax = inCm ? 220 : 84;
-  const rulerVal = inCm ? Math.round(d.heightCm) : Math.round(d.heightCm / 2.54);
-  const ftDisplay = (() => {
-    const totalIn = Math.round(d.heightCm / 2.54);
-    return `${Math.floor(totalIn / 12)}′ ${totalIn % 12}″ · ${Math.round(d.heightCm)} cm`;
-  })();
+  const totalIn = Math.round(d.heightCm / 2.54);
   return (
-    <ScreenShell {...p} grow footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} />}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8 }}>
-        <Text style={[s.headline, { flex: 1 }]}>How tall{'\n'}are you?</Text>
-        <Seg
-          options={[{ value: 'cm', label: 'cm' }, { value: 'ft', label: 'ft/in' }]}
-          value={d.unitH}
-          onChange={(v) => set('unitH', v)}
-        />
-      </View>
-      <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 30 }}>
-        <RulerPicker
-          min={rulerMin} max={rulerMax}
-          value={rulerVal}
+    <ScreenShell {...p} fixed footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} />}>
+      <Bubble lumi="think" hideLumi={p.editing} title="How tall are you?" />
+      <View style={s.wheelArea}>
+        <WheelPicker
+          min={inCm ? 130 : 48} max={inCm ? 220 : 84}
+          value={inCm ? Math.round(d.heightCm) : totalIn}
           unit={inCm ? 'cm' : 'in'}
           onChange={(v) => set('heightCm', inCm ? v : Math.round(v * 2.54))}
         />
-        {!inCm && <Text style={s.rulerCaption}>{ftDisplay}</Text>}
+        <Text style={[s.wheelCaption, inCm && { opacity: 0 }]}>{Math.floor(totalIn / 12)}′ {totalIn % 12}″ · {Math.round(d.heightCm)} cm</Text>
+      </View>
+      <View style={s.segRow}>
+        <Seg options={[{ value: 'cm', label: 'cm' }, { value: 'ft', label: 'ft/in' }]} value={d.unitH} onChange={(v) => set('unitH', v)} />
       </View>
     </ScreenShell>
   );
@@ -882,30 +744,19 @@ export function HeightScreen(p) {
 function WeightScreen(p) {
   const { d, set, next } = p;
   const inKg = d.unitW === 'kg';
-  const rulerMin = inKg ? 40 : 88;
-  const rulerMax = inKg ? 170 : 375;
-  const rulerVal = inKg ? Math.round(d.weightKg) : Math.round(d.weightKg * 2.2046);
-
   return (
-    <ScreenShell {...p} grow footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} />}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8 }}>
-        <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={s.headline}>What's your{'\n'}weight now?</Text>
-          <Text style={s.subline}>Be honest — only you and your plan see this.</Text>
-        </View>
-        <Seg
-          options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]}
-          value={d.unitW}
-          onChange={(v) => set('unitW', v)}
-        />
-      </View>
-      <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 30 }}>
-        <RulerPicker
-          min={rulerMin} max={rulerMax}
-          value={rulerVal}
+    <ScreenShell {...p} fixed footer={<PrimaryBtn label="Continue" onPress={next} />}>
+      <Bubble lumi="think" title="What do you weigh right now?" sub="Be honest. Only you and your plan see this." />
+      <View style={s.wheelArea}>
+        <WheelPicker
+          min={inKg ? 40 : 88} max={inKg ? 170 : 375}
+          value={inKg ? Math.round(d.weightKg) : Math.round(d.weightKg * 2.2046)}
           unit={inKg ? 'kg' : 'lb'}
           onChange={(v) => set('weightKg', inKg ? v : Math.round((v / 2.2046) * 10) / 10)}
         />
+      </View>
+      <View style={s.segRow}>
+        <Seg options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lbs' }]} value={d.unitW} onChange={(v) => set('unitW', v)} />
       </View>
     </ScreenShell>
   );
@@ -914,13 +765,8 @@ function WeightScreen(p) {
 export function TargetScreen(p) {
   const { d, set, next } = p;
   const inKg = d.unitW === 'kg';
-  const rulerMin = inKg ? 40 : 88;
-  const rulerMax = inKg ? 170 : 375;
-  const rulerVal = inKg ? Math.round(d.targetKg) : Math.round(d.targetKg * 2.2046);
   const gap = d.weightKg - d.targetKg;
-  const gapAbs = Math.round(Math.abs(gap) * 10) / 10;
-  const gapAbsLb = Math.round(Math.abs(gap) * 2.2046);
-  const gapShown = inKg ? `${gapAbs} kg` : `${gapAbsLb} lb`;
+  const gapShown = inKg ? `${Math.round(Math.abs(gap) * 10) / 10} kg` : `${Math.round(Math.abs(gap) * 2.2046)} lb`;
   const losing = gap > 0.5;
   const gaining = gap < -0.5;
 
@@ -940,80 +786,86 @@ export function TargetScreen(p) {
     ? `You're already under the healthy range for your height, so we can't plan a weight loss. Set your goal at ${minShown} ${unitWord} or more.`
     : `For your height, a healthy goal is between ${minShown} and ${maxShown} ${unitWord}. Pick a goal in that range, or talk to a doctor or dietitian about going lower.`;
   return (
-    <ScreenShell {...p} grow footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={blocked} />}>
-      <View style={{ marginTop: 8 }}>
-        <Text style={s.headline}>What's your{'\n'}goal weight?</Text>
-        <Text style={s.subline}>Aim for a healthy, reachable number — we'll pace it.</Text>
-      </View>
-      <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 30 }}>
-        <RulerPicker
-          min={rulerMin} max={rulerMax}
-          value={rulerVal}
+    <ScreenShell {...p} fixed footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={blocked} />}>
+      <Bubble lumi="target" hideLumi={p.editing} title="What's your goal weight?" sub="Aim for a healthy, reachable number. We'll pace it." />
+      <View style={s.wheelArea}>
+        <WheelPicker
+          min={inKg ? 40 : 88} max={inKg ? 170 : 375}
+          value={inKg ? Math.round(d.targetKg) : Math.round(d.targetKg * 2.2046)}
           unit={inKg ? 'kg' : 'lb'}
-          accent={C.terra}
+          unitColor={C.terra}
           onChange={(v) => set('targetKg', inKg ? v : Math.round((v / 2.2046) * 10) / 10)}
         />
-        <View style={{ alignItems: 'center', marginTop: 18 }}>
-          <View style={[s.gapPill, {
-            backgroundColor: losing ? C.terraSoft : gaining ? C.primarySoft : C.sunken,
-          }]}>
-            <Text style={[s.gapPillTxt, {
-              color: losing ? C.terra : gaining ? C.primary : C.ink500,
-            }]}>
+      </View>
+      <View style={{ alignItems: 'center', marginBottom: 20 }}>
+        {blocked ? (
+          <View style={s.guardBox}><Text style={s.guardTxt}>{guardMsg}</Text></View>
+        ) : (
+          <View style={[s.gapPill, { backgroundColor: losing ? C.terraSoft : gaining ? C.primarySoft : C.sunken }]}>
+            <Text style={[s.gapPillTxt, { color: losing ? C.terra : gaining ? C.primary : C.ink500 }]}>
               {losing ? `${gapShown} to lose` : gaining ? `${gapShown} to gain` : 'Maintain your weight'}
             </Text>
           </View>
-          {blocked ? (
-            <View style={s.guardBox}><Text style={s.guardTxt}>{guardMsg}</Text></View>
-          ) : null}
-        </View>
+        )}
       </View>
     </ScreenShell>
   );
 }
 
+// The predicted line from today's weight to the goal, with the window it lands in.
+function PaceChart({ d, win }) {
+  return (
+    <View style={s.paceChart}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <Text style={s.paceChartLabel}>PREDICTED</Text>
+        <Text style={s.paceChartWhen}>{win.long}</Text>
+      </View>
+      <Svg width="100%" height={150} viewBox="0 0 330 150" accessibilityLabel={`Predicted weight line from ${weightText(d.weightKg, d.unitW)} now to ${weightText(d.targetKg, d.unitW)} around ${win.long}`}>
+        <Defs>
+          <SvgGradient id="pf" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={C.primary} stopOpacity="0.28" />
+            <Stop offset="1" stopColor={C.primary} stopOpacity="0" />
+          </SvgGradient>
+        </Defs>
+        <Rect x="250" y="8" width="58" height="112" rx="8" fill={C.primary} opacity="0.1" />
+        <Path d="M20 26 C 55 32, 95 50, 128 58 C 142 61, 150 53, 162 55 C 190 60, 235 88, 278 104 L 278 120 L 20 120 Z" fill="url(#pf)" />
+        <Path d="M20 26 C 55 32, 95 50, 128 58 C 142 61, 150 53, 162 55 C 190 60, 235 88, 278 104" fill="none" stroke={C.primary} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        <Circle cx="20" cy="26" r="6" fill="#fff" stroke={C.ink} strokeWidth="3" />
+        <Circle cx="278" cy="104" r="7" fill={C.primary} stroke="#fff" strokeWidth="3" />
+        <SvgText x="30" y="20" fontSize="12" fontWeight="800" fill={C.ink}>{weightText(d.weightKg, d.unitW)}</SvgText>
+        <SvgText x="306" y="84" textAnchor="end" fontSize="13" fontWeight="800" fill={C.primaryDark} stroke="#fff" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke">{weightText(d.targetKg, d.unitW)}</SvgText>
+        <SvgText x="20" y="142" fontSize="11" fontWeight="700" fill={C.ink500}>Today</SvgText>
+        <SvgText x="252" y="142" fontSize="11" fontWeight="700" fill={C.primaryDark}>{win.short}</SvgText>
+      </Svg>
+    </View>
+  );
+}
+
 export function PaceScreen(p) {
-  const { d, pick, next } = p;
-  const gap = Math.max(0, d.weightKg - d.targetKg);
+  const { d, set, next } = p;
   const opts = [
-    { v: 'slow',       t: 'Slow & steady',  s: '~0.25 kg a week · easiest to stick with',     rate: 0.25, bars: 1 },
-    { v: 'moderate',   t: 'Balanced',        s: '~0.5 kg a week · our recommendation',          rate: 0.5,  bars: 2 },
-    { v: 'aggressive', t: 'All-in',          s: '~0.75 kg a week · fastest, needs discipline',  rate: 0.75, bars: 3 },
-    { v: 'extreme',    t: 'All-out',         s: '~1.0 kg a week · needs strict discipline',     rate: 1.0,  bars: 4 },
+    { v: 'slow',       t: 'Slow & steady', s: '~0.25 kg a week · easiest to stick with' },
+    { v: 'moderate',   t: 'Balanced',      s: '~0.5 kg a week', badge: 'Recommended' },
+    { v: 'aggressive', t: 'All-in',        s: '~0.75 kg a week · needs discipline' },
+    { v: 'extreme',    t: 'All-out',       s: '~1.0 kg a week · needs strict discipline' },
   ];
+  const win = predictedWindow(d);
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.pace} />}>
-      <View style={{ marginTop: 14 }}>
-        <Text style={s.headline}>How fast do you want to go?</Text>
-        <Text style={s.subline}>This sets your daily deficit. Change it whenever life shifts.</Text>
+      <Bubble hideLumi={p.editing} title="How fast do you want to get there?" />
+      <View style={[s.opts, { gap: 8, marginTop: 18 }]}>
+        {opts.map((o) => (
+          <Option
+            key={o.v}
+            compact
+            title={o.badge ? <>{o.t}  <Text style={s.recBadge}> {o.badge} </Text></> : o.t}
+            subtitle={o.s}
+            selected={d.pace === o.v}
+            onPress={() => { tap(); set('pace', o.v); }}
+          />
+        ))}
       </View>
-      <View style={{ marginTop: 24 }}>
-        {opts.map((o, i) => {
-          const on = d.pace === o.v;
-          const wk = gap > 0 ? Math.max(1, Math.round(gap / o.rate)) : 0;
-          return (
-            <TouchableOpacity key={o.v} style={[s.paceCard, on && s.paceCardOn, i > 0 && { marginTop: 11 }]}
-              onPress={() => pick('pace', o.v)} activeOpacity={0.8}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.paceTitle}>{o.t}</Text>
-                <Text style={s.paceSub}>{o.s}</Text>
-                {wk > 0 ? (
-                  <Text style={[s.paceWeeks, { color: on ? C.ink : C.ink400 }]}>
-                    ≈ {wk} weeks to your goal
-                  </Text>
-                ) : null}
-              </View>
-              {on ? <Ionicons name="checkmark" size={20} color={C.ink} /> : null}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      <View style={s.paceNote}>
-        <Text style={s.paceNoteTxt}>
-          Slower paces protect your energy and muscle. Most people thrive on{' '}
-          <Text style={{ color: C.ink, fontWeight: '700' }}>Balanced</Text>.
-        </Text>
-      </View>
+      {win ? <PaceChart d={d} win={win} /> : null}
     </ScreenShell>
   );
 }
@@ -1021,26 +873,17 @@ export function PaceScreen(p) {
 export function ActivityScreen(p) {
   const { d, pick, next } = p;
   const opts = [
-    { v: 'sedentary', t: 'Mostly sitting',        s: 'Desk job, drive everywhere, little walking',     icon: 'laptop-outline' },
-    { v: 'light',     t: 'Lightly active',         s: 'Some walking — to the market, around the office', icon: 'walk-outline' },
-    { v: 'moderate',  t: 'On my feet a lot',        s: 'Trading, errands, carrying loads most days',     icon: 'bicycle-outline' },
-    { v: 'active',    t: 'Very active',             s: 'Hard physical work or training 5–6× a week',     icon: 'barbell-outline' },
+    { v: 'sedentary', t: 'Mostly sitting',   s: 'Desk job, drive everywhere',                icon: 'laptop-outline' },
+    { v: 'light',     t: 'Lightly active',   s: 'Some walking, to the market or office',     icon: 'walk-outline' },
+    { v: 'moderate',  t: 'On my feet a lot', s: 'Trading, errands, carrying loads',          icon: 'bicycle-outline' },
+    { v: 'active',    t: 'Very active',      s: 'Hard physical work or training 5-6x a week', icon: 'barbell-outline' },
   ];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.activity} />}>
-      <View style={{ marginTop: 14 }}>
-        <Text style={s.headline}>How active is your day?</Text>
-        <Text style={s.subline}>A normal day, not your best one. This sets your burn.</Text>
-      </View>
-      <View style={{ marginTop: 24 }}>
-        {opts.map((o, i) => (
-          <View key={o.v} style={i > 0 && { marginTop: 11 }}>
-            <OptionCard
-              icon={<Ionicons name={o.icon} size={24} color={d.activity === o.v ? C.primary : C.ink700} />}
-              title={o.t} subtitle={o.s}
-              selected={d.activity === o.v} onPress={() => pick('activity', o.v)}
-            />
-          </View>
+    <ScreenShell {...p} footer={p.editing ? <PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.activity} /> : null}>
+      <Bubble hideLumi={p.editing} title="How active is a normal day?" sub="A normal day, not your best one." />
+      <View style={s.opts}>
+        {opts.map((o) => (
+          <Option key={o.v} icon={o.icon} title={o.t} subtitle={o.s} selected={d.activity === o.v} onPress={() => pick('activity', o.v)} />
         ))}
       </View>
     </ScreenShell>
@@ -1050,70 +893,50 @@ export function ActivityScreen(p) {
 export function EatingScreen(p) {
   const { d, pick, next } = p;
   const opts = [
-    { v: 'omad',  t: 'OMAD',          s: 'One meal a day',         icon: 'restaurant-outline' },
-    { v: '2x',    t: 'Twice a day',   s: 'Two solid meals',        icon: 'copy-outline' },
-    { v: '3x',    t: 'Three meals',   s: 'Breakfast, lunch, dinner', icon: 'partly-sunny-outline' },
-    { v: '4x',    t: 'Small & often', s: 'Four-ish small meals',   icon: 'apps-outline' },
-    { v: 'flex',  t: 'Flexible',      s: 'It changes day to day',  icon: 'swap-vertical-outline' },
+    { v: 'omad', t: 'One meal a day', icon: 'restaurant-outline' },
+    { v: '2x',   t: 'Twice a day',    s: 'Two solid meals',          icon: 'copy-outline' },
+    { v: '3x',   t: 'Three meals',    s: 'Breakfast, lunch, dinner', icon: 'partly-sunny-outline' },
+    { v: '4x',   t: 'Small & often',  s: 'Four-ish small meals',     icon: 'apps-outline' },
+    { v: 'flex', t: 'Flexible',       s: 'It changes day to day',    icon: 'swap-vertical-outline' },
   ];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.eatingStyle} />}>
-      <View style={{ marginTop: 14 }}>
-        <Text style={s.headline}>How do you like to eat?</Text>
-        <Text style={s.subline}>We'll time your reminders around it.</Text>
-      </View>
-      <View style={{ marginTop: 24 }}>
-        {opts.map((o, i) => (
-          <View key={o.v} style={i > 0 && { marginTop: 10 }}>
-            <OptionCard compact
-              icon={<Ionicons name={o.icon} size={22} color={d.eatingStyle === o.v ? C.primary : C.ink700} />}
-              title={o.t} subtitle={o.s}
-              selected={d.eatingStyle === o.v} onPress={() => pick('eatingStyle', o.v)}
-            />
-          </View>
+    <ScreenShell {...p} footer={p.editing ? <PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.eatingStyle} /> : null}>
+      <Bubble hideLumi={p.editing} title="How do you like to eat?" sub="We'll time your reminders around it." />
+      <View style={[s.opts, { gap: 8 }]}>
+        {opts.map((o) => (
+          <Option key={o.v} compact icon={o.icon} title={o.t} subtitle={o.s} selected={d.eatingStyle === o.v} onPress={() => pick('eatingStyle', o.v)} />
         ))}
       </View>
     </ScreenShell>
   );
 }
 
+// Where food comes from keeps Continue: the optional cuisines sit underneath and would be skipped by
+// moving on at the first tap.
 export function FoodScreen(p) {
   const { d, set, next } = p;
   const where = [
-    { v: 'home', t: 'Mostly home-cooked',        icon: 'home-outline' },
-    { v: 'out',  t: 'Mostly bought / eating out', icon: 'restaurant-outline' },
-    { v: 'mix',  t: 'A mix of both',              icon: 'swap-horizontal-outline' },
+    { v: 'home', t: 'Mostly home-cooked',          icon: 'home-outline' },
+    { v: 'out',  t: 'Mostly bought or eating out', icon: 'restaurant-outline' },
+    { v: 'mix',  t: 'A mix of both',               icon: 'swap-horizontal-outline' },
   ];
   const cuisines = ['Nigerian', 'Ghanaian', 'Kenyan', 'Swahili', 'Ethiopian', 'Senegalese', 'Continental', 'Fast food'];
   const toggleC = (c) => {
+    tap();
     const has = d.cuisines.includes(c);
-    set('cuisines', has ? d.cuisines.filter(x => x !== c) : [...d.cuisines, c]);
+    set('cuisines', has ? d.cuisines.filter((x) => x !== c) : [...d.cuisines, c]);
   };
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.foodContext} />}>
-      <View style={{ marginTop: 14 }}>
-        <Text style={s.headline}>Where does your food come from?</Text>
-      </View>
-      <View style={{ marginTop: 24 }}>
-        {where.map((o, i) => (
-          <View key={o.v} style={i > 0 && { marginTop: 10 }}>
-            <OptionCard compact
-              icon={<Ionicons name={o.icon} size={22} color={d.foodContext === o.v ? C.primary : C.ink700} />}
-              title={o.t} selected={d.foodContext === o.v} onPress={() => set('foodContext', o.v)}
-            />
-          </View>
+      <Bubble lumi="food" hideLumi={p.editing} title="Where does your food come from?" />
+      <View style={[s.opts, { gap: 8 }]}>
+        {where.map((o) => (
+          <Option key={o.v} compact icon={o.icon} title={o.t} selected={d.foodContext === o.v} onPress={() => { tap(); set('foodContext', o.v); }} />
         ))}
       </View>
-      <View style={{ marginTop: 20 }}>
-        <Text style={s.sectionLabel}>
-          Cuisines you eat most{' '}
-          <Text style={{ fontWeight: '500', textTransform: 'none', letterSpacing: 0 }}>· optional</Text>
-        </Text>
-        <View style={s.chipsWrap}>
-          {cuisines.map(c => (
-            <Chip key={c} label={c} selected={d.cuisines.includes(c)} onPress={() => toggleC(c)} />
-          ))}
-        </View>
+      <Text style={s.sectionLabel}>CUISINES YOU EAT MOST · OPTIONAL</Text>
+      <View style={s.chipsWrap}>
+        {cuisines.map((c) => <Chip key={c} label={c} selected={d.cuisines.includes(c)} onPress={() => toggleC(c)} />)}
       </View>
     </ScreenShell>
   );
@@ -1122,14 +945,14 @@ export function FoodScreen(p) {
 export function WhyScreen(p) {
   const { d, set, next } = p;
   const opts = [
-    { v: 'wedding',    t: 'A big event',           s: 'Wedding, shoot, reunion',         icon: 'calendar-outline' },
-    { v: 'health',     t: 'A health wake-up call',  s: 'I want to get ahead of it',       icon: 'heart-outline' },
-    { v: 'confident',  t: 'To feel confident again', s: 'In my clothes, in my skin',       icon: 'sparkles-outline' },
-    { v: 'doctor',     t: "Doctor's advice",         s: 'Following medical guidance',      icon: 'medkit-outline' },
-    { v: 'curious',    t: 'Just curious',            s: 'Seeing what I can do',            icon: 'search-outline' },
+    { v: 'wedding',   t: 'A big event',             s: 'Wedding, shoot, reunion',    icon: 'calendar-outline' },
+    { v: 'health',    t: 'A health wake-up call',   s: 'I want to get ahead of it',  icon: 'heart-outline' },
+    { v: 'confident', t: 'To feel confident again', s: 'In my clothes, in my skin',  icon: 'sparkles-outline' },
+    { v: 'doctor',    t: "Doctor's advice",         s: 'Following medical guidance', icon: 'medkit-outline' },
+    { v: 'curious',   t: 'Just curious',            s: 'Seeing what I can do',       icon: 'search-outline' },
   ];
   const list = d.whys || [];
-  const toggle = (v) => set('whys', list.includes(v) ? list.filter(x => x !== v) : [...list, v]);
+  const toggle = (v) => { tap(); set('whys', list.includes(v) ? list.filter((x) => x !== v) : [...list, v]); };
   return (
     <ScreenShell {...p} footer={
       <>
@@ -1137,136 +960,682 @@ export function WhyScreen(p) {
         {!p.editing && <TextBtn label="Skip" onPress={next} />}
       </>
     }>
-      <View style={{ marginTop: 14 }}>
-        <Text style={s.headline}>What's your deeper why?</Text>
-        <Text style={s.subline}>Pick all that move you — on tough days, we'll remind you.</Text>
-      </View>
-      <View style={{ marginTop: 24 }}>
-        {opts.map((o, i) => (
-          <View key={o.v} style={i > 0 && { marginTop: 10 }}>
-            <OptionCard compact multi
-              icon={<Ionicons name={o.icon} size={22} color={list.includes(o.v) ? C.primary : C.ink700} />}
-              title={o.t} subtitle={o.s}
-              selected={list.includes(o.v)} onPress={() => toggle(o.v)}
-            />
-          </View>
+      <Bubble lumi="heart" hideLumi={p.editing} title="What's your deeper why?" sub="On tough days, I'll remind you." />
+      <View style={[s.opts, { gap: 8 }]}>
+        {opts.map((o) => (
+          <Option key={o.v} compact multi icon={o.icon} title={o.t} subtitle={o.s} selected={list.includes(o.v)} onPress={() => toggle(o.v)} />
         ))}
       </View>
     </ScreenShell>
   );
 }
 
+// Used by Your Details (Settings) to edit "Keeping you on track". In onboarding this is now covered by
+// the tone and reminders screens.
 export function AccountabilityScreen(p) {
   const { d, pick, next } = p;
   const opts = [
-    { v: 'gentle', t: 'Gentle nudges',   s: 'Kind, encouraging check-ins',            icon: 'heart-outline' },
-    { v: 'firm',   t: 'Firm reminders',  s: "Keep me honest — don't let me slack",     icon: 'megaphone-outline' },
-    { v: 'alone',  t: 'Leave me alone',  s: "I'll come to the app myself",             icon: 'moon-outline' },
+    { v: 'gentle', t: 'Gentle nudges',  s: 'Kind, encouraging check-ins',         icon: 'heart-outline' },
+    { v: 'firm',   t: 'Firm reminders', s: "Keep me honest, don't let me slack", icon: 'megaphone-outline' },
+    { v: 'alone',  t: 'Leave me alone', s: "I'll come to the app myself",        icon: 'moon-outline' },
   ];
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Lock it in'} onPress={next} disabled={!d.accountability} />}>
-      <View style={{ marginTop: 14 }}>
-        <Text style={s.headline}>How should we keep you on track?</Text>
-        <Text style={s.subline}>You can change this anytime in settings.</Text>
-      </View>
-      <View style={{ marginTop: 24 }}>
-        {opts.map((o, i) => (
-          <View key={o.v} style={i > 0 && { marginTop: 11 }}>
-            <OptionCard
-              icon={<Ionicons name={o.icon} size={24} color={d.accountability === o.v ? C.primary : C.ink700} />}
-              title={o.t} subtitle={o.s}
-              selected={d.accountability === o.v} onPress={() => pick('accountability', o.v)}
-            />
-          </View>
+    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.accountability} />}>
+      <Bubble hideLumi={p.editing} title="How should we keep you on track?" sub="You can change this anytime in settings." />
+      <View style={s.opts}>
+        {opts.map((o) => (
+          <Option key={o.v} icon={o.icon} title={o.t} subtitle={o.s} selected={d.accountability === o.v} onPress={() => pick('accountability', o.v)} />
         ))}
       </View>
     </ScreenShell>
   );
 }
 
-function BuildingScreen({ d, next }) {
-  // A short, honest beat between the questions and the plan (the numbers are instant): the logo and a
-  // progress bar, with no made-up "calibrating..." messages.
-  const progress = useRef(new Animated.Value(0)).current;
-  const first = d.name ? d.name.split(' ')[0] : '';
-
-  useEffect(() => {
-    Animated.timing(progress, { toValue: 1, duration: 1700, easing: Easing.inOut(Easing.cubic), useNativeDriver: false }).start();
-    const t = setTimeout(next, 1900);
-    return () => clearTimeout(t);
-  }, []);
-
-  const width = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
-
+function CareScreen(p) {
+  const { d, next } = p;
+  const first = firstName(d);
+  const [sources, setSources] = useState(false);
   return (
-    <View style={[s.shell, s.centeredScreen, { backgroundColor: C.bg }]}>
-      <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 120, height: 46, marginBottom: 34 }} resizeMode="contain" />
-      <Text style={s.buildingTitle}>{first ? `Putting your plan together, ${first}` : 'Putting your plan together'}</Text>
-      <View style={{ width: 180, height: 4, borderRadius: 2, backgroundColor: C.line, overflow: 'hidden', marginTop: 14 }}>
-        <Animated.View style={{ height: 4, width, backgroundColor: C.terra, borderRadius: 2 }} />
+    <LinearGradient colors={['#FFF1F2', C.bg]} locations={[0, 0.45]} style={s.shell}>
+      <TopBar chapter={p.chapter} onBack={p.onBack} showBack={p.showBack} noLabel />
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 16, alignItems: 'center' }} showsVerticalScrollIndicator={false}>
+        <Image source={LUMI.heart} style={{ width: 170, height: 153, marginTop: 30 }} resizeMode="contain" accessibilityLabel="Lumi holding a heart" />
+        <Text style={s.careTitle}>One honest thing{first ? `, ${first}` : ''}</Text>
+        <Text style={s.careBody}>I'm here to help you see what you eat and how you're doing. I'm not a doctor, and Logga doesn't replace one.</Text>
+        <View style={s.careCard}>
+          <Ionicons name="medkit-outline" size={22} color={C.primary} style={{ marginTop: 1 }} />
+          <Text style={s.careCardTxt}>Expecting a baby, living with a condition, or on medication? Have a chat with your doctor or dietitian before big changes to how you eat.</Text>
+        </View>
+        <TouchableOpacity onPress={() => setSources(true)} style={{ marginTop: 14, paddingVertical: 6 }} accessibilityRole="link">
+          <Text style={s.careLink}>Where our guidance comes from</Text>
+        </TouchableOpacity>
+      </ScrollView>
+      <View style={[s.footer, { backgroundColor: 'transparent' }]}>
+        <PrimaryBtn label="Got it" onPress={next} />
+      </View>
+      <HealthSourcesPage visible={sources} onClose={() => setSources(false)} />
+    </LinearGradient>
+  );
+}
+
+function RemindersScreen(p) {
+  const { d, set, next } = p;
+  const first = firstName(d);
+  const [busy, setBusy] = useState(false);
+  const opts = [
+    { v: 'gentle', t: 'Gentle nudges',  icon: 'heart-outline' },
+    { v: 'firm',   t: 'Firm reminders', icon: 'megaphone-outline' },
+    { v: 'alone',  t: 'Leave me alone', icon: 'moon-outline' },
+    { v: 'auto',   t: 'Decide for me',  s: 'Pick your own time', icon: 'time-outline' },
+  ];
+  const list = d.reminders || [];
+  // "Leave me alone" can't sit alongside a nudge: picking it clears the others, and the other way round.
+  const toggle = (v) => {
+    tap();
+    if (list.includes(v)) { set('reminders', list.filter((x) => x !== v)); return; }
+    set('reminders', v === 'alone' ? ['alone'] : [...list.filter((x) => x !== 'alone'), v]);
+  };
+  const setUp = async () => {
+    if (busy) return;
+    setBusy(true);
+    let granted = false;
+    if (Platform.OS !== 'web' && !list.includes('alone')) {
+      try { granted = await requestNotificationPermissions(); } catch (_) {}
+    }
+    set('remindersOn', granted);
+    track('onboarding_reminders', { choice: list.join(',') || 'none', granted });
+    setBusy(false);
+    next();
+  };
+  const later = () => { set('remindersOn', false); next(); };
+  return (
+    <ScreenShell {...p} footer={
+      <>
+        <PrimaryBtn label={list.includes('alone') ? 'Continue' : 'Set up reminders'} onPress={setUp} busy={busy} />
+        <TextBtn label="Set up later" onPress={later} />
+        <Text style={s.remindersNote}>Saved to Settings, so you can change them any time.</Text>
+      </>
+    }>
+      <View style={s.remindersHead}>
+        <Image source={LUMI.auntie} style={{ width: 84, height: 90 }} resizeMode="contain" accessibilityLabel="" />
+        <Text style={s.remindersTitle}>How should I nudge you?</Text>
+      </View>
+      <Text style={s.remindersSub}>A friendly nudge makes logging easy. Pick as many as you like.</Text>
+      <View style={s.notifCard}>
+        <Image source={require('../../assets/icon.png')} style={{ width: 36, height: 36, borderRadius: 9 }} accessibilityLabel="" />
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={s.notifTitle}>Lunch time{first ? `, ${first}` : ''}</Text>
+          <Text style={s.notifBody}>Snap your plate so today stays on track</Text>
+        </View>
+      </View>
+      <View style={[s.opts, { gap: 8, marginTop: 16 }]}>
+        {opts.map((o) => (
+          <Option key={o.v} compact multi icon={o.icon} title={o.t} subtitle={o.s} selected={list.includes(o.v)} onPress={() => toggle(o.v)} />
+        ))}
+      </View>
+    </ScreenShell>
+  );
+}
+
+function HealthScreen(p) {
+  const { set, next } = p;
+  const [busy, setBusy] = useState(false);
+  const connect = async () => {
+    if (busy) return;
+    setBusy(true);
+    const ok = await connectAppleHealth().catch(() => false);
+    set('healthConnect', !!ok);
+    track('onboarding_apple_health', { connected: !!ok });
+    setBusy(false);
+    next();
+  };
+  return (
+    <LinearGradient colors={['#EAF5FF', C.bg]} locations={[0, 0.6]} style={s.shell}>
+      <TopBar chapter={p.chapter} onBack={p.onBack} showBack={p.showBack} noLabel />
+      <View style={[s.breatherMid, { paddingHorizontal: 24 }]}>
+        <View style={{ width: 300, alignItems: 'center' }}>
+          <Sparkles />
+          <Image source={LUMI.idea} style={{ width: 280, height: 270 }} resizeMode="contain" accessibilityLabel="Lumi with an idea" />
+          <View style={s.healthTile}><Ionicons name="heart" size={32} color="#FF2D55" /></View>
+        </View>
+        <Text style={s.healthTitle}>Connect Apple Health</Text>
+        <Text style={s.healthSub}>Your daily steps fill in by themselves, so your plan sees how active you really are.</Text>
+        <View style={s.healthNote}>
+          <Ionicons name="lock-closed-outline" size={14} color={C.ink600} />
+          <Text style={s.healthNoteTxt}>Logga only reads steps and never uses them for ads</Text>
+        </View>
+      </View>
+      <View style={[s.footer, { backgroundColor: 'transparent' }]}>
+        <PrimaryBtn label="Connect Apple Health" onPress={connect} busy={busy} />
+        <TextBtn label="I'll add my steps myself" onPress={() => { set('healthConnect', false); next(); }} />
+      </View>
+    </LinearGradient>
+  );
+}
+
+const BUILD_STEPS = [
+  'Working out your daily calories',
+  'Matching dishes to your kitchen',
+  'Setting your protein and water aims',
+  'Getting your forecast ready',
+];
+const QUICK = {
+  water: {
+    lumi: 'water', at: [0, 7],
+    title: 'How much water do you drink a day?',
+    sub: 'Counted in sachets, so your water goal makes sense.',
+    opts: [['none', 'Barely any'], ['1-2', '1 to 2 sachets'], ['3-4', '3 to 4 sachets'], ['5+', '5 sachets or more']],
+    field: 'waterHabit',
+  },
+  meals: {
+    lumi: 'think', at: [2, 80],
+    title: 'How many meals do you usually eat a day?',
+    sub: 'So your reminders land at the right times.',
+    opts: [['1-2', '1 or 2 meals'], ['3', '3 meals'], ['3+snacks', '3 meals and snacks'], ['varies', 'It changes every day']],
+    field: 'mealsPerDay',
+  },
+};
+
+function QuickQuestion({ q, onAnswer }) {
+  const fade = useRef(new Animated.Value(0)).current;
+  const [chosen, setChosen] = useState(null);
+  useEffect(() => {
+    Animated.spring(fade, { toValue: 1, useNativeDriver: true, tension: 110, friction: 12 }).start();
+  }, []);
+  const answer = (v) => {
+    if (chosen) return;
+    tap();
+    setChosen(v);
+    setTimeout(() => onAnswer(v), 300);
+  };
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(22,32,27,0.38)', opacity: fade }]} />
+      <View style={s.qqWrap}>
+        <Animated.View style={[s.qqSheet, { opacity: fade, transform: [{ scale: fade.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Image source={LUMI[q.lumi]} style={{ width: 70, height: 74, marginRight: 12 }} resizeMode="contain" accessibilityLabel="Lumi" />
+            <View style={{ flex: 1 }}>
+              <Text style={s.qqEyebrow}>QUICK QUESTION</Text>
+              <Text style={s.qqTitle}>{q.title}</Text>
+            </View>
+          </View>
+          <Text style={s.qqSub}>{q.sub}</Text>
+          <View style={{ gap: 9, marginTop: 16 }}>
+            {q.opts.map(([v, label]) => (
+              <TouchableOpacity key={v} style={[s.qqOpt, chosen === v && s.optSel]} onPress={() => answer(v)} activeOpacity={0.8} accessibilityRole="button">
+                <Text style={s.qqOptTxt}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity style={s.qqSkip} onPress={() => answer('skip')} accessibilityRole="button">
+            <Text style={s.textBtnTxt}>Skip</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </View>
   );
 }
 
-function DoneScreen({ d, onComplete, onStartOver }) {
-  const plan = calcPlan(d);
-  const first = d.name ? d.name.split(' ')[0] : 'friend';
+// Four steps, each with its own bar. Two quick questions pop up on the way: water early in step 1,
+// meals near the end of step 3. Then it moves on to the plan by itself.
+function BuildingScreen({ d, set, next }) {
+  const first = firstName(d);
+  const [prog, setProg] = useState([0, 0, 0, 0]);
+  const [ask, setAsk] = useState(null);
+  const asked = useRef({});
+  const paused = useRef(false);
+  const done = useRef(false);
 
-  const handleFinish = () => {
-    const goalDate = plan.weeks > 0
-      ? new Date(Date.now() + plan.weeks * 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-      : null;
-    onComplete({
-      preferredName: d.name,
-      gender: d.gender,
-      age: String(d.age),
-      height: String(Math.round(d.heightCm)),
-      heightUnit: 'cm',
-      goal: d.goal,
-      currentWeight: String(Math.round(d.weightKg * 10) / 10),
-      targetWeight: String(Math.round(d.targetKg * 10) / 10),
-      weightUnit: 'kg',
-      conditions: '',
-      completedAt: Date.now(),
-      country: d.country,
-      pace: d.pace,
-      activity: d.activity,
-      eatingStyle: d.eatingStyle,
-      accountability: d.accountability,
-      struggles: d.struggles,
-      foodContext: d.foodContext,
-      cuisines: d.cuisines,
-      whys: d.whys,
-      goalDate,
-      dailyCalorieGoal: plan.target,
-    }, d);
+  useEffect(() => {
+    const STEP_MS = 1500;
+    const DT = 40;
+    const iv = setInterval(() => {
+      if (paused.current || done.current) return;
+      setProg((prev) => {
+        const i = prev.findIndex((v) => v < 100);
+        if (i < 0) return prev;
+        const nextVal = Math.min(100, prev[i] + (100 * DT) / STEP_MS);
+        for (const key of Object.keys(QUICK)) {
+          const [si, pct] = QUICK[key].at;
+          if (si === i && !asked.current[key] && nextVal >= pct) {
+            asked.current[key] = true;
+            paused.current = true;
+            setAsk(key);
+            const out = [...prev]; out[i] = pct; return out;
+          }
+        }
+        const out = [...prev]; out[i] = nextVal;
+        if (i === 3 && nextVal >= 100 && !done.current) {
+          done.current = true;
+          setTimeout(next, 500);
+        }
+        return out;
+      });
+    }, DT);
+    return () => clearInterval(iv);
+  }, []);
+
+  const onAnswer = (v) => {
+    if (v !== 'skip') set(QUICK[ask].field, v);
+    setAsk(null);
+    paused.current = false;
   };
 
   return (
-    <View style={[s.shell, { backgroundColor: C.bg }]}>
+    <View style={[s.shell, { backgroundColor: C.plan }]}>
+      <View style={s.buildWrap}>
+        <Image source={LUMI.building} style={{ width: 172, height: 130 }} resizeMode="contain" accessibilityLabel="Lumi" />
+        <Text style={s.buildingTitle}>{first ? `Putting your plan together, ${first}` : 'Putting your plan together'}</Text>
+        <View style={s.buildCard}>
+          {BUILD_STEPS.map((label, i) => {
+            const v = prog[i];
+            const finished = v >= 100;
+            const active = !finished && (i === 0 || prog[i - 1] >= 100);
+            return (
+              <View key={label} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons
+                  name={finished ? 'checkmark-circle' : active ? 'ellipse-outline' : 'ellipse-outline'}
+                  size={20}
+                  color={finished ? C.primary : active ? C.terra : C.line}
+                  style={{ marginRight: 12 }}
+                />
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={[s.buildStep, !finished && !active && { color: C.ink400 }]}>{label}</Text>
+                    <Text style={[s.buildPct, finished && { color: C.primary }]}>{finished ? 'Done' : active ? `${Math.round(v)}%` : ''}</Text>
+                  </View>
+                  <View style={s.buildTrack}>
+                    <View style={[s.buildFill, { width: `${v}%`, backgroundColor: finished ? C.primary : C.terra }]} />
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+      {ask ? <QuickQuestion key={ask} q={QUICK[ask]} onAnswer={onAnswer} /> : null}
+    </View>
+  );
+}
+
+function DoneScreen({ d, onNext, onStartOver }) {
+  const plan = calcPlan(d);
+  const first = firstName(d) || 'friend';
+  return (
+    <View style={[s.shell, { backgroundColor: C.plan }]}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 26, paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
       >
         <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 84, height: 32, marginBottom: 22 }} resizeMode="contain" />
-
         <Text style={s.planKicker}>YOUR STARTING PLAN</Text>
         <Text style={s.planHeadline}>Here's where we'd start you, {first}.</Text>
-
         <View style={s.planNumberWrap}>
           <Text style={s.planNumber}>{plan.target.toLocaleString()}</Text>
           <Text style={s.planNumberUnit}>calories a day</Text>
         </View>
-
         <Text style={s.planNote}>Logga is a tracking tool, not medical advice. Talk to a qualified professional before changing your diet or exercise.</Text>
       </ScrollView>
-
-      {/* Pinned, so it is always on screen without scrolling */}
-      <View style={s.footer}>
-        <PrimaryBtn label="Create my account" onPress={handleFinish} />
+      <View style={[s.footer, { backgroundColor: C.plan }]}>
+        <PrimaryBtn label="Create my account" onPress={onNext} />
         <TextBtn label="Start over" onPress={onStartOver} />
+      </View>
+    </View>
+  );
+}
+
+const fmtMoney = (amount, currency) => {
+  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount); } catch (_) { return null; }
+};
+
+const PRO_FEATURES = [
+  { t: 'See your forecast',  s: "Know when you'll hit your goal", img: 'forecast' },
+  { t: 'Log without limits', s: 'Every meal, every way',          img: 'food' },
+  { t: 'Every recipe',       s: 'All local recipes unlocked',     img: 'elder' },
+  { t: 'Deeper insights',    s: 'Fibre, sugar, sodium and more',  img: 'think' },
+];
+
+function ProCarousel() {
+  const { width: SW } = useWindowDimensions();
+  const W = SW - 40;
+  const ref = useRef(null);
+  const [i, setI] = useState(0);
+  const cur = useRef(0);
+  useEffect(() => {
+    const iv = setInterval(() => {
+      cur.current = (cur.current + 1) % PRO_FEATURES.length;
+      ref.current?.scrollTo({ x: cur.current * W, animated: true });
+      setI(cur.current);
+    }, 2000);
+    return () => clearInterval(iv);
+  }, [W]);
+  return (
+    <View>
+      <ScrollView
+        ref={ref}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        scrollEnabled={false}
+        style={{ width: W, alignSelf: 'center' }}
+      >
+        {PRO_FEATURES.map((f) => (
+          <View key={f.t} style={[s.proCard, { width: W }]}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.proCardTitle}>{f.t}</Text>
+              <Text style={s.proCardSub}>{f.s}</Text>
+            </View>
+            <Image source={LUMI[f.img]} style={{ width: 112, height: 112 }} resizeMode="contain" accessibilityLabel="" />
+          </View>
+        ))}
+      </ScrollView>
+      <View style={s.dots}>
+        {PRO_FEATURES.map((f, k) => <View key={f.t} style={[s.dot, k === i && s.dotOn]} />)}
+      </View>
+    </View>
+  );
+}
+
+function ProScreen({ d, plans, onClose, onPurchased }) {
+  const [choice, setChoice] = useState('yearly');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { track(EVENTS.PAYWALL_VIEWED, { reason: 'onboarding' }); }, []);
+  const yearly = plans?.yearly;
+  const monthly = plans?.monthly;
+  const selected = choice === 'yearly' ? yearly : monthly;
+  const trial = choice === 'yearly' ? !!plans?.trialYearly : !!plans?.trialMonthly;
+  const yp = yearly?.product;
+  const mp = monthly?.product;
+  const twelveMonthly = yp && mp && mp.price * 12 > yp.price ? fmtMoney(mp.price * 12, mp.currencyCode) : null;
+  const yearlyPerMonth = yp ? fmtMoney(Math.floor((yp.price / 12) * 100) / 100, yp.currencyCode) : null;
+  const saving = yp && mp && mp.price * 12 > yp.price ? Math.round((1 - yp.price / (mp.price * 12)) * 100) : 0;
+  const win = predictedWindow(d);
+  const per = choice === 'yearly' ? 'year' : 'month';
+
+  const cta = trial ? 'Start my free week' : choice === 'yearly' && saving > 0 ? `Claim ${saving}% off now` : 'Continue';
+  const terms = selected
+    ? (trial
+      ? `7 days free, then ${selected.product.priceString}/${per}`
+      : choice === 'yearly' && yearlyPerMonth
+        ? `${selected.product.priceString} a year, just ${yearlyPerMonth} a month`
+        : `${selected.product.priceString} a month`) + ' · Cancel anytime'
+    : '';
+  const legal = 'Payment is charged to your Apple ID. The subscription renews automatically unless you cancel at least 24 hours before the end of the current period'
+    + (trial ? ' or free trial' : '') + '. Manage or cancel any time in your Apple ID settings.';
+
+  const buy = async () => {
+    if (!selected || busy) return;
+    setBusy(true);
+    track(EVENTS.PURCHASE_STARTED, { plan: choice, trial, reason: 'onboarding' });
+    try {
+      const result = await purchasePlan(selected);
+      if (result === 'purchased') { track(EVENTS.SUBSCRIBED, { plan: choice, trial, reason: 'onboarding' }); onPurchased(); }
+      else track(EVENTS.PURCHASE_CANCELLED, { plan: choice });
+    } catch (e) {
+      track(EVENTS.PURCHASE_FAILED, { plan: choice, message: String(e?.message || '').slice(0, 120) });
+      Alert.alert("Couldn't complete the purchase", 'Nothing was charged. Please try again in a moment.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const restore = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const found = await restorePurchases();
+      track(EVENTS.PURCHASES_RESTORED, { found });
+      if (found) { Alert.alert('Welcome back', 'Your Logga Pro subscription is active again.'); onPurchased(); }
+      else Alert.alert('No subscription found', "We couldn't find a Logga Pro subscription on this Apple ID.");
+    } catch (_) {
+      Alert.alert("Couldn't restore", 'Please check your connection and try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const PlanCard = ({ id, children }) => {
+    const on = choice === id;
+    return (
+      <TouchableOpacity style={[s.planCard, on && s.planCardOn]} onPress={() => { tap(); setChoice(id); }} activeOpacity={0.85} accessibilityRole="radio" accessibilityState={{ checked: on }}>
+        {children}
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={[s.shell, { backgroundColor: C.bg }]}>
+      <View style={s.proTop}>
+        <TouchableOpacity onPress={restore} accessibilityRole="button" style={{ paddingVertical: 8 }}>
+          <Text style={s.proRestore}>Restore</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" style={s.proClose}>
+          <Ionicons name="close" size={22} color={C.ink500} />
+        </TouchableOpacity>
+      </View>
+      <ScrollView contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
+        <ProCarousel />
+        <View style={{ paddingHorizontal: 20 }}>
+          <Text style={s.proHeadline}>
+            {win
+              ? <>We'll help you reach <Text style={{ color: C.primary }}>{weightText(d.targetKg, d.unitW)}</Text> by <Text style={{ color: C.primary }}>{win.end}</Text>!</>
+              : <>Reach your goal faster with <Text style={{ color: C.primary }}>Logga Pro</Text></>}
+          </Text>
+          <View style={s.loved}>
+            <View style={{ flexDirection: 'row' }}>
+              {['A', 'S', 'K', 'T'].map((l, k) => (
+                <View key={l} style={[s.lovedAvatar, { marginLeft: k ? -8 : 0, backgroundColor: ['#FDE68A', '#BBF7D0', '#BFDBFE', '#FBCFE8'][k] }]}>
+                  <Text style={s.lovedInitial}>{l}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={s.lovedTxt}>Loved by many users</Text>
+          </View>
+          <View style={s.planRow}>
+            <PlanCard id="yearly">
+              <View style={s.bestBadge}><Text style={s.bestBadgeTxt}>BEST VALUE</Text></View>
+              <Text style={s.planLen}>12 months</Text>
+              {twelveMonthly ? <Text style={s.planStrike}>{twelveMonthly}</Text> : null}
+              <Text style={s.planPrice}>{yp?.priceString || ''}</Text>
+              {yearlyPerMonth ? <Text style={s.planPer}>{yearlyPerMonth}/mo</Text> : null}
+              {plans?.trialYearly ? <Text style={s.trialChip}>7 days free</Text> : null}
+            </PlanCard>
+            <PlanCard id="monthly">
+              <Text style={s.planLen}>1 month</Text>
+              <Text style={s.planPrice}>{mp?.priceString || ''}</Text>
+              <Text style={s.planPer}>billed monthly</Text>
+              {plans?.trialMonthly ? <Text style={s.trialChip}>7 days free</Text> : null}
+            </PlanCard>
+          </View>
+        </View>
+      </ScrollView>
+      <View style={s.footer}>
+        <Text style={s.proTerms}>{terms}</Text>
+        <PrimaryBtn label={cta} onPress={buy} busy={busy} />
+        <Text style={s.proLegal}>{legal}</Text>
+        <View style={s.legalLinks}>
+          <Text style={s.legalLink} onPress={() => openUrl('https://www.logga.space/terms')}>Terms of Use</Text>
+          <Text style={s.legalLink} onPress={() => openUrl('https://www.logga.space/privacy')}>Privacy Policy</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// The one-time first-month offer, shown once after closing the Pro screen. The countdown is real: the
+// deadline is saved, and once it passes or the offer is skipped it doesn't come back.
+function OfferScreen({ d, offer, deadline, onDone }) {
+  const first = firstName(d);
+  const [now, setNow] = useState(Date.now());
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const sheet = useRef(new Animated.Value(0)).current;
+  useEffect(() => { track(EVENTS.PAYWALL_VIEWED, { reason: 'onboarding_offer' }); }, []);
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  useEffect(() => {
+    Animated.spring(sheet, { toValue: confirming ? 1 : 0, useNativeDriver: true, tension: 90, friction: 13 }).start();
+  }, [confirming]);
+  const left = Math.max(0, Math.floor((deadline - now) / 1000));
+  useEffect(() => { if (left === 0) onDone(false); }, [left === 0]);
+  const pad = (n) => String(n).padStart(2, '0');
+  const intro = offer.pkg.product.introPrice;
+  const pct = offer.pkg.product.price > 0 ? Math.round((1 - intro.price / offer.pkg.product.price) * 100) : 0;
+
+  const claim = async () => {
+    if (busy) return;
+    setBusy(true);
+    track(EVENTS.PURCHASE_STARTED, { plan: 'monthly_offer', reason: 'onboarding_offer' });
+    try {
+      const result = await purchasePlan(offer.pkg);
+      if (result === 'purchased') { track(EVENTS.SUBSCRIBED, { plan: 'monthly_offer', reason: 'onboarding_offer' }); onDone(true); }
+      else track(EVENTS.PURCHASE_CANCELLED, { plan: 'monthly_offer' });
+    } catch (e) {
+      track(EVENTS.PURCHASE_FAILED, { plan: 'monthly_offer', message: String(e?.message || '').slice(0, 120) });
+      Alert.alert("Couldn't complete the purchase", 'Nothing was charged. Please try again in a moment.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <View style={[s.shell, { backgroundColor: C.bg }]}>
+      <TouchableOpacity onPress={() => setConfirming(true)} style={s.offerClose} accessibilityRole="button" accessibilityLabel="Close">
+        <Ionicons name="close" size={22} color={C.ink500} />
+      </TouchableOpacity>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: Platform.OS === 'ios' ? 100 : 80, alignItems: 'center' }} showsVerticalScrollIndicator={false}>
+        <Text style={s.offerEyebrow}>A GIFT FOR YOU{first ? `, ${first.toUpperCase()}` : ''}</Text>
+        <Text style={s.offerTitle}>Your first month of Pro for <Text style={{ color: C.primary }}>{offer.introPrice}</Text></Text>
+        <View style={{ width: 300, alignItems: 'center', marginTop: 10 }}>
+          <Sparkles />
+          <Image source={LUMI.gift} style={{ width: 220, height: 210 }} resizeMode="contain" accessibilityLabel="Lumi with a gift" />
+        </View>
+        <View style={s.offerCard}>
+          <Text style={s.offerEnds}>OFFER ENDS IN</Text>
+          <View style={s.countRow}>
+            {[String(Math.floor(left / 3600)), pad(Math.floor(left / 60) % 60), pad(left % 60)].map((v, k) => (
+              <React.Fragment key={k}>
+                {k ? <Text style={s.countColon}>:</Text> : null}
+                <View style={s.countBox}><Text style={s.countTxt}>{v}</Text></View>
+              </React.Fragment>
+            ))}
+          </View>
+          <View style={s.offerPriceRow}>
+            <Text style={s.offerStrike}>{offer.price}</Text>
+            <Text style={s.offerPrice}>{offer.introPrice}</Text>
+            <Text style={s.offerPer}>first month</Text>
+          </View>
+        </View>
+        <Text style={s.offerTerms}>First month {offer.introPrice}, then {offer.price} each month.{'\n'}Cancel anytime.</Text>
+      </ScrollView>
+      <View style={s.footer}>
+        <PrimaryBtn label="Claim my offer" onPress={claim} busy={busy} />
+        <Text style={s.proLegal}>Payment is charged to your Apple ID. The subscription renews automatically at {offer.price} a month unless you cancel at least 24 hours before the end of the current period. Manage or cancel any time in your Apple ID settings.</Text>
+        <View style={s.legalLinks}>
+          <Text style={s.legalLink} onPress={() => openUrl('https://www.logga.space/terms')}>Terms of Use</Text>
+          <Text style={s.legalLink} onPress={() => openUrl('https://www.logga.space/privacy')}>Privacy Policy</Text>
+        </View>
+      </View>
+
+      {confirming ? (
+        <View style={StyleSheet.absoluteFill}>
+          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(22,32,27,0.38)', opacity: sheet }]}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => setConfirming(false)} accessibilityLabel="Back to my offer" />
+          </Animated.View>
+          <Animated.View style={[s.skipSheet, { transform: [{ translateY: sheet.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }] }]}>
+            <View style={s.sheetHandle} />
+            <Image source={LUMI.shocked} style={{ width: 150, height: 170, alignSelf: 'center' }} resizeMode="contain" accessibilityLabel="Shocked Lumi" />
+            <Text style={s.skipTitle}>Are you sure you want to skip {pct > 0 ? `${pct}% off` : 'this offer'}?</Text>
+            <Text style={s.skipBody}>Your first month of Pro for {offer.introPrice} instead of {offer.price}. Once you skip, this offer won't come back.</Text>
+            <PrimaryBtn label="Back to my offer" onPress={() => setConfirming(false)} />
+            <TextBtn label="Skip this offer forever" onPress={() => onDone(false)} />
+          </Animated.View>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function WidgetScreen({ d, onShow, onLater }) {
+  const plan = calcPlan(d);
+  return (
+    <View style={[s.shell, { backgroundColor: C.bg, paddingTop: Platform.OS === 'ios' ? 70 : 50 }]}>
+      <View style={{ paddingHorizontal: 24 }}>
+        <Text style={s.widgetTitle}>Put Logga on your home screen</Text>
+        <Text style={s.widgetSub}>See calories left and add water without opening the app.</Text>
+      </View>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <LinearGradient colors={['#9BD3B8', '#5FA7C9']} style={s.phone}>
+          <Text style={s.phoneTime}>9:41</Text>
+          <View style={s.widget}>
+            <View style={s.widgetRing}>
+              <Text style={s.widgetKcal}>{plan.target.toLocaleString()}</Text>
+              <Text style={s.widgetKcalLbl}>kcal left</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Image source={require('../../assets/icon.png')} style={{ width: 18, height: 18, borderRadius: 5 }} />
+                <Text style={s.widgetApp}>Logga</Text>
+              </View>
+              <Text style={s.widgetLine}>Nothing logged yet</Text>
+              <View style={s.widgetWater}><Text style={s.widgetWaterTxt}>+ Water</Text></View>
+            </View>
+          </View>
+          <View style={s.appGrid}>
+            {Array.from({ length: 8 }, (_, k) => (
+              <View key={k} style={{ alignItems: 'center', width: '25%', marginBottom: 14 }}>
+                <View style={s.appIcon} />
+                <View style={s.appLabel} />
+              </View>
+            ))}
+          </View>
+        </LinearGradient>
+      </View>
+      <Text style={s.widgetHint}>Press and hold your home screen, tap +, then search "Logga".</Text>
+      <View style={s.footer}>
+        <PrimaryBtn label="Show me how" onPress={onShow} />
+        <TextBtn label="Maybe later" onPress={onLater} />
+      </View>
+    </View>
+  );
+}
+
+function WidgetStepsScreen({ onBack, onDone }) {
+  const steps = [
+    ['Touch and hold an empty spot on your home screen', 'Keep holding until the apps start to jiggle.'],
+    ['Tap Edit in the top-left corner', 'Then choose Add Widget.'],
+    ['Search for Logga', 'It shows up as soon as you type the first letters.'],
+    ['Pick a size and tap Add Widget', 'The small one shows calories left; the medium one adds water too.'],
+    ['Drag it where you like, then tap Done', "That's it. Your day is now one glance away."],
+  ];
+  return (
+    <View style={s.shell}>
+      <TopBar onBack={onBack} showBack />
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+          <Image source={LUMI.phone} style={{ width: 96, height: 96, marginRight: 12 }} resizeMode="contain" accessibilityLabel="" />
+          <View style={{ flex: 1 }}>
+            <Text style={s.stepsTitle}>Add the Logga widget</Text>
+            <Text style={s.stepsSub}>Takes about 20 seconds.</Text>
+          </View>
+        </View>
+        <View style={s.stepsCard}>
+          {steps.map(([t, sub], k) => (
+            <View key={t} style={[s.stepRow, k === steps.length - 1 && { marginBottom: 0 }]}>
+              <View style={s.stepNum}><Text style={s.stepNumTxt}>{k + 1}</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.stepTitle}>{t}</Text>
+                <Text style={s.stepSub}>{sub}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+      <View style={s.footer}>
+        <PrimaryBtn label="Got it" onPress={onDone} />
       </View>
     </View>
   );
@@ -1275,24 +1644,50 @@ function DoneScreen({ d, onComplete, onStartOver }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ORCHESTRATOR
 // ─────────────────────────────────────────────────────────────────────────────
+const SINGLE_ANSWER = new Set(['goal', 'country', 'gender', 'activity', 'eatingStyle']);
+
 export default function PreAuthOnboarding({ initialData, initialStep, onComplete, onLogin }) {
   const [idx, setIdx] = useState(() => Math.max(0, FLOW.indexOf(initialStep)));
   const [data, setData] = useState({ ...DEFAULT_DATA, ...(initialData || {}) });
+  const [plans, setPlans] = useState(undefined); // undefined = still loading, null = can't sell here
+  const [offer, setOffer] = useState(null);
+  const [deadline, setDeadline] = useState(null);
+  const [pro, setPro] = useState(getSubscription().isPro && getSubscription().ready);
 
-  const set = (k, v) => setData(d => ({ ...d, [k]: v }));
+  const set = (k, v) => setData((d) => ({ ...d, [k]: v }));
+
+  // Screens that don't apply here are stepped over in both directions.
+  const isIos = Platform.OS === 'ios';
+  const skip = (id) => {
+    if (id === 'health') return !(isIos && appleHealthSupported());
+    if (id === 'pro') return !plans || pro;
+    if (id === 'offer') return !offer || pro || !deadline || deadline <= Date.now();
+    if (id === 'widget' || id === 'widgetSteps') return !isIos;
+    return false;
+  };
+  const skipRef = useRef(skip);
+  skipRef.current = skip;
+
   const advanceTimer = useRef(null);
+  const finishedRef = useRef(false);
+  const move = (dir) => setIdx((i) => {
+    let j = i + dir;
+    while (j > 0 && j < FLOW.length && skipRef.current(FLOW[j])) j += dir;
+    return Math.max(0, Math.min(j, FLOW.length - 1));
+  });
   // Clearing the pending auto-advance means a quick Continue/Back tap can't skip a screen.
-  const next = () => { clearTimeout(advanceTimer.current); setIdx(i => Math.min(i + 1, FLOW.length - 1)); };
-  const back = () => { clearTimeout(advanceTimer.current); setIdx(i => Math.max(i - 1, 0)); };
-  // Choosing a single answer selects it, gives a light haptic tap so you feel it register, then moves
-  // on after a short beat (long enough to see the tick). Continue stays for coming back to a screen.
+  const next = () => { clearTimeout(advanceTimer.current); move(1); };
+  const back = () => { clearTimeout(advanceTimer.current); move(-1); };
   useEffect(() => () => clearTimeout(advanceTimer.current), []);
+  // Choosing a single answer selects it, gives a light haptic tap so you feel it register, then moves
+  // on after a short beat (long enough to see the tick).
   const pick = (k, v) => {
     set(k, v);
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    tap();
     clearTimeout(advanceTimer.current);
-    advanceTimer.current = setTimeout(() => setIdx(i => Math.min(i + 1, FLOW.length - 1)), 450);
+    if (SINGLE_ANSWER.has(k)) advanceTimer.current = setTimeout(() => move(1), 450);
   };
+
   // From the plan screen: wipe the answers and begin again at the first question.
   const startOver = () => {
     const go = () => { setData({ ...DEFAULT_DATA }); setIdx(FLOW.indexOf('goal')); };
@@ -1303,47 +1698,134 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
     ]);
   };
 
+  // Get the Pro prices ready while the plan builds, so the Pro screen opens with real prices (or is
+  // skipped where nothing can be bought: web, Android, offline).
+  const screen = FLOW[idx];
+  const plansStarted = useRef(false);
+  useEffect(() => {
+    if (plansStarted.current || FLOW.indexOf(screen) < FLOW.indexOf('care')) return;
+    plansStarted.current = true;
+    if (!isIos) { setPlans(null); return; }
+    (async () => {
+      try {
+        await initAnonymousSubscriptions();
+        const sub = getSubscription();
+        if (sub.isPro) { setPro(true); setPlans(null); return; }
+        if (!sub.canPurchase) { setPlans(null); return; }
+        const [p, o, done, savedDeadline] = await Promise.all([
+          loadPlans().catch(() => null),
+          loadIntroOffer(),
+          AsyncStorage.getItem(OFFER_DONE_KEY).catch(() => null),
+          AsyncStorage.getItem(OFFER_DEADLINE_KEY).catch(() => null),
+        ]);
+        setPlans(p?.yearly || p?.monthly ? p : null);
+        if (o && !done) {
+          setOffer(o);
+          const dl = parseInt(savedDeadline, 10);
+          if (dl > 0) setDeadline(dl);
+        }
+      } catch (_) {
+        setPlans(null);
+      }
+    })();
+  }, [screen]);
+
+  // Wait for the prices before leaving the plan screen, so Pro isn't skipped just because it was slow.
+  const [waitingPlans, setWaitingPlans] = useState(false);
+  useEffect(() => {
+    if (!waitingPlans) return undefined;
+    if (plans !== undefined) { setWaitingPlans(false); nextOrFinish(); return undefined; }
+    // Never hold anyone on a spinner: after a few seconds without prices, carry on without Pro.
+    const t = setTimeout(() => setPlans((p) => (p === undefined ? null : p)), 6000);
+    return () => clearTimeout(t);
+  }, [waitingPlans, plans]);
+  const fromPlan = () => {
+    if (plans === undefined && isIos) { setWaitingPlans(true); return; }
+    nextOrFinish();
+  };
+
+  // The offer's two hours start the first time it is shown.
+  useEffect(() => {
+    if (!offer || deadline || pro) return;
+    if (FLOW[idx + 1] !== 'offer' && screen !== 'pro') return;
+    const dl = Date.now() + OFFER_WINDOW_MS;
+    setDeadline(dl);
+    AsyncStorage.setItem(OFFER_DEADLINE_KEY, String(dl)).catch(() => {});
+  }, [screen, offer]);
+
   // Funnel: started -> each screen -> completed (or skipped), the same shape as SUAI's onboarding events.
   useEffect(() => { track(EVENTS.ONBOARDING_STARTED); }, []);
-  useEffect(() => { track(EVENTS.ONBOARDING_SCREEN_VIEWED, { screen: FLOW[idx], index: idx }); }, [idx]);
-  const handleComplete = (answers, raw) => {
-    track(answers?.skipped ? EVENTS.ONBOARDING_SKIPPED : EVENTS.ONBOARDING_COMPLETED);
-    return onComplete?.(answers, raw);
+  useEffect(() => { track(EVENTS.ONBOARDING_SCREEN_VIEWED, { screen, index: idx }); }, [idx]);
+  const finish = () => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    track(EVENTS.ONBOARDING_COMPLETED);
+    Promise.resolve(onComplete?.(buildAnswers(data), data)).finally(() => { finishedRef.current = false; });
+  };
+  // Past the plan, "next" off the end of the flow (or onto a skipped widget) means done.
+  const nextOrFinish = () => {
+    let j = idx + 1;
+    while (j < FLOW.length && skip(FLOW[j])) j += 1;
+    if (j >= FLOW.length || FLOW[j] === 'widgetSteps') finish();
+    else next();
   };
 
-  const screen = FLOW[idx];
-  const isFull = FULL_BLEED.has(screen);
-  const stepNum = FLOW.slice(0, idx + 1).filter(id => !FULL_BLEED.has(id)).length;
-
-  const sharedProps = {
-    d: data, set, pick, next, back,
-    step: stepNum, total: COUNTED,
-    onBack: back, showBack: idx > 0 && !isFull,
-    hideProgress: isFull,
-  };
+  const chapter = chapterOf(screen);
+  const sharedProps = { d: data, set, pick, next, back, chapter, onBack: back, showBack: idx > 0 };
 
   switch (screen) {
-    case 'hook':           return <HookScreen next={next} onLogin={onLogin} />;
-    case 'goal':           return <GoalScreen {...sharedProps} />;
-    case 'demo':           return <DemoScreen {...sharedProps} />;
-    case 'struggle':       return <StruggleScreen {...sharedProps} />;
-    case 'name':           return <NameScreen {...sharedProps} />;
-    case 'country':        return <CountryScreen {...sharedProps} />;
-    case 'gender':         return <GenderScreen {...sharedProps} />;
-    case 'age':            return <AgeScreen {...sharedProps} />;
-    case 'bodyIntro':      return <BodyIntroScreen d={data} next={next} />;
-    case 'height':         return <HeightScreen {...sharedProps} />;
-    case 'weight':         return <WeightScreen {...sharedProps} />;
-    case 'target':         return <TargetScreen {...sharedProps} />;
-    case 'pace':           return <PaceScreen {...sharedProps} />;
-    case 'activity':       return <ActivityScreen {...sharedProps} />;
-    case 'eating':         return <EatingScreen {...sharedProps} />;
-    case 'food':           return <FoodScreen {...sharedProps} />;
-    case 'why':            return <WhyScreen {...sharedProps} />;
-    case 'accountability': return <AccountabilityScreen {...sharedProps} />;
-    case 'building':       return <BuildingScreen d={data} next={next} />;
-    case 'done':           return <DoneScreen d={data} onComplete={handleComplete} onStartOver={startOver} />;
-    default:               return null;
+    case 'hook':      return <HookScreen next={next} onLogin={onLogin} />;
+    case 'goal':      return <GoalScreen {...sharedProps} />;
+    case 'demo':      return <DemoScreen {...sharedProps} />;
+    case 'struggle':  return <StruggleScreen {...sharedProps} />;
+    case 'name':      return <NameScreen {...sharedProps} />;
+    case 'tone':      return <ToneScreen {...sharedProps} />;
+    case 'country':   return <CountryScreen {...sharedProps} />;
+    case 'gender':    return <GenderScreen {...sharedProps} />;
+    case 'age':       return <AgeScreen {...sharedProps} />;
+    case 'bodyIntro': return <BodyIntroScreen d={data} next={next} />;
+    case 'height':    return <HeightScreen {...sharedProps} />;
+    case 'weight':    return <WeightScreen {...sharedProps} />;
+    case 'target':    return <TargetScreen {...sharedProps} />;
+    case 'pace':      return <PaceScreen {...sharedProps} />;
+    case 'activity':  return <ActivityScreen {...sharedProps} />;
+    case 'eating':    return <EatingScreen {...sharedProps} />;
+    case 'food':      return <FoodScreen {...sharedProps} />;
+    case 'why':       return <WhyScreen {...sharedProps} />;
+    case 'care':      return <CareScreen {...sharedProps} />;
+    case 'reminders': return <RemindersScreen {...sharedProps} />;
+    case 'health':    return <HealthScreen {...sharedProps} />;
+    case 'building':  return <BuildingScreen d={data} set={set} next={next} />;
+    case 'done':
+      return waitingPlans
+        ? <View style={[s.shell, { alignItems: 'center', justifyContent: 'center', backgroundColor: C.plan }]}><ActivityIndicator color={C.ink} /></View>
+        : <DoneScreen d={data} onNext={fromPlan} onStartOver={startOver} />;
+    case 'pro':
+      return (
+        <ProScreen
+          d={data}
+          plans={plans}
+          onClose={nextOrFinish}
+          onPurchased={() => { setPro(true); AsyncStorage.setItem(OFFER_DONE_KEY, '1').catch(() => {}); setIdx(FLOW.indexOf('widget')); if (!isIos) finish(); }}
+        />
+      );
+    case 'offer':
+      return (
+        <OfferScreen
+          d={data}
+          offer={offer}
+          deadline={deadline}
+          onDone={(bought) => {
+            AsyncStorage.setItem(OFFER_DONE_KEY, '1').catch(() => {});
+            if (bought) setPro(true);
+            setOffer(null);
+            nextOrFinish();
+          }}
+        />
+      );
+    case 'widget':      return <WidgetScreen d={data} onShow={next} onLater={finish} />;
+    case 'widgetSteps': return <WidgetStepsScreen onBack={back} onDone={finish} />;
+    default:            return null;
   }
 }
 
@@ -1352,320 +1834,312 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
 // ─────────────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   shell: { flex: 1, backgroundColor: C.bg },
-  shellContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 24 },
-  centeredScreen: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
+  shellContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 34 : 22, backgroundColor: C.bg },
 
-  // Progress
-  progressWrap: {
-    paddingTop: Platform.OS === 'ios' ? 54 : 38,
-    paddingHorizontal: 22, paddingBottom: 6,
-    flexDirection: 'row', alignItems: 'center',
-  },
-  backBtn: {
-    width: 34, height: 34,
-    alignItems: 'flex-start', justifyContent: 'center',
-    marginRight: 10,
-  },
-  progressTrack: {
-    flex: 1, height: 3, borderRadius: 999,
-    backgroundColor: C.line, overflow: 'hidden',
-  },
-  progressFill: { height: '100%', borderRadius: 999, backgroundColor: C.ink },
-  progressCount: {
-    fontSize: 12, fontWeight: '700', color: C.ink400,
-    minWidth: 34, textAlign: 'right', marginLeft: 12,
-  },
+  // Top bar
+  topWrap: { paddingTop: Platform.OS === 'ios' ? 56 : 38, paddingHorizontal: 20 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  bar: { flex: 1, height: 5, borderRadius: 3, backgroundColor: C.track, overflow: 'hidden' },
+  barFill: { height: 5, borderRadius: 3, backgroundColor: C.primary },
+  chapterLabel: { paddingLeft: 48, paddingTop: 6, fontSize: 12, fontWeight: '700', color: C.ink500 },
 
-  // Footer
-  footer: { paddingHorizontal: 22, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 36 : 24, backgroundColor: C.bg },
+  // Lumi bubble
+  bubbleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 28 },
+  bubbleAvatar: { width: 56, height: 56, alignItems: 'center', justifyContent: 'flex-end' },
+  bubble: {
+    flex: 1, backgroundColor: C.surface, borderRadius: 18, borderBottomLeftRadius: 6,
+    paddingVertical: 14, paddingHorizontal: 16,
+    shadowColor: '#0B3D2E', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2,
+  },
+  bubbleTitle: { fontSize: 20, lineHeight: 26, fontWeight: '800', color: C.ink, letterSpacing: -0.3 },
+  bubbleSub: { marginTop: 4, fontSize: 13.5, lineHeight: 19, fontWeight: '600', color: C.ink500 },
 
   // Typography
-  eyebrow: {
-    fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase',
-    letterSpacing: 2, color: C.primary, marginBottom: 6,
-  },
-  headline: { fontSize: 26, fontWeight: '700', color: C.ink, lineHeight: 32, letterSpacing: -0.7 },
-  subline:  { fontSize: 15, fontWeight: '400', color: C.ink500, lineHeight: 22, marginTop: 8 },
+  eyebrow: { fontSize: 12, fontWeight: '800', color: C.primary, letterSpacing: 1.2 },
+  textBtn: { width: '100%', height: 44, alignItems: 'center', justifyContent: 'center' },
+  textBtnTxt: { fontSize: 14, fontWeight: '700', color: C.ink500 },
 
   // Buttons
-  primaryBtn: {
-    width: '100%', height: 54, borderRadius: 14,
-    backgroundColor: C.ink,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  primaryBtn: { width: '100%', height: 56, borderRadius: 999, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
   primaryBtnDis: { backgroundColor: C.line },
-  primaryBtnTxt: { fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: -0.2 },
+  primaryBtnTxt: { fontSize: 16, fontWeight: '800', color: '#fff' },
   primaryBtnTxtDis: { color: C.ink400 },
-  textBtn: { width: '100%', height: 44, alignItems: 'center', justifyContent: 'center' },
-  textBtnTxt: { fontSize: 15, fontWeight: '600', color: C.ink400 },
 
   // Segmented control
-  seg: { flexDirection: 'row', backgroundColor: C.sunken, borderRadius: 999, padding: 3 },
-  segBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999 },
-  segBtnOn: {
-    backgroundColor: C.surface,
-    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 }, elevation: 1,
-  },
-  segBtnTxt: { fontSize: 13, fontWeight: '700', color: C.ink400 },
-  segBtnTxtOn: { color: C.ink },
+  segRow: { alignItems: 'center', marginBottom: 20 },
+  seg: { flexDirection: 'row', backgroundColor: C.sunken, borderRadius: 999, padding: 4 },
+  segBtn: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 999 },
+  segBtnOn: { backgroundColor: C.surface },
+  segBtnTxt: { fontSize: 14, fontWeight: '700', color: C.ink500 },
+  segBtnTxtOn: { color: C.ink, fontWeight: '800' },
 
-  // Option card
-  optCard: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16,
-    borderRadius: 14, backgroundColor: C.surface,
-    borderWidth: 1.5, borderColor: C.line2,
+  // Options
+  opts: { gap: 10, marginTop: 24 },
+  opt: {
+    flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 18,
+    backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.cardLine,
   },
-  optCardSel: { borderColor: C.ink },
-  optCardCompact: { paddingVertical: 14 },
-  optIconWrap: {
-    width: 46, height: 46, borderRadius: 13,
-    backgroundColor: C.sunken, alignItems: 'center', justifyContent: 'center',
-    marginRight: 14,
-  },
-  optIconWrapSel: { backgroundColor: '#fff' },
-  optText: { flex: 1 },
-  optTitle: { fontSize: 16, fontWeight: '600', color: C.ink, letterSpacing: -0.2 },
-  optSub: { fontSize: 13, fontWeight: '400', color: C.ink500, marginTop: 2, lineHeight: 18 },
-  optSel: {
-    width: 22, height: 22, borderRadius: 11,
-    borderWidth: 1.5, borderColor: C.line2,
-    alignItems: 'center', justifyContent: 'center', marginLeft: 10,
-  },
-  optSelOn: { backgroundColor: C.ink, borderColor: C.ink },
-  optSelMulti: { borderRadius: 6 },
+  optCompact: { padding: 13 },
+  optSel: { backgroundColor: C.selBg, borderWidth: 2, borderColor: C.primary },
+  optTitle: { fontSize: 15.5, fontWeight: '800', color: C.ink },
+  optSub: { fontSize: 13, fontWeight: '600', color: C.ink500, marginTop: 2, lineHeight: 18 },
+  radioOn: { width: 20, height: 20, borderRadius: 10, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
+  box: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: C.checkLine, alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
+  boxOn: { backgroundColor: C.primary, borderColor: C.primary },
+  recBadge: { fontSize: 10.5, fontWeight: '800', color: '#fff', backgroundColor: C.primary, borderRadius: 6, overflow: 'hidden' },
 
-  // Chip
-  chip: {
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999,
-    backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.line,
-  },
-  chipSel: { backgroundColor: C.ink, borderColor: C.ink },
-  chipText: { fontSize: 14, fontWeight: '600', color: C.ink700 },
+  // Chips
+  sectionLabel: { marginTop: 22, fontSize: 12, fontWeight: '800', color: C.ink500, letterSpacing: 0.6 },
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.cardLine },
+  chipSel: { backgroundColor: C.primary, borderColor: C.primary },
+  chipText: { fontSize: 13.5, fontWeight: '700', color: C.ink },
   chipTextSel: { color: '#fff' },
-  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 10 },
-  sectionLabel: {
-    fontSize: 12, fontWeight: '700', textTransform: 'uppercase',
-    letterSpacing: 2, color: C.ink400,
-  },
 
-  // Ruler picker
-  rulerVal: { fontSize: 60, fontWeight: '800', color: C.ink, lineHeight: 70, letterSpacing: -2 },
-  rulerUnit: { fontSize: 20, fontWeight: '700', color: C.ink400, marginTop: 4 },
-  rulerCursorWrap: { position: 'absolute', top: 0, alignItems: 'center', zIndex: 3 },
-  rulerArrow: {
-    width: 0, height: 0,
-    borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8,
-    borderLeftColor: 'transparent', borderRightColor: 'transparent',
+  // Wheel
+  wheelArea: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  wheelPill: {
+    position: 'absolute', left: '22%', right: '22%', borderRadius: 20, backgroundColor: C.surface,
+    shadowColor: '#0B3D2E', shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 3,
   },
-  rulerLine: { width: 3, height: 46, borderRadius: 3 },
-  rulerCaption: { textAlign: 'center', marginTop: 8, fontSize: 14, fontWeight: '600', color: C.ink400 },
-  weightBadge: {
-    backgroundColor: C.primarySoft, borderRadius: 24,
-    paddingHorizontal: 18, paddingVertical: 8,
-  },
-  weightBadgeTxt: { fontSize: 15, fontWeight: '700', color: C.primary },
+  wheelRow: { height: ROW, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', paddingTop: 4 },
+  wheelOn: { fontSize: 50, lineHeight: 58, fontWeight: '800', color: C.ink, letterSpacing: -2 },
+  wheelNear: { fontSize: 32, lineHeight: 50, fontWeight: '700', color: '#A9B2AD' },
+  wheelFar: { fontSize: 26, lineHeight: 50, fontWeight: '700', color: '#D3D8D5' },
+  wheelUnit: { fontSize: 22, fontWeight: '800', marginLeft: 10 },
+  wheelCaption: { textAlign: 'center', marginTop: 4, fontSize: 14, fontWeight: '700', color: C.ink400 },
 
-  // Hook screen
-  hookBrand: {
-    paddingTop: Platform.OS === 'ios' ? 56 : 40,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-  },
-  hookLogo: {
-    width: 30, height: 30, borderRadius: 8, backgroundColor: C.primary,
-    alignItems: 'center', justifyContent: 'center', marginRight: 8,
-  },
-  hookBrandTxt: { fontSize: 20, fontWeight: '800', color: C.ink, letterSpacing: -0.5 },
-  hookHero: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
-  hookFrame: {
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-  hookStatement: { paddingHorizontal: 28, paddingBottom: 8, alignItems: 'center' },
-  hookHeadline: {
-    fontSize: 32, fontWeight: '800', color: C.ink, lineHeight: 38,
-    letterSpacing: -0.8, textAlign: 'center', marginBottom: 12,
-  },
-  hookSubline: { fontSize: 15.5, fontWeight: '500', color: C.ink500, lineHeight: 22, textAlign: 'center' },
-  hookCta: { paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 36 : 24, paddingTop: 16 },
-  hookNotice: { textAlign: 'center', marginTop: 12, fontSize: 13, color: C.ink400, fontWeight: '600' },
-  hookLoginBtn: { alignItems: 'center', marginTop: 18, paddingVertical: 6 },
-  hookLoginTxt: { fontSize: 14, fontWeight: '600', color: C.ink },
+  // Hook
+  hook: { alignItems: 'center', paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24 },
+  hookHero: { flex: 1, width: 340, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  hookLumi: { width: 300, height: '100%', maxHeight: 320 },
+  hookHeadline: { marginTop: 12, fontSize: 32, lineHeight: 38, fontWeight: '800', textAlign: 'center', letterSpacing: -0.8, color: C.ink },
+  hookSubline: { marginTop: 14, fontSize: 15, lineHeight: 22, color: C.ink600, textAlign: 'center' },
+  hookCta: { alignSelf: 'stretch', paddingTop: 22, paddingBottom: Platform.OS === 'ios' ? 34 : 22 },
+  hookLoginBtn: { height: 46, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  hookLoginTxt: { fontSize: 15, fontWeight: '700', color: C.ink600 },
 
-  // Demo screen
-  demoBracket: {
-    position: 'absolute', width: 28, height: 28,
-    borderTopWidth: 3, borderLeftWidth: 3, borderColor: '#fff', borderRadius: 4,
-  },
+  // Demo
+  demoHeadline: { marginTop: 6, fontSize: 28, lineHeight: 34, fontWeight: '800', letterSpacing: -0.5, color: C.ink },
+  demoSub: { marginTop: 6, fontSize: 14.5, lineHeight: 21, color: C.ink600 },
   demoShutter: {
-    width: 62, height: 62, borderRadius: 31,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+    width: 62, height: 62, borderRadius: 31, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4,
   },
-  demoShutterInner: {
-    width: 48, height: 48, borderRadius: 24,
-    borderWidth: 2.5, borderColor: 'rgba(0,0,0,0.15)',
-    backgroundColor: '#fff',
-  },
-  demoSkip: { alignItems: 'center', paddingVertical: 18 },
-  demoSkipTxt: { fontSize: 14, fontWeight: '600', color: C.ink400 },
+  demoShutterInner: { width: 48, height: 48, borderRadius: 24, borderWidth: 2.5, borderColor: 'rgba(0,0,0,0.15)', backgroundColor: '#fff' },
   demoScanLine: {
-    position: 'absolute', left: 0, right: 0, height: 3,
-    backgroundColor: C.primary, opacity: 0.9,
+    position: 'absolute', left: 0, right: 0, height: 3, backgroundColor: C.primary, opacity: 0.9,
     shadowColor: C.primary, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
   },
-  // Detection bar slides down over top of image
   demoDetectBar: {
-    position: 'absolute', top: 10, left: 10, right: 10,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.97)',
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 14,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.07)',
-    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-    zIndex: 10,
+    position: 'absolute', top: 10, left: 10, right: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, zIndex: 10,
   },
-  demoDetectTitle: { fontSize: 13, fontWeight: '700', color: C.ink },
-  demoDetectSub: { fontSize: 11, fontWeight: '500', color: C.ink400, marginTop: 1 },
-  demoKcal: { fontSize: 22, fontWeight: '800', color: C.primary, lineHeight: 26 },
-  demoKcalUnit: { fontSize: 11, fontWeight: '700', color: C.primary },
-  // Tag row: glowing dot + white pill, positioned absolute on image
-  demoTagRow: {
-    position: 'absolute',
-    flexDirection: 'row', alignItems: 'center',
-  },
-  demoTagDotWrap: {
-    width: 18, height: 18, alignItems: 'center', justifyContent: 'center', marginRight: 5,
-  },
-  demoTagDotGlow: {
-    position: 'absolute', width: 16, height: 16, borderRadius: 8,
-    backgroundColor: C.primary, opacity: 0.3,
-  },
-  demoTagDot: {
-    width: 11, height: 11, borderRadius: 6,
-    backgroundColor: C.primary,
-    borderWidth: 2, borderColor: '#fff',
-    shadowColor: C.primary, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 0 },
-    elevation: 3,
-  },
-  demoTagPill: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 999,
-    shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  demoTagTxt: { fontSize: 13, fontWeight: '600', color: C.ink },
-  demoTagKcal: { fontSize: 13, fontWeight: '700', color: C.primary },
+  demoDetectTitle: { fontSize: 13, fontWeight: '800', color: C.ink },
+  demoDetectSub: { fontSize: 11.5, color: C.ink500, marginTop: 1 },
+  demoKcal: { fontSize: 20, fontWeight: '800', color: C.ink },
+  demoKcalUnit: { fontSize: 10, fontWeight: '800', color: C.ink500 },
+  demoTagRow: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  demoTagDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#34D399', borderWidth: 3, borderColor: 'rgba(52,211,153,0.35)' },
+  demoTagPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#fff' },
+  demoTagTxt: { fontSize: 12.5, fontWeight: '800', color: C.ink },
 
-  // Name screen
-  nameInputWrap: { marginTop: 30, borderBottomWidth: 2, borderBottomColor: C.ink, paddingBottom: 8 },
-  nameInput: { fontSize: 26, fontWeight: '700', color: C.ink, letterSpacing: -0.5 },
-  nameMascotWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 16, paddingTop: 24 },
-  mascotFace: {
-    width: 90, height: 90, borderRadius: 45,
-    backgroundColor: C.sunken, alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-  },
-  mascotFaceHappy: { backgroundColor: C.primarySoft },
-  nameGreet: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999 },
-  nameGreetTxt: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  // Name
+  nameInput: { alignSelf: 'stretch', textAlign: 'center', fontSize: 40, fontWeight: '800', color: C.ink, letterSpacing: -0.8, paddingVertical: 4 },
+  nameUnderline: { width: 160, height: 3, borderRadius: 2, backgroundColor: C.primary, marginTop: 4 },
+  nameGreet: { marginTop: 10, backgroundColor: C.mint, borderRadius: 18, paddingVertical: 12, paddingHorizontal: 18 },
+  nameGreetTxt: { fontSize: 17, lineHeight: 22, fontWeight: '800', color: '#065f46', textAlign: 'center' },
 
-  // Target gap pill
-  gapPill: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999 },
-  guardBox: { marginTop: 14, padding: 12, borderRadius: 12, backgroundColor: '#FEF2F2', alignSelf: 'stretch' },
+  // Tone
+  toneGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 22 },
+  toneCard: {
+    width: '47.5%', alignItems: 'center', gap: 8, paddingVertical: 16, paddingHorizontal: 10, borderRadius: 20,
+    backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.cardLine,
+  },
+  toneCardOn: { backgroundColor: C.selBg, borderWidth: 2, borderColor: C.primary },
+  toneTitle: { fontSize: 15, fontWeight: '800', color: C.ink },
+  toneSub: { fontSize: 12, lineHeight: 16, color: C.ink600, textAlign: 'center' },
+  toneSample: {
+    marginTop: 16, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: C.surface,
+    shadowColor: '#0B3D2E', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2,
+  },
+  toneSampleLabel: { fontSize: 11.5, fontWeight: '800', color: C.primary, letterSpacing: 0.6 },
+  toneSampleTxt: { marginTop: 4, fontSize: 14, lineHeight: 20, fontWeight: '600', color: C.ink },
+
+  // Breather
+  breather: { alignItems: 'center', paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 34 : 22 },
+  breatherCount: { marginTop: 6, fontSize: 12, fontWeight: '700', color: C.ink600 },
+  breatherMid: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', paddingBottom: 24 },
+  breatherTitle: { marginTop: 16, fontSize: 32, lineHeight: 38, fontWeight: '800', textAlign: 'center', letterSpacing: -0.6, color: C.ink },
+  breatherSub: { marginTop: 14, fontSize: 16, lineHeight: 23, color: '#374151', textAlign: 'center' },
+
+  // Target
+  gapPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999 },
+  gapPillTxt: { fontSize: 14, fontWeight: '800' },
+  guardBox: { padding: 12, borderRadius: 12, backgroundColor: '#FEF2F2', alignSelf: 'stretch' },
   guardTxt: { fontSize: 13.5, lineHeight: 19, color: '#B91C1C', textAlign: 'center' },
-  gapPillTxt: { fontSize: 14.5, fontWeight: '700' },
 
-  // Pace screen
-  paceCard: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16,
-    borderRadius: 14, backgroundColor: C.surface,
-    borderWidth: 1.5, borderColor: C.line2,
+  // Pace chart
+  paceChart: {
+    marginTop: 16, paddingTop: 14, paddingHorizontal: 14, paddingBottom: 6, borderRadius: 18, backgroundColor: C.surface,
+    shadowColor: '#0B3D2E', shadowOpacity: 0.07, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2,
   },
-  paceCardOn: { borderColor: C.ink },
-  paceIcon: {
-    width: 46, height: 46, borderRadius: 13, backgroundColor: C.sunken,
-    alignItems: 'flex-end', justifyContent: 'center',
-    flexDirection: 'row', paddingBottom: 6, paddingHorizontal: 6,
-    marginRight: 14,
-  },
-  paceIconOn: { backgroundColor: '#fff' },
-  paceTitle: { fontSize: 16, fontWeight: '600', color: C.ink, letterSpacing: -0.2 },
-  paceSub: { fontSize: 13, fontWeight: '400', color: C.ink500, marginTop: 2 },
-  paceWeeks: { fontSize: 12.5, fontWeight: '600', marginTop: 4 },
-  paceNote: { marginTop: 16, padding: 14, backgroundColor: C.sunken, borderRadius: 14 },
-  paceNoteTxt: { fontSize: 13, color: C.ink700, fontWeight: '500', lineHeight: 20 },
+  paceChartLabel: { fontSize: 12, fontWeight: '800', color: C.primaryDark, letterSpacing: 0.6 },
+  paceChartWhen: { fontSize: 15, fontWeight: '800', color: C.ink },
 
-  // Building screen
-  buildingSpinnerWrap: {
-    width: 96, height: 96, marginBottom: 30,
+  // Care
+  careTitle: { marginTop: 34, fontSize: 28, lineHeight: 34, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center', color: C.ink },
+  careBody: { marginTop: 14, fontSize: 15, lineHeight: 23, color: '#374151', textAlign: 'center' },
+  careCard: {
+    marginTop: 18, alignSelf: 'stretch', flexDirection: 'row', gap: 12, alignItems: 'flex-start', paddingVertical: 14, paddingHorizontal: 16,
+    borderRadius: 18, backgroundColor: C.surface,
+    shadowColor: '#0B3D2E', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2,
+  },
+  careCardTxt: { flex: 1, fontSize: 14, lineHeight: 21, color: '#374151' },
+  careLink: { fontSize: 14, fontWeight: '700', color: C.primaryDark, textDecorationLine: 'underline' },
+
+  // Reminders
+  remindersHead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 24 },
+  remindersTitle: { flex: 1, fontSize: 26, lineHeight: 32, fontWeight: '800', letterSpacing: -0.5, color: C.ink },
+  remindersSub: { marginTop: 10, fontSize: 14.5, lineHeight: 21, color: C.ink600 },
+  notifCard: {
+    marginTop: 16, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 18, backgroundColor: C.surface,
+    shadowColor: '#0B3D2E', shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 3,
+  },
+  notifTitle: { fontSize: 13.5, fontWeight: '800', color: C.ink },
+  notifBody: { fontSize: 13, color: C.ink600 },
+  remindersNote: { fontSize: 11.5, color: C.ink500, textAlign: 'center' },
+
+  // Health
+  healthTile: {
+    position: 'absolute', top: -6, right: 4, width: 62, height: 62, borderRadius: 17, backgroundColor: '#fff',
     alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#0F2F52', shadowOpacity: 0.14, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
-  buildingTrack: {
-    position: 'absolute', width: 96, height: 96, borderRadius: 48,
-    borderWidth: 5, borderColor: C.green50,
-  },
-  buildingArc: {
-    position: 'absolute', width: 96, height: 96, borderRadius: 48,
-    borderWidth: 5, borderColor: 'transparent', borderTopColor: C.primary,
-  },
-  buildingLogoWrap: { position: 'absolute' },
-  buildingTitle: { fontSize: 22, fontWeight: '800', color: C.ink, letterSpacing: -0.5, textAlign: 'center', marginBottom: 10 },
-  buildingMsg: { fontSize: 15, fontWeight: '500', color: C.ink500, textAlign: 'center' },
+  healthTitle: { marginTop: 18, fontSize: 30, lineHeight: 36, fontWeight: '800', textAlign: 'center', letterSpacing: -0.5, color: C.ink },
+  healthSub: { marginTop: 14, fontSize: 15, lineHeight: 22, color: '#374151', textAlign: 'center' },
+  healthNote: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  healthNoteTxt: { fontSize: 12.5, color: C.ink600 },
 
-  // Done screen
-  // "Your starting plan" (DoneScreen): plain type and hairline rows, no cards or badges
+  // Building
+  buildWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  buildingTitle: { marginTop: 18, fontSize: 20, fontWeight: '800', textAlign: 'center', color: C.ink },
+  buildCard: {
+    alignSelf: 'stretch', gap: 16, marginTop: 26, paddingVertical: 18, paddingHorizontal: 16, borderRadius: 20, backgroundColor: C.surface,
+    shadowColor: '#0B3D2E', shadowOpacity: 0.07, shadowRadius: 20, shadowOffset: { width: 0, height: 6 }, elevation: 3,
+  },
+  buildStep: { fontSize: 14.5, fontWeight: '700', color: C.ink, flexShrink: 1 },
+  buildPct: { fontSize: 12.5, fontWeight: '800', color: C.ink500, marginLeft: 8 },
+  buildTrack: { height: 5, borderRadius: 3, backgroundColor: C.line, overflow: 'hidden', marginTop: 7 },
+  buildFill: { height: 5, borderRadius: 3 },
+
+  // Quick question
+  qqWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  qqSheet: {
+    alignSelf: 'stretch', backgroundColor: '#fff', borderRadius: 28, paddingTop: 20, paddingHorizontal: 18, paddingBottom: 10,
+    shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 50, shadowOffset: { width: 0, height: 20 }, elevation: 12,
+  },
+  qqEyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1, color: C.primary },
+  qqTitle: { marginTop: 2, fontSize: 20, lineHeight: 25, fontWeight: '800', color: C.ink },
+  qqSub: { marginTop: 6, fontSize: 13.5, lineHeight: 19, fontWeight: '600', color: C.ink500 },
+  qqOpt: { paddingVertical: 15, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1.5, borderColor: C.cardLine },
+  qqOptTxt: { fontSize: 15.5, fontWeight: '800', color: C.ink },
+  qqSkip: { height: 42, marginTop: 6, alignItems: 'center', justifyContent: 'center' },
+
+  // Plan
   planKicker: { fontSize: 11.5, fontWeight: '800', color: C.ink400, letterSpacing: 1.8, marginBottom: 8 },
   planHeadline: { fontSize: 26, fontWeight: '800', color: C.ink, lineHeight: 32, letterSpacing: -0.6 },
   planNumberWrap: { marginTop: 16, marginBottom: 18 },
   planNumber: { fontSize: 64, fontWeight: '800', color: C.ink, lineHeight: 70, letterSpacing: -2.5 },
   planNumberUnit: { fontSize: 16, fontWeight: '600', color: C.ink500, marginTop: 2 },
-  planSection: { fontSize: 11.5, fontWeight: '800', color: C.ink400, letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 14, marginBottom: 2 },
-  planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.line },
-  planRowLabel: { fontSize: 15.5, fontWeight: '600', color: C.ink700 },
-  planRowSub: { fontSize: 12.5, color: C.ink400, marginTop: 2, lineHeight: 17 },
-  planRowVal: { fontSize: 15.5, fontWeight: '700', color: C.ink },
-  planProjection: { fontSize: 14.5, lineHeight: 21, color: C.ink500, marginTop: 16 },
   planNote: { fontSize: 12, lineHeight: 17, color: C.ink400, marginTop: 8 },
-  doneCheck: {
-    width: 76, height: 76, borderRadius: 38, backgroundColor: C.primary,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: C.primary, shadowOpacity: 0.35, shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 }, elevation: 6,
+
+  // Pro
+  proTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: Platform.OS === 'ios' ? 54 : 34, paddingHorizontal: 20, paddingBottom: 6 },
+  proRestore: { fontSize: 14, fontWeight: '700', color: C.ink500 },
+  proClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: C.sunken },
+  proCard: { height: 150, flexDirection: 'row', alignItems: 'center', paddingLeft: 20, paddingRight: 10, borderRadius: 22, backgroundColor: C.mint },
+  proCardTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: C.ink },
+  proCardSub: { marginTop: 4, fontSize: 13.5, lineHeight: 19, fontWeight: '600', color: C.ink600 },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(5,150,105,0.3)' },
+  dotOn: { width: 18, backgroundColor: C.primary },
+  proHeadline: { marginTop: 18, fontSize: 24, lineHeight: 30, fontWeight: '800', textAlign: 'center', letterSpacing: -0.5, color: C.ink },
+  loved: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  lovedAvatar: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: C.bg, alignItems: 'center', justifyContent: 'center' },
+  lovedInitial: { fontSize: 12, fontWeight: '800', color: C.ink },
+  lovedTxt: { fontSize: 16, fontWeight: '800', color: C.ink },
+  planRow: { flexDirection: 'row', gap: 12, marginTop: 18 },
+  planCard: {
+    flex: 1, minHeight: 178, alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: 26, paddingBottom: 20, paddingHorizontal: 10,
+    borderRadius: 18, backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.cardLine,
   },
-  calCard: {
-    backgroundColor: C.surface, borderRadius: 22,
-    borderWidth: 1.5, borderColor: C.line, padding: 26, alignItems: 'center',
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 }, elevation: 2,
+  planCardOn: { backgroundColor: C.selBg, borderWidth: 2.5, borderColor: C.primary },
+  bestBadge: { position: 'absolute', top: -11, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: C.primary },
+  bestBadgeTxt: { fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: 0.6 },
+  planLen: { fontSize: 15, fontWeight: '800', color: C.ink },
+  planStrike: { fontSize: 13, fontWeight: '700', color: C.ink400, textDecorationLine: 'line-through' },
+  planPrice: { fontSize: 26, fontWeight: '800', color: C.ink, letterSpacing: -0.5 },
+  planPer: { fontSize: 13, fontWeight: '700', color: C.ink500 },
+  trialChip: { marginTop: 4, fontSize: 11.5, fontWeight: '800', color: C.primaryDark, backgroundColor: 'rgba(5,150,105,0.12)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
+  proTerms: { fontSize: 13, fontWeight: '700', color: C.ink600, textAlign: 'center', marginBottom: 10 },
+  proLegal: { marginTop: 10, fontSize: 10.5, lineHeight: 14, color: C.ink400, textAlign: 'center' },
+  legalLinks: { flexDirection: 'row', justifyContent: 'center', gap: 18, marginTop: 6 },
+  legalLink: { fontSize: 11.5, fontWeight: '700', color: C.ink500, textDecorationLine: 'underline' },
+
+  // Offer
+  offerClose: { position: 'absolute', zIndex: 5, top: Platform.OS === 'ios' ? 54 : 34, left: 20, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: C.sunken },
+  offerEyebrow: { fontSize: 12.5, fontWeight: '800', letterSpacing: 1.2, color: C.primary },
+  offerTitle: { marginTop: 8, fontSize: 30, lineHeight: 36, fontWeight: '800', textAlign: 'center', letterSpacing: -0.6, color: C.ink },
+  offerCard: {
+    alignSelf: 'stretch', alignItems: 'center', marginTop: 12, paddingVertical: 16, borderRadius: 20, backgroundColor: C.surface,
+    shadowColor: '#0B3D2E', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 3,
   },
-  calLabel: { fontSize: 13, fontWeight: '700', color: C.ink400, textTransform: 'uppercase', letterSpacing: 2 },
-  calNumber: { fontSize: 66, fontWeight: '800', color: C.primary, lineHeight: 74, letterSpacing: -2 },
-  calUnit: { fontSize: 15, fontWeight: '700', color: C.ink700 },
-  calPill: {
-    backgroundColor: C.sunken, borderRadius: 999,
-    paddingHorizontal: 13, paddingVertical: 7, alignItems: 'center',
+  offerEnds: { fontSize: 11.5, fontWeight: '800', letterSpacing: 1, color: C.ink500 },
+  countRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  countBox: { minWidth: 46, paddingVertical: 8, paddingHorizontal: 8, borderRadius: 10, backgroundColor: C.ink, alignItems: 'center' },
+  countTxt: { fontSize: 22, fontWeight: '800', color: '#fff', fontVariant: ['tabular-nums'] },
+  countColon: { fontSize: 22, fontWeight: '800', color: C.ink, marginHorizontal: 6 },
+  offerPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 12 },
+  offerStrike: { fontSize: 16, fontWeight: '700', color: C.ink400, textDecorationLine: 'line-through' },
+  offerPrice: { fontSize: 28, fontWeight: '800', color: C.primary },
+  offerPer: { fontSize: 14, fontWeight: '700', color: C.ink500 },
+  offerTerms: { marginTop: 14, fontSize: 13.5, lineHeight: 20, color: C.ink600, textAlign: 'center' },
+  skipSheet: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingHorizontal: 22, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 34 : 22,
   },
-  calPillLabel: { fontSize: 10.5, fontWeight: '700', color: C.ink400, textTransform: 'uppercase', letterSpacing: 1 },
-  calPillVal: { fontSize: 14, fontWeight: '800', color: C.ink700 },
-  statCard: {
-    flex: 1, backgroundColor: C.surface, borderRadius: 18,
-    borderWidth: 1.5, borderColor: C.line, padding: 14,
-    flexDirection: 'row', alignItems: 'center',
-  },
-  statLabel: { fontSize: 11.5, fontWeight: '700', color: C.ink400 },
-  statVal: { fontSize: 17, fontWeight: '800', color: C.ink, marginTop: 2 },
-  projCard: {
-    marginTop: 11, backgroundColor: C.green50, borderRadius: 18,
-    padding: 16, flexDirection: 'row', alignItems: 'center',
-  },
-  projTxt: { flex: 1, fontSize: 14, color: C.ink700, fontWeight: '500', lineHeight: 20 },
-  doneTagline: {
-    textAlign: 'center', marginTop: 18,
-    fontSize: 13.5, color: C.ink500, lineHeight: 20,
-  },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: C.line, marginBottom: 6 },
+  skipTitle: { marginTop: 6, fontSize: 22, lineHeight: 28, fontWeight: '800', textAlign: 'center', color: C.ink },
+  skipBody: { marginTop: 8, marginBottom: 18, fontSize: 14.5, lineHeight: 21, color: C.ink600, textAlign: 'center' },
+
+  // Widget
+  widgetTitle: { fontSize: 28, lineHeight: 34, fontWeight: '800', letterSpacing: -0.5, color: C.ink },
+  widgetSub: { marginTop: 8, fontSize: 15, lineHeight: 22, color: C.ink600 },
+  phone: { width: 260, height: 360, borderRadius: 36, paddingTop: 14, paddingHorizontal: 16, overflow: 'hidden' },
+  phoneTime: { alignSelf: 'center', fontSize: 13, fontWeight: '800', color: '#fff', marginBottom: 14 },
+  widget: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 22, backgroundColor: '#fff', marginBottom: 18 },
+  widgetRing: { width: 84, height: 84, borderRadius: 42, borderWidth: 7, borderColor: C.primary, alignItems: 'center', justifyContent: 'center' },
+  widgetKcal: { fontSize: 16, fontWeight: '800', color: C.ink },
+  widgetKcalLbl: { fontSize: 9.5, fontWeight: '700', color: C.ink500 },
+  widgetApp: { marginLeft: 6, fontSize: 12.5, fontWeight: '800', color: C.ink },
+  widgetLine: { marginTop: 6, fontSize: 11.5, fontWeight: '600', color: C.ink500 },
+  widgetWater: { marginTop: 8, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#E0F2FE' },
+  widgetWaterTxt: { fontSize: 11.5, fontWeight: '800', color: '#0369A1' },
+  appGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  appIcon: { width: 44, height: 44, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.45)' },
+  appLabel: { marginTop: 5, width: 30, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
+  widgetHint: { paddingHorizontal: 30, fontSize: 13, lineHeight: 19, color: C.ink500, textAlign: 'center' },
+
+  // Widget steps
+  stepsTitle: { fontSize: 24, lineHeight: 30, fontWeight: '800', color: C.ink },
+  stepsSub: { marginTop: 4, fontSize: 14, color: C.ink600 },
+  stepsCard: { marginTop: 16, padding: 16, borderRadius: 20, backgroundColor: C.surface },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
+  stepNum: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.mint, alignItems: 'center', justifyContent: 'center' },
+  stepNumTxt: { fontSize: 13.5, fontWeight: '800', color: C.primaryDark },
+  stepTitle: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: C.ink },
+  stepSub: { marginTop: 2, fontSize: 13, lineHeight: 18, color: C.ink500 },
 });

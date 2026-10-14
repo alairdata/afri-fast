@@ -80,6 +80,7 @@ import EditProfileModal from './components/EditProfileModal';
 import TimeEditModal from './components/TimeEditModal';
 import AiConsentModal from './components/AiConsentModal';
 import PaywallModal from './components/PaywallModal';
+import FirstMealPrompt from './components/FirstMealPrompt';
 import { LinearGradient } from 'expo-linear-gradient';
 import { initSubscriptions, signOutSubscriptions, useSubscription, openPaywall, FREE_MEALS_PER_DAY } from './lib/subscription';
 import { ensureAiConsent } from './lib/consent';
@@ -353,6 +354,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   const [cuisines, setCuisines] = useState([]);
   const [motivations, setMotivations] = useState([]);
   const [accountability, setAccountability] = useState(null);
+  // How Lumi talks (onboarding "How should I talk to you?"): cheerleader, gentle, auntie or elder.
+  const [coachTone, setCoachTone] = useState(null);
+  // The guided first log, shown once right after a new account is made from onboarding.
+  const [showFirstMeal, setShowFirstMeal] = useState(false);
+  const onboardingExtrasDone = useRef(false);
 
   // === Nutrition goals state ===
   const [dailyCalorieGoal, setDailyCalorieGoal] = useState(2000);
@@ -987,6 +993,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         if (data.cuisines?.length) setCuisines(data.cuisines);
         if (data.motivations?.length) setMotivations(data.motivations);
         if (data.accountability) setAccountability(data.accountability);
+        // Read on its own so a database without the column yet can't stop the profile loading.
+        supabase.from('profiles').select('coach_tone').eq('id', session.user.id).maybeSingle()
+          .then(({ data: t, error }) => { if (!error && t?.coach_tone) setCoachTone(t.coach_tone); });
         if (data.personality) setUserPersonality(data.personality);
         if (data.personality_updated_at) setPersonalityUpdatedAt(new Date(data.personality_updated_at));
         setDataLoadCount(prev => prev + 1);
@@ -1430,6 +1439,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     }
   };
 
+  // Opens the meal logger with a method ('scan', 'say', 'write', 'manual'); shared by the Meals tab and
+  // the first-meal prompt after sign-up.
+  const startMealLog = async (method) => {
+    if (!canLogMealOn(selectedMealDate)) return;
+    // Scan, voice and text all go through Google Gemini, so they need AI consent; 'manual' never does.
+    if (['scan', 'say', 'write'].includes(method) && !(await ensureAiConsent())) { setShowLogMealOptions(true); showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; }
+    setShowLogMealOptions(false);
+    setLogMealMethod(method);
+    setLogMealOpenedFromOptions(true);
+    setShowLogMealModal(true);
+  };
+
   const handleConnectAppleHealth = async () => {
     const ok = await connectAppleHealth();
     if (!ok) { showToast("Couldn't connect to Apple Health", 'error'); return; }
@@ -1715,6 +1736,26 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             );
           }
         }
+
+        // This effect can run twice for one onboarding (it re-runs when the first weight log lands), so
+        // the one-off steps below happen once.
+        if (onboardingExtrasDone.current) { if (!cancelled) onPreAuthDataApplied?.(); return; }
+        onboardingExtrasDone.current = true;
+        // Lumi's voice. Saved on its own, so the rest of the onboarding answers never depend on it.
+        if (pendingPreAuthData.tone) {
+          setCoachTone(pendingPreAuthData.tone);
+          dbSave(
+            supabase.from('profiles').update({ coach_tone: pendingPreAuthData.tone }).eq('id', session.user.id),
+            'save onboarding coach_tone'
+          );
+        }
+        // "Set up reminders" (notifications allowed): turn on the meal reminder, shown in Settings.
+        if (pendingPreAuthData.remindersOn) setNotifyMealReminder(true);
+        // Apple Health was allowed during onboarding: switch it on for this account and read steps.
+        if (pendingPreAuthData.healthConnect && Platform.OS === 'ios' && appleHealthSupported()) {
+          handleConnectAppleHealth();
+        }
+        setShowFirstMeal(true);
       }
 
       if (!cancelled) {
@@ -2334,6 +2375,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           cuisines={cuisines}
           motivations={motivations}
           accountability={accountability}
+          coachTone={coachTone}
           stepGoal={stepGoal}
           stepLogs={effectiveStepLogs}
           activities={activities}
@@ -2356,15 +2398,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           isFasting={isFasting}
           showLogMealOptions={showLogMealOptions}
           setShowLogMealOptions={setShowLogMealOptions}
-          onLogMeal={async (method) => {
-            if (!canLogMealOn(selectedMealDate)) return;
-            // Scan, voice and text all go through Google Gemini, so they need AI consent; 'manual' never does.
-            if (['scan', 'say', 'write'].includes(method) && !(await ensureAiConsent())) { setShowLogMealOptions(true); showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; }
-            setShowLogMealOptions(false);
-            setLogMealMethod(method);
-            setLogMealOpenedFromOptions(true);
-            setShowLogMealModal(true);
-          }}
+          onLogMeal={startMealLog}
           onMealLogBlocked={() => showToast('Log meals only after ending your fast.')}
           onFindRecipe={() => setShowFindRecipePage(true)}
           onShowMakeRecipe={() => setShowMakeRecipePage(true)}
@@ -2724,6 +2758,17 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       />
 
       {/* === Modals === */}
+      <FirstMealPrompt
+        visible={showFirstMeal && !showLogMealModal}
+        name={userName}
+        onLater={() => { setShowFirstMeal(false); track('first_meal_prompt', { choice: 'later' }); }}
+        onPick={async (method) => {
+          setShowFirstMeal(false);
+          track('first_meal_prompt', { choice: method });
+          await startMealLog(method);
+          setLogMealOpenedFromOptions(false); // closing the logger goes back to Today, not the options sheet
+        }}
+      />
       <LogMealModal
         show={showLogMealModal}
         onClose={(backToOptions) => {

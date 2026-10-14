@@ -23,6 +23,7 @@ const PACE_LABELS = { slow: 'slow and steady (~0.25 kg a week)', moderate: 'bala
 const STRUGGLE_LABELS = { forget: 'forgetting to track', local: "not knowing local food calories", motivation: 'losing motivation', eatout: 'eating out a lot' };
 const WHY_LABELS = { wedding: 'a big event (wedding, shoot, reunion)', health: 'a health wake-up call', confident: 'feeling confident again', doctor: "doctor's advice", curious: 'curiosity' };
 const ACCOUNTABILITY_LABELS = { gentle: 'gentle, encouraging nudges', firm: 'firm reminders, keep them honest', alone: 'leave them alone, they will come to the app themselves' };
+const TONE_LABELS = { cheerleader: 'a cheerleader: upbeat, hypes them up, celebrates every win', gentle: 'gentle and kind: soft, no pressure', auntie: 'a straight-talking auntie: loving but tells them the truth', elder: 'a wise elder: calm, patient, takes the long view' };
 const FOOD_CONTEXT_LABELS = { home: 'mostly home-cooked', out: 'mostly bought / eating out', mix: 'a mix of home-cooked and bought' };
 
 const ANALYST_PROMPT = `You are a sharp, intuitive health analyst who understands that numbers alone don't tell the story — what the numbers are made of does.
@@ -321,6 +322,7 @@ function preprocessData(data) {
   if (profile.struggles?.length) lines.push(`WHAT THEY STRUGGLE WITH: ${listOf(STRUGGLE_LABELS, profile.struggles)}`);
   if (profile.motivations?.length) lines.push(`THEIR WHY (what motivates them): ${listOf(WHY_LABELS, profile.motivations)}`);
   if (profile.accountability) lines.push(`HOW THEY WANT TO BE KEPT ON TRACK: ${label(ACCOUNTABILITY_LABELS, profile.accountability)}`);
+  if (profile.coachTone) lines.push(`VOICE THEY CHOSE FOR YOU (write in it): ${label(TONE_LABELS, profile.coachTone)}`);
   const foodBits = [];
   if (profile.foodContext) foodBits.push(label(FOOD_CONTEXT_LABELS, profile.foodContext));
   if (profile.cuisines?.length) foodBits.push(`cuisines: ${profile.cuisines.join(', ')}`);

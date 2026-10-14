@@ -94,6 +94,34 @@ export async function loadPlans() {
   return { yearly, monthly, trialYearly, trialMonthly, trialEligible: trialYearly };
 }
 
+// Onboarding sells Pro before there is an account: RevenueCat starts with an anonymous id, and
+// initSubscriptions(userId) after sign-up logs in, which moves anything bought onto that account.
+export async function initAnonymousSubscriptions() {
+  if (configured) return;
+  await initSubscriptions(null);
+}
+
+// The one-time onboarding offer: offering 'onboarding_offer' in RevenueCat, whose Monthly package has a
+// pay-up-front introductory price for the first month. Returns null when it isn't set up or this Apple ID
+// can't get the intro price, so the offer screen is skipped rather than showing a price we can't charge.
+export async function loadIntroOffer() {
+  if (!configured || !Purchases) return null;
+  try {
+    const offerings = await Purchases.getOfferings();
+    const off = offerings?.all?.onboarding_offer;
+    const pkg = off?.monthly || off?.availablePackages?.find((p) => p.packageType === 'MONTHLY') || null;
+    const intro = pkg?.product?.introPrice;
+    if (!pkg || !intro || !(intro.price > 0)) return null;
+    let elig = null;
+    try { elig = await Purchases.checkTrialOrIntroductoryPriceEligibility([pkg.product.identifier]); } catch (_) {}
+    const status = elig?.[pkg.product.identifier]?.status;
+    if (elig && ![0, 2].includes(status)) return null;
+    return { pkg, introPrice: intro.priceString, price: pkg.product.priceString };
+  } catch (_) {
+    return null;
+  }
+}
+
 // Returns 'purchased', 'cancelled' or throws.
 export async function purchasePlan(pkg) {
   try {
