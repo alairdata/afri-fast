@@ -4,6 +4,7 @@ import {
   TextInput, Animated, Easing, Platform, useWindowDimensions, Image, Alert,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as Haptics from 'expo-haptics';
 import { track, EVENTS } from '../lib/analytics';
 import Svg, { G, Circle, Ellipse, Path } from 'react-native-svg';
 
@@ -1279,11 +1280,19 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
   const [data, setData] = useState({ ...DEFAULT_DATA, ...(initialData || {}) });
 
   const set = (k, v) => setData(d => ({ ...d, [k]: v }));
-  const next = () => setIdx(i => Math.min(i + 1, FLOW.length - 1));
-  const back = () => setIdx(i => Math.max(i - 1, 0));
-  // Choosing an answer only selects it; the Continue button moves on. (It used to jump ahead on its
-  // own 0.28s after the tap, which felt abrupt.)
-  const pick = (k, v) => set(k, v);
+  const advanceTimer = useRef(null);
+  // Clearing the pending auto-advance means a quick Continue/Back tap can't skip a screen.
+  const next = () => { clearTimeout(advanceTimer.current); setIdx(i => Math.min(i + 1, FLOW.length - 1)); };
+  const back = () => { clearTimeout(advanceTimer.current); setIdx(i => Math.max(i - 1, 0)); };
+  // Choosing a single answer selects it, gives a light haptic tap so you feel it register, then moves
+  // on after a short beat (long enough to see the tick). Continue stays for coming back to a screen.
+  useEffect(() => () => clearTimeout(advanceTimer.current), []);
+  const pick = (k, v) => {
+    set(k, v);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    clearTimeout(advanceTimer.current);
+    advanceTimer.current = setTimeout(() => setIdx(i => Math.min(i + 1, FLOW.length - 1)), 450);
+  };
   // From the plan screen: wipe the answers and begin again at the first question.
   const startOver = () => {
     const go = () => { setData({ ...DEFAULT_DATA }); setIdx(FLOW.indexOf('goal')); };
