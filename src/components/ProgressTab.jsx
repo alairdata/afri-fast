@@ -1692,6 +1692,103 @@ const ProgressTab = ({
               </View>
             </View>
 
+            {/* Calorie Intake */}
+            <View style={styles.progressSectionCompact}>
+              <View style={styles.progressSectionHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={styles.sectionIconBox}>
+                    <Ionicons name="flame-outline" size={14} color={colors.text} />
+                  </View>
+                  <Text style={styles.progressSectionTitleCompact}>Calorie Intake</Text><InfoTip id="calories" />
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <RangeDropdown value={calorieRange} onChange={setCalorieRange} styles={styles} />
+                  <TouchableOpacity onPress={() => onShowCalorieDetails && onShowCalorieDetails()}>
+                    <Text style={styles.seeAllBtnSmall}>See all</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={styles.chartCardCompact}>
+                {(() => {
+                  const uniqueLogs = calorieData.dailyCalData;
+                  const hasData = calorieData.hasLoggedCal;
+                  const hasMultiple = hasData && uniqueLogs.length >= 2;
+                  // How far the average logged day sits from its goal, as a percent: +18% over, -18% under, 0% spot on.
+                  const goalAvg = calorieData.avgDailyGoal;
+                  const gapPct = hasData && goalAvg > 0 ? Math.round(((calorieData.avgDailyCal - goalAvg) / goalAvg) * 100) : null;
+                  const onTarget = gapPct != null && Math.abs(gapPct) <= 5;
+                  const gapText = gapPct == null ? '--' : gapPct > 0 ? `+${gapPct}%` : gapPct < 0 ? `−${Math.abs(gapPct)}%` : '0%';
+                  const orderedLogs = uniqueLogs.slice().reverse();
+                  const chartData = orderedLogs.map(d => d.calories);
+                  const chartLabels = calorieData.buildLabels(orderedLogs);
+                  const barGap = chartData.length > 40 ? 1 : chartData.length > 12 ? 2 : 6;
+                  const CHART_H = 140;
+                  const dataMax = chartData.length ? Math.max(...chartData) : 0;
+                  const axisMax = Math.max(dataMax, dailyCalorieGoal > 0 ? dailyCalorieGoal : 0, 1) * 1.1;
+
+                  return (
+                    <>
+                      <View style={{ overflow: 'hidden', position: 'relative' }}>
+                        {hasMultiple ? (
+                          <>
+                          <View style={{ height: CHART_H, marginTop: 10 }}>
+                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: barGap }}>
+                              {chartData.map((value, i) => {
+                                const barH = Math.max(value > 0 ? 3 : 0, (value / axisMax) * CHART_H);
+                                return (
+                                  <TouchableOpacity
+                                    key={i}
+                                    style={{ flex: 1 }}
+                                    activeOpacity={0.7}
+                                    onPress={() => setCalTooltip(t => t?.i === i ? null : { i, value, date: orderedLogs[i]?.date })}
+                                  >
+                                    <View style={{
+                                      width: '100%', height: barH, borderRadius: 2,
+                                      backgroundColor: '#EF4444',
+                                    }} />
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          </View>
+                          <View style={{ flexDirection: 'row' }}>
+                            {chartLabels.map((label, i) => (
+                              <Text key={i} style={[styles.stepsAxisLabel, { flex: 1, textAlign: 'center' }]}>{label}</Text>
+                            ))}
+                          </View>
+                          {calTooltip && (
+                            <View style={styles.stepsTooltipCentered} pointerEvents="none">
+                              <Text style={styles.chartTooltipText}>{calTooltip.value.toLocaleString()} cal</Text>
+                              {calTooltip.date && (
+                                <Text style={styles.chartTooltipSub}>{calorieData.formatLabel(calTooltip.date)}</Text>
+                              )}
+                            </View>
+                          )}
+                          </>
+                        ) : (
+                          <View style={{ height: 160, alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={styles.chartPlaceholderText}>{hasData ? `${orderedLogs[orderedLogs.length - 1].calories} cal` : 'No calorie data'}</Text>
+                            <Text style={styles.chartPlaceholderSubtext}>{hasData ? 'Log more meals to see trends' : 'Log a meal to start'}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.calorieStatsRow}>
+                        <View style={styles.calorieStatItem}>
+                          <Text style={styles.calorieStatValue}>{calorieData.isLongRange ? (calorieData.avgMonthlyCal > 0 ? calorieData.avgMonthlyCal.toLocaleString() : '--') : (calorieData.avgDailyCal > 0 ? calorieData.avgDailyCal.toLocaleString() : '--')}</Text>
+                          <Text style={styles.calorieStatLabel}>{calorieData.isLongRange ? 'Avg monthly cal' : 'Avg daily cal'}</Text>
+                        </View>
+                        <View style={styles.calorieStatDivider} />
+                        <View style={styles.calorieStatItem}>
+                          <Text style={[styles.calorieStatValue, onTarget && { color: '#10B981' }]}>{gapText}</Text>
+                          <Text style={styles.calorieStatLabel}>{gapPct == null ? 'Avg goal gap' : gapPct > 0 ? 'Avg over goal' : gapPct < 0 ? 'Avg under goal' : 'Avg on goal'}</Text>
+                        </View>
+                      </View>
+                    </>
+                  );
+                })()}
+              </View>
+            </View>
+
             {/* Prediction this week */}
             {chart && (
               <View style={styles.card}>
@@ -1911,103 +2008,6 @@ const ProgressTab = ({
                 </TouchableOpacity>
               </View>
             )}
-
-            {/* Calorie Intake */}
-            <View style={styles.progressSectionCompact}>
-              <View style={styles.progressSectionHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={styles.sectionIconBox}>
-                    <Ionicons name="flame-outline" size={14} color={colors.text} />
-                  </View>
-                  <Text style={styles.progressSectionTitleCompact}>Calorie Intake</Text><InfoTip id="calories" />
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <RangeDropdown value={calorieRange} onChange={setCalorieRange} styles={styles} />
-                  <TouchableOpacity onPress={() => onShowCalorieDetails && onShowCalorieDetails()}>
-                    <Text style={styles.seeAllBtnSmall}>See all</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <View style={styles.chartCardCompact}>
-                {(() => {
-                  const uniqueLogs = calorieData.dailyCalData;
-                  const hasData = calorieData.hasLoggedCal;
-                  const hasMultiple = hasData && uniqueLogs.length >= 2;
-                  // How far the average logged day sits from its goal, as a percent: +18% over, -18% under, 0% spot on.
-                  const goalAvg = calorieData.avgDailyGoal;
-                  const gapPct = hasData && goalAvg > 0 ? Math.round(((calorieData.avgDailyCal - goalAvg) / goalAvg) * 100) : null;
-                  const onTarget = gapPct != null && Math.abs(gapPct) <= 5;
-                  const gapText = gapPct == null ? '--' : gapPct > 0 ? `+${gapPct}%` : gapPct < 0 ? `−${Math.abs(gapPct)}%` : '0%';
-                  const orderedLogs = uniqueLogs.slice().reverse();
-                  const chartData = orderedLogs.map(d => d.calories);
-                  const chartLabels = calorieData.buildLabels(orderedLogs);
-                  const barGap = chartData.length > 40 ? 1 : chartData.length > 12 ? 2 : 6;
-                  const CHART_H = 140;
-                  const dataMax = chartData.length ? Math.max(...chartData) : 0;
-                  const axisMax = Math.max(dataMax, dailyCalorieGoal > 0 ? dailyCalorieGoal : 0, 1) * 1.1;
-
-                  return (
-                    <>
-                      <View style={{ overflow: 'hidden', position: 'relative' }}>
-                        {hasMultiple ? (
-                          <>
-                          <View style={{ height: CHART_H, marginTop: 10 }}>
-                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: barGap }}>
-                              {chartData.map((value, i) => {
-                                const barH = Math.max(value > 0 ? 3 : 0, (value / axisMax) * CHART_H);
-                                return (
-                                  <TouchableOpacity
-                                    key={i}
-                                    style={{ flex: 1 }}
-                                    activeOpacity={0.7}
-                                    onPress={() => setCalTooltip(t => t?.i === i ? null : { i, value, date: orderedLogs[i]?.date })}
-                                  >
-                                    <View style={{
-                                      width: '100%', height: barH, borderRadius: 2,
-                                      backgroundColor: '#EF4444',
-                                    }} />
-                                  </TouchableOpacity>
-                                );
-                              })}
-                            </View>
-                          </View>
-                          <View style={{ flexDirection: 'row' }}>
-                            {chartLabels.map((label, i) => (
-                              <Text key={i} style={[styles.stepsAxisLabel, { flex: 1, textAlign: 'center' }]}>{label}</Text>
-                            ))}
-                          </View>
-                          {calTooltip && (
-                            <View style={styles.stepsTooltipCentered} pointerEvents="none">
-                              <Text style={styles.chartTooltipText}>{calTooltip.value.toLocaleString()} cal</Text>
-                              {calTooltip.date && (
-                                <Text style={styles.chartTooltipSub}>{calorieData.formatLabel(calTooltip.date)}</Text>
-                              )}
-                            </View>
-                          )}
-                          </>
-                        ) : (
-                          <View style={{ height: 160, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={styles.chartPlaceholderText}>{hasData ? `${orderedLogs[orderedLogs.length - 1].calories} cal` : 'No calorie data'}</Text>
-                            <Text style={styles.chartPlaceholderSubtext}>{hasData ? 'Log more meals to see trends' : 'Log a meal to start'}</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.calorieStatsRow}>
-                        <View style={styles.calorieStatItem}>
-                          <Text style={styles.calorieStatValue}>{calorieData.isLongRange ? (calorieData.avgMonthlyCal > 0 ? calorieData.avgMonthlyCal.toLocaleString() : '--') : (calorieData.avgDailyCal > 0 ? calorieData.avgDailyCal.toLocaleString() : '--')}</Text>
-                          <Text style={styles.calorieStatLabel}>{calorieData.isLongRange ? 'Avg monthly cal' : 'Avg daily cal'}</Text>
-                        </View>
-                        <View style={styles.calorieStatDivider} />
-                        <View style={styles.calorieStatItem}>
-                          <Text style={[styles.calorieStatValue, onTarget && { color: '#10B981' }]}>{gapText}</Text>
-                          <Text style={styles.calorieStatLabel}>{gapPct == null ? 'Avg goal gap' : gapPct > 0 ? 'Avg over goal' : gapPct < 0 ? 'Avg under goal' : 'Avg on goal'}</Text>
-                        </View>
-                      </View>
-                    </>
-                  );
-                })()}
-              </View>
-            </View>
 
             {/* Burnout likelihood */}
             <View style={styles.card}>
