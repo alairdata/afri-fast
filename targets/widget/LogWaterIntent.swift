@@ -3,6 +3,7 @@
 //  Powers the "+" water button, which works right from the home screen (iOS 17+).
 
 import AppIntents
+import UserNotifications
 import WidgetKit
 
 struct LogWaterIntent: AppIntent {
@@ -13,6 +14,9 @@ struct LogWaterIntent: AppIntent {
         var day = LoggaStore.load()
         day.waterGlasses += 1
         LoggaStore.save(day)
+        // The app plans today's 15:00 "You're at X% of your water" nudge ahead of time and can't see this tap
+        // until it is opened again, so drop that nudge rather than let it report stale numbers.
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["smart-water-0"])
         // WidgetKit refreshes the widgets automatically after a button intent runs.
         return .result()
     }

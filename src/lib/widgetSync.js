@@ -95,8 +95,25 @@ export async function ackWidgetWater(widgetGlasses) {
   try { await AsyncStorage.setItem(BASELINE_KEY, String(widgetGlasses)); } catch (_) {}
 }
 
-// Signed out (or switching accounts): remove the snapshot so the widgets stop showing the previous person's
-// numbers, and forget the water baseline so nothing carries over to the next account.
+// Logging out keeps the widget as it is (same phone, same person), so logging back in to the same account
+// carries on where it left off, water tapped on the widget in between included. These keys must survive the
+// AsyncStorage wipe on logout.
+export const WIDGET_KEYS_KEPT_ON_LOGOUT = [BASELINE_KEY];
+
+// Called when an account opens the app. If the widget is showing a different account's day, wipe it now,
+// before this account's data has loaded, so nobody ever sees someone else's numbers.
+export async function claimWidgetFor(userId) {
+  const st = getStorage();
+  if (!st || !userId) return;
+  try {
+    const raw = st.get(WIDGET_KEY);
+    const owner = raw ? JSON.parse(raw)?.userId : null;
+    if (owner && owner !== userId) await clearWidgetSnapshot();
+  } catch (_) {}
+}
+
+// Account deleted (or a different account on this phone): remove the snapshot so the widgets stop showing the
+// previous person's numbers, and forget the water baseline so nothing carries over to the next account.
 export async function clearWidgetSnapshot() {
   const st = getStorage();
   try { await AsyncStorage.removeItem(BASELINE_KEY); } catch (_) {}

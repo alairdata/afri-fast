@@ -36,7 +36,7 @@ import { evaluateMilestones } from './lib/milestones';
 import { syncSmartNotifications, clearSmartNotifications, onBurnoutSummaryPublished } from './lib/smartNotifications';
 import { onJustForYouSaved } from './lib/claudeInsights';
 import { appleHealthSupported, connectAppleHealth, readDailySteps } from './lib/appleHealth';
-import { pendingWidgetWater, ackWidgetWater, pushWidgetSnapshot, clearWidgetSnapshot } from './lib/widgetSync';
+import { pendingWidgetWater, ackWidgetWater, pushWidgetSnapshot, clearWidgetSnapshot, claimWidgetFor, WIDGET_KEYS_KEPT_ON_LOGOUT } from './lib/widgetSync';
 import { track, EVENTS, startSession, countSessionLog, incrementUserProperty, resetAnalytics } from './lib/analytics';
 import { buildDailyLedgerMap } from './lib/goalHistory';
 
@@ -1145,7 +1145,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   const [insightTick, setInsightTick] = useState(0);
   useEffect(() => onJustForYouSaved(() => setInsightTick((t) => t + 1)), []);
   useEffect(() => {
-    if (!notifSettingsLoaded || Platform.OS === 'web' || !session?.user?.id) return;
+    // Wait until every list has loaded: planning from half-loaded data (no water logs yet) is how a
+    // "0% of today's goal" nudge could be scheduled for someone who had already drunk.
+    if (!notifSettingsLoaded || Platform.OS === 'web' || !session?.user?.id || dataLoadCount < 8) return;
     const t = setTimeout(() => {
       (async () => {
         if (!notifySmart) { await clearSmartNotifications(); return; }
@@ -1154,7 +1156,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       })().catch((e) => console.log('[SmartNotifications] sync failed:', e?.message));
     }, 2500);
     return () => clearTimeout(t);
-  }, [notifSettingsLoaded, notifySmart, session?.user?.id, recentMeals, waterLogs, effectiveStepLogs, activities, hydrationGoal, volumeUnit, insightTick]);
+  }, [notifSettingsLoaded, notifySmart, session?.user?.id, dataLoadCount >= 8, recentMeals, waterLogs, effectiveStepLogs, activities, hydrationGoal, volumeUnit, insightTick]);
 
   // Analytics: identify the person and open a session (see lib/analytics.js).
   useEffect(() => {
@@ -1182,6 +1184,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     const unsubscribe = onBurnoutSummaryPublished(() => setWidgetTick((t) => t + 1));
     return () => { sub.remove(); unsubscribe(); };
   }, []);
+  // A different account than the one the widget shows: wipe the widget straight away.
+  useEffect(() => {
+    if (Platform.OS === 'ios' && session?.user?.id) claimWidgetFor(session.user.id);
+  }, [session?.user?.id]);
   useEffect(() => {
     if (Platform.OS !== 'ios' || !session?.user?.id || dataLoadCount < 8) return;
     const t = setTimeout(() => {
@@ -2988,12 +2994,17 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
               track(EVENTS.USER_LOGGED_OUT);
               resetAnalytics();
               signOutSubscriptions();
-              clearWidgetSnapshot();
+              // The home-screen widget is left as it is: logging back in to the same account carries on from it
+              // (a different account wipes it on sign-in, see claimWidgetFor).
               // Wipe this person's saved copies BEFORE signing out, so the next account to sign in on this
-              // phone can never load them. Which accounts connected Apple Health is kept (ids only, no data).
+              // phone can never load them. Which accounts connected Apple Health is kept (ids only, no data),
+              // and so is the widget's water bookkeeping.
               const healthUsers = await AsyncStorage.getItem(APPLE_HEALTH_KEY).catch(() => null);
+              const widgetKept = await AsyncStorage.multiGet(WIDGET_KEYS_KEPT_ON_LOGOUT).catch(() => []);
               await AsyncStorage.clear().catch(() => {});
               if (healthUsers) await AsyncStorage.setItem(APPLE_HEALTH_KEY, healthUsers).catch(() => {});
+              const keep = (widgetKept || []).filter(([, v]) => v != null);
+              if (keep.length) await AsyncStorage.multiSet(keep).catch(() => {});
               // Keep "Logging you out..." up long enough to read, then hand over to the sign-in screen,
               // where "You're logged out" is shown.
               await new Promise((r) => setTimeout(r, Math.max(0, 900 - (Date.now() - startedAt))));

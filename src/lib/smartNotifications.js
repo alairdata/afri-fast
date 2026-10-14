@@ -63,7 +63,16 @@ export const clearSmartNotifications = async () => { await cancelSmart().catch((
  * Re-plans smart notifications. ctx: { recentMeals, waterLogs, stepLogs, activities,
  * hydrationGoal (in volumeUnit; 0 = not tracking), volumeUnit }. Safe to call often.
  */
-export const syncSmartNotifications = async (ctx) => {
+// Re-plans run one after another, never side by side: two overlapping runs could finish in the wrong order and
+// leave the older plan (say, "You're at 0%" from before a water log) scheduled.
+let planQueue = Promise.resolve();
+export const syncSmartNotifications = (ctx) => {
+  const run = planQueue.then(() => planSmartNotifications(ctx));
+  planQueue = run.catch(() => {});
+  return run;
+};
+
+const planSmartNotifications = async (ctx) => {
   const now = new Date();
   await cancelSmart();
 
