@@ -641,14 +641,7 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
     return (
       <TouchableOpacity key={recipe.id} style={styles.recipeCard} onPress={() => (locked ? unlock('recipe') : openRecipe(recipe))}>
         {recipe.imageUrl ? (
-          <View>
-            <Image source={{ uri: recipe.imageUrl }} style={styles.recipeCardImg} resizeMode="cover" blurRadius={locked ? 18 : 0} />
-            {locked && (
-              <View style={styles.lockOverlay}>
-                <View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View>
-              </View>
-            )}
-          </View>
+          <Image source={{ uri: recipe.imageUrl }} style={styles.recipeCardImg} resizeMode="cover" />
         ) : (
           <View style={[styles.recipeCardImg, { alignItems: 'center', justifyContent: 'center' }]}>
             <Text style={styles.recipeCardEmoji}>🍽️</Text>
@@ -712,7 +705,6 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
               </View>
               {!isPro && (
                 <View style={styles.actionProBadge}>
-                  <Ionicons name="lock-closed" size={8} color="#6EE7B7" />
                   <Text style={styles.actionProBadgeText}>PRO</Text>
                 </View>
               )}
@@ -728,7 +720,6 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
               </View>
               {!isPro && (
                 <View style={styles.actionProBadge}>
-                  <Ionicons name="lock-closed" size={8} color="#6EE7B7" />
                   <Text style={styles.actionProBadgeText}>PRO</Text>
                 </View>
               )}
@@ -985,8 +976,6 @@ const styles = StyleSheet.create({
   listInput: { minHeight: 64, fontSize: 15, color: '#1F1F1F', textAlignVertical: 'top' },
   listBtn: { marginTop: 8, height: 44, borderRadius: 12, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' },
   listBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  lockOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  lockBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(22,32,27,0.72)', alignItems: 'center', justifyContent: 'center' },
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center',

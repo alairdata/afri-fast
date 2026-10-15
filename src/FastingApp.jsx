@@ -3244,7 +3244,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       {/* === Bottom Navigation === */}
       <BottomTabBar
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => { setShowMakeRecipePage(false); setShowFindRecipePage(false); setActiveTab(tab); }}
       />
 
       {/* === Chat (above everything incl. tab bar) === */}
