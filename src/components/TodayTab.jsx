@@ -155,7 +155,7 @@ const ARTICLE_POOL = [
   {
     title: 'Common calorie counting mistakes',
     time: '4 min read',
-    image: require('../../assets/pattern-articles/calorie-counting-mistakes.jpg'),
+    image: require('../../assets/pattern-articles/calorie-counting-mistakes.png'),
     sources: ['harvardCalories', 'burke2011', 'spiegel2004'],
     body: "Calorie tracking is a skill, and most people make the same mistakes when starting out. Knowing them in advance saves weeks of frustrating plateau.\n\nMistake #1: Not logging cooking oil. Oil is the most underestimated calorie source in African cooking. A tablespoon of palm or groundnut oil is 120 calories — and most recipes use much more. Weigh or measure oil before cooking.\n\nMistake #2: Underestimating portion sizes. 'A cup of rice' can mean 200 calories or 600 depending on how full the cup is. Use weight (grams) for carbs and protein rather than cups or handfuls until your eye is calibrated.\n\nMistake #3: Forgetting drinks. Malt, juice, sweetened kunu, and added sugar in tea and coffee can add 300–600 calories without feeling like food. Switch to plain water, black tea, or unsweetened drinks.\n\nMistake #4: Eating too little. Counter-intuitively, eating too few calories slows your metabolism and increases muscle loss. Stay above 1,200 calories for women and 1,500 for men unless medically supervised.\n\nMistake #5: Ignoring sleep. Poor sleep raises cortisol and ghrelin (the hunger hormone), making calorie control significantly harder. Prioritise 7–8 hours of quality sleep — it may be doing more work than your diet.",
   },

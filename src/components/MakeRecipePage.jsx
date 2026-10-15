@@ -459,7 +459,6 @@ const scoreRecipe = (recipe, identifiedIngredients) => {
 };
 
 const WEST_AFRICA = new Set(['Nigeria', 'Ghana', 'Benin', 'Togo', 'Sierra Leone', 'Liberia', 'Gambia', 'Senegal', 'Ivory Coast', 'Niger', 'Burkina Faso', 'Guinea', 'Guinea-Bissau', 'Mali', 'Mauritania', 'Cabo Verde']);
-const MIN_COUNTRY_RECIPES = 8;
 
 const recipeMatchesCountry = (recipe, country) =>
   !!recipe.countries?.some(c =>
@@ -471,8 +470,8 @@ const recipeMatchesCountry = (recipe, country) =>
 
 const recipesForCountry = (country) => {
   if (!country) return AFRICAN_RECIPES;
+  // Every recipe stays visible; the user's country's dishes just come first in each section.
   const matched = AFRICAN_RECIPES.filter(r => recipeMatchesCountry(r, country));
-  if (matched.length >= MIN_COUNTRY_RECIPES) return matched;
   return [...matched, ...AFRICAN_RECIPES.filter(r => !matched.includes(r))];
 };
 

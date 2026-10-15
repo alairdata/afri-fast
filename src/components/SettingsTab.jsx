@@ -844,14 +844,6 @@ const SettingsTab = ({
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowCredits(true)}>
-          <View style={styles.settingsActionLeft}>
-            <Ionicons name="images-outline" size={18} color="#374151" />
-            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Photo Credits</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color="#ccc" />
-        </TouchableOpacity>
-
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowContact(true)}>
           <View style={styles.settingsActionLeft}>
             <Ionicons name="mail-outline" size={18} color="#374151" />

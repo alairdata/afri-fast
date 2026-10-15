@@ -36,26 +36,26 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
   };
 
   const allMeals = [
-    { name: 'Jollof Rice & Grilled Chicken', category: 'Fried', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/jollof-chicken.jpg' } },
-    { name: 'Egusi Soup & Pounded Yam', category: 'Soups', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/pounded-yam.jpg' } },
-    { name: 'Suya Spiced Grilled Fish', category: 'Grilled', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/suya.jpg' } },
-    { name: 'Injera with Misir Wot', category: 'Stews', country: 'Ethiopia', image: { uri: 'https://www.logga.space/food/injera.jpg' } },
-    { name: 'Waakye with Shito', category: 'Fried', country: 'Ghana', image: { uri: 'https://www.logga.space/food/waakye.jpg' } },
-    { name: 'Pepper Soup with Catfish', category: 'Soups', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/fish-pepper-soup.jpg' } },
-    { name: 'Plantain & Egg Sauce', category: 'Fried', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/plantain-eggs.jpg' } },
-    { name: 'Okra Soup & Fufu', category: 'Soups', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/okra-soup.jpg' } },
-    { name: 'Eba & Ogbono Soup', category: 'Swallows', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/eba.jpg' } },
-    { name: 'Chicken Stew & Rice', category: 'Stews', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/chicken-stew-rice.jpg' } },
-    { name: 'Akara & Pap', category: 'Snacks', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/akara-pap.jpg' } },
-    { name: 'Moi Moi', category: 'Snacks', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/moi-moi.jpg' } },
-    { name: 'Kelewele', category: 'Fried', country: 'Ghana', image: { uri: 'https://www.logga.space/food/kelewele.jpg' } },
-    { name: 'Grilled Tilapia & Banku', category: 'Grilled', country: 'Ghana', image: { uri: 'https://www.logga.space/food/banku-tilapia.jpg' } },
-    { name: 'Amala & Ewedu', category: 'Swallows', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/amala-ewedu.jpg' } },
-    { name: 'Groundnut Soup', category: 'Soups', country: 'Ghana', image: { uri: 'https://www.logga.space/food/groundnut-soup.jpg' } },
-    { name: 'Fried Rice & Chicken', category: 'Fried', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/fried-rice.jpg' } },
-    { name: 'Boli & Groundnut', category: 'Snacks', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/roasted-plantain.jpg' } },
-    { name: 'Asun (Spicy Goat)', category: 'Grilled', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/asun.jpg' } },
-    { name: 'Semovita & Banga Soup', category: 'Swallows', country: 'Nigeria', image: { uri: 'https://www.logga.space/food/banga-soup.jpg' } },
+    { name: 'Jollof Rice & Grilled Chicken', category: 'Fried', country: 'Nigeria', image: { uri: 'https://www.foodfusion.com/wp-content/uploads/2025/07/Nigerian-Jollof-Rice-with-Grilled-Chicken-5.jpg' } },
+    { name: 'Egusi Soup & Pounded Yam', category: 'Soups', country: 'Nigeria', image: { uri: 'https://nutriscan.app/calories-nutrition/images/egusi-soup-fe0df.webp' } },
+    { name: 'Suya Spiced Grilled Fish', category: 'Grilled', country: 'Nigeria', image: { uri: 'https://cheflolaskitchen.com/wp-content/uploads/2023/01/nigerian-suya-34-1024x717.jpg.webp' } },
+    { name: 'Injera with Misir Wot', category: 'Stews', country: 'Ethiopia', image: { uri: 'https://assets.nourishingmeals.com/sites/default/files/styles/fullscreen_banner/public/media/ETHIOPIOAN%20RED%20LENTIL%20STEW%20-%20MISIR%20WAT-1.jpg?h=5554a5ef' } },
+    { name: 'Waakye with Shito', category: 'Fried', country: 'Ghana', image: { uri: 'https://img-global.cpcdn.com/steps/3da1defa2c4ac461/400x400cq80/photo.jpg' } },
+    { name: 'Pepper Soup with Catfish', category: 'Soups', country: 'Nigeria', image: { uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJJ88UrNyOBTZ53Npuzs-hIBQtKxXCcAw9mQ&s' } },
+    { name: 'Plantain & Egg Sauce', category: 'Fried', country: 'Nigeria', image: { uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFC5A5GVaaXRxZNY5M89-DEsTGXC5IjHK1wQ&s' } },
+    { name: 'Okra Soup & Fufu', category: 'Soups', country: 'Nigeria', image: { uri: 'https://i.ytimg.com/vi/bV2sg6mmSH8/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLDvW2kzS1kNR0zdRUZaHFvvl8gb6Q' } },
+    { name: 'Eba & Ogbono Soup', category: 'Swallows', country: 'Nigeria', image: { uri: 'https://upload.wikimedia.org/wikipedia/commons/8/85/Eba_Swallow.jpg' } },
+    { name: 'Chicken Stew & Rice', category: 'Stews', country: 'Nigeria', image: { uri: 'https://www.mydiasporakitchen.com/wp-content/uploads/2025/05/Nigerian-chicken-stew-recipe-0.jpeg' } },
+    { name: 'Akara & Pap', category: 'Snacks', country: 'Nigeria', image: { uri: 'https://kikifoodies.com/wp-content/uploads/2024/11/E685E539-B688-4131-BFFE-2288C9899A61-scaled.jpeg' } },
+    { name: 'Moi Moi', category: 'Snacks', country: 'Nigeria', image: { uri: 'https://upload.wikimedia.org/wikipedia/commons/2/24/Moin_Moin.jpg' } },
+    { name: 'Kelewele', category: 'Fried', country: 'Ghana', image: { uri: 'https://upload.wikimedia.org/wikipedia/commons/3/37/Kelewele.jpg' } },
+    { name: 'Grilled Tilapia & Banku', category: 'Grilled', country: 'Ghana', image: { uri: 'https://www.finedininglovers.com/sites/default/files/styles/1_1_768x768/public/recipe_content_images/Whole%20Baked%20Tilapia_Photo%20by%20Nassima%20Rothaker%20%281%29.jpg.webp?itok=ZFsudwz6' } },
+    { name: 'Amala & Ewedu', category: 'Swallows', country: 'Nigeria', image: { uri: 'https://nutriscan.app/calories-nutrition/images/egusi-soup-fe0df.webp' } },
+    { name: 'Groundnut Soup', category: 'Soups', country: 'Ghana', image: { uri: 'https://www.seriouseats.com/thmb/RlxyVRR_JeCXwqZh7J3-RrntUB0=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/__opt__aboutcom__coeus__resources__content_migration__serious_eats__seriouseats.com__recipes__images__2017__06__20170511-groundnut-soup-vicky-wasik-2-2-e832005ef69c473f8f45a0a2a91f7775.jpg' } },
+    { name: 'Fried Rice & Chicken', category: 'Fried', country: 'Nigeria', image: { uri: 'https://www.foodfusion.com/wp-content/uploads/2025/07/Nigerian-Jollof-Rice-with-Grilled-Chicken-5.jpg' } },
+    { name: 'Boli & Groundnut', category: 'Snacks', country: 'Nigeria', image: { uri: 'https://upload.wikimedia.org/wikipedia/commons/3/37/Kelewele.jpg' } },
+    { name: 'Asun (Spicy Goat)', category: 'Grilled', country: 'Nigeria', image: { uri: 'https://cheflolaskitchen.com/wp-content/uploads/2023/01/nigerian-suya-34-1024x717.jpg.webp' } },
+    { name: 'Semovita & Banga Soup', category: 'Swallows', country: 'Nigeria', image: { uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJJ88UrNyOBTZ53Npuzs-hIBQtKxXCcAw9mQ&s' } },
   ];
 
   const searchResults = recipeSearchInput.trim()
@@ -111,7 +111,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
 
   const mealData = {
     'Jollof Rice & Grilled Chicken': {
-      image: { uri: 'https://www.logga.space/food/jollof-chicken.jpg' },
+      image: { uri: 'https://www.foodfusion.com/wp-content/uploads/2025/07/Nigerian-Jollof-Rice-with-Grilled-Chicken-5.jpg' },
       cooked: [
         { name: 'Jollof Rice', sizes: { Small: 180, Medium: 320, Large: 480 }, defaultSize: 'Medium', protein: 5, carbs: 45, fat: 8 },
         { name: 'Grilled Chicken', sizes: { Small: 120, Medium: 200, Large: 300 }, defaultSize: 'Medium', protein: 30, carbs: 0, fat: 6 },
@@ -126,7 +126,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
       ],
     },
     'Egusi Soup & Pounded Yam': {
-      image: { uri: 'https://www.logga.space/food/pounded-yam.jpg' },
+      image: { uri: 'https://nutriscan.app/calories-nutrition/images/egusi-soup-fe0df.webp' },
       cooked: [
         { name: 'Pounded Yam', sizes: { Small: 200, Medium: 350, Large: 500 }, defaultSize: 'Medium', protein: 3, carbs: 55, fat: 0.5 },
         { name: 'Egusi Soup', sizes: { Small: 150, Medium: 280, Large: 400 }, defaultSize: 'Medium', protein: 12, carbs: 5, fat: 18 },
@@ -141,7 +141,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
       ],
     },
     'Suya Spiced Grilled Fish': {
-      image: { uri: 'https://www.logga.space/food/suya.jpg' },
+      image: { uri: 'https://cheflolaskitchen.com/wp-content/uploads/2023/01/nigerian-suya-34-1024x717.jpg.webp' },
       cooked: [
         { name: 'Grilled Fish', sizes: { Small: 100, Medium: 180, Large: 260 }, defaultSize: 'Medium', protein: 26, carbs: 0, fat: 4 },
         { name: 'Suya Spice Mix', sizes: { Light: 30, Medium: 50, Heavy: 75 }, defaultSize: 'Medium', protein: 1.5, carbs: 2, fat: 2.5 },
@@ -154,7 +154,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
       ],
     },
     'Injera with Misir Wot': {
-      image: { uri: 'https://www.logga.space/food/injera.jpg' },
+      image: { uri: 'https://assets.nourishingmeals.com/sites/default/files/styles/fullscreen_banner/public/media/ETHIOPIOAN%20RED%20LENTIL%20STEW%20-%20MISIR%20WAT-1.jpg?h=5554a5ef' },
       cooked: [
         { name: 'Injera', sizes: { '1 piece': 70, '2 pieces': 140, '3 pieces': 210 }, defaultSize: '2 pieces', protein: 5, carbs: 28, fat: 1 },
         { name: 'Misir Wot', sizes: { Small: 120, Medium: 220, Large: 330 }, defaultSize: 'Medium', protein: 10, carbs: 18, fat: 5 },
@@ -168,7 +168,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
       ],
     },
     'Waakye with Shito': {
-      image: { uri: 'https://www.logga.space/food/waakye.jpg' },
+      image: { uri: 'https://img-global.cpcdn.com/steps/3da1defa2c4ac461/400x400cq80/photo.jpg' },
       cooked: [
         { name: 'Waakye', sizes: { Small: 200, Medium: 350, Large: 500 }, defaultSize: 'Medium', protein: 8, carbs: 50, fat: 2 },
         { name: 'Shito Sauce', sizes: { Light: 40, Medium: 80, Heavy: 120 }, defaultSize: 'Medium', protein: 0.5, carbs: 2, fat: 6 },
@@ -183,7 +183,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
       ],
     },
     'Pepper Soup with Catfish': {
-      image: { uri: 'https://www.logga.space/food/fish-pepper-soup.jpg' },
+      image: { uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJJ88UrNyOBTZ53Npuzs-hIBQtKxXCcAw9mQ&s' },
       cooked: [
         { name: 'Pepper Soup Broth', sizes: { Small: 60, Medium: 100, Large: 150 }, defaultSize: 'Medium', protein: 2, carbs: 4, fat: 1 },
         { name: 'Catfish', sizes: { Small: 100, Medium: 180, Large: 260 }, defaultSize: 'Medium', protein: 26, carbs: 0, fat: 5 },
@@ -196,7 +196,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
       ],
     },
     'Plantain & Egg Sauce': {
-      image: { uri: 'https://www.logga.space/food/plantain-eggs.jpg' },
+      image: { uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFC5A5GVaaXRxZNY5M89-DEsTGXC5IjHK1wQ&s' },
       cooked: [
         { name: 'Fried Plantain', sizes: { '3 slices': 105, '5 slices': 175, '8 slices': 280 }, defaultSize: '5 slices', protein: 1, carbs: 25, fat: 9 },
         { name: 'Egg Sauce', sizes: { Small: 130, Medium: 220, Large: 310 }, defaultSize: 'Medium', protein: 12, carbs: 3, fat: 14 },
@@ -210,7 +210,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
       ],
     },
     'Okra Soup & Fufu': {
-      image: { uri: 'https://www.logga.space/food/okra-soup.jpg' },
+      image: { uri: 'https://i.ytimg.com/vi/bV2sg6mmSH8/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLDvW2kzS1kNR0zdRUZaHFvvl8gb6Q' },
       cooked: [
         { name: 'Fufu', sizes: { Small: 180, Medium: 300, Large: 450 }, defaultSize: 'Medium', protein: 2, carbs: 45, fat: 0.5 },
         { name: 'Okra Soup', sizes: { Small: 130, Medium: 250, Large: 380 }, defaultSize: 'Medium', protein: 15, carbs: 4, fat: 16 },
@@ -532,11 +532,11 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
             <Text style={styles.recipeSectionTitle}>🔥 Trending Now</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {[
-                { name: 'Jollof Rice & Grilled Chicken', time: '45 min', image: { uri: 'https://www.logga.space/food/jollof-chicken.jpg' } },
-                { name: 'Egusi Soup & Pounded Yam', time: '50 min', image: { uri: 'https://www.logga.space/food/pounded-yam.jpg' } },
-                { name: 'Suya Spiced Grilled Fish', time: '30 min', image: { uri: 'https://www.logga.space/food/suya.jpg' } },
-                { name: 'Injera with Misir Wot', time: '40 min', image: { uri: 'https://www.logga.space/food/injera.jpg' } },
-                { name: 'Waakye with Shito', time: '35 min', image: { uri: 'https://www.logga.space/food/waakye.jpg' } },
+                { name: 'Jollof Rice & Grilled Chicken', time: '45 min', image: { uri: 'https://www.foodfusion.com/wp-content/uploads/2025/07/Nigerian-Jollof-Rice-with-Grilled-Chicken-5.jpg' } },
+                { name: 'Egusi Soup & Pounded Yam', time: '50 min', image: { uri: 'https://nutriscan.app/calories-nutrition/images/egusi-soup-fe0df.webp' } },
+                { name: 'Suya Spiced Grilled Fish', time: '30 min', image: { uri: 'https://cheflolaskitchen.com/wp-content/uploads/2023/01/nigerian-suya-34-1024x717.jpg.webp' } },
+                { name: 'Injera with Misir Wot', time: '40 min', image: { uri: 'https://assets.nourishingmeals.com/sites/default/files/styles/fullscreen_banner/public/media/ETHIOPIOAN%20RED%20LENTIL%20STEW%20-%20MISIR%20WAT-1.jpg?h=5554a5ef' } },
+                { name: 'Waakye with Shito', time: '35 min', image: { uri: 'https://img-global.cpcdn.com/steps/3da1defa2c4ac461/400x400cq80/photo.jpg' } },
               ].map((item, i) => (
                 <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(item.name))}>
                   <View>
@@ -554,9 +554,9 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
             <Text style={styles.recipeSectionTitle}>⭐ This Week's Picks</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {[
-                { name: 'Pepper Soup with Catfish', time: '35 min', image: { uri: 'https://www.logga.space/food/fish-pepper-soup.jpg' } },
-                { name: 'Plantain & Egg Sauce', time: '15 min', image: { uri: 'https://www.logga.space/food/plantain-eggs.jpg' } },
-                { name: 'Okra Soup & Fufu', time: '40 min', image: { uri: 'https://www.logga.space/food/okra-soup.jpg' } },
+                { name: 'Pepper Soup with Catfish', time: '35 min', image: { uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJJ88UrNyOBTZ53Npuzs-hIBQtKxXCcAw9mQ&s' } },
+                { name: 'Plantain & Egg Sauce', time: '15 min', image: { uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFC5A5GVaaXRxZNY5M89-DEsTGXC5IjHK1wQ&s' } },
+                { name: 'Okra Soup & Fufu', time: '40 min', image: { uri: 'https://i.ytimg.com/vi/bV2sg6mmSH8/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLDvW2kzS1kNR0zdRUZaHFvvl8gb6Q' } },
               ].map((item, i) => (
                 <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(item.name))}>
                   <View>
@@ -574,12 +574,12 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
             <Text style={styles.recipeSectionTitle}>Popular Categories</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {[
-                { name: 'Soups', image: { uri: 'https://www.logga.space/food/goat-pepper-soup.jpg' } },
-                { name: 'Stews', image: { uri: 'https://www.logga.space/food/chicken-stew.jpg' } },
-                { name: 'Swallows', image: { uri: 'https://www.logga.space/food/fufu.jpg' } },
-                { name: 'Fried', image: { uri: 'https://www.logga.space/food/kelewele.jpg' } },
-                { name: 'Grilled', image: { uri: 'https://www.logga.space/food/grilled-tilapia.jpg' } },
-                { name: 'Snacks', image: { uri: 'https://www.logga.space/food/puff-puff.jpg' } },
+                { name: 'Soups', image: { uri: 'https://www.seriouseats.com/thmb/RlxyVRR_JeCXwqZh7J3-RrntUB0=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/__opt__aboutcom__coeus__resources__content_migration__serious_eats__seriouseats.com__recipes__images__2017__06__20170511-groundnut-soup-vicky-wasik-2-2-e832005ef69c473f8f45a0a2a91f7775.jpg' } },
+                { name: 'Stews', image: { uri: 'https://www.mydiasporakitchen.com/wp-content/uploads/2025/05/Nigerian-chicken-stew-recipe-0.jpeg' } },
+                { name: 'Swallows', image: { uri: 'https://upload.wikimedia.org/wikipedia/commons/8/85/Eba_Swallow.jpg' } },
+                { name: 'Fried', image: { uri: 'https://upload.wikimedia.org/wikipedia/commons/3/37/Kelewele.jpg' } },
+                { name: 'Grilled', image: { uri: 'https://www.finedininglovers.com/sites/default/files/styles/1_1_768x768/public/recipe_content_images/Whole%20Baked%20Tilapia_Photo%20by%20Nassima%20Rothaker%20%281%29.jpg.webp?itok=ZFsudwz6' } },
+                { name: 'Snacks', image: { uri: 'https://kikifoodies.com/wp-content/uploads/2024/11/E685E539-B688-4131-BFFE-2288C9899A61-scaled.jpeg' } },
               ].map((cat, i) => (
                 <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => setSelectedCategory(cat.name)}>
                   <Image source={cat.image} style={styles.trendingCardImage} resizeMode="cover" />
