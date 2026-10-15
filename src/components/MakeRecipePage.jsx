@@ -10,6 +10,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
 import { useSubscription } from '../lib/subscription';
 import { unlock } from './ProLock';
+import { useSavedRecipes, toggleSavedRecipe } from '../lib/savedRecipes';
 
 // ── Ingredient amount scaler ─────────────────────────────────────────────────
 
@@ -63,7 +64,8 @@ const scaleAmount = (amount, scale) => {
 
 // ── Recipe Detail Popup ──────────────────────────────────────────────────────
 
-export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry }) => {
+export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCountry, userId }) => {
+  const savedIds = useSavedRecipes(userId);
   const [servings, setServings] = useState(1);
   const [communityPhotos, setCommunityPhotos] = useState([]);
   const [communityCard, setCommunityCard] = useState(null);
@@ -132,6 +134,16 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
           <TouchableOpacity style={detail.closeBtn} onPress={onClose}>
             <Text style={detail.closeX}>✕</Text>
           </TouchableOpacity>
+          <View style={{ flex: 1 }} />
+          {userId ? (
+            <TouchableOpacity
+              style={[detail.closeBtn, { marginRight: onLogMeal ? 10 : 0 }]}
+              onPress={() => toggleSavedRecipe(userId, recipe.id)}
+              accessibilityLabel={savedIds.includes(recipe.id) ? 'Remove from saved recipes' : 'Save recipe'}
+            >
+              <Ionicons name={savedIds.includes(recipe.id) ? 'bookmark' : 'bookmark-outline'} size={17} color={savedIds.includes(recipe.id) ? '#059669' : '#4B5563'} />
+            </TouchableOpacity>
+          ) : null}
           {onLogMeal && (
             <TouchableOpacity style={detail.logBtn} onPress={() => { onLogMeal({ ...recipe, calories: scaled(recipe.calories), protein: scaled(recipe.protein), carbs: scaled(recipe.carbs), fats: scaled(recipe.fats), servings }); onClose(); }}>
               <Text style={detail.logBtnText}>Log Meal</Text>
@@ -475,7 +487,9 @@ const recipesForCountry = (country) => {
   return [...matched, ...AFRICAN_RECIPES.filter(r => !matched.includes(r))];
 };
 
-const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
+const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
+  const savedIds = useSavedRecipes(userId);
+  const [showSaved, setShowSaved] = useState(false);
   // The search box is well down the page. When the keyboard opens we scroll the page so the box sits at the
   // top of what is left on screen (and add room at the bottom so there is something to scroll into).
   const pageScrollRef = useRef(null);
@@ -529,7 +543,8 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
       r.name.toLowerCase().includes(q) ||
       r.category.toLowerCase().includes(q) ||
       r.description.toLowerCase().includes(q) ||
-      Object.values(r.localNames || {}).some(n => n.toLowerCase().includes(q))
+      Object.values(r.localNames || {}).some(n => n.toLowerCase().includes(q)) ||
+      (r.ingredients || []).some(ing => (ing.name || '').toLowerCase().includes(q))
     );
   }, [searchQuery, visibleRecipes]);
 
@@ -676,13 +691,13 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
     // the tab bar stays visible, since this now only renders as the Ideas tab.
     <View style={[styles.overlay, showCamera && { zIndex: 9999 }]}>
       <View style={styles.page}>
-        {/* Header */}
+        {/* Header: Recipes is a tab now, so no back arrow; the bookmark opens saved recipes */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={onClose}>
-            <Ionicons name="chevron-back" size={24} color="#059669" />
+          <View style={{ width: 44 }} />
+          <Text style={styles.pageTitle}>Recipes</Text>
+          <TouchableOpacity style={styles.headerIconBtn} onPress={() => setShowSaved(true)} accessibilityLabel="Saved recipes">
+            <Ionicons name={savedIds.length ? 'bookmark' : 'bookmark-outline'} size={19} color="#1F1F1F" />
           </TouchableOpacity>
-          <Text style={styles.pageTitle}>Make a Recipe</Text>
-          <View style={{ width: 40 }} />
         </View>
 
         <ScrollView
@@ -694,39 +709,66 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
           automaticallyAdjustKeyboardInsets
           contentContainerStyle={{ paddingBottom: searchFocused ? 420 : 100 }}
         >
-          {/* Action cards — hidden for now */}
+          <Text style={styles.pageHeading}>What sounds good today?</Text>
+
+          {/* Search */}
+          <View style={styles.searchBar} onLayout={(e) => { searchY.current = e.nativeEvent.layout.y; }}>
+            <Ionicons name="search" size={17} color="#4B5563" style={{ marginRight: 10 }} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Find a recipe or ingredient..."
+              placeholderTextColor="#9CA3AF"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onFocus={() => {
+                setSearchFocused(true);
+                setTimeout(() => pageScrollRef.current?.scrollTo({ y: Math.max(0, searchY.current - 12), animated: true }), 150);
+              }}
+              onBlur={() => setSearchFocused(false)}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityLabel="Clear search">
+                <Ionicons name="close-circle" size={16} color="#ccc" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Snap It / List It (Pro) */}
           {SHOW_RECIPE_CREATORS && (<View style={styles.actionRow}>
-            <TouchableOpacity style={styles.actionCard} onPress={() => (isPro ? openCamera() : unlock('recipe_photo'))}>
-              <View style={[styles.actionIconBg, { backgroundColor: '#ECFDF5' }]}>
-                <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                  <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                  <Circle cx="12" cy="13" r="4" />
-                </Svg>
-              </View>
-              {!isPro && (
-                <View style={styles.actionProBadge}>
-                  <Text style={styles.actionProBadgeText}>PRO</Text>
-                </View>
-              )}
-              <Text style={styles.actionTitle}>Snap it</Text>
-              <Text style={styles.actionDesc}>Photo your fridge or pantry</Text>
+            <TouchableOpacity style={styles.actionCard} onPress={() => (isPro ? openCamera() : unlock('recipe_photo'))} accessibilityLabel="Snap It, cook with what you have">
+              <Ionicons name="camera-outline" size={22} color="#16A34A" />
+              <Text style={styles.actionTitle}>Snap It</Text>
+              <Text style={styles.actionDesc}>Cook with what you have</Text>
+              {!isPro && <View style={styles.proPill}><Text style={styles.proPillText}>PRO</Text></View>}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionCard} onPress={() => (isPro ? setListOpen(v => !v) : unlock('recipe_photo'))}>
-              <View style={[styles.actionIconBg, { backgroundColor: '#EFF6FF' }]}>
-                <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                  <Path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <Path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </Svg>
-              </View>
-              {!isPro && (
-                <View style={styles.actionProBadge}>
-                  <Text style={styles.actionProBadgeText}>PRO</Text>
-                </View>
-              )}
-              <Text style={styles.actionTitle}>List it</Text>
-              <Text style={styles.actionDesc}>Type what you have</Text>
+            <TouchableOpacity style={styles.actionCard} onPress={() => (isPro ? setListOpen(v => !v) : unlock('recipe_photo'))} accessibilityLabel="List It, enter your ingredients">
+              <Ionicons name="clipboard-outline" size={22} color="#16A34A" />
+              <Text style={styles.actionTitle}>List It</Text>
+              <Text style={styles.actionDesc}>Enter your ingredients</Text>
+              {!isPro && <View style={styles.proPill}><Text style={styles.proPillText}>PRO</Text></View>}
             </TouchableOpacity>
           </View>)}
+
+          {/* Shop It (Pro): the grocery list isn't built yet */}
+          <TouchableOpacity
+            style={styles.shopRow}
+            activeOpacity={0.85}
+            onPress={() => (isPro
+              ? Alert.alert('Coming soon', "Shop It will build your grocery list from the meals you plan to cook. We're still working on it.")
+              : unlock('shop_it'))}
+            accessibilityLabel="Shop It, build your grocery list"
+          >
+            <View style={styles.shopIcon}><Ionicons name="basket-outline" size={22} color="#16A34A" /></View>
+            <View style={{ flex: 1, gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={styles.shopTitle}>Shop It</Text>
+                <View style={[styles.proPill, { marginTop: 0 }]}><Text style={styles.proPillText}>PRO</Text></View>
+              </View>
+              <Text style={styles.actionDesc}>Build your grocery list for your meal(s)</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={16} color="#1F1F1F" />
+          </TouchableOpacity>
 
           {listOpen && isPro && (
             <View style={styles.listBox}>
@@ -782,29 +824,6 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
               </ScrollView>
             </View>
           )}
-
-          {/* Search */}
-          <View style={styles.searchBar} onLayout={(e) => { searchY.current = e.nativeEvent.layout.y; }}>
-            <Ionicons name="search" size={16} color="#999" style={{ marginRight: 8 }} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search recipes..."
-              placeholderTextColor="#999"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onFocus={() => {
-                setSearchFocused(true);
-                setTimeout(() => pageScrollRef.current?.scrollTo({ y: Math.max(0, searchY.current - 12), animated: true }), 150);
-              }}
-              onBlur={() => setSearchFocused(false)}
-              returnKeyType="search"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={16} color="#ccc" />
-              </TouchableOpacity>
-            )}
-          </View>
 
           {/* Search results */}
           {searchQuery.trim().length > 0 ? (
@@ -914,13 +933,53 @@ const MakeRecipePage = ({ show, onClose, onLogMeal, userCountry }) => {
         </View>
       )}
 
+      {/* Saved recipes */}
+      <Modal visible={showSaved} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowSaved(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F2F2F2' }}>
+          <View style={styles.savedHeader}>
+            <TouchableOpacity style={styles.headerIconBtn} onPress={() => setShowSaved(false)} accessibilityLabel="Close">
+              <Ionicons name="chevron-down" size={24} color="#1F1F1F" />
+            </TouchableOpacity>
+            <Text style={styles.pageTitle}>Saved recipes</Text>
+            <View style={{ width: 44 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+            {(() => {
+              const saved = savedIds.map(id => AFRICAN_RECIPES.find(r => r.id === id)).filter(Boolean);
+              if (!saved.length) return (
+                <View style={{ alignItems: 'center', paddingVertical: 80 }}>
+                  <Ionicons name="bookmark-outline" size={32} color="#9CA3AF" />
+                  <Text style={styles.savedEmptyTitle}>No saved recipes yet</Text>
+                  <Text style={styles.savedEmptySub}>Tap the bookmark on any recipe to keep it here.</Text>
+                </View>
+              );
+              return (
+                <View style={styles.savedGrid}>
+                  {saved.map(recipe => renderRecipeCard(recipe))}
+                </View>
+              );
+            })()}
+          </ScrollView>
+        </SafeAreaView>
+        {/* The recipe opens over the saved list */}
+        <RecipeDetailModal
+          recipe={selectedRecipe}
+          visible={detailVisible && showSaved}
+          onClose={() => setDetailVisible(false)}
+          onLogMeal={(r) => { setShowSaved(false); onLogMeal && onLogMeal(r); }}
+          userCountry={userCountry}
+          userId={userId}
+        />
+      </Modal>
+
       {/* Recipe Detail Modal */}
       <RecipeDetailModal
         recipe={selectedRecipe}
-        visible={detailVisible}
+        visible={detailVisible && !showSaved}
         onClose={() => setDetailVisible(false)}
         onLogMeal={onLogMeal}
         userCountry={userCountry}
+        userId={userId}
       />
     </View>
   );
@@ -932,46 +991,36 @@ const styles = StyleSheet.create({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: '#FAFAFA',
-    // Below BottomTabBar's zIndex (20) — this now only renders as the Ideas
-    // tab, so the tab bar should stay visible on top of it, not be covered.
+    backgroundColor: '#F2F2F2',
+    // Below BottomTabBar's zIndex (20): this is the Recipes tab, so the tab bar stays on top.
     zIndex: 1,
   },
   page: { flex: 1, flexDirection: 'column' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingBottom: 14, paddingTop: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 12, paddingBottom: 8, paddingTop: 10,
   },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(5,150,105,0.08)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  pageTitle: { fontSize: 18, fontWeight: '600', color: '#1F1F1F' },
+  headerIconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  pageTitle: { fontSize: 17, fontWeight: '600', color: '#1F1F1F' },
+  pageHeading: { fontSize: 22, fontWeight: '700', color: '#1F1F1F', letterSpacing: -0.3, marginBottom: 8 },
   content: { flex: 1, paddingHorizontal: 20 },
 
-  actionRow: { flexDirection: 'row', gap: 12, marginTop: 20, marginBottom: 20 },
-  actionCard: {
-    flex: 1, backgroundColor: '#fff', borderRadius: 20, padding: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 10, elevation: 3,
-    overflow: 'hidden', position: 'relative',
+  actionRow: { flexDirection: 'row', gap: 10 },
+  actionCard: { flex: 1, backgroundColor: '#E2E9E4', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
+  actionTitle: { fontSize: 16, fontWeight: '600', color: '#1F1F1F', marginTop: 8 },
+  actionDesc: { fontSize: 12, color: '#4B5563', marginTop: 3 },
+  proPill: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 3, paddingHorizontal: 9, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.06)' },
+  proPillText: { fontSize: 11, fontWeight: '700', color: '#1F1F1F' },
+  shopRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 10, marginBottom: 18,
+    backgroundColor: '#FCFCFC', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
   },
-  actionIconBg: {
-    width: 56, height: 56, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
-  },
-  actionTitle: { fontSize: 18, fontWeight: '700', color: '#1F1F1F', lineHeight: 22, marginBottom: 6 },
-  actionDesc: { fontSize: 12, color: '#888', lineHeight: 16 },
-  actionProBadge: {
-    position: 'absolute', top: 10, right: 10,
-    backgroundColor: '#0B3D2E', borderRadius: 8,
-    paddingHorizontal: 7, paddingVertical: 3,
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-  },
-  actionProBadgeText: { fontSize: 9, fontWeight: '800', color: '#6EE7B7', letterSpacing: 0.8 },
+  shopIcon: { width: 50, height: 50, borderRadius: 10, backgroundColor: '#F0F2F1', alignItems: 'center', justifyContent: 'center' },
+  shopTitle: { fontSize: 16, fontWeight: '600', color: '#1F1F1F' },
+  savedHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 8 },
+  savedGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 16 },
+  savedEmptyTitle: { fontSize: 16, fontWeight: '700', color: '#1F1F1F', marginTop: 12 },
+  savedEmptySub: { fontSize: 13, color: '#6B7280', marginTop: 4, textAlign: 'center' },
   listBox: { backgroundColor: '#fff', borderRadius: 16, padding: 12, marginBottom: 20, borderWidth: 1.5, borderColor: 'rgba(5,150,105,0.12)' },
   listInput: { minHeight: 64, fontSize: 15, color: '#1F1F1F', textAlignVertical: 'top' },
   listBtn: { marginTop: 8, height: 44, borderRadius: 12, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' },
@@ -979,14 +1028,13 @@ const styles = StyleSheet.create({
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderRadius: 14,
-    paddingVertical: 12, paddingHorizontal: 14,
-    borderWidth: 1.5, borderColor: 'rgba(5,150,105,0.12)',
-    marginBottom: 20,
+    backgroundColor: '#FCFCFC', borderRadius: 10,
+    paddingVertical: 13, paddingHorizontal: 14,
+    marginBottom: 14,
   },
   searchInput: { flex: 1, fontSize: 14, color: '#1F1F1F' },
 
-  section: { marginBottom: 28 },
+  section: { marginBottom: 18 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1F1F1F', marginBottom: 4 },
   sectionSubtitle: { fontSize: 12, color: '#888', marginBottom: 12 },
   cardScroll: { marginHorizontal: -20, paddingHorizontal: 20, marginTop: 8 },

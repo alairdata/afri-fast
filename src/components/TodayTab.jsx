@@ -9,10 +9,43 @@ import { useSubscription } from '../lib/subscription';
 import { unlock } from './ProLock';
 import FormattedText from '../lib/FormattedText';
 import { resolveCalorieGoal, resolveCaloriesEaten, buildDailyLedgerMap } from '../lib/goalHistory';
-import LiquidCalorieRing from './LiquidCalorieRing';
 import { SourceList, SourcesLink } from './HealthSourcesPage';
+import { DayMealsCard, ShimmerLogButton } from './MealPages';
+import Svg, { Path } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Half-circle calorie gauge made of 16 rounded segments; filled ones are what's been eaten.
+// Drawn in a 316x158 box and scaled to the card.
+const GAUGE_W = Math.min(316, SCREEN_WIDTH - 76);
+const GAUGE_SEGMENTS = 16;
+const GAUGE_GAP_DEG = 4.2;
+const gaugeSegmentPaths = (() => {
+  const cx = 158, cy = 152, R = 148, r = 98;
+  const seg = (180 - GAUGE_GAP_DEG * (GAUGE_SEGMENTS - 1)) / GAUGE_SEGMENTS;
+  const pt = (rad, deg) => {
+    const a = (deg * Math.PI) / 180;
+    return `${(cx + rad * Math.cos(a)).toFixed(1)} ${(cy - rad * Math.sin(a)).toFixed(1)}`;
+  };
+  return Array.from({ length: GAUGE_SEGMENTS }, (_, i) => {
+    const a0 = 180 - i * (seg + GAUGE_GAP_DEG);
+    const a1 = a0 - seg;
+    return `M${pt(r, a0)} L${pt(R, a0)} A${R} ${R} 0 0 1 ${pt(R, a1)} L${pt(r, a1)} A${r} ${r} 0 0 0 ${pt(r, a0)} Z`;
+  });
+})();
+
+const CalorieGauge = ({ ratio, over, width }) => {
+  const filled = over ? GAUGE_SEGMENTS : Math.round(Math.max(0, Math.min(ratio, 1)) * GAUGE_SEGMENTS);
+  const on = over ? '#EF4444' : '#059669';
+  return (
+    <Svg width={width} height={width / 2} viewBox="0 0 316 158">
+      {gaugeSegmentPaths.map((d, i) => {
+        const color = i < filled ? on : '#E3F4EA';
+        return <Path key={i} d={d} fill={color} stroke={color} strokeWidth={6} strokeLinejoin="round" />;
+      })}
+    </Svg>
+  );
+};
 // Horizontal-scroll cards: size so the first card nearly fills the viewport
 // and the next one peeks in at the edge, inviting a scroll. 20 = section's
 // side gutter (x2), 28 = how much of the next card shows.
@@ -451,6 +484,14 @@ const TodayTab = ({
   eatingStyle,
   eatingWindow,
   onOpenSettings,
+  selectedDate,
+  onSelectDate,
+  onShowLogMeal,
+  onViewMeal,
+  onRequestDeleteMeal,
+  onOpenMealHistory,
+  onOpenNotifications,
+  notifUnseen = 0,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
@@ -812,6 +853,45 @@ const TodayTab = ({
   };
   const calHistory = getWeekCalHistory();
 
+  // The day picked in the week strip (today unless another day was tapped).
+  const selectedDay = selectedDate || new Date();
+  const selDateStr = selectedDay.toDateString();
+  const selIsToday = selDateStr === new Date().toDateString();
+  const selMeals = (recentMeals || []).filter(m => m.date === selDateStr);
+  const selLive = selMeals.reduce((s, m) => s + (m.calories || 0), 0);
+  // Past days use the ledger's settled total and the goal that was active that day.
+  const selCalories = selIsToday ? selLive : resolveCaloriesEaten(ledgerMap, selDateStr, selLive);
+  const selGoal = selIsToday ? (dailyCalorieGoal || 0) : (resolveCalorieGoal(ledgerMap, goalHistory, selDateStr, dailyCalorieGoal) || 0);
+  const selRatio = selGoal > 0 ? Math.min(selCalories / selGoal, 1) : 0;
+  const selRemaining = Math.max(selGoal - selCalories, 0);
+  const selOver = selGoal > 0 && selCalories > selGoal;
+  const sumMacro = (k) => Math.round(selMeals.reduce((s, m) => s + (m[k] || 0), 0) * 10) / 10;
+  const selMacros = { protein: sumMacro('protein'), carbs: sumMacro('carbs'), fats: sumMacro('fats') };
+
+  const hourNow = new Date().getHours();
+  const greeting = hourNow < 12 ? 'Good morning!' : hourNow < 17 ? 'Good afternoon!' : 'Good evening!';
+
+  // Sunday to Saturday of this week; days still to come can't be picked.
+  const stripDays = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - today.getDay());
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(sunday);
+      date.setDate(sunday.getDate() + i);
+      return {
+        key: date.toDateString(),
+        date,
+        name: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        num: date.getDate(),
+        future: date > today,
+        selected: date.toDateString() === selDateStr,
+        a11y: date.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' }),
+      };
+    });
+  })();
+
   // Today's articles for the Based on Your Pattern row (Just for You shows insights only).
   const patternCards = getDailyArticles(5);
 
@@ -819,75 +899,104 @@ const TodayTab = ({
 
   return (
     <View style={styles.wrapper}>
-      {/* Header */}
-      <View style={styles.headerCompact}>
-        <TouchableOpacity style={styles.avatarSmall} onPress={onOpenSettings} accessibilityLabel="Open settings">
-          {profileImage ? (
-            <Image source={{ uri: profileImage }} style={styles.avatarImageSmall} />
-          ) : (
-            <Text style={styles.avatarTextSmall}>{getInitials(userName)}</Text>
-          )}
-        </TouchableOpacity>
-        <View style={styles.dateContainer}>
-          <Text style={styles.dateTextSmall}>{formatDate()}</Text>
-        </View>
-        <TouchableOpacity style={styles.calendarBtnSmall} onPress={onShowCalendar}>
-          <Ionicons name="calendar-outline" size={20} color={colors.text} />
-        </TouchableOpacity>
-      </View>
-
       {Platform.OS === 'web' && <View style={{ height: 44 }} />}
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}>
-        {/* Calorie Ring Hero */}
+        {/* Header: greeting, calendar, notifications, and the week strip that picks the day shown below */}
+        <LinearGradient colors={isDark ? [colors.appBg, colors.appBg] : ['#CFF3DE', '#E9F8EF', colors.appBg]} locations={isDark ? undefined : [0, 0.55, 1]} style={styles.greetHeader}>
+          <View style={styles.greetRow}>
+            <TouchableOpacity style={styles.greetAvatar} onPress={onOpenSettings} accessibilityLabel="Open settings">
+              {profileImage ? (
+                <Image source={{ uri: profileImage }} style={styles.greetAvatarImg} />
+              ) : (
+                <Text style={styles.greetAvatarText}>{getInitials(userName)}</Text>
+              )}
+            </TouchableOpacity>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.greetHello}>{greeting}</Text>
+              <Text style={styles.greetName} numberOfLines={1}>{(userName || '').trim().split(/\s+/)[0] || 'Welcome back'}</Text>
+            </View>
+            <TouchableOpacity style={styles.greetIconBtn} onPress={onShowCalendar} accessibilityLabel="Calendar">
+              <Ionicons name="calendar-outline" size={20} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.greetIconBtn} onPress={onOpenNotifications} accessibilityLabel={notifUnseen ? `Notifications, ${notifUnseen} new` : 'Notifications'}>
+              <Ionicons name="notifications-outline" size={20} color={colors.text} />
+              {notifUnseen > 0 && <View style={styles.greetBellDot} />}
+            </TouchableOpacity>
+          </View>
+          <View style={styles.weekStrip}>
+            {stripDays.map((d) => (
+              <TouchableOpacity
+                key={d.key}
+                style={[styles.weekDay, d.selected && styles.weekDaySelected]}
+                disabled={d.future}
+                onPress={() => onSelectDate && onSelectDate(d.date)}
+                accessibilityLabel={d.a11y}
+                accessibilityState={{ selected: d.selected, disabled: d.future }}
+              >
+                <Text style={[styles.weekDayName, d.selected && styles.weekDayNameSelected]}>{d.name}</Text>
+                <View style={[styles.weekDayNum, d.selected && styles.weekDayNumSelected]}>
+                  <Text style={[styles.weekDayNumText, d.future && { color: '#9CA3AF' }, d.selected && { color: '#059669' }]}>{d.num}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </LinearGradient>
+
+        {/* Calorie gauge hero, for the day picked above */}
         <View style={styles.heroCardCompact}>
           <View style={styles.heroContent}>
-            <TouchableOpacity style={styles.fastTypeBadge} onPress={onShowCalorieTarget || onNavigateToProgress}>
-              <Text style={styles.fastTypeBadgeText}>
-                {dailyCalorieGoal ? `${dailyCalorieGoal.toLocaleString()} cal daily goal` : 'Set a calorie goal'}
+            <View style={{ width: GAUGE_W, height: GAUGE_W / 2 }}>
+              <CalorieGauge ratio={selRatio} over={selOver} width={GAUGE_W} />
+              <View style={styles.gaugeCenter}>
+                <Ionicons name="flame" size={24} color={selOver ? '#EF4444' : '#FB923C'} />
+                <Text style={styles.gaugeNumber}>
+                  {selOver
+                    ? `+${(selCalories - selGoal).toLocaleString()}`
+                    : selGoal ? selRemaining.toLocaleString() : '--'}
+                </Text>
+                <Text style={[styles.gaugeLabel, selOver && { color: '#EF4444' }]}>
+                  {selOver ? 'Over goal' : selRemaining === 0 && selGoal ? 'Goal met' : 'Remaining'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.goalChip} onPress={onShowCalorieTarget || onNavigateToProgress}>
+              <Text style={styles.goalChipText}>
+                {selGoal ? `${selGoal.toLocaleString()} cal goal` : 'Set a calorie goal'}
               </Text>
-              <Ionicons name="chevron-forward" size={14} color="#059669" />
+              <Ionicons name="chevron-forward" size={13} color="#047857" />
             </TouchableOpacity>
 
-            <View style={styles.progressRingSmall}>
-              <LiquidCalorieRing ratio={calRatio} size={200} />
-              <View style={styles.progressInnerSmall}>
-                <Text style={[styles.fastingLabelSmall, isCalOver && { color: '#EF4444' }]}>
-                  {isCalOver ? 'OVER GOAL' : calRemaining === 0 && dailyCalorieGoal ? 'GOAL MET' : 'REMAINING'}
-                </Text>
-                <Text style={[styles.timeDisplayCompact, { fontSize: 36 }]}>
-                  {isCalOver
-                    ? `+${(todayCalories - (dailyCalorieGoal || 0)).toLocaleString()}`
-                    : dailyCalorieGoal ? calRemaining.toLocaleString() : '--'}
-                </Text>
-                <Text style={[styles.stageTextSmall, isCalOver && { color: '#EF4444' }]}>cal</Text>
+            <View style={styles.dayNutrition}>
+              <Text style={styles.dayNutritionTitle}>{selIsToday ? "Today's Nutrition" : `${selectedDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}'s Nutrition`}</Text>
+              <View style={styles.dayNutritionRow}>
+                {[
+                  [selCalories.toLocaleString(), 'Calories'],
+                  [`${selMacros.protein}g`, 'Protein'],
+                  [`${selMacros.carbs}g`, 'Carbs'],
+                  [`${selMacros.fats}g`, 'Fats'],
+                ].map(([value, label], i) => (
+                  <React.Fragment key={label}>
+                    {i > 0 && <View style={styles.dayNutritionDivider} />}
+                    <View style={styles.dayNutritionStat}>
+                      <Text style={styles.dayNutritionValue}>{value}</Text>
+                      <Text style={styles.dayNutritionLabel}>{label}</Text>
+                    </View>
+                  </React.Fragment>
+                ))}
               </View>
             </View>
 
-            <View style={styles.fastTimesRow}>
-              <View style={styles.fastTimeBlock}>
-                <Text style={styles.fastTimeLabel}>EATEN</Text>
-                <Text style={styles.fastTimeValue}>{todayCalories > 0 ? todayCalories.toLocaleString() : '--'}</Text>
-                <Text style={styles.fastTimeDate}>calories</Text>
-              </View>
-              <View style={styles.fastTimeDivider} />
-              <View style={styles.fastTimeBlock}>
-                <Text style={styles.fastTimeLabel}>GOAL</Text>
-                <Text style={styles.fastTimeValue}>{dailyCalorieGoal ? dailyCalorieGoal.toLocaleString() : '--'}</Text>
-                <Text style={styles.fastTimeDate}>calories</Text>
-              </View>
+            <View style={{ marginTop: 16, marginBottom: 2 }}>
+              <ShimmerLogButton compact onPress={onShowLogMeal} />
             </View>
-
-            <TouchableOpacity style={styles.checkInBtnIntegrated} onPress={onShowCheckInPage}>
-              <Text style={styles.checkInIcon}>+</Text>
-              <Text style={styles.checkInText}>Check In</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
 
         {/* Just for You — daily AI coach insight */}
-        <View style={[styles.sectionTight, { marginTop: 8 }]}>
+        <View style={[styles.sectionTight, { marginTop: 12 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
               <Ionicons name="bulb-outline" size={16} color={colors.text} />
@@ -946,8 +1055,19 @@ const TodayTab = ({
           </ScrollView>
         </View>
 
-        {/* Based on Your Pattern (same 24pt gap as This Week -> Your Stats) */}
-        <View style={[styles.sectionTight, { marginTop: 24 }]}>
+        {/* Meals of the day picked in the week strip (was the Meals tab) */}
+        <View style={{ marginTop: 16, paddingHorizontal: 12 }}>
+          <DayMealsCard
+            date={selectedDay}
+            recentMeals={recentMeals}
+            onViewMeal={onViewMeal}
+            onRequestDelete={onRequestDeleteMeal}
+            onOpenHistory={onOpenMealHistory}
+          />
+        </View>
+
+        {/* Based on Your Pattern */}
+        <View style={[styles.sectionTight, { marginTop: 16 }]}>
           <Text style={styles.sectionTitleTight}>Based on Your Pattern</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.patternScrollCompact}>
             {patternCards.map((card, i) => (
@@ -961,7 +1081,7 @@ const TodayTab = ({
         </View>
 
         {/* This Week */}
-        <View style={[styles.sectionTight, { marginTop: 24 }]}>
+        <View style={[styles.sectionTight, { marginTop: 16 }]}>
           <View style={styles.historyHeader}>
             <Text style={styles.sectionTitleTightInline}>This Week</Text>
             <TouchableOpacity onPress={onNavigateToProgress}>
@@ -1177,6 +1297,54 @@ const makeStyles = (c) => StyleSheet.create({
   wrapper: {
     flex: 1,
   },
+  greetHeader: { paddingTop: 14, paddingHorizontal: 20, paddingBottom: 8 },
+  greetRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  greetAvatar: {
+    width: 48, height: 48, borderRadius: 24, backgroundColor: '#059669', borderWidth: 2, borderColor: '#fff',
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+    shadowColor: '#059669', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12, elevation: 4,
+  },
+  greetAvatarImg: { width: 48, height: 48, borderRadius: 24 },
+  greetAvatarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  greetHello: { fontSize: 13, color: c.textSecondary },
+  greetName: { fontSize: 18, fontWeight: '700', color: c.text, letterSpacing: -0.3 },
+  greetIconBtn: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+  },
+  greetBellDot: { position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#fff' },
+  weekStrip: {
+    marginTop: 16, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 24, flexDirection: 'row', justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.75)', borderWidth: 1, borderColor: 'rgba(5,150,105,0.08)',
+  },
+  weekDay: { width: 42, paddingTop: 9, paddingBottom: 6, borderRadius: 22, backgroundColor: '#F1F6F3', alignItems: 'center', gap: 7 },
+  weekDaySelected: { backgroundColor: '#059669', shadowColor: '#059669', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 14, elevation: 4 },
+  weekDayName: { fontSize: 11, fontWeight: '500', color: '#9CA3AF' },
+  weekDayNameSelected: { fontWeight: '600', color: '#fff' },
+  weekDayNum: {
+    width: 30, height: 30, borderRadius: 15, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1,
+  },
+  weekDayNumSelected: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)' },
+  weekDayNumText: { fontSize: 13, fontWeight: '700', color: '#1F1F1F' },
+  gaugeCenter: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' },
+  gaugeNumber: { fontSize: 36, fontWeight: '700', color: c.text, letterSpacing: -1, lineHeight: 40, marginTop: 2 },
+  gaugeLabel: { fontSize: 14, color: c.textSecondary, marginTop: 2 },
+  goalChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, marginBottom: 14,
+    backgroundColor: '#D1FAE5', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20,
+  },
+  goalChipText: { fontSize: 12, fontWeight: '700', color: '#047857' },
+  dayNutrition: {
+    alignSelf: 'stretch', marginHorizontal: -12, paddingVertical: 16, paddingHorizontal: 16, borderRadius: 20,
+    backgroundColor: c.cardAlt === '#F3F4F6' ? '#F6F8F7' : c.cardAlt, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)',
+  },
+  dayNutritionTitle: { fontSize: 13, fontWeight: '600', color: c.textSecondary, marginBottom: 12 },
+  dayNutritionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dayNutritionStat: { flex: 1, alignItems: 'center', gap: 3 },
+  dayNutritionValue: { fontSize: 18, fontWeight: '700', color: c.text },
+  dayNutritionLabel: { fontSize: 11, color: c.textSecondary },
+  dayNutritionDivider: { width: 1, height: 30, backgroundColor: 'rgba(0,0,0,0.07)' },
   headerCompact: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1247,10 +1415,10 @@ const makeStyles = (c) => StyleSheet.create({
     overflow: 'hidden',
   },
   heroCardCompact: {
-    marginTop: 28,
+    marginTop: 2,
     marginHorizontal: 20,
-    padding: 16,
-    paddingBottom: 14,
+    padding: 14,
+    paddingHorizontal: 16,
     backgroundColor: c.card,
     borderRadius: 24,
     borderWidth: 1,

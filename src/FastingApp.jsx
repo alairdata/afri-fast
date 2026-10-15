@@ -42,7 +42,9 @@ import { buildDailyLedgerMap } from './lib/goalHistory';
 
 // Tab components
 import TodayTab from './components/TodayTab';
-import MealsTab from './components/MealsTab';
+import MealPages from './components/MealPages';
+import NotificationsPage from './components/NotificationsPage';
+import { loadInbox, recordNotifications, onInboxChange, getInbox, unseenCount } from './lib/notificationInbox';
 import ProgressTab from './components/ProgressTab';
 import SettingsTab from './components/SettingsTab';
 import BottomTabBar from './components/BottomTabBar';
@@ -249,7 +251,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   const [pendingInsightIndex, setPendingInsightIndex] = useState(null);
   const [showFindRecipePage, setShowFindRecipePage] = useState(false);
   const [showMakeRecipeModal, setShowMakeRecipeModal] = useState(false);
-  const [showMakeRecipePage, setShowMakeRecipePage] = useState(false);
+  const [showMealHistory, setShowMealHistory] = useState(false);
+  const [deletingMealId, setDeletingMealId] = useState(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifUnseen, setNotifUnseen] = useState(0);
   const [showFindRecipeModal, setShowFindRecipeModal] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editingTime, setEditingTime] = useState('start');
@@ -1244,7 +1249,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       if (!url) return;
       const host = String(url).replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split(/[/?#]/)[0];
       if (['log-meal', 'energy', 'today', 'water'].includes(host)) track(EVENTS.WIDGET_OPENED, { target: host });
-      if (host === 'log-meal') { setActiveTab('meals'); setShowLogMealOptions(true); }
+      if (host === 'log-meal') { setActiveTab('today'); setShowLogMealOptions(true); }
       else if (host === 'energy') setActiveTab('progress');
       else if (host === 'today' || host === 'water') setActiveTab('today');
     };
@@ -1252,6 +1257,20 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     const sub = Linking.addEventListener('url', (e) => handle(e.url));
     return () => sub.remove();
   }, []);
+
+  // In-app notifications (the bell on Today): keep every nudge that arrives, is tapped, or is
+  // still sitting in the notification centre when the app comes to the front.
+  useEffect(() => {
+    const unsubscribe = onInboxChange((state) => setNotifUnseen(unseenCount(state)));
+    if (Platform.OS === 'web' || !session?.user?.id) return unsubscribe;
+    let alive = true;
+    const sweep = () => Notifications.getPresentedNotificationsAsync().then((list) => { if (alive) recordNotifications(list); }).catch(() => {});
+    loadInbox(session.user.id).then(sweep);
+    const received = Notifications.addNotificationReceivedListener((n) => recordNotifications([n]));
+    const tapped = Notifications.addNotificationResponseReceivedListener((r) => recordNotifications([r.notification]));
+    const app = AppState.addEventListener('change', (state) => { if (state === 'active') sweep(); });
+    return () => { alive = false; unsubscribe(); received.remove(); tapped.remove(); app.remove(); };
+  }, [session?.user?.id]);
 
   // Handle taps on prediction notifications — navigate to the linked insight card
   useEffect(() => {
@@ -1265,10 +1284,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       } else if (data?.type === 'burnout') {
         setActiveTab('progress');
       } else if (data?.type === 'streak') {
-        setActiveTab('meals');
+        setActiveTab('today');
       } else if (data?.type === 'meal') {
         // "Snap your plate": straight to the logging options.
-        setActiveTab('meals');
+        setActiveTab('today');
         setShowLogMealOptions(true);
       } else if (data?.type === 'insight' || data?.type === 'water' || data?.type === 'movement') {
         setActiveTab('today');
@@ -2354,7 +2373,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           onUndoQuickWater={handleUndoQuickWater}
           eatingStyle={eatingStyle}
           eatingWindow={eatingWindow}
-          onNavigateToMeals={() => setActiveTab('meals')}
           onLogMeal={(recipe) => {
             if (!canLogMealOn(selectedMealDate)) return;
             setRecipeToLog(recipe);
@@ -2414,37 +2432,16 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           dailyGoalLedger={dailyGoalLedger}
           goalSource={goalSource}
           onOpenSettings={() => setActiveTab('settings')}
+          selectedDate={selectedMealDate}
+          onSelectDate={setSelectedMealDate}
+          onShowLogMeal={() => setShowLogMealOptions(true)}
+          onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setLogMealOpenedFromOptions(false); setShowLogMealModal(true); }}
+          onRequestDeleteMeal={(id) => setDeletingMealId(id)}
+          onOpenMealHistory={() => setShowMealHistory(true)}
+          onOpenNotifications={() => setShowNotifications(true)}
+          notifUnseen={notifUnseen}
           pendingInsightIndex={pendingInsightIndex}
           onClearPendingInsight={() => setPendingInsightIndex(null)}
-        />
-      )}
-
-      {activeTab === 'meals' && (
-        <MealsTab
-          selectedMealDate={selectedMealDate}
-          setSelectedMealDate={setSelectedMealDate}
-          recentMeals={recentMeals}
-          dailyCalorieGoal={dailyCalorieGoal}
-          isFasting={isFasting}
-          showLogMealOptions={showLogMealOptions}
-          setShowLogMealOptions={setShowLogMealOptions}
-          onLogMeal={startMealLog}
-          onMealLogBlocked={() => showToast('Log meals only after ending your fast.')}
-          onFindRecipe={() => setShowFindRecipePage(true)}
-          onShowMakeRecipe={() => setShowMakeRecipePage(true)}
-          onShowChat={async (context) => { if (!canLogMealOn(selectedMealDate)) return; if (!(await ensureAiConsent())) { showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; } setShowLogMealOptions(false); setChatOpeningContext(context || null); setChatVariant('meals'); setChatOpenedFromLogMealOptions(true); setShowChat(true); }}
-          onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setLogMealOpenedFromOptions(false); setShowLogMealModal(true); }}
-          onDeleteMeal={async (id) => {
-            const prevMeals = recentMeals;
-            setRecentMeals(prev => prev.filter(m => m.id !== id));
-            const { error } = await supabase.from('meals').delete().eq('id', id).eq('user_id', session.user.id);
-            if (error) {
-              setRecentMeals(prevMeals);
-              showToast('Failed to delete meal. Try again.', 'error');
-            } else {
-              supabase.from('recipe_community_photos').delete().eq('meal_id', id);
-            }
-          }}
         />
       )}
 
@@ -2920,13 +2917,12 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       />
 
       <MakeRecipePage
-        show={showMakeRecipePage}
-        onClose={() => setShowMakeRecipePage(false)}
+        show={activeTab === 'recipes'}
         userCountry={userCountry}
+        userId={session?.user?.id}
         onLogMeal={(recipe) => {
           if (!canLogMealOn(selectedMealDate)) return;
-          setShowMakeRecipePage(false);
-          setActiveTab('meals');
+          setActiveTab('today');
           setRecipeToLog(recipe);
           setLogMealMethod('recipe');
           setLogMealOpenedFromOptions(false);
@@ -3241,10 +3237,46 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         </View>
       </Modal>
 
+      {/* Log your meal, Meal history and the delete prompt open over any tab (the Meals tab is gone) */}
+      <MealPages
+        recentMeals={recentMeals}
+        showLogMealOptions={showLogMealOptions}
+        setShowLogMealOptions={setShowLogMealOptions}
+        showHistory={showMealHistory}
+        setShowHistory={setShowMealHistory}
+        deletingMealId={deletingMealId}
+        setDeletingMealId={setDeletingMealId}
+        onLogMeal={startMealLog}
+        onShowChat={async (context) => { if (!canLogMealOn(selectedMealDate)) return; if (!(await ensureAiConsent())) { showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; } setShowLogMealOptions(false); setChatOpeningContext(context || null); setChatVariant('meals'); setChatOpenedFromLogMealOptions(true); setShowChat(true); }}
+        onViewMeal={(meal) => { setViewingMeal(meal); setLogMealMethod('scan'); setLogMealOpenedFromOptions(false); setShowLogMealModal(true); }}
+        onDeleteMeal={async (id) => {
+          const prevMeals = recentMeals;
+          setRecentMeals(prev => prev.filter(m => m.id !== id));
+          const { error } = await supabase.from('meals').delete().eq('id', id).eq('user_id', session.user.id);
+          if (error) {
+            setRecentMeals(prevMeals);
+            showToast('Failed to delete meal. Try again.', 'error');
+          } else {
+            supabase.from('recipe_community_photos').delete().eq('meal_id', id);
+          }
+        }}
+      />
+
+      <NotificationsPage
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        onOpenItem={(item) => {
+          setShowNotifications(false);
+          if (item.type === 'meal') { setActiveTab('today'); setShowLogMealOptions(true); }
+          else if (item.type === 'burnout') setActiveTab('progress');
+          else setActiveTab('today');
+        }}
+      />
+
       {/* === Bottom Navigation === */}
       <BottomTabBar
         activeTab={activeTab}
-        onTabChange={(tab) => { setShowMakeRecipePage(false); setShowFindRecipePage(false); setActiveTab(tab); }}
+        onTabChange={(tab) => { setShowFindRecipePage(false); setShowLogMealOptions(false); setShowMealHistory(false); setActiveTab(tab); }}
       />
 
       {/* === Chat (above everything incl. tab bar) === */}

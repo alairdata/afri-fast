@@ -8,7 +8,7 @@ import { useTheme } from '../lib/theme';
 // call elsewhere in the app still works untouched; only the visible label changed.
 const ALL_TABS = [
   { id: 'today', label: 'Today', icon: 'home-outline', iconActive: 'home' },
-  { id: 'meals', label: 'Meals', icon: 'restaurant-outline', iconActive: 'restaurant' },
+  { id: 'recipes', label: 'Recipes', icon: 'book-outline', iconActive: 'book' },
   { id: 'progress', label: 'Insights', icon: 'analytics-outline', iconActive: 'analytics' },
   { id: 'settings', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
 ];
