@@ -122,22 +122,90 @@ const swipeStyles = StyleSheet.create({
   deleteActionText: { color: '#fff', fontSize: 11, fontWeight: '600', marginTop: 2 },
 });
 
-// "Today's Meals" card on the Today tab: the meals of the day picked in the week strip.
-// Swipe a row left to delete it; tap it to open the meal.
-export const DayMealsCard = ({ date, recentMeals, onViewMeal, onRequestDelete, onOpenHistory }) => {
+// The meals someone logs most: the last 30 days, grouped by name, logged at least twice.
+const usualMealsFrom = (recentMeals) => {
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const groups = {};
+  (recentMeals || []).forEach((m) => {
+    const t = m.timestamp || new Date(m.date).getTime();
+    const key = (m.name || '').trim().toLowerCase();
+    if (!key || isNaN(t) || t < cutoff) return;
+    const g = groups[key] || (groups[key] = { count: 0, latest: m, latestAt: 0 });
+    g.count += 1;
+    if (t >= g.latestAt) { g.latest = m; g.latestAt = t; }
+  });
+  return Object.values(groups)
+    .filter((g) => g.count >= 2)
+    .sort((a, b) => b.count - a.count || b.latestAt - a.latestAt)
+    .slice(0, 5);
+};
+
+// Meals card on the Today tab. "Today's Meals": the meals of the day picked in the week strip
+// (swipe a row left to delete it, tap it to open it). "Usual Meals": the ones logged most, with ⊕ to log one again.
+export const DayMealsCard = ({ date, recentMeals, onViewMeal, onRequestDelete, onOpenHistory, onLogAgain }) => {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
+  const [tab, setTab] = useState('day');
   const isToday = date.toDateString() === new Date().toDateString();
   const meals = (recentMeals || []).filter(m => m.date === date.toDateString());
+  const usual = useMemo(() => usualMealsFrom(recentMeals), [recentMeals]);
+  const dayLabel = isToday ? "Today's Meals" : `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} Meals`;
   return (
     <View style={styles.recentMealsSectionClean}>
-      <View style={styles.recentMealsHeaderRow}>
-        <Text style={styles.recentMealsTitleClean}>{isToday ? "Today's Meals" : `Meals on ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}</Text>
-        <TouchableOpacity onPress={onOpenHistory} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={styles.mealHistoryLink}>
-          <Text style={styles.mealHistoryLinkTxt}>Meal history</Text>
-          <Ionicons name="chevron-forward" size={14} color="#059669" />
-        </TouchableOpacity>
+      <View style={styles.mealTabsWrap}>
+        <View style={styles.mealTabs} accessibilityRole="tablist">
+          {[['day', dayLabel], ['usual', 'Usual Meals']].map(([id, label]) => (
+            <TouchableOpacity
+              key={id}
+              style={[styles.mealTab, tab === id && styles.mealTabOn]}
+              onPress={() => setTab(id)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: tab === id }}
+            >
+              <Text style={[styles.mealTabTxt, tab === id && styles.mealTabTxtOn]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
+      {tab === 'usual' ? (
+        <View>
+          {usual.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+              <Ionicons name="repeat-outline" size={28} color={colors.textMuted} />
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 8 }}>No usual meals yet</Text>
+              <Text style={{ fontSize: 13, color: colors.subtext, marginTop: 4, textAlign: 'center' }}>
+                Meals you log a few times will show up here, ready to log again
+              </Text>
+            </View>
+          ) : usual.map((g, i) => {
+            const m = g.latest;
+            const photo = m.photo || m.localPhoto || m.image_url;
+            const name = (m.name || '').split(',')[0].trim();
+            return (
+              <View key={`${m.id ?? i}-usual`} style={[styles.usualRow, i < usual.length - 1 && styles.usualRowDivider]}>
+                {photo ? (
+                  <Image source={{ uri: photo }} style={styles.recentMealPhoto} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.recentMealIconClean, styles.recentMealIconPlain]}>
+                    <MaterialCommunityIcons name="silverware-fork-knife" size={20} color={colors.text} />
+                  </View>
+                )}
+                <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
+                  <Text style={styles.usualName} numberOfLines={1}>{name}</Text>
+                  <Text style={styles.usualSub}>Logged {g.count} times this month</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.usualAddBtn}
+                  onPress={() => onLogAgain && onLogAgain(m)}
+                  accessibilityLabel={`Log ${name} again`}
+                >
+                  <Ionicons name="add-circle-outline" size={24} color="#16A34A" />
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
+      ) : (
       <View style={styles.recentMealsListClean}>
         {meals.length === 0 && (
           <View style={{ alignItems: 'center', paddingVertical: 24 }}>
@@ -191,6 +259,11 @@ export const DayMealsCard = ({ date, recentMeals, onViewMeal, onRequestDelete, o
           );
         })}
       </View>
+      )}
+      <TouchableOpacity onPress={onOpenHistory} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={styles.mealHistoryLink}>
+        <Text style={styles.mealHistoryLinkTxt}>Meal history</Text>
+        <Ionicons name="chevron-forward" size={14} color="#059669" />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -464,12 +537,21 @@ const makeStyles = (c) => StyleSheet.create({
   reviewName: { fontSize: 12, color: '#9CA3AF', fontWeight: '600', marginTop: 8 },
 
   recentMealsSectionClean: {
-    backgroundColor: c.card, borderRadius: 20, padding: 16,
+    backgroundColor: c.card, borderRadius: 20, paddingTop: 14, paddingHorizontal: 16, paddingBottom: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2,
   },
-  recentMealsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  recentMealsTitleClean: { fontSize: 15, fontWeight: '600', color: c.text },
-  mealHistoryLink: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  mealTabsWrap: { alignItems: 'center', marginBottom: 14 },
+  mealTabs: { flexDirection: 'row', gap: 2, padding: 4, borderRadius: 999, backgroundColor: c.cardAlt === '#F3F4F6' ? '#F1F5F3' : c.cardAlt },
+  mealTab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999 },
+  mealTabOn: { backgroundColor: c.card, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 1 },
+  mealTabTxt: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  mealTabTxtOn: { color: '#047857' },
+  usualRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  usualRowDivider: { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' },
+  usualName: { fontSize: 15, fontWeight: '600', color: c.text },
+  usualSub: { fontSize: 12, color: '#6B7280' },
+  usualAddBtn: { width: 44, height: 44, marginRight: -10, alignItems: 'center', justifyContent: 'center' },
+  mealHistoryLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', gap: 2, marginTop: 10, paddingVertical: 6, paddingHorizontal: 8 },
   mealHistoryLinkTxt: { fontSize: 13, fontWeight: '600', color: '#059669' },
   recentMealsListClean: { gap: 8 },
   recentMealItemClean: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, backgroundColor: 'rgba(5, 150, 105, 0.04)', borderRadius: 12 },

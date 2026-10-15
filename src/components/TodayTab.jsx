@@ -510,15 +510,19 @@ const TodayTab = ({
   const { isPro } = useSubscription();
   const [refreshing, setRefreshing] = useState(false);
   const [riveGaugeFailed, setRiveGaugeFailed] = useState(false);
+  const [waterJustAdded, setWaterJustAdded] = useState(false);
+  const waterAddedTimer = useRef(null);
+  useEffect(() => () => clearTimeout(waterAddedTimer.current), []);
   const [undoWaterId, setUndoWaterId] = useState(null);
   const undoWaterTimer = useRef(null);
 
   const quickAddWater = () => {
     const id = onQuickAddWater?.();
-    if (id == null) return;
+    if (id == null) return false;
     setUndoWaterId(id);
     clearTimeout(undoWaterTimer.current);
     undoWaterTimer.current = setTimeout(() => setUndoWaterId(null), 5000);
+    return true;
   };
   const undoQuickWater = () => {
     if (undoWaterId != null) onUndoQuickWater?.(undoWaterId);
@@ -995,15 +999,56 @@ const TodayTab = ({
               </View>
             </View>
 
-            <View style={{ marginTop: 16, marginBottom: 2 }}>
+            <View style={{ marginTop: 16, marginBottom: 2, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <ShimmerLogButton compact onPress={onShowLogMeal} />
+              {onQuickAddWater && (
+                <TouchableOpacity
+                  style={styles.waterLogBtn}
+                  onPress={() => { if (!quickAddWater()) return; setWaterJustAdded(true); clearTimeout(waterAddedTimer.current); waterAddedTimer.current = setTimeout(() => setWaterJustAdded(false), 1800); }}
+                  activeOpacity={0.8}
+                  accessibilityLabel={`Log water, add ${quickWaterLabel(volumeUnit)}`}
+                >
+                  {waterJustAdded ? (
+                    <Ionicons name="checkmark" size={24} color="#2563EB" />
+                  ) : (
+                    <>
+                      <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                        <Path d="M7.3 12.5c1.6-.9 3.1-.9 4.7 0s3.1.9 4.7 0l-.7 7.3a1.8 1.8 0 0 1-1.8 1.6H9.8A1.8 1.8 0 0 1 8 19.8z" fill="#93C5FD" />
+                        <Path d="M6 3.5h12l-1.6 16.3a1.8 1.8 0 0 1-1.8 1.6H9.4a1.8 1.8 0 0 1-1.8-1.6z" stroke="#2563EB" strokeWidth={1.8} strokeLinejoin="round" />
+                      </Svg>
+                      <View style={styles.waterLogPlus}><Ionicons name="add" size={11} color="#fff" /></View>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
 
 
+        {/* Meals: the day picked in the week strip, or the usual ones to log again (was the Meals tab) */}
+        <View style={{ marginTop: 12, paddingHorizontal: 12 }}>
+          <DayMealsCard
+            date={selectedDay}
+            recentMeals={recentMeals}
+            onViewMeal={onViewMeal}
+            onRequestDelete={onRequestDeleteMeal}
+            onOpenHistory={onOpenMealHistory}
+            onLogAgain={(m) => onLogMeal && onLogMeal({
+              name: m.name,
+              calories: m.calories || 0,
+              protein: m.protein || 0,
+              carbs: m.carbs || 0,
+              fats: m.fats || 0,
+              fiber: m.fiber || 0, sugar: m.sugar || 0, sodium: m.sodium || 0,
+              imageUrl: /^https?:/.test(m.photo || m.image_url || '') ? (m.photo || m.image_url) : null,
+              ingredients: (m.items || []).map(name => ({ name })),
+            })}
+          />
+        </View>
+
         {/* Just for You — daily AI coach insight */}
-        <View style={[styles.sectionTight, { marginTop: 12 }]}>
+        <View style={[styles.sectionTight, { marginTop: 16 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
               <Ionicons name="bulb-outline" size={16} color={colors.text} />
@@ -1060,17 +1105,6 @@ const TodayTab = ({
               )))}
 
           </ScrollView>
-        </View>
-
-        {/* Meals of the day picked in the week strip (was the Meals tab) */}
-        <View style={{ marginTop: 16, paddingHorizontal: 12 }}>
-          <DayMealsCard
-            date={selectedDay}
-            recentMeals={recentMeals}
-            onViewMeal={onViewMeal}
-            onRequestDelete={onRequestDeleteMeal}
-            onOpenHistory={onOpenMealHistory}
-          />
         </View>
 
         {/* Based on Your Pattern */}
@@ -1337,6 +1371,8 @@ const makeStyles = (c) => StyleSheet.create({
   gaugeCenter: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' },
   gaugeNumber: { fontSize: 36, fontWeight: '700', color: c.text, letterSpacing: -1, lineHeight: 40, marginTop: 2 },
   gaugeLabel: { fontSize: 14, color: c.textSecondary, marginTop: 2 },
+  waterLogBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
+  waterLogPlus: { position: 'absolute', top: 5, right: 4, width: 15, height: 15, borderRadius: 8, backgroundColor: '#2563EB', borderWidth: 2, borderColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
   goalChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, marginBottom: 14,
     backgroundColor: '#D1FAE5', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20,
