@@ -2439,6 +2439,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           onRequestDeleteMeal={(id) => setDeletingMealId(id)}
           onOpenMealHistory={() => setShowMealHistory(true)}
           onOpenNotifications={() => setShowNotifications(true)}
+          onOpenWaterLog={() => setShowHydrationDetails(true)}
           notifUnseen={notifUnseen}
           pendingInsightIndex={pendingInsightIndex}
           onClearPendingInsight={() => setPendingInsightIndex(null)}

@@ -493,6 +493,7 @@ const TodayTab = ({
   onOpenMealHistory,
   onOpenNotifications,
   notifUnseen = 0,
+  onOpenWaterLog,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
@@ -510,9 +511,6 @@ const TodayTab = ({
   const { isPro } = useSubscription();
   const [refreshing, setRefreshing] = useState(false);
   const [riveGaugeFailed, setRiveGaugeFailed] = useState(false);
-  const [waterJustAdded, setWaterJustAdded] = useState(false);
-  const waterAddedTimer = useRef(null);
-  useEffect(() => () => clearTimeout(waterAddedTimer.current), []);
   const [undoWaterId, setUndoWaterId] = useState(null);
   const undoWaterTimer = useRef(null);
 
@@ -1001,24 +999,13 @@ const TodayTab = ({
 
             <View style={{ marginTop: 16, marginBottom: 2, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <ShimmerLogButton compact onPress={onShowLogMeal} />
-              {onQuickAddWater && (
-                <TouchableOpacity
-                  style={styles.waterLogBtn}
-                  onPress={() => { if (!quickAddWater()) return; setWaterJustAdded(true); clearTimeout(waterAddedTimer.current); waterAddedTimer.current = setTimeout(() => setWaterJustAdded(false), 1800); }}
-                  activeOpacity={0.8}
-                  accessibilityLabel={`Log water, add ${quickWaterLabel(volumeUnit)}`}
-                >
-                  {waterJustAdded ? (
-                    <Ionicons name="checkmark" size={24} color="#2563EB" />
-                  ) : (
-                    <>
-                      <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-                        <Path d="M7.3 12.5c1.6-.9 3.1-.9 4.7 0s3.1.9 4.7 0l-.7 7.3a1.8 1.8 0 0 1-1.8 1.6H9.8A1.8 1.8 0 0 1 8 19.8z" fill="#93C5FD" />
-                        <Path d="M6 3.5h12l-1.6 16.3a1.8 1.8 0 0 1-1.8 1.6H9.4a1.8 1.8 0 0 1-1.8-1.6z" stroke="#2563EB" strokeWidth={1.8} strokeLinejoin="round" />
-                      </Svg>
-                      <View style={styles.waterLogPlus}><Ionicons name="add" size={11} color="#fff" /></View>
-                    </>
-                  )}
+              {onOpenWaterLog && (
+                <TouchableOpacity style={styles.waterLogBtn} onPress={onOpenWaterLog} activeOpacity={0.8} accessibilityLabel="Log water">
+                  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                    <Path d="M7.3 12.5c1.6-.9 3.1-.9 4.7 0s3.1.9 4.7 0l-.7 7.3a1.8 1.8 0 0 1-1.8 1.6H9.8A1.8 1.8 0 0 1 8 19.8z" fill="#93C5FD" />
+                    <Path d="M6 3.5h12l-1.6 16.3a1.8 1.8 0 0 1-1.8 1.6H9.4a1.8 1.8 0 0 1-1.8-1.6z" stroke="#2563EB" strokeWidth={1.8} strokeLinejoin="round" />
+                  </Svg>
+                  <View style={styles.waterLogPlus}><Ionicons name="add" size={11} color="#fff" /></View>
                 </TouchableOpacity>
               )}
             </View>
