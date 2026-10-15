@@ -8,13 +8,19 @@ const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const RING_R = 80;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_R;
-const GOAL_LITRES = 2.0;
+// Used only when no hydration goal is set.
+const DEFAULT_GOAL_LITRES = 2.0;
+const UNIT_TO_ML = { oz: 29.574, mL: 1, ml: 1, sachet: 500, bottle: 750, glasses: 237 };
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUnit, setWaterUnit, onWaterSaved, onWaterDeleted }) => {
+const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUnit, setWaterUnit, onWaterSaved, onWaterDeleted, hydrationGoal = 0, volumeUnit }) => {
+  // The person's own daily goal (stored in their volume unit), in litres.
+  const goalLitres = hydrationGoal > 0
+    ? Math.max(0.1, Math.round(hydrationGoal * (UNIT_TO_ML[volumeUnit] ?? 1) / 100) / 10)
+    : DEFAULT_GOAL_LITRES;
   const [newWaterIntake, setNewWaterIntake] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarMonth, setCalendarMonth] = useState(new Date());
@@ -189,9 +195,9 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
           <View style={styles.inputSection}>
             {(() => {
               const loggedLitres = logsByDate[selectedStr] || 0;
-              const progress = Math.min(loggedLitres / GOAL_LITRES, 1);
+              const progress = Math.min(loggedLitres / goalLitres, 1);
               const ringOffset = RING_CIRCUMFERENCE * (1 - progress);
-              const isGoalMet = loggedLitres >= GOAL_LITRES;
+              const isGoalMet = loggedLitres >= goalLitres;
               return (
                 <View style={styles.inputCircleWrap}>
                   <Svg width={180} height={180} viewBox="0 0 180 180" style={{ position: 'absolute' }}>
@@ -233,7 +239,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
                     </TouchableOpacity>
                     {loggedLitres > 0 && (
                       <Text style={styles.ringProgressLabel}>
-                        {loggedLitres.toFixed(1)}L / {GOAL_LITRES}L
+                        {loggedLitres.toFixed(1)}L / {goalLitres.toFixed(1)}L
                       </Text>
                     )}
                   </View>
@@ -275,16 +281,21 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
               </View>
             </View>
             {(() => {
-              const days = hydrationStatsRange === '7 days' ? 7 : hydrationStatsRange === '30 days' ? 30 : hydrationStatsRange === '90 days' ? 90 : 99999;
-              const logs = waterLogs || [];
-              const rangeLogs = days === 99999 ? logs : logs.slice(0, Math.min(days, logs.length));
-              const hasData = rangeLogs.length > 0;
-              const litreAmounts = rangeLogs.map(l => toLitres(l.amount, l.unit));
-              const totalL = litreAmounts.reduce((s, a) => s + a, 0);
-              const avgL = hasData ? (totalL / rangeLogs.length).toFixed(1) : '0';
-              const bestL = hasData ? Math.max(...litreAmounts).toFixed(1) : '0';
-              const lowestL = hasData ? Math.min(...litreAmounts).toFixed(1) : '0';
-              const goalMetL = litreAmounts.filter(l => l >= 2.0).length;
+              const days = hydrationStatsRange === '7 days' ? 7 : hydrationStatsRange === '30 days' ? 30 : hydrationStatsRange === '90 days' ? 90 : hydrationStatsRange === '180 days' ? 180 : null;
+              const start = new Date(); start.setHours(0, 0, 0, 0);
+              if (days) start.setDate(start.getDate() - (days - 1));
+              // Judged per day (all of a day's entries added up), over the last N days.
+              const rangeLogs = (waterLogs || []).filter(l => !days || new Date(l.date) >= start);
+              const dayTotals = Object.values(rangeLogs.reduce((acc, l) => {
+                acc[l.date] = (acc[l.date] || 0) + toLitres(l.amount, l.unit);
+                return acc;
+              }, {}));
+              const hasData = dayTotals.length > 0;
+              const totalL = dayTotals.reduce((s, a) => s + a, 0);
+              const avgL = hasData ? (totalL / dayTotals.length).toFixed(1) : '0';
+              const bestL = hasData ? Math.max(...dayTotals).toFixed(1) : '0';
+              const lowestL = hasData ? Math.min(...dayTotals).toFixed(1) : '0';
+              const goalMetL = dayTotals.filter(l => l >= goalLitres).length;
               return (
                 <>
                   <View style={styles.statsGrid}>
@@ -295,7 +306,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
                     </View>
                     <View style={styles.statCard}>
                       <Ionicons name="checkmark-circle-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
-                      <Text style={styles.statCardValue}>{hasData ? `${goalMetL}/${rangeLogs.length}` : '--'}</Text>
+                      <Text style={styles.statCardValue}>{hasData ? `${goalMetL}/${dayTotals.length}` : '--'}</Text>
                       <Text style={styles.statCardLabel}>Goal met</Text>
                     </View>
                     <View style={styles.statCard}>
@@ -338,7 +349,9 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
               )}
               {waterLogs.slice(0, 10).map((log, index) => {
                 const displayAmount = waterUnit === log.unit ? log.amount : convertWaterUnit(log.amount, log.unit, waterUnit);
-                const goalMet = toLitres(log.amount, log.unit) >= 2.0;
+                // The tag is about the whole day this entry belongs to.
+                const dayLitres = logsByDate[log.date] || 0;
+                const goalMet = dayLitres >= goalLitres;
                 const logDate = new Date(log.date);
                 const dayNum = !isNaN(logDate) ? logDate.getDate() : '--';
                 const monthAbbr = !isNaN(logDate) ? MONTHS_SHORT[logDate.getMonth()] : '';
@@ -357,7 +370,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
                       <Text style={styles.logDayName}>{dayAbbr}</Text>
                       <View style={[styles.logBadge, { backgroundColor: goalMet ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)' }]}>
                         <Text style={{ color: goalMet ? '#10B981' : '#F59E0B', fontSize: 10, fontWeight: '600' }}>
-                          {goalMet ? '✓ Goal' : `${Math.round((toLitres(log.amount, log.unit) / 2) * 100)}%`}
+                          {goalMet ? '✓ Goal' : `${Math.round((dayLitres / goalLitres) * 100)}%`}
                         </Text>
                       </View>
                       <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteWaterLog(index)}>

@@ -2685,6 +2685,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         waterUnit={waterUnit}
         setWaterUnit={setWaterUnit}
         onWaterSaved={(log) => dbSave(supabase.from('water_logs').insert({ id: log.id, user_id: session?.user?.id, date: log.date, display_date: log.displayDate, amount: log.amount, unit: log.unit }), 'save water_log', (msg) => showToast(msg, 'error'))}
+        hydrationGoal={hydrationGoal}
+        volumeUnit={volumeUnit}
         onWaterDeleted={(log) => dbSave(supabase.from('water_logs').delete().eq('id', log.id).eq('user_id', session?.user?.id), 'delete water_log', (msg) => showToast(msg, 'error'))}
       />
 
