@@ -1,4 +1,5 @@
 import { MEDICAL_SAFETY } from './_safety.js';
+import { toneLabel, toneInstruction } from './_tone.js';
 const CARD_COLORS = [
   { color: '#E8F5E9', accent: '#4CAF50' },
   { color: '#FFF3E0', accent: '#FF9800' },
@@ -22,8 +23,7 @@ const ACTIVITY_LABELS = { sedentary: 'mostly sitting', light: 'lightly active', 
 const PACE_LABELS = { slow: 'slow and steady (~0.25 kg a week)', moderate: 'balanced (~0.5 kg a week)', aggressive: 'all-in (~0.75 kg a week)', extreme: 'all-out (~1 kg a week)' };
 const STRUGGLE_LABELS = { forget: 'forgetting to track', local: "not knowing local food calories", motivation: 'losing motivation', eatout: 'eating out a lot' };
 const WHY_LABELS = { wedding: 'a big event (wedding, shoot, reunion)', health: 'a health wake-up call', confident: 'feeling confident again', doctor: "doctor's advice", curious: 'curiosity' };
-const ACCOUNTABILITY_LABELS = { gentle: 'gentle, encouraging nudges', firm: 'firm reminders, keep them honest', alone: 'leave them alone, they will come to the app themselves' };
-const TONE_LABELS = { cheerleader: 'a cheerleader: upbeat, hypes them up, celebrates every win', gentle: 'gentle and kind: soft, no pressure', auntie: 'a straight-talking auntie: loving but tells them the truth', elder: 'a wise elder: calm, patient, takes the long view' };
+const ACCOUNTABILITY_LABELS = { gentle: 'gentle, encouraging nudges', firm: 'firm reminders, keep them honest', auto: 'let the app decide when to remind them', alone: 'leave them alone, they will come to the app themselves' };
 const FOOD_CONTEXT_LABELS = { home: 'mostly home-cooked', out: 'mostly bought / eating out', mix: 'a mix of home-cooked and bought' };
 
 const ANALYST_PROMPT = `You are a sharp, intuitive health analyst who understands that numbers alone don't tell the story — what the numbers are made of does.
@@ -322,7 +322,7 @@ function preprocessData(data) {
   if (profile.struggles?.length) lines.push(`WHAT THEY STRUGGLE WITH: ${listOf(STRUGGLE_LABELS, profile.struggles)}`);
   if (profile.motivations?.length) lines.push(`THEIR WHY (what motivates them): ${listOf(WHY_LABELS, profile.motivations)}`);
   if (profile.accountability) lines.push(`HOW THEY WANT TO BE KEPT ON TRACK: ${label(ACCOUNTABILITY_LABELS, profile.accountability)}`);
-  if (profile.coachTone) lines.push(`VOICE THEY CHOSE FOR YOU (write in it): ${label(TONE_LABELS, profile.coachTone)}`);
+  if (profile.coachTone) lines.push(`VOICE THEY CHOSE FOR YOU (write in it): ${toneLabel(profile.coachTone)}`);
   const foodBits = [];
   if (profile.foodContext) foodBits.push(label(FOOD_CONTEXT_LABELS, profile.foodContext));
   if (profile.cuisines?.length) foodBits.push(`cuisines: ${profile.cuisines.join(', ')}`);
@@ -650,7 +650,8 @@ export default async function handler(req, res) {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = tomorrow.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-      const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\n${MEDICAL_SAFETY}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}`;
+      const voice = toneInstruction(data.profile?.coachTone);
+      const cardPrompt = `${CARD_GENERATOR_PROMPT}\n\n${MEDICAL_SAFETY}${voice ? `\n\n${voice}` : ''}\n\nHEALTH ANALYSIS:\n${analysis}\n\nUser's name: ${data.profile?.userName || 'them'}\nTomorrow's date: ${tomorrowStr}`;
       const cardText = await callClaude(cardPrompt, CLAUDE_KEY, 1200);
 
       const stripped = cardText.replace(/```json|```/g, '').trim();
@@ -682,7 +683,7 @@ ${cards.map((c, i) => `[${i}] ${c.feeling}`).join('\n')}
 
 HEALTH ANALYSIS SUMMARY:
 ${analysis.slice(0, 1500)}
-
+${voice ? `\n${voice}\n` : ''}
 Return ONLY one of:
 {"text":"...","cardIndex":0,"hour":12,"minute":0}
 or the word: null`;
@@ -710,7 +711,8 @@ or the word: null`;
         ? `recentInsights: ${JSON.stringify(recentInsights)}`
         : 'recentInsights: []';
 
-      const basePrompt = `${DAILY_COACH_PROMPT}\n\n${MEDICAL_SAFETY}\n\nUSER DATA:\n${processedData}\n\ntodayLens: ${todayLens}\n${recentStr}`;
+      const voice = toneInstruction(data.profile?.coachTone);
+      const basePrompt = `${DAILY_COACH_PROMPT}\n\n${MEDICAL_SAFETY}${voice ? `\n\n${voice}` : ''}\n\nUSER DATA:\n${processedData}\n\ntodayLens: ${todayLens}\n${recentStr}`;
       const mustWrite = `\n\nIMPORTANT: The "nothing major to flag today" fallback is only for a person with essentially no logged data at all. If they have logged anything (meals, water, weight, check-ins) in the last 14 days, ALWAYS write a genuine insight through today's lens (${todayLens}). If a topic overlaps with recentInsights, pick a different angle on it or a different detail from their data. Never return the fallback.`;
       const isFallback = (r) => /nothing major to flag/i.test(r?.insight || '') || r?.topic === 'no new insight today';
 

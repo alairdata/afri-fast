@@ -5,6 +5,7 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimens
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import FormattedText from '../lib/FormattedText';
+import { coachGreeting } from '../lib/lumiVoice';
 
 function TypingDots() {
   const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
@@ -89,6 +90,7 @@ const ChatScreen = ({
   weightLogs,
   waterLogs,
   personality,
+  coachTone,
   onUpdatePersonality,
   goalHistory,
   goalSource,
@@ -132,6 +134,7 @@ const ChatScreen = ({
     enrichedMealLogs,
     goalHistory: goalHistory || [],
     goalSource: goalSource || 'system',
+    coachTone: coachTone || null,
   };
 
   // When chat closes with enough messages, update personality in background
@@ -184,9 +187,7 @@ const ChatScreen = ({
     } else if (messages.length === 0) {
       const greeting = isMeals
         ? `What are you thinking about your meal today?`
-        : userName
-        ? `Hi ${userName}! I'm your personal weight loss coach. I have access to all your data — your meals, calories, weight, and hydration. Ask me anything!`
-        : `Hi! I'm your personal weight loss coach. I have access to all your data — ask me anything about your progress, goals, or how to improve!`;
+        : coachGreeting(coachTone, userName);
       setMessages([{ role: 'assistant', content: greeting }]);
     }
   }, [show, openingContext]);

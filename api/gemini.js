@@ -1,4 +1,8 @@
 import { MEDICAL_SAFETY } from './_safety.js';
+import { toneInstruction } from './_tone.js';
+
+// Lumi's chosen voice for the Insights tab texts (data.coachTone), or nothing.
+const withVoice = (data) => { const v = toneInstruction(data?.coachTone); return v ? `\n\n${v}` : ''; };
 const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
 
 // ── Shared system instructions ───────────────────────────────────────────────
@@ -326,7 +330,7 @@ export default async function handler(req, res) {
     if (type === 'momentum_why') {
       const text = await callGemini(GEMINI_KEY, [
         { text: `TODAY'S MOMENTUM DATA:\n${JSON.stringify(data)}` },
-      ], { systemInstruction: `${MOMENTUM_WHY_SYSTEM}\n\n${MEDICAL_SAFETY}`, schema: MOMENTUM_WHY_SCHEMA });
+      ], { systemInstruction: `${MOMENTUM_WHY_SYSTEM}\n\n${MEDICAL_SAFETY}${withVoice(data)}`, schema: MOMENTUM_WHY_SCHEMA });
 
       const parsed = parseJson(text);
       if (!parsed) return res.status(500).json({ error: 'Could not parse momentum why' });
@@ -343,7 +347,7 @@ export default async function handler(req, res) {
     if (type === 'burnout_why') {
       const text = await callGemini(GEMINI_KEY, [
         { text: `THIS WEEK'S BURNOUT DATA:\n${JSON.stringify(data)}` },
-      ], { systemInstruction: `${BURNOUT_WHY_SYSTEM}\n\n${MEDICAL_SAFETY}`, schema: BURNOUT_WHY_SCHEMA });
+      ], { systemInstruction: `${BURNOUT_WHY_SYSTEM}\n\n${MEDICAL_SAFETY}${withVoice(data)}`, schema: BURNOUT_WHY_SCHEMA });
       const parsed = parseJson(text);
       if (!parsed?.summary) return res.status(500).json({ error: 'Could not parse burnout why' });
       return res.json({ summary: parsed.summary, tip: parsed.tip || '', crashNote: parsed.crashNote || '' });
@@ -353,7 +357,7 @@ export default async function handler(req, res) {
     if (type === 'pattern_insight') {
       const text = await callGemini(GEMINI_KEY, [
         { text: `RECENT EATING DATA:\n${JSON.stringify(data)}` },
-      ], { systemInstruction: `${PATTERN_INSIGHT_SYSTEM}\n\n${MEDICAL_SAFETY}`, schema: PATTERN_INSIGHT_SCHEMA });
+      ], { systemInstruction: `${PATTERN_INSIGHT_SYSTEM}\n\n${MEDICAL_SAFETY}${withVoice(data)}`, schema: PATTERN_INSIGHT_SCHEMA });
       const parsed = parseJson(text);
       if (!parsed?.body) return res.status(500).json({ error: 'Could not parse pattern insight' });
       return res.json({ title: parsed.title || null, body: parsed.body });

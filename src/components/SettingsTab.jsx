@@ -222,7 +222,7 @@ const SettingsTab = ({
   foodContext, setFoodContext,
   cuisines, setCuisines,
   motivations, setMotivations,
-  accountability, setAccountability,
+  accountability, setAccountability, coachTone,
   latestWeightKg, onSaveDetails,
   userId, onClearHistory, shareCommunityPhotos, onToggleShareCommunityPhotos,
   onBack,
@@ -519,6 +519,8 @@ const SettingsTab = ({
               cuisines={cuisines}
               motivations={motivations}
               accountability={accountability}
+              coachTone={coachTone}
+              userName={userName}
               dailyCalorieGoal={dailyCalorieGoal}
               onSaveDetails={onSaveDetails}
               onApplyCalories={setDailyCalorieGoal}
@@ -729,15 +731,21 @@ const SettingsTab = ({
         <View style={styles.settingsItem}>
           <View style={styles.settingsItemLeft}>
             <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Meal Logging Reminder</Text>
-            {notifyMealReminder && mealReminderTime && (
+            {/* Firm / Decide for me remind at each meal (see How Lumi nudges you); Gentle at one time picked here. */}
+            {notifyMealReminder && (accountability === 'firm' || accountability === 'auto') ? (
+              <Text style={styles.settingsItemSub}>
+                {accountability === 'auto' ? 'Timed to when you usually eat' : "At each meal you haven't logged"} · change in How Lumi nudges you
+              </Text>
+            ) : notifyMealReminder && mealReminderTime ? (
               <TouchableOpacity onPress={() => openTimePicker('meal', mealReminderTime)}>
                 <Text style={styles.settingsItemSub}>{fmt12(mealReminderTime.hour, mealReminderTime.minute)} · tap to change</Text>
               </TouchableOpacity>
-            )}
+            ) : null}
           </View>
           {renderToggle(notifyMealReminder, () => {
-            if (!notifyMealReminder) openTimePicker('meal', mealReminderTime);
-            else onToggleNotifyMealReminder?.(false);
+            if (notifyMealReminder) onToggleNotifyMealReminder?.(false);
+            else if (accountability === 'firm' || accountability === 'auto') onToggleNotifyMealReminder?.(true);
+            else openTimePicker('meal', mealReminderTime);
           })}
         </View>
 

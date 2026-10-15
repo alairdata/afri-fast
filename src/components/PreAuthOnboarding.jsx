@@ -11,6 +11,7 @@ import Svg, { Path, Circle, Rect, Defs, LinearGradient as SvgGradient, Stop, Tex
 import { track, EVENTS } from '../lib/analytics';
 import { appleHealthSupported, connectAppleHealth } from '../lib/appleHealth';
 import { requestNotificationPermissions } from '../lib/notifications';
+import { mealReminderCopy } from '../lib/lumiVoice';
 import {
   initAnonymousSubscriptions, loadPlans, loadIntroOffer, purchasePlan, restorePurchases, getSubscription,
 } from '../lib/subscription';
@@ -591,19 +592,22 @@ function NameScreen(p) {
 }
 
 const TONES = [
-  { v: 'cheerleader', t: 'Cheerleader',     s: 'Hype me up, celebrate every win',        img: 'cheer',  sample: (n) => `"Breakfast logged! That's three days in a row${n ? `, ${n}` : ''}. You're on a roll!"` },
-  { v: 'gentle',      t: 'Gentle & kind',   s: 'Soft nudges, no pressure',               img: 'heart',  sample: (n) => `"Breakfast logged${n ? `, ${n}` : ''}. Three days in a row, that's lovely. Go easy on yourself today."` },
-  { v: 'auntie',      t: 'Straight Auntie', s: 'Loving, but she will tell you the truth', img: 'auntie', sample: (n) => `"Breakfast logged. Three days straight, good. Now don't let lunch run away from you o${n ? `, ${n}` : ''}."` },
-  { v: 'elder',       t: 'Wise Elder',      s: 'Calm, patient, the long view',           img: 'elder',  sample: (n) => `"Breakfast logged${n ? `, ${n}` : ''}. Three days in a row. Small steps, taken daily, carry you far."` },
+  { v: 'cheerleader', t: 'Cheerleader',     s: 'Hype me up, celebrate every win',        img: 'cheer',  sample: (n) => `"Grilled tilapia instead of fried? Chale${n ? ` ${n}` : ''}, I see the vision! We move!"` },
+  { v: 'gentle',      t: 'Gentle & kind',   s: 'Soft nudges, no pressure',               img: 'heart',  sample: (n) => `"You had fried yam today${n ? `, ${n}` : ''}, and that's okay. Tomorrow is another pot of soup."` },
+  { v: 'auntie',      t: 'Straight Auntie', s: "She loves you, but she won't lie to you", img: 'auntie', sample: (n) => `"Ei${n ? ` ${n}` : ''}, another puff puff again? That's your fifth today o."` },
+  { v: 'elder',       t: 'Wise Elder',      s: 'Calm, patient, the long view',           img: 'elder',  sample: (n) => `"The wise bird does not eat every worm it sees. Leave some for tomorrow, my child."` },
 ];
+export const TONE_NAMES = Object.fromEntries(TONES.map((t) => [t.v, t.t]));
 
-function ToneScreen(p) {
+export function ToneScreen(p) {
   const { d, set, next } = p;
   const first = firstName(d);
   const picked = TONES.find((t) => t.v === d.tone) || TONES[0];
+  // Continue saves what's shown, so an untouched screen still saves the highlighted voice.
+  const go = () => { if (d.tone !== picked.v) set('tone', picked.v); next(); };
   return (
-    <ScreenShell {...p} footer={<PrimaryBtn label="Continue" onPress={next} />}>
-      <Bubble title={`How should I talk to you${first ? `, ${first}` : ''}?`} />
+    <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={go} />}>
+      <Bubble hideLumi={p.editing} title={`How should I talk to you${first ? `, ${first}` : ''}?`} />
       <View style={s.toneGrid}>
         {TONES.map((t) => {
           const on = t.v === picked.v;
@@ -970,20 +974,23 @@ export function WhyScreen(p) {
   );
 }
 
-// Used by Your Details (Settings) to edit "Keeping you on track". In onboarding this is now covered by
-// the tone and reminders screens.
+// "How should I nudge you": how often reminders come (the voice they come in is the tone). Saved as
+// accountability; lib/smartNotifications.js plans the reminders from it.
+export const NUDGE_OPTS = [
+  { v: 'gentle', t: 'Gentle nudges',  s: 'One reminder a day, at your main meal',          icon: 'heart-outline' },
+  { v: 'firm',   t: 'Firm reminders', s: "A nudge for every meal you haven't logged",      icon: 'megaphone-outline' },
+  { v: 'auto',   t: 'Decide for me',  s: 'I learn when you usually eat and time them',     icon: 'sparkles-outline' },
+  { v: 'alone',  t: 'Leave me alone', s: "No reminders. I'll come to the app myself",      icon: 'moon-outline' },
+];
+
+// Used by Your Details (Settings) to edit how Lumi nudges.
 export function AccountabilityScreen(p) {
   const { d, pick, next } = p;
-  const opts = [
-    { v: 'gentle', t: 'Gentle nudges',  s: 'Kind, encouraging check-ins',         icon: 'heart-outline' },
-    { v: 'firm',   t: 'Firm reminders', s: "Keep me honest, don't let me slack", icon: 'megaphone-outline' },
-    { v: 'alone',  t: 'Leave me alone', s: "I'll come to the app myself",        icon: 'moon-outline' },
-  ];
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.accountability} />}>
-      <Bubble hideLumi={p.editing} title="How should we keep you on track?" sub="You can change this anytime in settings." />
+      <Bubble hideLumi={p.editing} title="How should I nudge you?" sub="Reminders skip any meal you've already logged." />
       <View style={s.opts}>
-        {opts.map((o) => (
+        {NUDGE_OPTS.map((o) => (
           <Option key={o.v} icon={o.icon} title={o.t} subtitle={o.s} selected={d.accountability === o.v} onPress={() => pick('accountability', o.v)} />
         ))}
       </View>
@@ -1020,30 +1027,21 @@ function CareScreen(p) {
 
 function RemindersScreen(p) {
   const { d, set, next } = p;
-  const first = firstName(d);
   const [busy, setBusy] = useState(false);
-  const opts = [
-    { v: 'gentle', t: 'Gentle nudges',  icon: 'heart-outline' },
-    { v: 'firm',   t: 'Firm reminders', icon: 'megaphone-outline' },
-    { v: 'alone',  t: 'Leave me alone', icon: 'moon-outline' },
-    { v: 'auto',   t: 'Decide for me',  s: 'Pick your own time', icon: 'time-outline' },
-  ];
-  const list = d.reminders || [];
-  // "Leave me alone" can't sit alongside a nudge: picking it clears the others, and the other way round.
-  const toggle = (v) => {
-    tap();
-    if (list.includes(v)) { set('reminders', list.filter((x) => x !== v)); return; }
-    set('reminders', v === 'alone' ? ['alone'] : [...list.filter((x) => x !== 'alone'), v]);
-  };
+  // One choice (how often); the sample below is a real reminder in the voice they picked.
+  const mode = d.accountability || 'gentle';
+  const choose = (v) => { tap(); set('accountability', v); set('reminders', [v]); };
+  const sample = mealReminderCopy(d.tone, mode === 'gentle' ? 'dinner' : 'lunch', d.name);
   const setUp = async () => {
     if (busy) return;
     setBusy(true);
+    if (!d.accountability) set('accountability', mode);
     let granted = false;
-    if (Platform.OS !== 'web' && !list.includes('alone')) {
+    if (Platform.OS !== 'web' && mode !== 'alone') {
       try { granted = await requestNotificationPermissions(); } catch (_) {}
     }
     set('remindersOn', granted);
-    track('onboarding_reminders', { choice: list.join(',') || 'none', granted });
+    track('onboarding_reminders', { choice: mode, granted });
     setBusy(false);
     next();
   };
@@ -1051,7 +1049,7 @@ function RemindersScreen(p) {
   return (
     <ScreenShell {...p} footer={
       <>
-        <PrimaryBtn label={list.includes('alone') ? 'Continue' : 'Set up reminders'} onPress={setUp} busy={busy} />
+        <PrimaryBtn label={mode === 'alone' ? 'Continue' : 'Set up reminders'} onPress={setUp} busy={busy} />
         <TextBtn label="Set up later" onPress={later} />
         <Text style={s.remindersNote}>Saved to Settings, so you can change them any time.</Text>
       </>
@@ -1060,17 +1058,19 @@ function RemindersScreen(p) {
         <Image source={LUMI.auntie} style={{ width: 84, height: 90 }} resizeMode="contain" accessibilityLabel="" />
         <Text style={s.remindersTitle}>How should I nudge you?</Text>
       </View>
-      <Text style={s.remindersSub}>A friendly nudge makes logging easy. Pick as many as you like.</Text>
-      <View style={s.notifCard}>
-        <Image source={require('../../assets/icon.png')} style={{ width: 36, height: 36, borderRadius: 9 }} accessibilityLabel="" />
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={s.notifTitle}>Lunch time{first ? `, ${first}` : ''}</Text>
-          <Text style={s.notifBody}>Snap your plate so today stays on track</Text>
+      <Text style={s.remindersSub}>A friendly nudge makes logging easy. They skip any meal you've already logged.</Text>
+      {mode !== 'alone' && (
+        <View style={s.notifCard}>
+          <Image source={require('../../assets/icon.png')} style={{ width: 36, height: 36, borderRadius: 9 }} accessibilityLabel="" />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={s.notifTitle}>{sample.title}</Text>
+            <Text style={s.notifBody}>{sample.body}</Text>
+          </View>
         </View>
-      </View>
+      )}
       <View style={[s.opts, { gap: 8, marginTop: 16 }]}>
-        {opts.map((o) => (
-          <Option key={o.v} compact multi icon={o.icon} title={o.t} subtitle={o.s} selected={list.includes(o.v)} onPress={() => toggle(o.v)} />
+        {NUDGE_OPTS.map((o) => (
+          <Option key={o.v} compact icon={o.icon} title={o.t} subtitle={o.s} selected={mode === o.v} onPress={() => choose(o.v)} />
         ))}
       </View>
     </ScreenShell>

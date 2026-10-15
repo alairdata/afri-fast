@@ -3,8 +3,8 @@ import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform } from 'react
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   GoalScreen, StruggleScreen, GenderScreen, AgeScreen, HeightScreen, TargetScreen,
-  PaceScreen, ActivityScreen, EatingScreen, FoodScreen, WhyScreen, AccountabilityScreen,
-  calcPlan, DEFAULT_DATA,
+  PaceScreen, ActivityScreen, EatingScreen, FoodScreen, WhyScreen, AccountabilityScreen, ToneScreen,
+  calcPlan, DEFAULT_DATA, TONE_NAMES, NUDGE_OPTS,
 } from './PreAuthOnboarding';
 
 const KG_TO_LB = 2.2046;
@@ -23,7 +23,7 @@ const LABELS = {
   eating: { omad: 'OMAD', '2x': 'Twice a day', '3x': 'Three meals', '4x': 'Small & often', flex: 'Flexible' },
   food: { home: 'Home-cooked', out: 'Bought / eating out', mix: 'A mix of both' },
   whys: { wedding: 'A big event', health: 'Health wake-up call', confident: 'Feeling confident', doctor: "Doctor's advice", curious: 'Just curious' },
-  accountability: { gentle: 'Gentle nudges', firm: 'Firm reminders', alone: 'Leave me alone' },
+  accountability: Object.fromEntries(NUDGE_OPTS.map((o) => [o.v, o.t])),
 };
 
 const listLabel = (map, list) => (list && list.length ? list.map((v) => map[v] || v).join(', ') : '');
@@ -54,6 +54,8 @@ function buildDraft(a) {
     cuisines: a.cuisines || [],
     whys: a.motivations || [],
     accountability: a.accountability || '',
+    tone: a.coachTone || DEFAULT_DATA.tone,
+    name: a.userName || '',
   };
 }
 
@@ -107,7 +109,8 @@ const GROUPS = [
     rows: [
       { key: 'struggles', label: 'What you struggle with', Screen: StruggleScreen, fields: ['struggles'], long: true, summary: (a) => listLabel(LABELS.struggles, a.struggles) },
       { key: 'whys', label: 'Your deeper why', Screen: WhyScreen, fields: ['whys'], long: true, summary: (a) => listLabel(LABELS.whys, a.motivations) },
-      { key: 'accountability', label: 'Keeping you on track', Screen: AccountabilityScreen, fields: ['accountability'], summary: (a) => LABELS.accountability[a.accountability] || '' },
+      { key: 'tone', label: "Lumi's voice", Screen: ToneScreen, fields: ['tone'], summary: (a) => TONE_NAMES[a.coachTone] || '' },
+      { key: 'accountability', label: 'How Lumi nudges you', Screen: AccountabilityScreen, fields: ['accountability'], summary: (a) => LABELS.accountability[a.accountability] || '' },
     ],
   },
 ];

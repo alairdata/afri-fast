@@ -4,7 +4,15 @@
 // moment you log it. Today's nudges are judged on real data; later days are provisional and get
 // corrected by the next re-plan (any log happens inside the app, which triggers one).
 //
-// Rules (calm tone, max MAX_PER_DAY a day, nothing before 08:00 or after 21:30):
+// Everything is written in Lumi's voice (profiles.coach_tone, see lumiVoice.js) and follows "How should I
+// nudge you" (profiles.accountability):
+//   - gentle: one meal reminder a day (at the Settings time), at most 1 other nudge a day
+//   - firm:   a reminder for every meal of their eating style, up to 3 other nudges a day
+//   - auto:   their eating style's meals, each moved to when they usually log it, up to 2 other nudges a day
+//   - alone:  nothing (the app also turns both switches off; see FastingApp)
+// A meal reminder is skipped when a meal was already logged shortly before it.
+//
+// Other nudges (nothing before 08:00 or after 21:30):
 //   - Daily insight: one teaser ping at 10:00 per new insight, written from the insight itself (none without one).
 //   - Streak at risk: 20:30, only if you have a >=3-day logging streak and nothing logged today.
 //   - Water: 15:00, only if you track water and you're under half your goal.
@@ -14,10 +22,48 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { computeCurrentMealStreak } from './mealStreak';
 import { getCachedJustForYou } from './claudeInsights';
+import { mealReminderCopy, waterCopy, streakCopy, moveCopy, burnoutCopy } from './lumiVoice';
 
 const ID_PREFIX = 'smart-';
 const DAYS_AHEAD = 3;
 const MAX_PER_DAY = 3;
+const MAX_PER_DAY_BY_MODE = { gentle: 1, firm: 3, auto: 2 };
+// Meal reminders are planned a week ahead, so they keep coming even if the app isn't opened for a few days.
+const MEAL_DAYS_AHEAD = 7;
+// A meal logged this long before a reminder counts as that meal (gentle's one reminder covers a longer stretch).
+const MEAL_COVER_MS = { gentle: 5 * 3600000, default: 3 * 3600000 };
+
+// When each eating style's meals happen (reminders land a little after the usual eating time), minutes of the day.
+const MEAL_SLOTS = {
+  omad: [{ slot: 'dinner', min: 19 * 60 }],
+  '2x': [{ slot: 'lunch', min: 13 * 60 + 30 }, { slot: 'dinner', min: 19 * 60 + 30 }],
+  '3x': [{ slot: 'breakfast', min: 9 * 60 }, { slot: 'lunch', min: 13 * 60 + 30 }, { slot: 'dinner', min: 19 * 60 + 30 }],
+  '4x': [{ slot: 'breakfast', min: 9 * 60 }, { slot: 'lunch', min: 13 * 60 }, { slot: 'snack', min: 16 * 60 + 30 }, { slot: 'dinner', min: 19 * 60 + 30 }],
+  flexible: [{ slot: 'lunch', min: 13 * 60 + 30 }, { slot: 'dinner', min: 19 * 60 + 30 }],
+};
+
+const slotForMinute = (min) => (min < 11 * 60 ? 'breakfast' : min < 16 * 60 ? 'lunch' : 'dinner');
+const clampMin = (min) => Math.max(8 * 60, Math.min(21 * 60 + 30, Math.round(min)));
+
+// The meal times to remind at, for a nudge mode. Gentle (and no choice yet) = the one Settings time.
+function mealTimes(mode, eatingStyle, mealReminderTime, recentMeals, now) {
+  if (mode !== 'firm' && mode !== 'auto') {
+    const min = (mealReminderTime?.hour ?? 19) * 60 + (mealReminderTime?.minute ?? 0);
+    return [{ slot: slotForMinute(min), min }];
+  }
+  const base = MEAL_SLOTS[eatingStyle === 'flex' ? 'flexible' : eatingStyle] || MEAL_SLOTS.flexible;
+  if (mode !== 'auto') return base;
+  // "Decide for me": each meal moves to 30 minutes after they usually log it (the middle of their logs
+  // within 2.5 hours of it over the last 3 weeks), once there are at least 3 of them.
+  const logs = recentMeals
+    .map((m) => (m.logged_at ? new Date(m.logged_at) : null))
+    .filter((d) => d && !isNaN(d) && now.getTime() - d.getTime() < 21 * DAY_MS)
+    .map((d) => d.getHours() * 60 + d.getMinutes());
+  return base.map((s) => {
+    const near = logs.filter((m) => Math.abs(m - s.min) <= 150).sort((a, b) => a - b);
+    return near.length < 3 ? s : { ...s, min: clampMin(near[Math.floor(near.length / 2)] + 30) };
+  });
+}
 const DAY_MS = 86400000;
 export const BURNOUT_SUMMARY_KEY = 'logga-burnout-summary-v1';
 const BURNOUT_NOTIFIED_KEY = 'logga-burnout-notified-v1';
@@ -76,7 +122,15 @@ const planSmartNotifications = async (ctx) => {
   const now = new Date();
   await cancelSmart();
 
-  const { recentMeals = [], waterLogs = [], stepLogs = [], activities = [], hydrationGoal = 0, volumeUnit, userId } = ctx;
+  const {
+    recentMeals = [], waterLogs = [], stepLogs = [], activities = [], hydrationGoal = 0, volumeUnit, userId,
+    tone = null, userName = '', nudgeMode = null, eatingStyle = 'flexible', mealReminderTime = null,
+    meals: mealsOn = false, smart: smartOn = true,
+  } = ctx;
+  if (nudgeMode === 'alone') return 0;
+  const maxPerDay = MAX_PER_DAY_BY_MODE[nudgeMode] ?? MAX_PER_DAY;
+  // A number per calendar day, so the wording rotates day to day.
+  const dayNo = (offset) => Math.floor(at(now, offset, 12).getTime() / DAY_MS);
 
   // The insight notification is scheduled ahead of time, so tomorrow's insight does not exist yet. For a ping that
   // fires today we can quote today's real insight (first sentence); for later days we say what is waiting.
@@ -124,7 +178,25 @@ const planSmartNotifications = async (ctx) => {
 
   const planned = []; // { day, date, id, title, body, data }
 
-  for (let day = 0; day <= DAYS_AHEAD; day++) {
+  // Meal reminders. Today's are skipped when a meal was logged shortly before the reminder.
+  if (mealsOn) {
+    const cover = MEAL_COVER_MS[nudgeMode] || MEAL_COVER_MS.default;
+    const loggedToday = recentMeals
+      .filter((m) => m.date === todayStr)
+      .map((m) => (m.logged_at ? new Date(m.logged_at).getTime() : now.getTime()));
+    const times = mealTimes(nudgeMode, eatingStyle, mealReminderTime, recentMeals, now);
+    for (let day = 0; day <= MEAL_DAYS_AHEAD; day++) {
+      for (const t of times) {
+        const date = at(now, day, Math.floor(t.min / 60), t.min % 60);
+        if (date.getTime() <= now.getTime() + 60 * 1000) continue;
+        if (day === 0 && loggedToday.some((ts) => ts > date.getTime() - cover)) continue;
+        const c = mealReminderCopy(tone, t.slot, userName, dayNo(day) + t.min);
+        planned.push({ key: `meal-${t.slot}`, day, date, title: c.title, body: c.body, data: { type: 'meal' } });
+      }
+    }
+  }
+
+  for (let day = 0; smartOn && day <= DAYS_AHEAD; day++) {
     const isToday = day === 0;
     const candidates = [];
 
@@ -141,7 +213,7 @@ const planSmartNotifications = async (ctx) => {
     if (streak >= 3 && !(isToday && loggedMealToday)) {
       candidates.push({
         key: 'streak', date: at(now, day, 20, 30), prio: 1,
-        title: `${streak}-day streak 🔥`, body: 'Log something small to keep it going.', data: { type: 'streak' },
+        ...streakCopy(tone, streak, dayNo(day)), data: { type: 'streak' },
       });
     }
 
@@ -149,7 +221,7 @@ const planSmartNotifications = async (ctx) => {
     if (tracksWater && (!isToday || waterPct < 50)) {
       candidates.push({
         key: 'water', date: at(now, day, 15, 0), prio: 4,
-        title: 'Water check 💧', body: isToday ? `You're at ${waterPct}% of today's goal.` : 'How is your water today?', data: { type: 'water' },
+        ...waterCopy(tone, isToday ? waterPct : null, dayNo(day)), data: { type: 'water' },
       });
     }
 
@@ -157,21 +229,21 @@ const planSmartNotifications = async (ctx) => {
     if (tracksMovement && (!isToday || (stepsToday < 4000 && !activityToday))) {
       candidates.push({
         key: 'move', date: at(now, day, 17, 30), prio: 5,
-        title: 'A short walk? 🚶', body: isToday && stepsToday > 0 ? `${stepsToday.toLocaleString()} steps so far.` : 'Even 10 minutes counts.', data: { type: 'movement' },
+        ...moveCopy(tone, isToday ? stepsToday : 0, dayNo(day)), data: { type: 'movement' },
       });
     }
 
     candidates
       .filter((c) => c.date.getTime() > now.getTime() + 60 * 1000)
       .sort((a, b) => a.prio - b.prio)
-      .slice(0, MAX_PER_DAY)
+      .slice(0, maxPerDay)
       .forEach((c) => planned.push({ ...c, day }));
   }
 
   // Burnout heads-up: one warning per predicted crash day. The first re-plan picks a morning
   // (tomorrow 09:00, or today if still before 09:00) and remembers it; later re-plans keep that
   // same time while it's pending, and stop once it has fired.
-  if (burnout) {
+  if (burnout && smartOn) {
     const crash = new Date(burnout.crashDate);
     const crashStr = crash.toDateString();
     let stored = null;
@@ -188,10 +260,7 @@ const planSmartNotifications = async (ctx) => {
       const daysBetween = Math.round((crash.getTime() - fireAt.getTime()) / DAY_MS);
       planned.push({
         key: 'burnout', day: Math.max(0, Math.round((fireAt.getTime() - now.getTime()) / DAY_MS)), date: fireAt, prio: 0,
-        title: 'Heads up 🌤️',
-        body: daysBetween <= 1
-          ? 'You may hit a rough patch soon. A proper meal and some water today will help.'
-          : `You may hit a rough patch around ${weekdayName(crash)}. Eating well today helps.`,
+        ...burnoutCopy(tone, daysBetween <= 1 ? null : weekdayName(crash)),
         data: { type: 'burnout' },
       });
     }

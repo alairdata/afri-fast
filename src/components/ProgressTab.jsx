@@ -204,6 +204,8 @@ const ProgressTab = ({
   // Insights-only data (profile/goal fields the momentum/burnout/pace engines need)
   userId = null, userName = '', goalDate = null, userJoinDate = null, age = null, sex = null,
   activityLevel = null, pacePreference = null, proteinGoal = null, carbsGoal = null, fatsGoal = null,
+  // Lumi's voice (onboarding): the AI texts here are written in it, and a new voice means new texts.
+  coachTone = null,
 }) => {
   const { isPro } = useSubscription();
   const [healthConnecting, setHealthConnecting] = useState(false);
@@ -946,10 +948,10 @@ const ProgressTab = ({
   useEffect(() => {
     if (!userId || !burnoutReady) return;
     let cancelled = false;
-    getAiText({ kind: 'burnout_why', userId, facts: burnoutFacts, fingerprint: burnoutFingerprint })
+    getAiText({ kind: 'burnout_why', userId, facts: { ...burnoutFacts, coachTone }, fingerprint: `${burnoutFingerprint}#${coachTone || ''}` })
       .then((v) => { if (!cancelled && v) setBurnoutAi(v); });
     return () => { cancelled = true; };
-  }, [userId, burnoutFingerprint, burnoutReady]);
+  }, [userId, burnoutFingerprint, burnoutReady, coachTone]);
 
   // Momentum "See why" — plain-language sentences instead of a bare numbers table. Calorie and
   // Movement are single facts, so they're templated directly off the same live numbers shown
@@ -1179,11 +1181,11 @@ const ProgressTab = ({
   useEffect(() => {
     if (view !== 'momentum' || !userId) return;
     let cancelled = false;
-    getMomentumWhy({ userId, facts: momentumWhyFacts, fingerprint: momentumWhyFingerprint }).then((why) => {
+    getMomentumWhy({ userId, facts: { ...momentumWhyFacts, coachTone }, fingerprint: `${momentumWhyFingerprint}|${coachTone || ''}` }).then((why) => {
       if (!cancelled && why) setMomentumWhyAi(why);
     });
     return () => { cancelled = true; };
-  }, [view, userId, momentumWhyFingerprint]);
+  }, [view, userId, momentumWhyFingerprint, coachTone]);
 
   const momentumWhyDisplay = {
     headline: momentumWhyAi?.headline || momentumWhySummary.headline,
@@ -1436,10 +1438,10 @@ const ProgressTab = ({
   useEffect(() => {
     if (!userId || !patternInsight || patternDismissed) return;
     let cancelled = false;
-    getAiText({ kind: 'pattern_insight', userId, facts: patternInsight.facts, fingerprint: patternInsight.fingerprint })
+    getAiText({ kind: 'pattern_insight', userId, facts: { ...patternInsight.facts, coachTone }, fingerprint: `${patternInsight.fingerprint},${coachTone || ''}` })
       .then((v) => { if (!cancelled && v) setPatternAi(v); });
     return () => { cancelled = true; };
-  }, [userId, patternInsight?.fingerprint, patternDismissed]);
+  }, [userId, patternInsight?.fingerprint, patternDismissed, coachTone]);
 
   const recs = useMemo(() => {
     const items = [];

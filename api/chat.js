@@ -1,4 +1,5 @@
 import { MEDICAL_SAFETY } from './_safety.js';
+import { toneInstruction } from './_tone.js';
 function buildUserContext(data) {
   const {
     userName, userCountry, selectedPlan, goal, conditions,
@@ -110,7 +111,8 @@ ${(enrichedMealLogs || []).slice(0, 15).map(m => {
 }).join('\n') || '- No enriched meal data yet'}`;
 }
 
-function buildChatSystemPrompt(personality, userContext) {
+function buildChatSystemPrompt(personality, userContext, coachTone) {
+  const voice = toneInstruction(coachTone);
   return `You are a warm, knowledgeable personal health coach inside Logga, a calorie tracking and nutrition app built for African food. You know this user — their habits, goals, patterns, and personality.
 
 ${personality
@@ -122,15 +124,18 @@ ${userContext}
 
 COACHING RULES:
 - Always use their actual data — never give generic advice when you have real numbers
-- Match your tone to what you know about their personality (encouraging, direct, gentle, etc.)
+- ${voice ? 'Speak in the voice they chose (below), adjusted to what you know about them' : 'Match your tone to what you know about their personality (encouraging, direct, gentle, etc.)'}
 - Be concise (2-4 sentences), warm, and practical
 - Speak like a coach who knows them well, not a stranger
 - If they reveal something new about themselves, acknowledge it naturally and remember it
-
+${voice ? `
+${voice}
+` : ''}
 ${MEDICAL_SAFETY}`;
 }
 
-function buildMealsChatSystemPrompt(userContext) {
+function buildMealsChatSystemPrompt(userContext, coachTone) {
+  const voice = toneInstruction(coachTone);
   return `You are a calorie-counting helper inside Logga, a calorie tracking and nutrition app built for African food. Your only job in this chat is to help the user understand the calories and nutrition in the meal or food they describe — nothing else.
 
 ${userContext}
@@ -147,7 +152,7 @@ RULES:
 - cal must always equal (protein × 4) + (carbs × 4) + (fats × 9) — never guess it independently.
 - Set isLoggable to true only when the conversation has settled on specific food item(s) with clear quantities that could be logged as a real meal right now — not for vague, hypothetical, or off-topic messages. When true, "foods" must list every finalized food item under discussion (using each one's LATEST settled quantity) with accurate macros, and "title" is a short natural name for the whole meal — lead with the main item, then the most prominent other item, joined by "and", no commas (e.g. "Fries and Chicken", not "Fries, Chicken, Cheese").
 - When isLoggable is false, "foods" must be an empty array and "title" can be empty.
-
+${voice ? `\n${voice} The voice only colours the wording of "reply"; the numbers and foods stay exact.\n` : ''}
 ${MEDICAL_SAFETY}`;
 }
 
@@ -335,8 +340,8 @@ export default async function handler(req, res) {
     // === Send a chat message ===
     if (action === 'message') {
       const systemPrompt = variant === 'meals'
-        ? buildMealsChatSystemPrompt(userContext)
-        : buildChatSystemPrompt(personality || '', userContext);
+        ? buildMealsChatSystemPrompt(userContext, data?.coachTone)
+        : buildChatSystemPrompt(personality || '', userContext, data?.coachTone);
 
       let conversation;
       if (openingContext && (!messages || messages.length === 0)) {

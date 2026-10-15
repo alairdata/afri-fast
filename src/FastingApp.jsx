@@ -354,6 +354,19 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   const [cuisines, setCuisines] = useState([]);
   const [motivations, setMotivations] = useState([]);
   const [accountability, setAccountability] = useState(null);
+  // "How should I nudge you" (accountability) drives the reminder switches in Settings: "Leave me alone" turns
+  // them all off, and moving off it turns them back on. Other changes leave the switches as they are.
+  const applyNudgeMode = (mode) => {
+    if (mode === 'alone') { setNotifyMealReminder(false); setNotifySmart(false); }
+    else if (accountability === 'alone' && mode) { setNotifyMealReminder(true); setNotifySmart(true); }
+    setAccountability(mode);
+  };
+  // Switching a reminder on in Settings means they want reminders after all: "Leave me alone" becomes Gentle.
+  const leaveAloneOff = () => {
+    if (accountability !== 'alone') return;
+    setAccountability('gentle');
+    upsertProfile({ accountability: 'gentle' }, 'update accountability');
+  };
   // How Lumi talks (onboarding "How should I talk to you?"): cheerleader, gentle, auntie or elder.
   const [coachTone, setCoachTone] = useState(null);
   // The guided first log, shown once right after a new account is made from onboarding.
@@ -593,7 +606,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     if ('foodContext' in c) { setFoodContext(c.foodContext); patch.food_context = c.foodContext; }
     if ('cuisines' in c) { setCuisines(c.cuisines); patch.cuisines = c.cuisines; }
     if ('whys' in c) { setMotivations(c.whys); patch.motivations = c.whys; }
-    if ('accountability' in c) { setAccountability(c.accountability); patch.accountability = c.accountability; }
+    if ('accountability' in c) { applyNudgeMode(c.accountability); patch.accountability = c.accountability; }
+    if ('tone' in c && c.tone) {
+      setCoachTone(c.tone);
+      dbSave(supabase.from('profiles').update({ coach_tone: c.tone }).eq('id', session.user.id), 'update coach_tone');
+    }
     if ('struggles' in c) { setStruggles(c.struggles); patch.struggles = c.struggles; }
     if (Object.keys(patch).length > 0) upsertProfile(patch, 'save your details');
   };
@@ -1145,7 +1162,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       // earlier version already scheduled on this device.
       await cancelWeighInReminder();
       await cancelCalorieCheckReminder();
-      if (notifyMealReminder) await scheduleMealReminder(mealReminderTime.hour, mealReminderTime.minute); else await cancelMealReminder();
+      // Meal reminders are planned with the smart nudges now (they skip a meal you've already logged and
+      // follow your nudge choice), so the old fixed daily one is always cleared.
+      await cancelMealReminder();
     })().catch((e) => console.log('[Notifications] sync failed:', e?.message));
   }, [notifSettingsLoaded, notifyMealReminder, notifyMilestones, notifySmart, mealReminderTime, milestoneConfig]);
 
@@ -1159,13 +1178,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     if (!notifSettingsLoaded || Platform.OS === 'web' || !session?.user?.id || dataLoadCount < 8) return;
     const t = setTimeout(() => {
       (async () => {
-        if (!notifySmart) { await clearSmartNotifications(); return; }
+        if ((!notifySmart && !notifyMealReminder) || accountability === 'alone') { await clearSmartNotifications(); return; }
         if (!(await requestNotificationPermissions())) return;
-        await syncSmartNotifications({ recentMeals, waterLogs, stepLogs: effectiveStepLogs, activities, hydrationGoal, volumeUnit, userId: session?.user?.id });
+        await syncSmartNotifications({
+          recentMeals, waterLogs, stepLogs: effectiveStepLogs, activities, hydrationGoal, volumeUnit, userId: session?.user?.id,
+          tone: coachTone, userName, nudgeMode: accountability, eatingStyle, mealReminderTime,
+          meals: notifyMealReminder, smart: notifySmart,
+        });
       })().catch((e) => console.log('[SmartNotifications] sync failed:', e?.message));
     }, 2500);
     return () => clearTimeout(t);
-  }, [notifSettingsLoaded, notifySmart, session?.user?.id, dataLoadCount >= 8, recentMeals, waterLogs, effectiveStepLogs, activities, hydrationGoal, volumeUnit, insightTick]);
+  }, [notifSettingsLoaded, notifySmart, notifyMealReminder, mealReminderTime, accountability, coachTone, userName, eatingStyle,
+    session?.user?.id, dataLoadCount >= 8, recentMeals, waterLogs, effectiveStepLogs, activities, hydrationGoal, volumeUnit, insightTick]);
 
   // Analytics: identify the person and open a session (see lib/analytics.js).
   useEffect(() => {
@@ -1242,6 +1266,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         setActiveTab('progress');
       } else if (data?.type === 'streak') {
         setActiveTab('meals');
+      } else if (data?.type === 'meal') {
+        // "Snap your plate": straight to the logging options.
+        setActiveTab('meals');
+        setShowLogMealOptions(true);
       } else if (data?.type === 'insight' || data?.type === 'water' || data?.type === 'movement') {
         setActiveTab('today');
       }
@@ -1749,8 +1777,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             'save onboarding coach_tone'
           );
         }
-        // "Set up reminders" (notifications allowed): turn on the meal reminder, shown in Settings.
-        if (pendingPreAuthData.remindersOn) setNotifyMealReminder(true);
+        // "How should I nudge you": "Leave me alone" switches every reminder off; otherwise, with
+        // notifications allowed, meal reminders go on (both shown in Settings).
+        if (pendingPreAuthData.accountability === 'alone') { setNotifyMealReminder(false); setNotifySmart(false); }
+        else if (pendingPreAuthData.remindersOn) setNotifyMealReminder(true);
         // Apple Health was allowed during onboarding: switch it on for this account and read steps.
         if (pendingPreAuthData.healthConnect && Platform.OS === 'ios' && appleHealthSupported()) {
           handleConnectAppleHealth();
@@ -2425,6 +2455,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           onShowBMIDetails={() => setShowBMIDetails(true)}
           onShowCalorieDetails={() => setShowCalorieDetails(true)}
           appleHealthAvailable={Platform.OS === 'ios' && appleHealthSupported()}
+          coachTone={coachTone}
           appleHealthOn={appleHealthOn}
           onConnectAppleHealth={handleConnectAppleHealth}
           onShowHydrationDetails={() => setShowHydrationDetails(true)}
@@ -2540,7 +2571,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           motivations={motivations}
           setMotivations={(val) => { setMotivations(val); upsertProfile({ motivations: val }, 'update motivations'); }}
           accountability={accountability}
-          setAccountability={(val) => { setAccountability(val); upsertProfile({ accountability: val }, 'update accountability'); }}
+          setAccountability={(val) => { applyNudgeMode(val); upsertProfile({ accountability: val }, 'update accountability'); }}
+          coachTone={coachTone}
           weightUnit={weightUnit}
           setWeightUnit={(val) => { setWeightUnit(val); upsertProfile({ weight_unit: val }, 'update weight_unit'); }}
           foodMeasurement={foodMeasurement}
@@ -2579,12 +2611,12 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           eatingWindow={eatingWindow}
           setEatingWindow={(val) => { setEatingWindow(val); upsertProfile({ eating_window: val }, 'update eating_window'); }}
           notifyMealReminder={notifyMealReminder}
-          onToggleNotifyMealReminder={(val, time) => { setNotifyMealReminder(val); if (time) setMealReminderTime(time); }}
+          onToggleNotifyMealReminder={(val, time) => { setNotifyMealReminder(val); if (time) setMealReminderTime(time); if (val) leaveAloneOff(); }}
           mealReminderTime={mealReminderTime}
           notifyMilestones={notifyMilestones}
           onToggleNotifyMilestones={setNotifyMilestones}
           notifySmart={notifySmart}
-          onToggleNotifySmart={setNotifySmart}
+          onToggleNotifySmart={(val) => { setNotifySmart(val); if (val) leaveAloneOff(); }}
           milestoneConfig={milestoneConfig}
           onSetMilestoneConfig={setMilestoneConfig}
           userIcon={getUserIcon(session?.user?.id || '')}
@@ -3252,6 +3284,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         goalHistory={goalHistory}
         goalSource={goalSource}
         personality={userPersonality}
+        coachTone={coachTone}
         onUpdatePersonality={(updated) => {
           setUserPersonality(updated);
           upsertProfile({ personality: updated }, 'update personality from chat');
