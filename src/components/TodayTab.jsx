@@ -12,6 +12,7 @@ import { resolveCalorieGoal, resolveCaloriesEaten, buildDailyLedgerMap } from '.
 import { SourceList, SourcesLink } from './HealthSourcesPage';
 import { DayMealsCard, ShimmerLogButton } from './MealPages';
 import Svg, { Path } from 'react-native-svg';
+import RiveCalorieGauge from './RiveCalorieGauge';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -508,6 +509,7 @@ const TodayTab = ({
   const [proCards, setProCards] = useState(null);
   const { isPro } = useSubscription();
   const [refreshing, setRefreshing] = useState(false);
+  const [riveGaugeFailed, setRiveGaugeFailed] = useState(false);
   const [undoWaterId, setUndoWaterId] = useState(null);
   const undoWaterTimer = useRef(null);
 
@@ -946,6 +948,10 @@ const TodayTab = ({
         {/* Calorie gauge hero, for the day picked above */}
         <View style={styles.heroCardCompact}>
           <View style={styles.heroContent}>
+            {/* The animated gauge shows "remaining"; over goal, no goal set, web or a failed load use the drawn one */}
+            {Platform.OS !== 'web' && !riveGaugeFailed && selGoal > 0 && !selOver ? (
+              <RiveCalorieGauge progress={selRatio} remaining={selRemaining} width={GAUGE_W} onFail={() => setRiveGaugeFailed(true)} />
+            ) : (
             <View style={{ width: GAUGE_W, height: GAUGE_W / 2 }}>
               <CalorieGauge ratio={selRatio} over={selOver} width={GAUGE_W} />
               <View style={styles.gaugeCenter}>
@@ -960,6 +966,7 @@ const TodayTab = ({
                 </Text>
               </View>
             </View>
+            )}
 
             <TouchableOpacity style={styles.goalChip} onPress={onShowCalorieTarget || onNavigateToProgress}>
               <Text style={styles.goalChipText}>
