@@ -19,6 +19,7 @@ import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '.
 import { getCachedMomentumWhy, getMomentumWhy } from '../lib/momentumWhy';
 import { SourcesLink } from './HealthSourcesPage';
 import InfoTip from './InfoTip';
+import RiveMomentum from './RiveMomentum';
 import { useSubscription } from '../lib/subscription';
 import { LockedChartPreview, unlock } from './ProLock';
 import { BlurView } from 'expo-blur';
@@ -1545,6 +1546,7 @@ const ProgressTab = ({
     return { days, toWatch: days.filter((d) => d.level === 'high').length };
   }, [recentMeals, ledgerMap, goalHistory, dailyCalorieGoal, now]);
   const [weekAheadPick, setWeekAheadPick] = useState(0);
+  const [riveMomentumFailed, setRiveMomentumFailed] = useState(false);
 
   // ── Your movement: the last 4 weeks (Mon-Sun rows), full workout vs lighter activity ──
   const movement = useMemo(() => {
@@ -1610,6 +1612,12 @@ const ProgressTab = ({
 
             {/* Momentum */}
             <View style={[styles.card, { paddingTop: 14, alignItems: 'center' }]}>
+              {/* The animated battery (Rive) once there's a score; the drawn one on web, before a score, or if it fails */}
+              {Platform.OS !== 'web' && momentumReady && !riveMomentumFailed ? (
+                <View style={{ alignSelf: 'stretch', alignItems: 'center' }} accessible accessibilityLabel={`Momentum ${momentumScore} out of 100`}>
+                  <RiveMomentum score={momentumScore} width={SCREEN_WIDTH - 64} onFail={() => setRiveMomentumFailed(true)} />
+                </View>
+              ) : (<>
               <View style={[styles.rowBetween, { alignSelf: 'stretch', alignItems: 'center', marginBottom: 12 }]}>
                 <View style={styles.titleTipRow}><Text style={styles.cardTitle15}>Momentum</Text><InfoTip id="momentum" /></View>
                 <View style={styles.greyPill}><Text style={styles.greyPillText}>{momentumReady ? `${momentumScore} / 100` : '-- / 100'}</Text></View>
@@ -1622,11 +1630,13 @@ const ProgressTab = ({
                 </View>
                 <View style={[styles.batteryCap, { backgroundColor: momentumReady ? momentumColor : colors.border }]} />
               </View>
+              </>)}
               <View style={{ alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 }}>
                 <Ionicons name="flash-outline" size={16} color={momentumColor} />
                 <Text style={styles.momentumLine}>
                   {!momentumReady ? 'Not enough data yet' : today.band.tone === 'strong' ? "You've got momentum" : today.band.tone === 'drifting' ? "You're drifting a little" : "You've stalled, let's restart"}
                 </Text>
+                {Platform.OS !== 'web' && momentumReady && !riveMomentumFailed && <InfoTip id="momentum" />}
               </View>
               {!momentumReady && (
                 <Text style={[styles.mutedSmall, { alignSelf: 'stretch' }]}>
