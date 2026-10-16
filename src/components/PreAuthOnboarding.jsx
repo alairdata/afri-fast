@@ -672,7 +672,7 @@ export function GenderScreen(p) {
   ];
   return (
     <ScreenShell {...p} footer={p.editing ? <PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.gender} /> : null}>
-      <Bubble hideLumi={p.editing} title="What's your sex?" sub="This sharpens your calorie maths, nothing else." />
+      <Bubble hideLumi={p.editing} title="What's your gender?" sub="This sharpens your calorie maths, nothing else." />
       <View style={s.opts}>
         {opts.map((o) => (
           <Option key={o.v} icon={o.icon} title={o.t} selected={d.gender === o.v} onPress={() => pick('gender', o.v)} />

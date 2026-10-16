@@ -74,7 +74,7 @@ const GROUPS = [
   {
     title: 'About you',
     rows: [
-      { key: 'gender', label: 'Sex', Screen: GenderScreen, fields: ['gender'], plan: true, summary: (a) => a.sex || '' },
+      { key: 'gender', label: 'Gender', Screen: GenderScreen, fields: ['gender'], plan: true, summary: (a) => a.sex || '' },
       { key: 'age', label: 'Age', Screen: AgeScreen, fields: ['age'], plan: true, summary: (a) => (a.age != null ? `${a.age} yrs` : '') },
       { key: 'height', label: 'Height', Screen: HeightScreen, fields: ['heightCm'], plan: true, summary: heightSummary },
       { key: 'activity', label: 'Activity', Screen: ActivityScreen, fields: ['activity'], plan: true, summary: (a) => LABELS.activity[a.activityLevel] || '' },
