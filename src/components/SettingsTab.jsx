@@ -229,6 +229,7 @@ const SettingsTab = ({
 }) => {
   const { isDark, colors } = useTheme();
   const [showMakeItYours, setShowMakeItYours] = useState(false);
+  const [showSubscription, setShowSubscription] = useState(false);
   const [showFastingQuiz, setShowFastingQuiz] = useState(false);
   const [showNutritionQuiz, setShowNutritionQuiz] = useState(false);
   const [showMeasurementGuide, setShowMeasurementGuide] = useState(false);
@@ -495,7 +496,7 @@ const SettingsTab = ({
             <TouchableOpacity onPress={() => setShowMakeItYours(false)}>
               <Ionicons name="chevron-back" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={[styles.makeItYoursHeaderTitle, { color: colors.text }]}>Your Details</Text>
+            <Text style={[styles.makeItYoursHeaderTitle, { color: colors.text }]}>Personal details</Text>
           </View>
           <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
 
@@ -678,50 +679,97 @@ const SettingsTab = ({
         </View>
       )}
 
-      <ScrollView style={[styles.settingsScrollContent, { backgroundColor: colors.bg }]} showsVerticalScrollIndicator={false}>
-      {/* Logga Pro */}
-      {sub.canPurchase && (
-        <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {sub.isPro ? (
-            <TouchableOpacity style={styles.settingsActionItem} onPress={() => Linking.openURL(sub.managementURL || 'https://apps.apple.com/account/subscriptions').catch(() => {})}>
+      {/* Subscription & purchases — full page overlay */}
+      {showSubscription && (
+        <View style={[styles.makeItYoursPage, { backgroundColor: colors.bg }]}>
+          <View style={[styles.makeItYoursHeader, { backgroundColor: colors.bg, borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={() => setShowSubscription(false)} accessibilityLabel="Back">
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[styles.makeItYoursHeaderTitle, { color: colors.text }]}>Subscription & purchases</Text>
+          </View>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 100 }}>
+            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Your plan</Text>
               <View style={styles.settingsActionLeft}>
-                <Ionicons name="sparkles" size={18} color="#059669" />
-                <View>
-                  <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Logga Pro{sub.inTrial ? ' · Free trial' : ''}</Text>
-                  {proDate ? <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>{sub.willRenew ? `Renews ${proDate}` : `Ends ${proDate}`} · Manage subscription</Text> : null}
+                <Ionicons name={sub.isPro ? 'sparkles' : 'leaf-outline'} size={18} color="#059669" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.accountRowLabel, { color: colors.text }]}>{sub.isPro ? `Logga Pro${sub.inTrial ? ' · Free trial' : ''}` : 'Free'}</Text>
+                  <Text style={{ fontSize: 12.5, color: colors.textMuted, marginTop: 3 }}>
+                    {sub.isPro
+                      ? (proDate ? (sub.willRenew ? `Renews ${proDate}` : `Ends ${proDate}`) : 'Active')
+                      : '2 meal logs a day'}
+                  </Text>
                 </View>
               </View>
-              <Ionicons name="open-outline" size={16} color="#ccc" />
-            </TouchableOpacity>
-          ) : (
-            <>
-              <TouchableOpacity style={styles.settingsActionItem} onPress={() => openPaywall('settings')}>
-                <View style={styles.settingsActionLeft}>
-                  <Ionicons name="sparkles-outline" size={18} color="#059669" />
-                  <Text style={[styles.settingsActionLabel, { color: '#059669', fontWeight: '700' }]}>Upgrade to Logga Pro</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#ccc" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.settingsActionItem} onPress={doRestore} disabled={restoring}>
+              {!sub.isPro && (
+                <TouchableOpacity style={[styles.discoverPro, { marginTop: 16, marginBottom: 0 }]} onPress={() => openPaywall('settings')} activeOpacity={0.85}>
+                  <View style={styles.discoverProTop}>
+                    <View style={styles.settingsActionLeft}>
+                      <Ionicons name="sparkles-outline" size={18} color="#047857" />
+                      <Text style={styles.discoverProTitle}>Discover Logga Pro</Text>
+                    </View>
+                    <Ionicons name="arrow-up-outline" size={15} color="#047857" style={{ transform: [{ rotate: '45deg' }] }} />
+                  </View>
+                  <Text style={styles.discoverProSub}>Unlock personalised forecasts, planning insights, and more.</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              {sub.isPro && (
+                <TouchableOpacity style={styles.settingsActionItem} onPress={() => Linking.openURL(sub.managementURL || 'https://apps.apple.com/account/subscriptions').catch(() => {})}>
+                  <View style={styles.settingsActionLeft}>
+                    <Ionicons name="settings-outline" size={18} color="#374151" />
+                    <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Manage subscription</Text>
+                  </View>
+                  <Ionicons name="open-outline" size={16} color="#ccc" />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={[styles.settingsActionItem, { borderBottomWidth: 0 }]} onPress={doRestore} disabled={restoring}>
                 <View style={styles.settingsActionLeft}>
                   <Ionicons name="refresh-outline" size={18} color="#374151" />
                   <Text style={[styles.settingsActionLabel, { color: colors.text }]}>{restoring ? 'Restoring…' : 'Restore Purchases'}</Text>
                 </View>
               </TouchableOpacity>
-            </>
-          )}
+            </View>
+            <Text style={{ fontSize: 12, lineHeight: 17, color: colors.textMuted, paddingHorizontal: 4 }}>
+              Payment is charged to your Apple ID. Manage or cancel any time in your Apple ID settings.
+            </Text>
+          </ScrollView>
         </View>
       )}
 
-      {/* Your Details entry row */}
-      <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowMakeItYours(true)}>
+      <ScrollView style={[styles.settingsScrollContent, { backgroundColor: colors.bg }]} showsVerticalScrollIndicator={false}>
+      {/* Logga Pro, Personal details, Subscription & purchases */}
+      <View style={[styles.settingsSection, styles.accountCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {sub.canPurchase && !sub.isPro && (
+          <TouchableOpacity style={styles.discoverPro} onPress={() => openPaywall('settings')} activeOpacity={0.85}>
+            <View style={styles.discoverProTop}>
+              <View style={styles.settingsActionLeft}>
+                <Ionicons name="sparkles-outline" size={18} color="#047857" />
+                <Text style={styles.discoverProTitle}>Discover Logga Pro</Text>
+              </View>
+              <Ionicons name="arrow-up-outline" size={15} color="#047857" style={{ transform: [{ rotate: '45deg' }] }} />
+            </View>
+            <Text style={styles.discoverProSub}>Unlock personalised forecasts, planning insights, and more.</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={[styles.accountRow, sub.canPurchase && { borderBottomWidth: 1, borderBottomColor: colors.border }]} onPress={() => setShowMakeItYours(true)}>
           <View style={styles.settingsActionLeft}>
-            <Ionicons name="options-outline" size={18} color="#374151" />
-            <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Your Details</Text>
+            <Ionicons name="person-outline" size={18} color="#374151" />
+            <Text style={[styles.accountRowLabel, { color: colors.text }]}>Personal details</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+          <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
         </TouchableOpacity>
+        {sub.canPurchase && (
+          <TouchableOpacity style={styles.accountRow} onPress={() => setShowSubscription(true)}>
+            <View style={styles.settingsActionLeft}>
+              <Ionicons name="card-outline" size={18} color="#374151" />
+              <Text style={[styles.accountRowLabel, { color: colors.text }]}>Subscription & purchases</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Notifications */}
@@ -1413,6 +1461,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFAFA',
   },
+  accountCard: { paddingTop: 10, paddingHorizontal: 10, paddingBottom: 4 },
+  discoverPro: { padding: 14, borderRadius: 14, backgroundColor: '#EAF7F0', marginBottom: 4 },
+  discoverProTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  discoverProTitle: { fontSize: 15, fontWeight: '700', color: '#1F1F1F' },
+  discoverProSub: { marginTop: 8, fontSize: 13, lineHeight: 18, color: '#4B5563' },
+  accountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 18, paddingHorizontal: 8 },
+  accountRowLabel: { fontSize: 14.5, fontWeight: '600', color: '#1F1F1F' },
   makeItYoursPage: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,

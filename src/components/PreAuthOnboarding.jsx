@@ -16,6 +16,7 @@ import {
   initAnonymousSubscriptions, loadPlans, loadIntroOffer, purchasePlan, restorePurchases, getSubscription,
 } from '../lib/subscription';
 import HealthSourcesPage from './HealthSourcesPage';
+import ProFeatureCarousel from './ProFeatureCarousel';
 
 // ── Design tokens (the onboarding canvas) ──────────────────────────────────────
 const C = {
@@ -1290,54 +1291,6 @@ const fmtMoney = (amount, currency) => {
   try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount); } catch (_) { return null; }
 };
 
-const PRO_FEATURES = [
-  { t: 'See your forecast',  s: "Know when you'll hit your goal", img: 'forecast' },
-  { t: 'Log without limits', s: 'Every meal, every way',          img: 'food' },
-  { t: 'Every recipe',       s: 'All local recipes unlocked',     img: 'elder' },
-  { t: 'Deeper insights',    s: 'Fibre, sugar, sodium and more',  img: 'think' },
-];
-
-function ProCarousel() {
-  const { width: SW } = useWindowDimensions();
-  const W = SW - 40;
-  const ref = useRef(null);
-  const [i, setI] = useState(0);
-  const cur = useRef(0);
-  useEffect(() => {
-    const iv = setInterval(() => {
-      cur.current = (cur.current + 1) % PRO_FEATURES.length;
-      ref.current?.scrollTo({ x: cur.current * W, animated: true });
-      setI(cur.current);
-    }, 2000);
-    return () => clearInterval(iv);
-  }, [W]);
-  return (
-    <View>
-      <ScrollView
-        ref={ref}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        scrollEnabled={false}
-        style={{ width: W, alignSelf: 'center' }}
-      >
-        {PRO_FEATURES.map((f) => (
-          <View key={f.t} style={[s.proCard, { width: W }]}>
-            <View style={{ flex: 1, paddingRight: 8 }}>
-              <Text style={s.proCardTitle}>{f.t}</Text>
-              <Text style={s.proCardSub}>{f.s}</Text>
-            </View>
-            <Image source={LUMI[f.img]} style={{ width: 112, height: 112 }} resizeMode="contain" accessibilityLabel="" />
-          </View>
-        ))}
-      </ScrollView>
-      <View style={s.dots}>
-        {PRO_FEATURES.map((f, k) => <View key={f.t} style={[s.dot, k === i && s.dotOn]} />)}
-      </View>
-    </View>
-  );
-}
-
 function ProScreen({ d, plans, onClose, onPurchased }) {
   const [choice, setChoice] = useState('yearly');
   const [busy, setBusy] = useState(false);
@@ -1415,23 +1368,13 @@ function ProScreen({ d, plans, onClose, onPurchased }) {
         </TouchableOpacity>
       </View>
       <ScrollView contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
-        <ProCarousel />
+        <ProFeatureCarousel />
         <View style={{ paddingHorizontal: 20 }}>
           <Text style={s.proHeadline}>
             {win
               ? <>We'll help you reach <Text style={{ color: C.primary }}>{weightText(d.targetKg, d.unitW)}</Text> by <Text style={{ color: C.primary }}>{win.end}</Text>!</>
               : <>Reach your goal faster with <Text style={{ color: C.primary }}>Logga Pro</Text></>}
           </Text>
-          <View style={s.loved}>
-            <View style={{ flexDirection: 'row' }}>
-              {['A', 'S', 'K', 'T'].map((l, k) => (
-                <View key={l} style={[s.lovedAvatar, { marginLeft: k ? -8 : 0, backgroundColor: ['#FDE68A', '#BBF7D0', '#BFDBFE', '#FBCFE8'][k] }]}>
-                  <Text style={s.lovedInitial}>{l}</Text>
-                </View>
-              ))}
-            </View>
-            <Text style={s.lovedTxt}>Loved by many users</Text>
-          </View>
           <View style={s.planRow}>
             <PlanCard id="yearly">
               <View style={s.bestBadge}><Text style={s.bestBadgeTxt}>BEST VALUE</Text></View>
@@ -2060,17 +2003,7 @@ const s = StyleSheet.create({
   proTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: Platform.OS === 'ios' ? 54 : 34, paddingHorizontal: 20, paddingBottom: 6 },
   proRestore: { fontSize: 14, fontWeight: '700', color: C.ink500 },
   proClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: C.sunken },
-  proCard: { height: 150, flexDirection: 'row', alignItems: 'center', paddingLeft: 20, paddingRight: 10, borderRadius: 22, backgroundColor: C.mint },
-  proCardTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: C.ink },
-  proCardSub: { marginTop: 4, fontSize: 13.5, lineHeight: 19, fontWeight: '600', color: C.ink600 },
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(5,150,105,0.3)' },
-  dotOn: { width: 18, backgroundColor: C.primary },
   proHeadline: { marginTop: 18, fontSize: 24, lineHeight: 30, fontWeight: '800', textAlign: 'center', letterSpacing: -0.5, color: C.ink },
-  loved: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  lovedAvatar: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  lovedInitial: { fontSize: 12, fontWeight: '800', color: C.ink },
-  lovedTxt: { fontSize: 16, fontWeight: '800', color: C.ink },
   planRow: { flexDirection: 'row', gap: 12, marginTop: 18 },
   planCard: {
     flex: 1, minHeight: 178, alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: 26, paddingBottom: 20, paddingHorizontal: 10,

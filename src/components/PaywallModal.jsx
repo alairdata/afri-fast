@@ -1,9 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Platform, Linking, ActivityIndicator, Alert, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Platform, Linking, ActivityIndicator, Alert } from 'react-native';
 import { setPaywallPresenter, loadPlans, purchasePlan, restorePurchases, getSubscription } from '../lib/subscription';
 import { track, EVENTS } from '../lib/analytics';
+import ProFeatureCarousel from './ProFeatureCarousel';
 
 const INK = '#16201b';
 const INK500 = '#6c7872';
@@ -38,13 +38,6 @@ const BENEFITS = [
 const TESTIMONIALS = [
   { quote: 'To be honest, Pro changed how I see my relationship with food.', by: 'Abena' },
   { quote: 'Best decision ever!', by: 'Samuel' },
-];
-
-// Food floating around the header (instead of a mascot): [emoji, left %, top, size, rotation].
-const FLOATERS = [
-  ['🍎', '8%', 34, 30, '-12deg'], ['🥑', '80%', 26, 32, '14deg'], ['🍗', '4%', 128, 30, '10deg'],
-  ['🥗', '84%', 120, 30, '-8deg'], ['🍌', '22%', 192, 26, '18deg'], ['🍳', '70%', 196, 26, '-14deg'],
-  ['🥕', '44%', 18, 22, '24deg'],
 ];
 
 const openUrl = (url) => Linking.openURL(url).catch(() => {});
@@ -152,16 +145,10 @@ const PaywallModal = ({ goal }) => {
     <Modal visible={visible} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'} onRequestClose={close}>
       <View style={styles.page}>
         <ScrollView contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false} bounces={false}>
-          {/* Header: soft mint gradient with food floating around the Logga mark */}
-          <LinearGradient colors={['#E3F8EE', '#BDEBD4']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.hero}>
-            {FLOATERS.map(([e, left, top, size, rot]) => (
-              <Text key={e} style={[styles.floater, { left, top, fontSize: size, transform: [{ rotate: rot }] }]}>{e}</Text>
-            ))}
-            <View style={styles.markWrap}>
-              <Image source={require('../../assets/logga-mark.png')} style={styles.mark} resizeMode="contain" />
-            </View>
-            <View style={styles.proPill}><Ionicons name="sparkles" size={12} color={GREEN_DARK} /><Text style={styles.proPillTxt}>LOGGA PRO</Text></View>
-          </LinearGradient>
+          {/* Header: the same feature cards as the Pro screen in onboarding */}
+          <View style={styles.hero}>
+            <ProFeatureCarousel />
+          </View>
 
           <View style={styles.body}>
             {target ? (
@@ -264,15 +251,7 @@ const PaywallModal = ({ goal }) => {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#fff' },
-  hero: { height: 250, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  floater: { position: 'absolute' },
-  markWrap: {
-    width: 96, height: 96, borderRadius: 30, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#0B3D2E', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
-  },
-  mark: { width: 64, height: 64 },
-  proPill: { position: 'absolute', bottom: 18, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.75)' },
-  proPillTxt: { fontSize: 11.5, fontWeight: '800', color: GREEN_DARK, letterSpacing: 1.2 },
+  hero: { paddingTop: Platform.OS === 'android' ? 84 : 60 },
   closeBtn: { position: 'absolute', top: Platform.OS === 'android' ? 44 : 14, right: 16, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.8)', alignItems: 'center', justifyContent: 'center' },
   body: { paddingHorizontal: 22, paddingTop: 22, width: '100%', maxWidth: 560, alignSelf: 'center' },
   title: { fontSize: 25, fontWeight: '800', color: INK, letterSpacing: -0.5, lineHeight: 31, textAlign: 'center' },
