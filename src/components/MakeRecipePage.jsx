@@ -748,23 +748,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
             </TouchableOpacity>
           </View>)}
 
-          {/* Shop It: the grocery list isn't built yet, so it says Coming soon for everyone */}
-          <TouchableOpacity
-            style={styles.shopRow}
-            activeOpacity={0.85}
-            onPress={() => Alert.alert('Coming soon', "Shop It will build your grocery list from the meals you plan to cook. We're still working on it.")}
-            accessibilityLabel="Shop It, build your grocery list"
-          >
-            <View style={styles.shopIcon}><Ionicons name="basket-outline" size={22} color="#16A34A" /></View>
-            <View style={{ flex: 1, gap: 6 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={styles.shopTitle}>Shop It</Text>
-                <View style={[styles.proPill, { marginTop: 0 }]}><Text style={styles.proPillText}>Coming soon</Text></View>
-              </View>
-              <Text style={styles.actionDesc}>Build your grocery list for your meal(s)</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={16} color="#1F1F1F" />
-          </TouchableOpacity>
+          {/* Shop It (a grocery list from the meals you plan to cook) is hidden until it is built */}
 
           {listOpen && isPro && (
             <View style={styles.listBox}>
