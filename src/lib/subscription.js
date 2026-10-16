@@ -88,7 +88,8 @@ export async function loadPlans() {
     try { elig = await Purchases.checkTrialOrIntroductoryPriceEligibility(ids); } catch (_) { elig = null; }
   }
   // 2 = eligible; 0 (unknown) counts as eligible, as Apple decides at purchase time.
-  const canTrial = (p) => !!p?.product?.introPrice && (elig === null || [0, 2].includes(elig?.[p.product.identifier]?.status));
+  // Only a free intro (price 0) is a trial; a paid first month (the one-time $2.99 offer) never shows as '7 days free'.
+  const canTrial = (p) => !!p?.product?.introPrice && p.product.introPrice.price === 0 && (elig === null || [0, 2].includes(elig?.[p.product.identifier]?.status));
   const trialYearly = canTrial(yearly);
   const trialMonthly = canTrial(monthly);
   return { yearly, monthly, trialYearly, trialMonthly, trialEligible: trialYearly };
