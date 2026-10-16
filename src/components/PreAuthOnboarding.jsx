@@ -17,6 +17,7 @@ import {
 } from '../lib/subscription';
 import HealthSourcesPage from './HealthSourcesPage';
 import ProFeatureCarousel from './ProFeatureCarousel';
+import LumiRive from './LumiRive';
 
 // ── Design tokens (the onboarding canvas) ──────────────────────────────────────
 const C = {
@@ -279,7 +280,9 @@ function Bubble({ lumi = 'avatar', title, sub, hideLumi }) {
     <View style={s.bubbleRow}>
       {!hideLumi ? (
         <View style={s.bubbleAvatar}>
-          <Image source={LUMI[lumi]} style={{ width: 56, height: 54 }} resizeMode="contain" accessibilityLabel="Lumi" />
+          {lumi === 'avatar'
+            ? <LumiRive name="blink" width={56} height={54} />
+            : <Image source={LUMI[lumi]} style={{ width: 56, height: 54 }} resizeMode="contain" accessibilityLabel="Lumi" />}
         </View>
       ) : null}
       <View style={[s.bubble, hideLumi && { borderBottomLeftRadius: 18 }]}>

@@ -10,6 +10,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
 import { useSubscription } from '../lib/subscription';
 import { unlock } from './ProLock';
+import LumiRive from './LumiRive';
 import { useSavedRecipes, toggleSavedRecipe } from '../lib/savedRecipes';
 
 // ── Ingredient amount scaler ─────────────────────────────────────────────────
@@ -787,7 +788,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
           {/* Photo analysis states */}
           {photoPhase === 'analyzing' && (
             <View style={styles.photoAnalyzing}>
-              <ActivityIndicator size="small" color="#059669" />
+              <LumiRive name="reading" width={120} height={120} />
               <Text style={styles.photoAnalyzingText}>Analysing your ingredients...</Text>
             </View>
           )}
@@ -1109,7 +1110,7 @@ const styles = StyleSheet.create({
   camFindBtnText: { color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center', lineHeight: 14 },
 
   photoAnalyzing: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    alignItems: 'center', gap: 10,
     backgroundColor: '#F0FDF4', borderRadius: 14,
     padding: 16, marginBottom: 20,
     borderWidth: 1.5, borderColor: 'rgba(5,150,105,0.15)',

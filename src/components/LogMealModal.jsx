@@ -18,6 +18,7 @@ import { uploadMealPhoto, enqueuePendingMealPhoto } from '../lib/mealPhotoUpload
 import ManualMealForm from './ManualMealForm';
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
+import LumiRive from './LumiRive';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 
 // Web-safe helper: convert a URI (blob URL or data URL) to base64 string
@@ -1120,6 +1121,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     </View>
                   ) : (
                     <>
+                      <View style={styles.detectLumi}><LumiRive name="eating" width={120} height={120} /></View>
                       <View style={styles.detectLabelRow}>
                         <Text style={styles.detectLabel}>{SCAN_MESSAGES[scanMsgIndex]}</Text>
                         <Text style={styles.detectPct}>{Math.round(scanProgress)}%</Text>
@@ -1430,6 +1432,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
             {/* Detecting Progress */}
             {writePhase === 'detecting' && (
               <View style={styles.detectSection}>
+                <View style={styles.detectLumi}><LumiRive name="eating" width={120} height={120} /></View>
                 <View style={styles.detectLabelRow}>
                   <Text style={styles.detectLabel}>
                     {writeDetectProgress >= 100 ? 'Foods detected!' : SCAN_MESSAGES[writeMsgIndex]}
@@ -1943,6 +1946,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
               {/* Detecting Progress */}
               {sayPhase === 'detecting' && (
                 <View style={styles.detectSection}>
+                  <View style={styles.detectLumi}><LumiRive name="eating" width={120} height={120} /></View>
                   <Text style={styles.detectLabel}>
                     {detectProgress >= 100 ? 'Foods detected!' : SCAN_MESSAGES[sayMsgIndex]}
                   </Text>
@@ -3485,6 +3489,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.8)',
     borderRadius: 1,
   },
+  detectLumi: { alignItems: 'center', marginBottom: 8 },
   detectSection: {
     marginHorizontal: 20,
     marginBottom: 14,
