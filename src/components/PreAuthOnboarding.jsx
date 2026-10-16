@@ -6,7 +6,6 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Path, Circle, Rect, Defs, LinearGradient as SvgGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { track, EVENTS } from '../lib/analytics';
 import { appleHealthSupported, connectAppleHealth } from '../lib/appleHealth';
@@ -93,8 +92,6 @@ const chapterOf = (id) => {
   return { index: c, name: CHAPTERS[c].name, fill: (ids.indexOf(id) + 1) / (ids.length + 0.33) };
 };
 
-const OFFER_DEADLINE_KEY = 'logga_onboarding_offer_deadline_v1';
-const OFFER_DONE_KEY = 'logga_onboarding_offer_done_v1';
 const OFFER_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 const tap = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
@@ -1294,7 +1291,7 @@ const fmtMoney = (amount, currency) => {
   try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount); } catch (_) { return null; }
 };
 
-function ProScreen({ d, plans, onClose, onPurchased }) {
+function ProScreen({ d, plans, onRetry, onClose, onPurchased }) {
   const [choice, setChoice] = useState('yearly');
   const [busy, setBusy] = useState(false);
   useEffect(() => { track(EVENTS.PAYWALL_VIEWED, { reason: 'onboarding' }); }, []);
@@ -1378,22 +1375,30 @@ function ProScreen({ d, plans, onClose, onPurchased }) {
               ? <>We'll help you reach <Text style={{ color: C.primary }}>{weightText(d.targetKg, d.unitW)}</Text> by <Text style={{ color: C.primary }}>{win.end}</Text>!</>
               : <>Reach your goal faster with <Text style={{ color: C.primary }}>Logga Pro</Text></>}
           </Text>
-          <View style={s.planRow}>
-            <PlanCard id="yearly">
-              <View style={s.bestBadge}><Text style={s.bestBadgeTxt}>BEST VALUE</Text></View>
-              <Text style={s.planLen}>12 months</Text>
-              {twelveMonthly ? <Text style={s.planStrike}>{twelveMonthly}</Text> : null}
-              <Text style={s.planPrice}>{yp?.priceString || ''}</Text>
-              {yearlyPerMonth ? <Text style={s.planPer}>{yearlyPerMonth}/mo</Text> : null}
-              {plans?.trialYearly ? <Text style={s.trialChip}>7 days free</Text> : null}
-            </PlanCard>
-            <PlanCard id="monthly">
-              <Text style={s.planLen}>1 month</Text>
-              <Text style={s.planPrice}>{mp?.priceString || ''}</Text>
-              <Text style={s.planPer}>billed monthly</Text>
-              {plans?.trialMonthly ? <Text style={s.trialChip}>7 days free</Text> : null}
-            </PlanCard>
-          </View>
+          {plans === undefined ? (
+            <ActivityIndicator color={C.primary} style={{ marginTop: 28 }} />
+          ) : !plans ? (
+            <TouchableOpacity style={s.proRetry} onPress={onRetry} accessibilityRole="button">
+              <Text style={s.proRetryTxt}>Prices couldn't load. Tap to try again.</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={s.planRow}>
+              <PlanCard id="yearly">
+                <View style={s.bestBadge}><Text style={s.bestBadgeTxt}>BEST VALUE</Text></View>
+                <Text style={s.planLen}>12 months</Text>
+                {twelveMonthly ? <Text style={s.planStrike}>{twelveMonthly}</Text> : null}
+                <Text style={s.planPrice}>{yp?.priceString || ''}</Text>
+                {yearlyPerMonth ? <Text style={s.planPer}>{yearlyPerMonth}/mo</Text> : null}
+                {plans?.trialYearly ? <Text style={s.trialChip}>7 days free</Text> : null}
+              </PlanCard>
+              <PlanCard id="monthly">
+                <Text style={s.planLen}>1 month</Text>
+                <Text style={s.planPrice}>{mp?.priceString || ''}</Text>
+                <Text style={s.planPer}>billed monthly</Text>
+                {plans?.trialMonthly ? <Text style={s.trialChip}>7 days free</Text> : null}
+              </PlanCard>
+            </View>
+          )}
         </View>
       </ScrollView>
       <View style={s.footer}>
@@ -1606,7 +1611,7 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
   const isIos = Platform.OS === 'ios';
   const skip = (id) => {
     if (id === 'health') return !(isIos && appleHealthSupported());
-    if (id === 'pro') return !plans || pro;
+    if (id === 'pro') return !isIos || pro;
     if (id === 'offer') return !offer || pro || !deadline || deadline <= Date.now();
     if (id === 'widget' || id === 'widgetSteps') return !isIos;
     return false;
@@ -1644,44 +1649,38 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
     ]);
   };
 
-  // Get the Pro prices ready while the plan builds, so the Pro screen opens with real prices (or is
-  // skipped where nothing can be bought: web, Android, offline).
+  // Get the Pro prices ready while the plan builds, so the Pro screen opens with real prices. Every new
+  // onboarding shows Pro, the offer and the widget screens; only someone already on Pro skips Pro and the
+  // offer, and the offer also needs Apple to say this Apple ID can still get the intro price.
   const screen = FLOW[idx];
   const plansStarted = useRef(false);
+  const loadPro = async () => {
+    try {
+      await initAnonymousSubscriptions();
+      const sub = getSubscription();
+      if (sub.isPro) { setPro(true); setPlans(null); return; }
+      const [p, o] = await Promise.all([loadPlans().catch(() => null), loadIntroOffer()]);
+      setPlans(p?.yearly || p?.monthly ? p : null);
+      if (o) setOffer(o);
+    } catch (_) {
+      setPlans(null);
+    }
+  };
   useEffect(() => {
     if (plansStarted.current || FLOW.indexOf(screen) < FLOW.indexOf('care')) return;
     plansStarted.current = true;
     if (!isIos) { setPlans(null); return; }
-    (async () => {
-      try {
-        await initAnonymousSubscriptions();
-        const sub = getSubscription();
-        if (sub.isPro) { setPro(true); setPlans(null); return; }
-        if (!sub.canPurchase) { setPlans(null); return; }
-        const [p, o, done, savedDeadline] = await Promise.all([
-          loadPlans().catch(() => null),
-          loadIntroOffer(),
-          AsyncStorage.getItem(OFFER_DONE_KEY).catch(() => null),
-          AsyncStorage.getItem(OFFER_DEADLINE_KEY).catch(() => null),
-        ]);
-        setPlans(p?.yearly || p?.monthly ? p : null);
-        if (o && !done) {
-          setOffer(o);
-          const dl = parseInt(savedDeadline, 10);
-          if (dl > 0) setDeadline(dl);
-        }
-      } catch (_) {
-        setPlans(null);
-      }
-    })();
+    loadPro();
   }, [screen]);
+  // From the Pro screen when the prices couldn't load: try again.
+  const retryPlans = () => { setPlans(undefined); loadPro(); };
 
-  // Wait for the prices before leaving the plan screen, so Pro isn't skipped just because it was slow.
+  // Wait a few seconds for the prices before leaving the plan screen, so Pro opens with them.
   const [waitingPlans, setWaitingPlans] = useState(false);
   useEffect(() => {
     if (!waitingPlans) return undefined;
     if (plans !== undefined) { setWaitingPlans(false); nextOrFinish(); return undefined; }
-    // Never hold anyone on a spinner: after a few seconds without prices, carry on without Pro.
+    // Never hold anyone on a spinner: after a few seconds, carry on (Pro then offers a retry).
     const t = setTimeout(() => setPlans((p) => (p === undefined ? null : p)), 6000);
     return () => clearTimeout(t);
   }, [waitingPlans, plans]);
@@ -1690,13 +1689,11 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
     nextOrFinish();
   };
 
-  // The offer's two hours start the first time it is shown.
+  // The offer's two hours start when this onboarding first reaches it.
   useEffect(() => {
     if (!offer || deadline || pro) return;
     if (FLOW[idx + 1] !== 'offer' && screen !== 'pro') return;
-    const dl = Date.now() + OFFER_WINDOW_MS;
-    setDeadline(dl);
-    AsyncStorage.setItem(OFFER_DEADLINE_KEY, String(dl)).catch(() => {});
+    setDeadline(Date.now() + OFFER_WINDOW_MS);
   }, [screen, offer]);
 
   // Funnel: started -> each screen -> completed (or skipped), the same shape as SUAI's onboarding events.
@@ -1751,8 +1748,9 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
         <ProScreen
           d={data}
           plans={plans}
+          onRetry={retryPlans}
           onClose={nextOrFinish}
-          onPurchased={() => { setPro(true); AsyncStorage.setItem(OFFER_DONE_KEY, '1').catch(() => {}); setIdx(FLOW.indexOf('widget')); if (!isIos) finish(); }}
+          onPurchased={() => { setPro(true); setIdx(FLOW.indexOf('widget')); if (!isIos) finish(); }}
         />
       );
     case 'offer':
@@ -1762,7 +1760,6 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
           offer={offer}
           deadline={deadline}
           onDone={(bought) => {
-            AsyncStorage.setItem(OFFER_DONE_KEY, '1').catch(() => {});
             if (bought) setPro(true);
             setOffer(null);
             nextOrFinish();
@@ -2006,6 +2003,8 @@ const s = StyleSheet.create({
   proTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: Platform.OS === 'ios' ? 54 : 34, paddingHorizontal: 20, paddingBottom: 6 },
   proRestore: { fontSize: 14, fontWeight: '700', color: C.ink500 },
   proClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: C.sunken },
+  proRetry: { marginTop: 22, padding: 16, borderRadius: 16, backgroundColor: C.mint, alignItems: 'center' },
+  proRetryTxt: { fontSize: 14, fontWeight: '700', color: C.ink600 },
   proHeadline: { marginTop: 18, fontSize: 24, lineHeight: 30, fontWeight: '800', textAlign: 'center', letterSpacing: -0.5, color: C.ink },
   planRow: { flexDirection: 'row', gap: 12, marginTop: 18 },
   planCard: {
