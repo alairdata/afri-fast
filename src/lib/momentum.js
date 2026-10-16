@@ -84,9 +84,10 @@ function ewmaStep(prev, rawToday, hasDataToday) {
 // not count) we report "not enough data" instead of a score.
 export const MIN_LOGGED_DAYS = 3;
 
+// Same cut-offs as the momentum battery animation (assets/rive/momentum.riv): green from 60, yellow from 35.
 function bandFor(score) {
-  if (score >= 80) return { label: 'STRONG', tone: 'strong' };
-  if (score >= 60) return { label: 'DRIFTING', tone: 'drifting' };
+  if (score >= 60) return { label: 'STRONG', tone: 'strong' };
+  if (score >= 35) return { label: 'DRIFTING', tone: 'drifting' };
   return { label: 'STALLED', tone: 'stalled' };
 }
 

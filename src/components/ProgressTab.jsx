@@ -2114,7 +2114,7 @@ const ProgressTab = ({
           </View>
           <ScrollView style={styles.scrollContainer} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
             <Text style={styles.mutedBody}>
-              {momentumScore >= 80
+              {momentumScore >= 60
                 ? `Your numbers look clean this week, ${userName || 'there'}. If nothing changes, you're on pace for your goal.`
                 : `Bit of a rougher week than usual${userName ? `, ${userName}` : ''} — here's what to focus on.`}
             </Text>
