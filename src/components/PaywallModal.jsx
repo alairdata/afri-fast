@@ -28,7 +28,7 @@ const DEFAULT_HEADLINE = ['Get more from Logga', 'Unlimited logging, deeper insi
 const BENEFITS = [
   'Unlimited meal logging',
   'Full weight forecast',
-  'Burnout risk analysis',
+  'Cook with what you have',
   '4 daily insights',
   'Fibre, sugar & sodium',
   'Every recipe',
