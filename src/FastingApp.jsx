@@ -82,6 +82,7 @@ import EditProfileModal from './components/EditProfileModal';
 import TimeEditModal from './components/TimeEditModal';
 import AiConsentModal from './components/AiConsentModal';
 import PaywallModal from './components/PaywallModal';
+import CatchUpPrompts from './components/CatchUpPrompts';
 import FirstMealPrompt from './components/FirstMealPrompt';
 import { LinearGradient } from 'expo-linear-gradient';
 import { initSubscriptions, signOutSubscriptions, useSubscription, openPaywall, FREE_MEALS_PER_DAY } from './lib/subscription';
@@ -3289,6 +3290,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       {/* === Chat (above everything incl. tab bar) === */}
       <AiConsentModal signedIn={!!session?.user} />
       <PaywallModal goal={{ targetWeight, weightUnit, goalDate }} />
+      <CatchUpPrompts userId={session?.user?.id} name={userName} kcal={dailyCalorieGoal} newUser={!!pendingPreAuthData} busy={showFirstMeal} />
 
       <ChatScreen
         show={showChat}

@@ -1416,13 +1416,13 @@ function ProScreen({ d, plans, onRetry, onClose, onPurchased }) {
 
 // The one-time first-month offer, shown once after closing the Pro screen. The countdown is real: the
 // deadline is saved, and once it passes or the offer is skipped it doesn't come back.
-function OfferScreen({ d, offer, deadline, onDone }) {
+export function OfferScreen({ d, offer, deadline, onDone, reason = 'onboarding_offer' }) {
   const first = firstName(d);
   const [now, setNow] = useState(Date.now());
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const sheet = useRef(new Animated.Value(0)).current;
-  useEffect(() => { track(EVENTS.PAYWALL_VIEWED, { reason: 'onboarding_offer' }); }, []);
+  useEffect(() => { track(EVENTS.PAYWALL_VIEWED, { reason }); }, []);
   useEffect(() => {
     const iv = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(iv);
@@ -1439,10 +1439,10 @@ function OfferScreen({ d, offer, deadline, onDone }) {
   const claim = async () => {
     if (busy) return;
     setBusy(true);
-    track(EVENTS.PURCHASE_STARTED, { plan: 'monthly_offer', reason: 'onboarding_offer' });
+    track(EVENTS.PURCHASE_STARTED, { plan: 'monthly_offer', reason });
     try {
       const result = await purchasePlan(offer.pkg);
-      if (result === 'purchased') { track(EVENTS.SUBSCRIBED, { plan: 'monthly_offer', reason: 'onboarding_offer' }); onDone(true); }
+      if (result === 'purchased') { track(EVENTS.SUBSCRIBED, { plan: 'monthly_offer', reason }); onDone(true); }
       else track(EVENTS.PURCHASE_CANCELLED, { plan: 'monthly_offer' });
     } catch (e) {
       track(EVENTS.PURCHASE_FAILED, { plan: 'monthly_offer', message: String(e?.message || '').slice(0, 120) });
@@ -1510,8 +1510,9 @@ function OfferScreen({ d, offer, deadline, onDone }) {
   );
 }
 
-function WidgetScreen({ d, onShow, onLater }) {
-  const plan = calcPlan(d);
+// kcal: the calories shown on the sample widget (the new plan's target, or an existing account's goal).
+export function WidgetScreen({ d, kcal, onShow, onLater }) {
+  const target = kcal || calcPlan(d).target;
   return (
     <View style={[s.shell, { backgroundColor: C.bg, paddingTop: Platform.OS === 'ios' ? 70 : 50 }]}>
       <View style={{ paddingHorizontal: 24 }}>
@@ -1523,7 +1524,7 @@ function WidgetScreen({ d, onShow, onLater }) {
           <Text style={s.phoneTime}>9:41</Text>
           <View style={s.widget}>
             <View style={s.widgetRing}>
-              <Text style={s.widgetKcal}>{plan.target.toLocaleString()}</Text>
+              <Text style={s.widgetKcal}>{target.toLocaleString()}</Text>
               <Text style={s.widgetKcalLbl}>kcal left</Text>
             </View>
             <View style={{ flex: 1, marginLeft: 14 }}>
@@ -1554,7 +1555,7 @@ function WidgetScreen({ d, onShow, onLater }) {
   );
 }
 
-function WidgetStepsScreen({ onBack, onDone }) {
+export function WidgetStepsScreen({ onBack, onDone }) {
   const steps = [
     ['Touch and hold an empty spot on your home screen', 'Keep holding until the apps start to jiggle.'],
     ['Tap Edit in the top-left corner', 'Then choose Add Widget.'],
