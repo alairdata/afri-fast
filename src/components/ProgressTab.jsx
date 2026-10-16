@@ -29,6 +29,28 @@ const WEEK_DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const WARN = '#F59E0B';
 const DANGER = '#EF4444';
 const WARN_BG = '#FFF7ED';
+const WEEK_AHEAD_LEVELS = {
+  low: { label: 'Low risk', bg: '#D1FAE5', color: '#047857' },
+  watch: { label: 'Worth watching', bg: '#FEF3C7', color: '#B45309' },
+  high: { label: 'Higher risk', bg: '#FFEDD5', color: '#C2410C' },
+  none: { label: 'No pattern yet', bg: '#F3F4F6', color: '#6B7280' },
+};
+
+// Seven rounded bars on a grey track (Calories, Hydration, Steps on Insights), oldest day first.
+const PillBars = ({ values, max, letters, color, styles, label }) => (
+  <View style={{ flex: 1, gap: 6 }} accessible accessibilityLabel={label}>
+    <View style={{ height: 160, flexDirection: 'row', gap: 8 }}>
+      {values.map((v, i) => (
+        <View key={i} style={styles.pillTrack}>
+          <View style={{ width: '100%', height: `${Math.round(Math.min(1, (v || 0) / (max || 1)) * 100)}%`, borderRadius: 999, backgroundColor: color }} />
+        </View>
+      ))}
+    </View>
+    <View style={{ flexDirection: 'row', gap: 8 }}>
+      {letters.map((l, i) => <Text key={i} style={styles.pillLetter}>{l}</Text>)}
+    </View>
+  </View>
+);
 const DANGER_BG = '#FEF2F2';
 const ACTIVITY_MULTIPLIERS = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 };
 const RANGE_OPTIONS = ['7 days', '14 days', '30 days', '90 days', 'All time'];
@@ -737,6 +759,7 @@ const ProgressTab = ({
   const forecastAnchorNote = forecastAnchorKg != null && currentWeightKg != null && Math.abs(forecastAnchorKg - currentWeightKg) > 0.05
     ? `Starts from ${fromKg(forecastAnchorKg, weightUnit).toFixed(1)} ${weightUnit}, which can differ a little from your last weigh-in.`
     : null;
+  const projected3Kg = weeklyPace.projectDay(3)?.projectedKg ?? null;
   const projected7Kg = weeklyPace.projectDay(7)?.projectedKg ?? null;
   const projected14Kg = weeklyPace.projectDay(14)?.projectedKg ?? null;
 
@@ -944,14 +967,6 @@ const ProgressTab = ({
     burnoutDrivers.join('|'),
     burnout.crashDate ? burnout.crashDate.toDateString() : '',
   ].join('#'), [burnout, burnoutDrivers]);
-  const [burnoutAi, setBurnoutAi] = useState(null);
-  useEffect(() => {
-    if (!userId || !burnoutReady) return;
-    let cancelled = false;
-    getAiText({ kind: 'burnout_why', userId, facts: { ...burnoutFacts, coachTone }, fingerprint: `${burnoutFingerprint}#${coachTone || ''}` })
-      .then((v) => { if (!cancelled && v) setBurnoutAi(v); });
-    return () => { cancelled = true; };
-  }, [userId, burnoutFingerprint, burnoutReady, coachTone]);
 
   // Momentum "See why" — plain-language sentences instead of a bare numbers table. Calorie and
   // Movement are single facts, so they're templated directly off the same live numbers shown
@@ -1457,6 +1472,98 @@ const ProgressTab = ({
     return items;
   }, [spikeDays, crashDays, missingDays, dailyCalorieGoal]);
 
+  // ── Last 7 days, one value per day (oldest first), for the pill bar charts ──
+  const UNIT_ML = { oz: 29.574, mL: 1, ml: 1, sachet: 500, bottle: 750, glasses: 237 };
+  const last7Days = useMemo(() => Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (6 - i));
+    return { date: d, ds: d.toDateString(), letter: d.toLocaleDateString('en-US', { weekday: 'narrow' }) };
+  }), [now]);
+  const week7 = useMemo(() => {
+    const calsLive = {}; (recentMeals || []).forEach((m) => { if (m.date) calsLive[m.date] = (calsLive[m.date] || 0) + (m.calories || 0); });
+    const waterMl = {}; (waterLogs || []).forEach((w) => { if (w.date) waterMl[w.date] = (waterMl[w.date] || 0) + (Number(w.amount) || 0) * (UNIT_ML[w.unit] ?? 237); });
+    const steps = {}; (stepLogs || []).forEach((r) => { if (r.date) steps[r.date] = (steps[r.date] || 0) + (r.steps || 0); });
+    const goalMl = hydrationGoal > 0 ? hydrationGoal * (UNIT_ML[volumeUnit] ?? 1) : 2000;
+    const days = last7Days.map(({ ds, letter }) => {
+      const cal = calsLive[ds] ? resolveCaloriesEaten(ledgerMap, ds, calsLive[ds]) : 0;
+      return { ds, letter, cal, calGoal: resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal) || 0, waterL: (waterMl[ds] || 0) / 1000, steps: steps[ds] || 0 };
+    });
+    const calDays = days.filter((d) => d.cal > 0);
+    const avgCal = calDays.length ? Math.round(calDays.reduce((s, d) => s + d.cal, 0) / calDays.length) : 0;
+    const avgGoal = calDays.length ? calDays.reduce((s, d) => s + d.calGoal, 0) / calDays.length : 0;
+    const gapPct = calDays.length && avgGoal > 0 ? Math.round(((avgCal - avgGoal) / avgGoal) * 100) : null;
+    const waterDays = days.filter((d) => d.waterL > 0);
+    const stepDays = days.filter((d) => d.steps > 0);
+    return {
+      days, avgCal, gapPct, goalMl,
+      avgWaterL: waterDays.length ? waterDays.reduce((s, d) => s + d.waterL, 0) / waterDays.length : 0,
+      waterGoalDays: days.filter((d) => d.waterL * 1000 >= goalMl).length,
+      hasWater: waterDays.length > 0,
+      avgSteps: stepDays.length ? Math.round(stepDays.reduce((s, d) => s + d.steps, 0) / stepDays.length) : 0,
+      stepGoalDays: days.filter((d) => stepGoal > 0 && d.steps >= stepGoal).length,
+      hasSteps: stepDays.length > 0,
+    };
+  }, [last7Days, recentMeals, waterLogs, stepLogs, ledgerMap, goalHistory, dailyCalorieGoal, hydrationGoal, volumeUnit, stepGoal]);
+
+  // ── Your week ahead: the next 7 days, judged by how that weekday has gone before ──
+  const weekAhead = useMemo(() => {
+    const plural = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
+    const byWeekday = Array.from({ length: 7 }, () => ({ sum: 0, count: 0 }));
+    const byDate = {};
+    (recentMeals || []).forEach((m) => { if (m.date) byDate[m.date] = (byDate[m.date] || 0) + (m.calories || 0); });
+    Object.entries(byDate).forEach(([ds, live]) => {
+      const d = new Date(ds);
+      if (isNaN(d.getTime())) return;
+      const goal = resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal);
+      if (!goal) return;
+      byWeekday[d.getDay()].sum += resolveCaloriesEaten(ledgerMap, ds, live) - goal;
+      byWeekday[d.getDay()].count += 1;
+    });
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(now); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() + 1 + i);
+      const wd = date.getDay();
+      const b = byWeekday[wd];
+      const enough = b.count >= 2 && dailyCalorieGoal > 0;
+      const over = enough ? b.sum / b.count : 0;
+      const ratio = enough ? over / dailyCalorieGoal : 0;
+      const level = !enough ? 'none' : ratio > 0.15 ? 'high' : ratio > 0.05 ? 'watch' : 'low';
+      const kcal = Math.round(Math.abs(over) / 10) * 10;
+      const text = level === 'high'
+        ? `Your past ${plural[wd]} came in about ${kcal.toLocaleString()} kcal over your goal. Planning that day's meals ahead helps.`
+        : level === 'watch'
+          ? `${plural[wd]} run a little over, about ${kcal.toLocaleString()} kcal on average. Logging as you go keeps you close.`
+          : level === 'low'
+            ? `${plural[wd]} usually go to plan for you.`
+            : `Not enough ${plural[wd]} logged yet to see a pattern.`;
+      return {
+        date, level, text,
+        name: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        num: date.getDate(),
+        title: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+        height: level === 'none' ? 0.1 : Math.max(0.15, Math.min(1, 0.25 + ratio * 3)),
+      };
+    });
+    return { days, toWatch: days.filter((d) => d.level === 'high').length };
+  }, [recentMeals, ledgerMap, goalHistory, dailyCalorieGoal, now]);
+  const [weekAheadPick, setWeekAheadPick] = useState(0);
+
+  // ── Your movement: the last 4 weeks (Mon-Sun rows), full workout vs lighter activity ──
+  const movement = useMemo(() => {
+    const mins = {}; (activities || []).forEach((a) => { if (a.date) mins[a.date] = (mins[a.date] || 0) + (Number(a.durationMin) || 0) + 0.001; });
+    const steps = {}; (stepLogs || []).forEach((r) => { if (r.date) steps[r.date] = (steps[r.date] || 0) + (r.steps || 0); });
+    const today = new Date(now); today.setHours(0, 0, 0, 0);
+    const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) - 21);
+    let full = 0, light = 0;
+    const weeks = Array.from({ length: 4 }, (_, w) => Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday); d.setDate(monday.getDate() + w * 7 + i);
+      const ds = d.toDateString();
+      const level = d > today ? 'future' : (mins[ds] || 0) >= 30 ? 'full' : (mins[ds] || (steps[ds] || 0) >= ACTIVE_DAY_STEPS) ? 'light' : 'none';
+      if (level === 'full') full += 1;
+      if (level === 'light') light += 1;
+      return { ds, level };
+    }));
+    return { weeks, full, light };
+  }, [activities, stepLogs, now]);
+
   return (
     <View style={styles.wrapper}>
       {view === 'main' && (
@@ -1501,30 +1608,32 @@ const ProgressTab = ({
               </View>
             </View>
 
-            {/* Momentum gauge */}
-            <View style={[styles.card, { alignItems: 'center', paddingTop: 18 }]}>
-              <InfoTip id="momentum" size={18} style={{ position: 'absolute', top: 14, right: 14, zIndex: 2 }} />
-              <View style={{ width: 220, height: 132, marginTop: 4 }}>
-                <Svg width={220} height={132} viewBox="0 0 220 132">
-                  {gauge.segments.map((s, i) => (
-                    <Path key={i} d={s.d} fill="none" stroke={s.stroke} strokeWidth={12} strokeLinecap="round" />
-                  ))}
-                  {gauge.needle ? <Line {...gauge.needle} stroke={colors.text} strokeWidth={3} strokeLinecap="round" /> : null}
-                </Svg>
-                <View style={styles.gaugeCenter}>
-                  <Text style={styles.gaugeKicker}>MOMENTUM</Text>
-                  <Text style={styles.gaugeScore}>{momentumReady ? momentumScore : '--'}</Text>
-                </View>
+            {/* Momentum */}
+            <View style={[styles.card, { paddingTop: 14, alignItems: 'center' }]}>
+              <View style={[styles.rowBetween, { alignSelf: 'stretch', alignItems: 'center', marginBottom: 12 }]}>
+                <View style={styles.titleTipRow}><Text style={styles.cardTitle15}>Momentum</Text><InfoTip id="momentum" /></View>
+                <View style={styles.greyPill}><Text style={styles.greyPillText}>{momentumReady ? `${momentumScore} / 100` : '-- / 100'}</Text></View>
               </View>
-              <View style={[styles.pill, { backgroundColor: momentumBg }]}>
-                <Text style={[styles.pillText, { color: momentumColor }]}>{momentumLabel}</Text>
+              <View style={{ alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 3 }} accessible accessibilityLabel={momentumReady ? `Momentum ${momentumScore} out of 100` : 'Momentum not ready yet'}>
+                <View style={[styles.battery, { borderColor: momentumReady ? momentumColor : colors.border }]}>
+                  {Array.from({ length: 10 }, (_, k) => (
+                    <View key={k} style={[styles.batteryCell, { backgroundColor: momentumReady && k < Math.round(momentumScore / 10) ? momentumColor : colors.cardAlt }]} />
+                  ))}
+                </View>
+                <View style={[styles.batteryCap, { backgroundColor: momentumReady ? momentumColor : colors.border }]} />
+              </View>
+              <View style={{ alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 }}>
+                <Ionicons name="flash-outline" size={16} color={momentumColor} />
+                <Text style={styles.momentumLine}>
+                  {!momentumReady ? 'Not enough data yet' : today.band.tone === 'strong' ? "You've got momentum" : today.band.tone === 'drifting' ? "You're drifting a little" : "You've stalled, let's restart"}
+                </Text>
               </View>
               {!momentumReady && (
-                <Text style={[styles.mutedSmall, { textAlign: 'center', marginTop: 10 }]}>
+                <Text style={[styles.mutedSmall, { alignSelf: 'stretch' }]}>
                   {`Log meals on ${MIN_LOGGED_DAYS} different days to unlock your momentum score. Today counts once it is over. ${Math.min(today.loggedDays || 0, MIN_LOGGED_DAYS)} of ${MIN_LOGGED_DAYS} so far.`}
                 </Text>
               )}
-              {momentumReady && today.band.tone !== 'strong' && (
+              {momentumReady && (
                 <TouchableOpacity style={[styles.detailsBtn, { width: '100%' }]} onPress={() => setView('momentum')}>
                   <Text style={styles.detailsBtnText}>See why</Text>
                   <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
@@ -1545,56 +1654,21 @@ const ProgressTab = ({
               )}
             </View>
 
-            {/* Current BMI */}
-            <View style={styles.progressSectionCompact}>
-              <View style={[styles.titleTipRow, { marginBottom: 8 }]}><Text style={styles.progressSectionTitleCompact}>Current BMI</Text><InfoTip id="bmi" /></View>
-              {(() => {
-                const latestWeight = streakData.rangeWeights.length > 0
-                  ? [...streakData.rangeWeights].sort((a, b) => new Date(b.date) - new Date(a.date))[0]
-                  : null;
-                const hasWeight = latestWeight !== null;
-                const heightNum = parseFloat(height);
-                const heightM = heightNum ? (heightUnit === 'ft' ? heightNum * 0.3048 : heightNum / 100) : 0;
-                const hasHeight = heightM > 0;
-                const weightKg = hasWeight ? (latestWeight.unit === 'lbs' ? latestWeight.weight * 0.453592 : latestWeight.weight) : 0;
-                const bmi = hasWeight && hasHeight ? (weightKg / (heightM * heightM)).toFixed(1) : null;
-                const bmiCategory = bmi ? (bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese') : null;
-                const bmiPosition = bmi ? Math.max(0, Math.min(100, ((bmi - 15) / (35 - 15)) * 100)) : 0;
-
-                return (
-                  <View style={styles.chartCardCompact}>
-                    <View style={styles.bmiDisplay}>
-                      <View style={styles.bmiValueContainer}>
-                        <Text style={styles.bmiValue}>{bmi || '--'}</Text>
-                        {bmiCategory && (
-                          <View style={styles.bmiCategoryBadge}>
-                            <Text style={styles.bmiCategory}>{bmiCategory}</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.bmiWeightInfo}>
-                        <Text style={styles.bmiWeightLabel}>Current weight</Text>
-                        <Text style={styles.bmiWeightValue}>{hasWeight ? `${latestWeight.weight} ${latestWeight.unit}` : '--'}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.bmiBarContainer}>
-                      <View style={styles.bmiBar}>
-                        <View style={[styles.bmiBarSegment, { width: '17.5%', backgroundColor: '#3B82F6' }]} />
-                        <View style={[styles.bmiBarSegment, { width: '32.5%', backgroundColor: '#10B981' }]} />
-                        <View style={[styles.bmiBarSegment, { width: '25%', backgroundColor: '#F59E0B' }]} />
-                        <View style={[styles.bmiBarSegment, { width: '25%', backgroundColor: '#EF4444' }]} />
-                        {bmi && <View style={[styles.bmiIndicator, { left: `${bmiPosition}%` }]} />}
-                      </View>
-                      <View style={styles.bmiLabels}>
-                        <Text style={styles.bmiLabel}>Underweight</Text>
-                        <Text style={styles.bmiLabel}>Normal</Text>
-                        <Text style={styles.bmiLabel}>Overweight</Text>
-                        <Text style={styles.bmiLabel}>Obese</Text>
-                      </View>
-                    </View>
-                  </View>
-                );
-              })()}
+            {/* Calories: last 7 days */}
+            <View style={styles.statCardBig}>
+              <TouchableOpacity style={styles.statCardHead} onPress={() => onShowCalorieDetails && onShowCalorieDetails()} accessibilityLabel="Calories, see details">
+                <Text style={styles.statCardTitle}>Calories</Text>
+                <Ionicons name="chevron-forward" size={18} color="#4B5563" />
+              </TouchableOpacity>
+              <View style={styles.statCardBody}>
+                <View style={styles.statCardFacts}>
+                  <Text style={styles.statFactLabel}>Avg cal</Text>
+                  <Text style={styles.statFactValue}>{week7.avgCal ? `${week7.avgCal.toLocaleString()} cal` : '--'}</Text>
+                  <Text style={[styles.statFactLabel, { marginTop: 18 }]}>{week7.gapPct == null ? 'Avg goal gap' : week7.gapPct > 0 ? 'Avg over goal' : week7.gapPct < 0 ? 'Avg under goal' : 'Avg on goal'}</Text>
+                  <Text style={styles.statFactValue}>{week7.gapPct == null ? '--' : week7.gapPct > 0 ? `+${week7.gapPct}%` : week7.gapPct < 0 ? `−${Math.abs(week7.gapPct)}%` : '0%'}</Text>
+                </View>
+                <PillBars values={week7.days.map((d) => d.cal)} max={Math.max(...week7.days.map((d) => Math.max(d.cal, d.calGoal)), 1)} letters={week7.days.map((d) => d.letter)} color={accent} styles={styles} label="Calories for the last 7 days" />
+              </View>
             </View>
 
             {/* Weight trend */}
@@ -1694,103 +1768,6 @@ const ProgressTab = ({
               </View>
             </View>
 
-            {/* Calorie Intake */}
-            <View style={styles.progressSectionCompact}>
-              <View style={styles.progressSectionHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={styles.sectionIconBox}>
-                    <Ionicons name="flame-outline" size={14} color={colors.text} />
-                  </View>
-                  <Text style={styles.progressSectionTitleCompact}>Calorie Intake</Text><InfoTip id="calories" />
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <RangeDropdown value={calorieRange} onChange={setCalorieRange} styles={styles} />
-                  <TouchableOpacity onPress={() => onShowCalorieDetails && onShowCalorieDetails()}>
-                    <Text style={styles.seeAllBtnSmall}>See all</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <View style={styles.chartCardCompact}>
-                {(() => {
-                  const uniqueLogs = calorieData.dailyCalData;
-                  const hasData = calorieData.hasLoggedCal;
-                  const hasMultiple = hasData && uniqueLogs.length >= 2;
-                  // How far the average logged day sits from its goal, as a percent: +18% over, -18% under, 0% spot on.
-                  const goalAvg = calorieData.avgDailyGoal;
-                  const gapPct = hasData && goalAvg > 0 ? Math.round(((calorieData.avgDailyCal - goalAvg) / goalAvg) * 100) : null;
-                  const onTarget = gapPct != null && Math.abs(gapPct) <= 5;
-                  const gapText = gapPct == null ? '--' : gapPct > 0 ? `+${gapPct}%` : gapPct < 0 ? `−${Math.abs(gapPct)}%` : '0%';
-                  const orderedLogs = uniqueLogs.slice().reverse();
-                  const chartData = orderedLogs.map(d => d.calories);
-                  const chartLabels = calorieData.buildLabels(orderedLogs);
-                  const barGap = chartData.length > 40 ? 1 : chartData.length > 12 ? 2 : 6;
-                  const CHART_H = 140;
-                  const dataMax = chartData.length ? Math.max(...chartData) : 0;
-                  const axisMax = Math.max(dataMax, dailyCalorieGoal > 0 ? dailyCalorieGoal : 0, 1) * 1.1;
-
-                  return (
-                    <>
-                      <View style={{ overflow: 'hidden', position: 'relative' }}>
-                        {hasMultiple ? (
-                          <>
-                          <View style={{ height: CHART_H, marginTop: 10 }}>
-                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: barGap }}>
-                              {chartData.map((value, i) => {
-                                const barH = Math.max(value > 0 ? 3 : 0, (value / axisMax) * CHART_H);
-                                return (
-                                  <TouchableOpacity
-                                    key={i}
-                                    style={{ flex: 1 }}
-                                    activeOpacity={0.7}
-                                    onPress={() => setCalTooltip(t => t?.i === i ? null : { i, value, date: orderedLogs[i]?.date })}
-                                  >
-                                    <View style={{
-                                      width: '100%', height: barH, borderRadius: 2,
-                                      backgroundColor: '#EF4444',
-                                    }} />
-                                  </TouchableOpacity>
-                                );
-                              })}
-                            </View>
-                          </View>
-                          <View style={{ flexDirection: 'row' }}>
-                            {chartLabels.map((label, i) => (
-                              <Text key={i} style={[styles.stepsAxisLabel, { flex: 1, textAlign: 'center' }]}>{label}</Text>
-                            ))}
-                          </View>
-                          {calTooltip && (
-                            <View style={styles.stepsTooltipCentered} pointerEvents="none">
-                              <Text style={styles.chartTooltipText}>{calTooltip.value.toLocaleString()} cal</Text>
-                              {calTooltip.date && (
-                                <Text style={styles.chartTooltipSub}>{calorieData.formatLabel(calTooltip.date)}</Text>
-                              )}
-                            </View>
-                          )}
-                          </>
-                        ) : (
-                          <View style={{ height: 160, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={styles.chartPlaceholderText}>{hasData ? `${orderedLogs[orderedLogs.length - 1].calories} cal` : 'No calorie data'}</Text>
-                            <Text style={styles.chartPlaceholderSubtext}>{hasData ? 'Log more meals to see trends' : 'Log a meal to start'}</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.calorieStatsRow}>
-                        <View style={styles.calorieStatItem}>
-                          <Text style={styles.calorieStatValue}>{calorieData.isLongRange ? (calorieData.avgMonthlyCal > 0 ? calorieData.avgMonthlyCal.toLocaleString() : '--') : (calorieData.avgDailyCal > 0 ? calorieData.avgDailyCal.toLocaleString() : '--')}</Text>
-                          <Text style={styles.calorieStatLabel}>{calorieData.isLongRange ? 'Avg monthly cal' : 'Avg daily cal'}</Text>
-                        </View>
-                        <View style={styles.calorieStatDivider} />
-                        <View style={styles.calorieStatItem}>
-                          <Text style={[styles.calorieStatValue, onTarget && { color: '#10B981' }]}>{gapText}</Text>
-                          <Text style={styles.calorieStatLabel}>{gapPct == null ? 'Avg goal gap' : gapPct > 0 ? 'Avg over goal' : gapPct < 0 ? 'Avg under goal' : 'Avg on goal'}</Text>
-                        </View>
-                      </View>
-                    </>
-                  );
-                })()}
-              </View>
-            </View>
-
             {/* Prediction this week */}
             {chart && (
               <View style={styles.card}>
@@ -1873,6 +1850,13 @@ const ProgressTab = ({
                 ) : (<>
                 <View style={[styles.statsRow, { marginTop: 10 }]}>
                   <View style={{ flex: 1 }}>
+                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + 3 * DAY_MS)).toUpperCase()} (IN 3D)</Text>
+                    <Text style={styles.statValue}>{projected3Kg != null ? `${fromKg(projected3Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
+                    {weeklyPace.dailyRateKg != null && (
+                      <Text style={styles.mutedSmall}>{forecastDelta(3)}</Text>
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
                     <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + 7 * DAY_MS)).toUpperCase()} (7D)</Text>
                     <Text style={styles.statValue}>{projected7Kg != null ? `${fromKg(projected7Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
                     {weeklyPace.dailyRateKg != null && (
@@ -1885,10 +1869,6 @@ const ProgressTab = ({
                     {weeklyPace.dailyRateKg != null && (
                       <Text style={styles.mutedSmall}>{forecastDelta(14)}</Text>
                     )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.statLabel}>GOAL DATE</Text>
-                    <Text style={styles.statValue}>{projectedGoalDate ? fmtShort(projectedGoalDate) : '--'}</Text>
                   </View>
                 </View>
                 {forecastAnchorNote ? <Text style={[styles.mutedSmall, { marginTop: 10 }]}>{forecastAnchorNote}</Text> : null}
@@ -1912,37 +1892,6 @@ const ProgressTab = ({
                 </Text>
               </View>
             )}
-
-            {/* Energy balance */}
-            <View style={styles.card}>
-              <View style={styles.titleTipRow}><Text style={styles.kicker}>ENERGY BALANCE</Text><InfoTip id="energy" /></View>
-              {tdee != null ? (
-                <>
-                  <View style={styles.statsRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.statLabel}>BURN</Text>
-                      <Text style={styles.statValue}>{Math.round(tdee).toLocaleString()}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.statLabel}>TODAY</Text>
-                      <Text style={styles.statValue}>{Math.round(todayCalories).toLocaleString()}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.statLabel}>{deficitToday >= 0 ? 'DEFICIT' : 'SURPLUS'}</Text>
-                      <Text style={[styles.statValue, { color: deficitToday >= 0 ? accent : DANGER }]}>{Math.round(Math.abs(deficitToday)).toLocaleString()}</Text>
-                    </View>
-                  </View>
-                  {weeklyPace.dailyRateKg != null && (
-                    <Text style={[styles.mutedBody, { marginTop: 10 }]}>
-                      At this week's pace, that's about {weeklyPace.dailyRateKg <= 0 ? '-' : '+'}{Math.abs(fromKg(weeklyPace.dailyRateKg * 7, weightUnit)).toFixed(2)} {weightUnit}/week.
-                    </Text>
-                  )}
-                </>
-              ) : (
-                <Text style={styles.mutedBody}>Add your age, sex, height, and activity level in Settings to see your energy balance (what you burn vs. what you eat) here.</Text>
-              )}
-              <SourcesLink topic="calories" only label="Estimates · Sources" color={colors.textMuted} style={{ marginTop: 12 }} />
-            </View>
 
             {/* Pace to goal */}
             {pace && !pace.done && !pace.insufficientData && (
@@ -2011,333 +1960,133 @@ const ProgressTab = ({
               </View>
             )}
 
-            {/* Burnout likelihood */}
+            {/* Your week ahead (Pro) */}
             <View style={styles.card}>
               {!isPro ? (<>
-                <View style={styles.titleTipRow}><Text style={styles.kicker}>BURNOUT LIKELIHOOD</Text><InfoTip id="burnout" /></View>
-                <LockedChartPreview reason="burnout" kind="bars" caption="How likely you are to burn out this week, and why" />
+                <Text style={styles.cardTitle15}>Your week ahead</Text>
+                <LockedChartPreview reason="burnout" kind="bars" caption="Which days this week may need a little more planning" />
               </>) : (<>
-              <View style={styles.rowBetween}>
-                <View>
-                  <View style={styles.titleTipRow}><Text style={styles.kicker}>BURNOUT LIKELIHOOD</Text><InfoTip id="burnout" /></View>
-                  {burnoutReady
-                    ? <Text style={styles.bigStat}>{burnoutScore}<Text style={styles.bigStatSub}>/100</Text></Text>
-                    : <Text style={[styles.bigStat, { color: colors.textMuted }]}>--</Text>}
-                </View>
-                <View style={[styles.pill, { backgroundColor: burnoutReady ? burnoutBg : colors.border }]}>
-                  <Text style={[styles.pillText, { color: burnoutReady ? burnoutColor : colors.textMuted }]}>{burnoutReady ? burnoutBand.label : 'Not enough data yet'}</Text>
-                </View>
-              </View>
-              <View style={{ marginTop: 10, padding: 12, borderRadius: 12, backgroundColor: colors.cardAlt || burnoutBg }}>
-                <Text style={[styles.mutedBody, { color: colors.text }]}>
-                  {burnoutReady
-                    ? (burnoutAi?.summary || burnoutWhy)
-                    : `We need a few days of meals before we can read your pattern. Log on ${MIN_LOGGED_DAYS} different days and this will start to fill in. Today counts once it is over. ${Math.min(completedLoggedDays, MIN_LOGGED_DAYS)} of ${MIN_LOGGED_DAYS} so far.`}
-                </Text>
-                {burnoutReady && !!burnoutAi?.tip && (
-                  <Text style={[styles.mutedBody, { color: colors.text, fontWeight: '600', marginTop: 6 }]}>{`Try this: ${burnoutAi.tip}`}</Text>
+              <View style={[styles.rowBetween, { alignItems: 'center' }]}>
+                <Text style={styles.cardTitle15}>Your week ahead</Text>
+                {weekAhead.toWatch > 0 && (
+                  <View style={[styles.greyPill, { backgroundColor: '#FFEDD5' }]}><Text style={[styles.greyPillText, { color: '#C2410C' }]}>{weekAhead.toWatch} {weekAhead.toWatch === 1 ? 'day' : 'days'} to watch</Text></View>
                 )}
               </View>
-              <View style={styles.burnoutWeekRow}>
-                {burnout.week.map((d, i) => {
-                  const noData = !burnoutReady || (!d.isFuture && beforeFirstMeal(d.date));
-                  const dayColor = noData ? colors.border : d.score <= 25 ? accent : d.score <= 55 ? WARN : d.score <= 80 ? '#EA580C' : DANGER;
-                  const h = noData ? 10 : Math.max(10, Math.round((d.score / 100) * 56));
+              <Text style={[styles.mutedBody, { marginTop: 6 }]}>Based on your past patterns, some days may need a little more planning.</Text>
+              <View style={{ flexDirection: 'row', gap: 2, marginTop: 12 }}>
+                {weekAhead.days.map((d, i) => {
+                  const on = i === weekAheadPick;
+                  const color = d.level === 'high' ? '#F97316' : d.level === 'watch' ? '#FBBF24' : d.level === 'low' ? '#34D399' : colors.border;
                   return (
-                    <View key={i} style={styles.burnoutDayCol}>
-                      <Text style={[styles.burnoutDayScore, { color: dayColor }]}>{noData ? '' : d.score}</Text>
-                      <View style={[styles.burnoutBar, { height: h, backgroundColor: dayColor, opacity: d.isFuture ? 0.55 : 1 }]} />
-                      <Text style={styles.axisLabel}>{dayLabel(d.date)}</Text>
-                    </View>
+                    <TouchableOpacity key={i} onPress={() => setWeekAheadPick(i)} style={[styles.aheadDay, on && styles.aheadDayOn]} accessibilityState={{ selected: on }} accessibilityLabel={`${d.title}, ${WEEK_AHEAD_LEVELS[d.level].label}`}>
+                      <Text style={[styles.aheadDayName, on && { fontWeight: '700', color: colors.text }]}>{d.name}</Text>
+                      <Text style={styles.aheadDayNum}>{d.num}</Text>
+                      <View style={styles.aheadBarBox}><View style={{ width: '70%', height: `${Math.round(d.height * 100)}%`, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: color }} /></View>
+                      <View style={{ height: 14, justifyContent: 'center' }}>{d.level === 'high' ? <Ionicons name="alert-circle-outline" size={12} color="#EA580C" /> : null}</View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
-              {burnoutReady && burnout.daysToCrash != null && (
-                <View style={styles.nextWeekRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.nextWeekTitle}>When you might feel worn out</Text>
-                    <Text style={styles.nextWeekNote}>
-                      {burnoutAi?.crashNote
-                        ? burnoutAi.crashNote
-                        : burnout.daysToCrash === 0
-                          ? "You're already in the danger zone right now. Please eat a proper meal and go easy on yourself today."
-                          : `Things have been getting harder each day. Around ${fmtShort(burnout.crashDate)} (${burnout.daysToCrash} day${burnout.daysToCrash === 1 ? '' : 's'} from now) you may feel worn out and slip off your plan, unless something changes.`}
-                    </Text>
+              {(() => {
+                const d = weekAhead.days[weekAheadPick] || weekAhead.days[0];
+                const lvl = WEEK_AHEAD_LEVELS[d.level];
+                return (
+                  <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.border }}>
+                    <View style={[styles.rowBetween, { alignItems: 'center' }]}>
+                      <Text style={styles.cardTitle15}>{d.title}</Text>
+                      <View style={[styles.greyPill, { backgroundColor: lvl.bg }]}><Text style={[styles.greyPillText, { color: lvl.color }]}>{lvl.label}</Text></View>
+                    </View>
+                    <Text style={[styles.mutedBody, { marginTop: 6, minHeight: 36 }]}>{d.text}</Text>
                   </View>
-                  <View style={[styles.nextWeekBadge, { backgroundColor: burnoutBg }]}>
-                    <Text style={[styles.nextWeekBadgeText, { color: burnoutColor }]}>{burnout.daysToCrash === 0 ? 'Now' : `${burnout.daysToCrash}d`}</Text>
-                  </View>
-                </View>
-              )}
-              <SourcesLink topic="wellbeing" label="Not a diagnosis · Sources" color={colors.textMuted} style={{ marginTop: 12 }} />
+                );
+              })()}
+              <SourcesLink topic="wellbeing" label="Not a diagnosis · Sources" color={colors.textMuted} style={{ marginTop: 8 }} />
               </>)}
             </View>
 
-            {/* Hydration */}
-            <View style={styles.progressSectionCompact}>
-              <View style={styles.progressSectionHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={styles.sectionIconBox}>
-                    <Ionicons name="water-outline" size={14} color={colors.text} />
-                  </View>
-                  <Text style={styles.progressSectionTitleCompact}>Hydration</Text><InfoTip id="hydration" />
+            {/* Hydration: last 7 days */}
+            <View style={styles.statCardBig}>
+              <TouchableOpacity style={styles.statCardHead} onPress={() => onShowHydrationDetails && onShowHydrationDetails()} accessibilityLabel="Hydration, open the water log">
+                <Text style={styles.statCardTitle}>Hydration</Text>
+                <Ionicons name="chevron-forward" size={18} color="#4B5563" />
+              </TouchableOpacity>
+              <View style={styles.statCardBody}>
+                <View style={styles.statCardFacts}>
+                  <Text style={styles.statFactLabel}>Avg daily</Text>
+                  <Text style={styles.statFactValue}>{week7.hasWater ? `${week7.avgWaterL.toFixed(1)} L` : '--'}</Text>
+                  <Text style={[styles.statFactLabel, { marginTop: 18 }]}>Goal met</Text>
+                  <Text style={styles.statFactValue}>{week7.hasWater ? `${week7.waterGoalDays} of 7 days` : '--'}</Text>
                 </View>
-                <RangeDropdown value={waterRange} onChange={setWaterRange} styles={styles} />
-              </View>
-              <View style={styles.chartCardCompact}>
-                {(() => {
-                  const uniqueLogs = waterData.uniqueWater;
-                  const hasWaterData = waterData.hasLoggedWater;
-                  const hasMultipleWater = hasWaterData && uniqueLogs.length >= 2;
-                  const chartData = waterData.waterChartData;
-                  const orderedLogs = uniqueLogs.slice().reverse();
-                  const chartLabels = waterData.buildLabels(orderedLogs);
-                  const barGap = chartData.length > 40 ? 1 : chartData.length > 12 ? 2 : 6;
-                  const CHART_H = 140;
-                  const dataMax = chartData.length ? Math.max(...chartData) : 0;
-                  const axisMax = Math.ceil(dataMax) || 1;
-
-                  return (
-                    <>
-                      <View style={{ overflow: 'hidden', position: 'relative' }}>
-                        {hasMultipleWater ? (
-                          <>
-                          <View style={{ height: CHART_H, marginTop: 10 }}>
-                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: barGap }}>
-                              {chartData.map((value, i) => {
-                                const barH = Math.max(value > 0 ? 3 : 0, (value / axisMax) * CHART_H);
-                                return (
-                                  <TouchableOpacity
-                                    key={i}
-                                    style={{ flex: 1 }}
-                                    activeOpacity={0.7}
-                                    onPress={() => setWaterTooltip(t => t?.i === i ? null : { i, value, date: orderedLogs[i]?.date })}
-                                  >
-                                    <View style={{
-                                      width: '100%', height: barH, borderRadius: 2,
-                                      backgroundColor: '#0EA5E9',
-                                    }} />
-                                  </TouchableOpacity>
-                                );
-                              })}
-                            </View>
-                          </View>
-                          <View style={{ flexDirection: 'row' }}>
-                            {chartLabels.map((label, i) => (
-                              <Text key={i} style={[styles.stepsAxisLabel, { flex: 1, textAlign: 'center' }]}>{label}</Text>
-                            ))}
-                          </View>
-                          {waterTooltip && (
-                            <View style={styles.stepsTooltipCentered} pointerEvents="none">
-                              <Text style={styles.chartTooltipText}>{waterTooltip.value} L</Text>
-                              {waterTooltip.date && (
-                                <Text style={styles.chartTooltipSub}>{waterData.formatLabel(waterTooltip.date)}</Text>
-                              )}
-                            </View>
-                          )}
-                          </>
-                        ) : (
-                          <View style={{ height: 160, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={styles.chartPlaceholderText}>{hasWaterData ? `${waterData.avgWaterL} L` : 'No hydration data'}</Text>
-                            <Text style={styles.chartPlaceholderSubtext}>{hasWaterData ? 'Log more to see trends' : 'Log water to start'}</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.calorieStatsRow}>
-                        <View style={styles.calorieStatItem}>
-                          <Text style={styles.calorieStatValue}>{hasWaterData ? `${waterData.avgWaterL} L` : '--'}</Text>
-                          <Text style={styles.calorieStatLabel}>{waterData.isLongRange ? 'Avg monthly' : 'Avg daily'}</Text>
-                        </View>
-                        <View style={styles.calorieStatDivider} />
-                        <View style={styles.calorieStatItem}>
-                          <Text style={styles.calorieStatValue}>{hasWaterData ? waterData.waterGoalMet : '--'}</Text>
-                          <Text style={styles.calorieStatLabel}>Goal met</Text>
-                        </View>
-                      </View>
-                    </>
-                  );
-                })()}
-                <View style={styles.weightActionsCompact}>
-                  <TouchableOpacity style={[styles.weightActionBtnCompact, { backgroundColor: '#0EA5E9', shadowColor: 'rgba(14, 165, 233, 1)' }]} onPress={() => onShowHydrationDetails && onShowHydrationDetails()}>
-                    <Text style={styles.weightActionBtnText}>Log water</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.weightActionLinkCompact} onPress={() => onShowHydrationDetails && onShowHydrationDetails()}>
-                    <Text style={styles.weightActionLinkText}>View all logs</Text>
-                  </TouchableOpacity>
-                </View>
+                <PillBars values={week7.days.map((d) => d.waterL)} max={Math.max(...week7.days.map((d) => d.waterL), week7.goalMl / 1000, 0.1)} letters={week7.days.map((d) => d.letter)} color="#0EA5E9" styles={styles} label="Water for the last 7 days" />
               </View>
             </View>
 
-            {/* Steps */}
-            <View style={styles.progressSectionCompact}>
-              <View style={styles.progressSectionHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={styles.sectionIconBox}>
-                    <Ionicons name="footsteps-outline" size={14} color={colors.text} />
-                  </View>
-                  <Text style={styles.progressSectionTitleCompact}>Steps</Text><InfoTip id="steps" />
+            {/* Steps: last 7 days */}
+            <View style={styles.statCardBig}>
+              <TouchableOpacity style={styles.statCardHead} onPress={() => onShowStepsDetails && onShowStepsDetails()} accessibilityLabel="Steps, open the steps log">
+                <Text style={styles.statCardTitle}>Steps</Text>
+                <Ionicons name="chevron-forward" size={18} color="#4B5563" />
+              </TouchableOpacity>
+              <View style={[styles.statCardBody, { position: 'relative' }]}>
+                <View style={styles.statCardFacts}>
+                  <Text style={styles.statFactLabel}>Avg daily</Text>
+                  <Text style={styles.statFactValue}>{week7.hasSteps ? week7.avgSteps.toLocaleString() : '--'}</Text>
+                  <Text style={[styles.statFactLabel, { marginTop: 18 }]}>Goal met</Text>
+                  <Text style={styles.statFactValue}>{week7.hasSteps ? `${week7.stepGoalDays} of 7 days` : '--'}</Text>
                 </View>
-                <RangeDropdown value={stepsRange} onChange={setStepsRange} styles={styles} />
-              </View>
-              <View style={styles.chartCardCompact}>
-                {(() => {
-                  const uniqueLogs = stepsData.uniqueSteps;
-                  const hasStepsData = stepsData.hasLoggedSteps;
-                  const hasMultipleSteps = hasStepsData && uniqueLogs.length >= 2;
-                  const chartData = stepsData.stepsChartData;
-                  const orderedLogs = uniqueLogs.slice().reverse();
-                  const chartLabels = stepsData.buildLabels(orderedLogs);
-                  const barGap = chartData.length > 40 ? 1 : chartData.length > 12 ? 2 : 6;
-                  const CHART_H = 140;
-                  const dataMax = chartData.length ? Math.max(...chartData) : 0;
-                  const axisMax = Math.ceil(dataMax / 1000) * 1000 || 1000;
-
-                  return (
-                    <>
-                      <View style={{ overflow: 'hidden', position: 'relative' }}>
-                        {hasMultipleSteps ? (
-                          <>
-                          <View style={{ height: CHART_H, marginTop: 10 }}>
-                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: barGap }}>
-                              {chartData.map((value, i) => {
-                                const barH = Math.max(value > 0 ? 3 : 0, (value / axisMax) * CHART_H);
-                                return (
-                                  <TouchableOpacity
-                                    key={i}
-                                    style={{ flex: 1 }}
-                                    activeOpacity={0.7}
-                                    onPress={() => setStepsTooltip(t => t?.i === i ? null : { i, value, date: orderedLogs[i]?.date })}
-                                  >
-                                    <View style={{
-                                      width: '100%', height: barH, borderRadius: 2,
-                                      backgroundColor: '#fb923c',
-                                    }} />
-                                  </TouchableOpacity>
-                                );
-                              })}
-                            </View>
-                          </View>
-                          <View style={{ flexDirection: 'row' }}>
-                            {chartLabels.map((label, i) => (
-                              <Text key={i} style={[styles.stepsAxisLabel, { flex: 1, textAlign: 'center' }]}>{label}</Text>
-                            ))}
-                          </View>
-                          {stepsTooltip && (
-                            <View style={styles.stepsTooltipCentered} pointerEvents="none">
-                              <Text style={styles.chartTooltipText}>{stepsTooltip.value.toLocaleString()} steps</Text>
-                              {stepsTooltip.date && (
-                                <Text style={styles.chartTooltipSub}>{stepsData.formatLabel(stepsTooltip.date)}</Text>
-                              )}
-                            </View>
-                          )}
-                          </>
-                        ) : (
-                          <View style={{ height: 160, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={styles.chartPlaceholderText}>{hasStepsData ? `${stepsData.avgSteps.toLocaleString()} steps` : 'No steps data'}</Text>
-                            <Text style={styles.chartPlaceholderSubtext}>{hasStepsData ? 'Log more to see trends' : 'Log steps to start'}</Text>
-                          </View>
-                        )}
-                        {needsHealth && (
-                          <>
-                            <BlurView intensity={Platform.OS === 'android' ? 30 : 16} tint="light" style={StyleSheet.absoluteFill} />
-                            <View style={styles.healthOverlay}>
-                              <View style={styles.healthIcon}><Ionicons name="heart" size={18} color="#EF4444" /></View>
-                              <Text style={styles.healthTitle}>Connect Apple Health</Text>
-                              <Text style={styles.healthSub}>Your daily steps fill in by themselves. Logga only reads steps.</Text>
-                              <TouchableOpacity
-                                style={[styles.healthBtn, healthConnecting && { opacity: 0.6 }]}
-                                disabled={healthConnecting}
-                                onPress={async () => { setHealthConnecting(true); try { await onConnectAppleHealth?.(); } finally { setHealthConnecting(false); } }}
-                                activeOpacity={0.85}
-                              >
-                                <Text style={styles.healthBtnTxt}>{healthConnecting ? 'Connecting…' : 'Connect'}</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </>
-                        )}
-                      </View>
-                      <View style={styles.calorieStatsRow}>
-                        <View style={styles.calorieStatItem}>
-                          <Text style={styles.calorieStatValue}>{hasStepsData ? stepsData.avgSteps.toLocaleString() : '--'}</Text>
-                          <Text style={styles.calorieStatLabel}>{stepsData.isLongRange ? 'Avg monthly' : 'Avg daily'}</Text>
-                        </View>
-                        <View style={styles.calorieStatDivider} />
-                        <View style={styles.calorieStatItem}>
-                          <Text style={styles.calorieStatValue}>{hasStepsData ? stepsData.stepsGoalMet : '--'}</Text>
-                          <Text style={styles.calorieStatLabel}>Goal met</Text>
-                        </View>
-                      </View>
-                    </>
-                  );
-                })()}
-                <View style={styles.weightActionsCompact}>
-                  <TouchableOpacity style={[styles.weightActionBtnCompact, { backgroundColor: '#F97316', shadowColor: 'rgba(249, 115, 22, 1)' }]} onPress={() => onShowStepsDetails && onShowStepsDetails()}>
-                    <Text style={styles.weightActionBtnText}>Log steps</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.weightActionLinkCompact} onPress={() => onShowStepsDetails && onShowStepsDetails()}>
-                    <Text style={styles.weightActionLinkText}>View all logs</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-
-            {/* Activities — "Log an activity" now mirrors the meal check-in tap-to-add card */}
-            <View style={styles.progressSectionCompact}>
-              <View style={styles.progressSectionHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={styles.sectionIconBox}>
-                    <Ionicons name="barbell-outline" size={14} color={colors.text} />
-                  </View>
-                  <Text style={styles.progressSectionTitleCompact}>Activities</Text><InfoTip id="activities" />
-                </View>
-                <TouchableOpacity onPress={() => onShowActivityLog && onShowActivityLog()}>
-                  <Text style={styles.seeAllBtnSmall}>See all</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.chartCardCompact}>
-                <TouchableOpacity style={styles.activityCheckInRow} onPress={() => onShowAddActivity && onShowAddActivity()} activeOpacity={0.7}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <Ionicons name="barbell-outline" size={22} color="#F97316" />
-                    <Text style={styles.activityCheckInText}>Log today's activity</Text>
-                  </View>
-                  <View style={styles.activityCheckInAddBtn}>
-                    <Ionicons name="add" size={22} color="#fff" />
-                  </View>
-                </TouchableOpacity>
-
-                <Text style={styles.weekActivitySubtitle}>Your active days this week</Text>
-                <View style={styles.weekDots}>
-                  {WEEK_DAY_LABELS.map((label, i) => (
-                    <View key={i} style={styles.weekDay}>
-                      <View style={[
-                        styles.weekDot,
-                        {
-                          backgroundColor: streakData.weekActivityHistory[i] === true ? '#F97316' : 'rgba(249,115,22,0.06)',
-                          borderWidth: streakData.weekActivityHistory[i] === false ? 2 : 0,
-                          borderColor: 'rgba(249,115,22,0.25)',
-                        },
-                      ]}>
-                        {streakData.weekActivityHistory[i] === true && <Text style={styles.weekDotCheck}>{'✓'}</Text>}
-                      </View>
-                      <Text style={styles.weekDayLabel}>{label}</Text>
+                <PillBars values={week7.days.map((d) => d.steps)} max={Math.max(...week7.days.map((d) => d.steps), stepGoal || 0, 1)} letters={week7.days.map((d) => d.letter)} color="#F97316" styles={styles} label="Steps for the last 7 days" />
+                {needsHealth && (
+                  <>
+                    <BlurView intensity={Platform.OS === 'android' ? 30 : 16} tint="light" style={StyleSheet.absoluteFill} />
+                    <View style={styles.healthOverlay}>
+                      <View style={styles.healthIcon}><Ionicons name="heart" size={18} color="#EF4444" /></View>
+                      <Text style={styles.healthTitle}>Connect Apple Health</Text>
+                      <Text style={styles.healthSub}>Your daily steps fill in by themselves. Logga only reads steps.</Text>
+                      <TouchableOpacity
+                        style={[styles.healthBtn, healthConnecting && { opacity: 0.6 }]}
+                        disabled={healthConnecting}
+                        onPress={async () => { setHealthConnecting(true); try { await onConnectAppleHealth?.(); } finally { setHealthConnecting(false); } }}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={styles.healthBtnTxt}>{healthConnecting ? 'Connecting…' : 'Connect'}</Text>
+                      </TouchableOpacity>
                     </View>
-                  ))}
-                </View>
+                  </>
+                )}
+              </View>
+            </View>
 
-                {/* One line for the week; the full list lives behind "See all" */}
-                {(() => {
-                  const list = streakData.weekActivities;
-                  const mins = list.reduce((s, a) => s + (Number(a.durationMin) || 0), 0);
-                  const kcal = list.reduce((s, a) => s + (Number(a.estimatedCalories) || 0), 0);
-                  const parts = [`${list.length} ${list.length === 1 ? 'activity' : 'activities'} this week`];
-                  if (mins > 0) parts.push(`${mins} min`);
-                  if (kcal > 0) parts.push(`~${kcal.toLocaleString()} kcal`);
-                  return (
-                    <Text style={[styles.chartPlaceholderSubtext, { textAlign: 'center', marginTop: 14 }]}>
-                      {list.length ? parts.join(' · ') : 'No activities logged this week'}
-                    </Text>
-                  );
-                })()}
+            {/* Your movement: last 4 weeks */}
+            <View style={styles.card}>
+              <View style={[styles.rowBetween, { alignItems: 'center', marginBottom: 12 }]}>
+                <Text style={styles.cardTitle15}>Your movement</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={styles.greyPill}><Text style={styles.greyPillText}>Last 4 weeks</Text></View>
+                  <TouchableOpacity onPress={() => onShowActivityLog && onShowActivityLog()} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                    <Text style={[styles.seeAllBtnSmall, { fontSize: 13, color: '#047857' }]}>See all</Text>
+                    <Ionicons name="arrow-forward" size={13} color="#047857" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View accessible accessibilityLabel={`Activity over the last 4 weeks: ${movement.full} full workout days and ${movement.light} lighter active days`} style={{ gap: 6 }}>
+                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 2 }}>
+                  {WEEK_DAY_LABELS.map((l, i) => <Text key={i} style={styles.moveDayLabel}>{l}</Text>)}
+                </View>
+                {movement.weeks.map((week, w) => (
+                  <View key={w} style={{ flexDirection: 'row', gap: 6 }}>
+                    {week.map((c) => (
+                      <View key={c.ds} style={[styles.moveCell, { backgroundColor: c.level === 'full' ? '#F97316' : c.level === 'light' ? '#FDBA74' : colors.cardAlt, opacity: c.level === 'future' ? 0.45 : 1 }]}>
+                        {c.level === 'full' && <Ionicons name="checkmark" size={12} color="#fff" />}
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 }}>
+                <Text style={styles.moveLegend}>Less activity</Text>
+                <View style={[styles.moveSwatch, { backgroundColor: '#FDBA74' }]} />
+                <View style={[styles.moveSwatch, { backgroundColor: '#F97316' }]} />
+                <Text style={styles.moveLegend}>More activity</Text>
               </View>
             </View>
 
@@ -2568,6 +2317,31 @@ const makeStyles = (c) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   healthOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  cardTitle15: { fontSize: 15, fontWeight: '700', color: c.text },
+  greyPill: { borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9, backgroundColor: 'rgba(0,0,0,0.06)' },
+  greyPillText: { fontSize: 12, fontWeight: '600', color: c.text },
+  battery: { flex: 1, height: 56, padding: 4, borderWidth: 2, borderRadius: 8, flexDirection: 'row', gap: 3 },
+  batteryCell: { flex: 1, borderRadius: 3 },
+  batteryCap: { width: 5, height: 20, borderTopRightRadius: 3, borderBottomRightRadius: 3 },
+  momentumLine: { fontSize: 14, fontWeight: '600', color: c.text },
+  statCardBig: { marginHorizontal: 16, marginTop: 12, paddingTop: 16, paddingHorizontal: 16, paddingBottom: 14, backgroundColor: c.card, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
+  statCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  statCardTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+  statCardBody: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  statCardFacts: { width: 96, gap: 4 },
+  statFactLabel: { fontSize: 12, color: c.textSecondary },
+  statFactValue: { fontSize: 18, fontWeight: '700', color: c.text },
+  pillTrack: { flex: 1, justifyContent: 'flex-end', borderRadius: 999, backgroundColor: c.cardAlt === '#F3F4F6' ? '#EEF0F2' : c.cardAlt, overflow: 'hidden' },
+  pillLetter: { flex: 1, textAlign: 'center', fontSize: 10, color: c.textSecondary },
+  aheadDay: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 6, borderRadius: 10, borderWidth: 1.5, borderColor: 'transparent' },
+  aheadDayOn: { borderColor: '#D1D5DB', backgroundColor: c.card },
+  aheadDayName: { fontSize: 10, color: c.textSecondary },
+  aheadDayNum: { fontSize: 13, fontWeight: '600', color: c.text },
+  aheadBarBox: { width: '100%', height: 90, alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 },
+  moveDayLabel: { flex: 1, textAlign: 'center', fontSize: 11, color: c.textSecondary },
+  moveCell: { flex: 1, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  moveLegend: { fontSize: 12, color: c.textSecondary },
+  moveSwatch: { width: 12, height: 12, borderRadius: 3 },
   healthIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   healthTitle: { fontSize: 15, fontWeight: '800', color: '#16201b' },
   healthSub: { fontSize: 12.5, lineHeight: 17, color: '#4b5563', textAlign: 'center', marginTop: 4 },
