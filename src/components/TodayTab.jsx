@@ -494,6 +494,8 @@ const TodayTab = ({
   onOpenNotifications,
   notifUnseen = 0,
   onOpenWaterLog,
+  onShowAddActivity,
+  onShowActivityLog,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = makeStyles(colors);
@@ -857,6 +859,29 @@ const TodayTab = ({
   };
   const calHistory = getWeekCalHistory();
 
+  // This week (Mon-Sun): logged activities, their minutes and estimated kcal, and which days were active.
+  const weekActivity = (() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    const inWeek = (activities || []).filter((a) => {
+      const t = a.timestamp || new Date(a.date).getTime();
+      return !isNaN(t) && t >= monday.getTime();
+    });
+    const activeDates = new Set(inWeek.map((a) => a.date));
+    const stepsByDate = {};
+    (stepLogs || []).forEach((r) => { stepsByDate[r.date] = (stepsByDate[r.date] || 0) + (r.steps || 0); });
+    return {
+      count: inWeek.length,
+      minutes: Math.round(inWeek.reduce((s, a) => s + (Number(a.durationMin) || 0), 0)),
+      kcal: Math.round(inWeek.reduce((s, a) => s + (Number(a.estimatedCalories) || 0), 0)),
+      days: ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((letter, i) => {
+        const d = new Date(monday); d.setDate(monday.getDate() + i);
+        const ds = d.toDateString();
+        return { letter, future: d > today, active: activeDates.has(ds) || (stepsByDate[ds] || 0) >= 5000 };
+      }),
+    };
+  })();
+
   // The day picked in the week strip (today unless another day was tapped).
   const selectedDay = selectedDate || new Date();
   const selDateStr = selectedDay.toDateString();
@@ -1092,6 +1117,47 @@ const TodayTab = ({
               )))}
 
           </ScrollView>
+        </View>
+
+        {/* Activities this week (Mon-Sun) */}
+        <View style={styles.activityCard}>
+          <View style={styles.activityHead}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="barbell-outline" size={16} color="#F97316" />
+              <Text style={styles.activityTitle}>Activities</Text>
+            </View>
+            <TouchableOpacity onPress={onShowActivityLog} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.activitySeeAll}>See all</Text>
+              <Ionicons name="arrow-forward" size={13} color="#047857" />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {[
+              [weekActivity.count, 'Workouts'],
+              [weekActivity.minutes, 'Minutes'],
+              [weekActivity.kcal, 'Est. kcal'],
+            ].map(([value, label]) => (
+              <View key={label} style={styles.activityStat}>
+                <Text style={styles.activityStatValue}>{value ? value.toLocaleString() : '0'}</Text>
+                <Text style={styles.activityStatLabel}>{label}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.activityWeekLabel}>Your active days this week</Text>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {weekActivity.days.map((d, i) => (
+              <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+                <View style={[styles.activityDot, d.active && styles.activityDotOn, d.future && { opacity: 0.5 }]}>
+                  {d.active && <Ionicons name="checkmark" size={13} color="#fff" />}
+                </View>
+                <Text style={styles.activityDayLetter}>{d.letter}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity style={styles.activityLogBtn} onPress={onShowAddActivity} activeOpacity={0.8}>
+            <Ionicons name="add" size={16} color={colors.text} />
+            <Text style={styles.activityLogBtnText}>Log activity</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Based on Your Pattern */}
@@ -1358,6 +1424,19 @@ const makeStyles = (c) => StyleSheet.create({
   gaugeCenter: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' },
   gaugeNumber: { fontSize: 36, fontWeight: '700', color: c.text, letterSpacing: -1, lineHeight: 40, marginTop: 2 },
   gaugeLabel: { fontSize: 14, color: c.textSecondary, marginTop: 2 },
+  activityCard: { marginTop: 16, marginHorizontal: 20, padding: 14, backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  activityHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  activityTitle: { fontSize: 15, fontWeight: '700', color: c.text },
+  activitySeeAll: { fontSize: 13, fontWeight: '600', color: '#047857' },
+  activityStat: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 10, backgroundColor: c.cardAlt === '#F3F4F6' ? '#F7F7F8' : c.cardAlt },
+  activityStatValue: { fontSize: 17, fontWeight: '600', color: c.text },
+  activityStatLabel: { fontSize: 11, color: c.textSecondary },
+  activityWeekLabel: { fontSize: 12, color: c.textSecondary, marginTop: 14, marginBottom: 8 },
+  activityDot: { width: '100%', aspectRatio: 1, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: c.cardAlt === '#F3F4F6' ? '#F7F7F8' : c.cardAlt, alignItems: 'center', justifyContent: 'center' },
+  activityDotOn: { backgroundColor: '#F97316', borderColor: '#F97316' },
+  activityDayLetter: { fontSize: 11, color: c.textSecondary },
+  activityLogBtn: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 999, borderWidth: 1, borderColor: '#D1D5DB', backgroundColor: c.card },
+  activityLogBtnText: { fontSize: 14, fontWeight: '600', color: c.text },
   waterLogBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
   waterLogPlus: { position: 'absolute', top: 5, right: 4, width: 15, height: 15, borderRadius: 8, backgroundColor: '#2563EB', borderWidth: 2, borderColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
   goalChip: {

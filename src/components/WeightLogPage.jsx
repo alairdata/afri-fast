@@ -1,33 +1,46 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform, Keyboard } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform, Keyboard, Alert, Share } from 'react-native';
+import InfoTip from './InfoTip';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CELL_SIZE = Math.floor((SCREEN_WIDTH - 40 - 24) / 7);
 
 const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAY_LABELS = ['S','M','T','W','T','F','S'];
+const RANGES = [7, 30, 90];
 
-const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, setWeightUnit, onWeightSaved, onWeightDeleted }) => {
+const isLb = (u) => u === 'lb' || u === 'lbs';
+const toKg = (w, u) => (isLb(u) ? w * 0.453592 : w);
+const convert = (w, from, to) => {
+  if (isLb(from) === isLb(to)) return Number(w);
+  return isLb(to) ? Number(w) * 2.20462 : Number(w) / 2.20462;
+};
+const round1 = (n) => Math.round(n * 10) / 10;
+
+const BMI_BANDS = [
+  { max: 18.5, label: 'Underweight', color: '#3B82F6' },
+  { max: 25, label: 'Normal', color: '#10B981' },
+  { max: 30, label: 'Overweight', color: '#F59E0B' },
+  { max: Infinity, label: 'Obese', color: '#EF4444' },
+];
+
+const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, setWeightUnit, onWeightSaved, onWeightDeleted, height, heightUnit }) => {
   const [newWeight, setNewWeight] = useState('');
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(today);
   const [calendarMonth, setCalendarMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [showCalendar, setShowCalendar] = useState(false);
-  const [weightStatsRange, setWeightStatsRange] = useState('7 days');
-  const [showWeightStatsDropdown, setShowWeightStatsDropdown] = useState(false);
+  const [rangeIdx, setRangeIdx] = useState(0);
 
-  const convertWeight = (weight, fromUnit, toUnit) => {
-    if (fromUnit === toUnit) return weight;
-    if (fromUnit === 'kg' && toUnit === 'lb') return (weight * 2.20462).toFixed(1);
-    if (fromUnit === 'lb' && toUnit === 'kg') return (weight / 2.20462).toFixed(1);
-    return weight;
-  };
+  const unit = isLb(weightUnit) ? 'lb' : 'kg';
 
   const saveWeight = () => {
-    if (!newWeight) return;
+    const value = parseFloat(newWeight);
+    if (!(value > 0)) return;
     Keyboard.dismiss();
-    const newLog = { date: selectedDate.toDateString(), timestamp: selectedDate.getTime(), weight: parseFloat(newWeight), unit: weightUnit };
+    const newLog = { date: selectedDate.toDateString(), timestamp: selectedDate.getTime(), weight: value, unit };
     // Insert in date order, not always at the front -- logging a past date (via the calendar picker
     // above) must not make it look like your most recent weigh-in everywhere weightLogs[0] is read
     // as "current weight" (BMI card, weight stats, activity calorie estimates).
@@ -36,10 +49,29 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
     setNewWeight('');
   };
 
-  const deleteWeightLog = (index) => {
-    const log = weightLogs[index];
-    setWeightLogs(weightLogs.filter((_, i) => i !== index));
-    onWeightDeleted && onWeightDeleted(log);
+  const askDelete = (log) => {
+    Alert.alert(`${round1(convert(log.weight, log.unit, unit))} ${unit}`, 'Remove this weigh-in?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: () => {
+          setWeightLogs(weightLogs.filter((l) => l !== log));
+          onWeightDeleted && onWeightDeleted(log);
+        },
+      },
+    ]);
+  };
+
+  // Every weigh-in as a spreadsheet (CSV), handed to the phone's share sheet.
+  const exportLogs = async () => {
+    if (!weightLogs.length) { Alert.alert('Nothing to export yet', 'Save a weigh-in first.'); return; }
+    const rows = [...weightLogs]
+      .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+      .map((l) => {
+        const d = new Date(l.timestamp || l.date);
+        const iso = isNaN(d.getTime()) ? l.date : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return `${iso},${l.weight},${l.unit}`;
+      });
+    try { await Share.share({ title: 'Logga weight log', message: ['date,weight,unit', ...rows].join('\n') }); } catch (_) {}
   };
 
   // Calendar grid
@@ -50,42 +82,39 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
   const calCells = [...Array(firstWeekday).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
   while (calCells.length % 7 !== 0) calCells.push(null);
 
-  const todayD = today.getDate();
-  const todayM = today.getMonth();
-  const todayY = today.getFullYear();
-
-  const isToday = selectedDate.getDate() === todayD && selectedDate.getMonth() === todayM && selectedDate.getFullYear() === todayY;
-  const yesterday = new Date(today); yesterday.setDate(todayD - 1);
-  const isYesterday = selectedDate.toDateString() === yesterday.toDateString();
-  const selectedLabel = isToday ? 'Today' : isYesterday ? 'Yesterday'
-    : selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-
   if (!show) return null;
 
+  const isToday = selectedDate.toDateString() === today.toDateString();
+  const sorted = [...(weightLogs || [])].sort((a, b) => (b.timestamp || new Date(b.date).getTime()) - (a.timestamp || new Date(a.date).getTime()));
+
+  // BMI from the latest weigh-in and the height in Your Details
+  const latest = sorted[0] || null;
+  const heightNum = parseFloat(height);
+  const heightM = heightNum ? (heightUnit === 'ft' ? heightNum * 0.3048 : heightNum / 100) : 0;
+  const bmi = latest && heightM > 0 ? toKg(latest.weight, latest.unit) / (heightM * heightM) : null;
+  const band = bmi ? BMI_BANDS.find((b) => bmi < b.max) : null;
+  const bmiPos = bmi ? Math.max(0, Math.min(100, ((bmi - 15) / 20) * 100)) : 0;
+
+  // Trends over the last N days
+  const rangeDays = RANGES[rangeIdx];
+  const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - (rangeDays - 1));
+  const inRange = sorted.filter((l) => (l.timestamp || new Date(l.date).getTime()) >= start.getTime()).map((l) => convert(l.weight, l.unit, unit));
+  const change = inRange.length >= 2 ? inRange[0] - inRange[inRange.length - 1] : null;
+  const avg = inRange.length ? inRange.reduce((s, w) => s + w, 0) / inRange.length : null;
+  const lowest = inRange.length ? Math.min(...inRange) : null;
+
   return (
-    <View style={styles.weightPageOverlay}>
-      <View style={styles.weightPage}>
-
+    <View style={styles.overlay}>
+      <View style={styles.page}>
         {/* Header */}
-        <View style={styles.weightPageHeader}>
-          <TouchableOpacity style={styles.weightBackBtn} onPress={onClose}>
-            <Ionicons name="chevron-back" size={24} color="#059669" />
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.headerBtn} onPress={onClose} accessibilityLabel="Back">
+            <Ionicons name="arrow-back" size={20} color="#1F1F1F" />
           </TouchableOpacity>
-          <Text style={styles.weightPageTitle}>Weight Log</Text>
-          <TouchableOpacity
-            style={[styles.calendarIconBtn, showCalendar && styles.calendarIconBtnActive]}
-            onPress={() => setShowCalendar(v => !v)}
-          >
-            <Ionicons name={showCalendar ? 'calendar' : 'calendar-outline'} size={20} color={showCalendar ? '#fff' : '#059669'} />
+          <Text style={styles.title}>Weight Log</Text>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => setShowCalendar((v) => !v)} accessibilityLabel="Pick a day">
+            <Ionicons name={showCalendar ? 'calendar' : 'calendar-outline'} size={20} color="#059669" />
           </TouchableOpacity>
-        </View>
-
-        {/* Always-visible date strip */}
-        <View style={styles.selectedStrip}>
-          <Ionicons name="scale-outline" size={12} color="#059669" />
-          <Text style={styles.selectedStripText}>
-            Logging for: <Text style={styles.selectedStripDate}>{selectedLabel}</Text>
-          </Text>
         </View>
 
         {/* Calendar overlay */}
@@ -112,17 +141,18 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
               <View style={styles.calGrid}>
                 {calCells.map((day, i) => {
                   if (!day) return <View key={i} style={{ width: CELL_SIZE, height: CELL_SIZE }} />;
-                  const isSelected = day === selectedDate.getDate() && month === selectedDate.getMonth() && year === selectedDate.getFullYear();
-                  const isTodayCell = day === todayD && month === todayM && year === todayY;
+                  const cellDate = new Date(year, month, day);
+                  const isSelected = cellDate.toDateString() === selectedDate.toDateString();
+                  const isTodayCell = cellDate.toDateString() === today.toDateString();
+                  const isFuture = cellDate > today;
                   return (
                     <TouchableOpacity
                       key={i}
-                      style={[styles.calCell, { width: CELL_SIZE, height: CELL_SIZE }, isSelected && styles.calCellSelected, !isSelected && isTodayCell && styles.calCellToday]}
-                      onPress={() => { setSelectedDate(new Date(year, month, day)); setShowCalendar(false); }}
+                      disabled={isFuture}
+                      style={[styles.calCell, { width: CELL_SIZE, height: CELL_SIZE }, isSelected && styles.calCellSelected, !isSelected && isTodayCell && styles.calCellToday, isFuture && { opacity: 0.3 }]}
+                      onPress={() => { setSelectedDate(cellDate); setShowCalendar(false); }}
                     >
-                      <Text style={[styles.calCellText, isSelected && styles.calCellTextSelected, !isSelected && isTodayCell && styles.calCellTextToday]}>
-                        {day}
-                      </Text>
+                      <Text style={[styles.calCellText, isSelected && styles.calCellTextSelected, !isSelected && isTodayCell && styles.calCellTextToday]}>{day}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -131,187 +161,115 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
           </>
         )}
 
-        <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" style={styles.weightPageContent} showsVerticalScrollIndicator={false}>
-          {/* Compact Weight Input Section */}
-          <View style={styles.weightInputCompact}>
-            {/* Dash Circle Placeholder - SVG not available in RN, using a simple circle */}
-            <View style={styles.weightDashContainerSmall}>
-              <View style={styles.weightCirclePlaceholder}>
-                <TextInput
-                  placeholder={weightUnit === 'kg' ? '72' : '160'}
-                  placeholderTextColor="#ccc"
-                  value={newWeight}
-                  onChangeText={(text) => setNewWeight(text)}
-                  onSubmitEditing={saveWeight}
-                  returnKeyType="done"
-                  style={styles.weightInputMedium}
-                  keyboardType="decimal-pad"
-                />
-                <TouchableOpacity style={styles.unitDropdownSmall} onPress={() => setWeightUnit(weightUnit === 'kg' ? 'lb' : 'kg')}>
-                  <Text style={styles.unitDropdownTextSmall}>{weightUnit}</Text>
-                  <Text style={{ color: '#059669', fontSize: 10 }}>{'▼'}</Text>
-                </TouchableOpacity>
-              </View>
+        <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          {/* Weight input */}
+          <View style={styles.inputCard}>
+            <Text style={styles.kicker}>{isToday ? "TODAY'S WEIGHT" : `WEIGHT FOR ${MONTHS[selectedDate.getMonth()].toUpperCase()} ${selectedDate.getDate()}`}</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                placeholder={latest ? String(round1(convert(latest.weight, latest.unit, unit))) : unit === 'kg' ? '72' : '160'}
+                placeholderTextColor="#C4C8CC"
+                value={newWeight}
+                onChangeText={setNewWeight}
+                onSubmitEditing={saveWeight}
+                returnKeyType="done"
+                style={styles.bigInput}
+                keyboardType="decimal-pad"
+                accessibilityLabel="Current weight"
+              />
+              <TouchableOpacity style={styles.unitBtn} onPress={() => setWeightUnit(unit === 'kg' ? 'lb' : 'kg')} accessibilityLabel={`Change unit, ${unit === 'kg' ? 'kilograms' : 'pounds'} selected`}>
+                <Text style={styles.unitText}>{unit}</Text>
+                <Ionicons name="chevron-down" size={16} color="#4B5563" />
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity style={styles.saveWeightBtnCompact} onPress={saveWeight}>
-              <Text style={styles.saveWeightBtnTextSmall}>Save Weight</Text>
+            <Text style={styles.hint}>Enter your current weight</Text>
+            <TouchableOpacity style={[styles.saveBtn, !(parseFloat(newWeight) > 0) && { opacity: 0.6 }]} onPress={saveWeight} activeOpacity={0.85}>
+              <Text style={styles.saveBtnText}>Save Weight</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Weight Statistics */}
-          <View style={styles.weightStatsSection}>
-            <View style={styles.weightStatsHeader}>
-              <Text style={styles.weightStatsSectionTitle}>Weight Statistics</Text>
-              <View style={styles.weightStatsDropdownContainer}>
-                <TouchableOpacity
-                  style={styles.weightStatsDropdownBtn}
-                  onPress={() => setShowWeightStatsDropdown(!showWeightStatsDropdown)}
-                >
-                  <Text style={styles.weightStatsDropdownBtnText}>{weightStatsRange}</Text>
-                  <Text style={{ color: '#059669', fontSize: 10 }}>{'▼'}</Text>
-                </TouchableOpacity>
-                {showWeightStatsDropdown && (
-                  <View style={styles.weightStatsDropdownMenu}>
-                    {['7 days', '30 days', '90 days', '180 days', 'All time'].map((range) => (
-                      <TouchableOpacity
-                        key={range}
-                        style={[
-                          styles.weightStatsDropdownItem,
-                          weightStatsRange === range ? styles.weightStatsDropdownItemActive : null,
-                        ]}
-                        onPress={() => {
-                          setWeightStatsRange(range);
-                          setShowWeightStatsDropdown(false);
-                        }}
-                      >
-                        <Text style={[
-                          styles.weightStatsDropdownItemText,
-                          weightStatsRange === range ? styles.weightStatsDropdownItemTextActive : null,
-                        ]}>{range}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
+          {/* BMI */}
+          <View style={styles.section}>
+            <View style={styles.titleRow}><Text style={styles.sectionTitle}>Current BMI</Text><InfoTip id="bmi" /></View>
+            <View style={styles.bmiCard}>
+              <View style={styles.bmiTop}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+                  <Text style={styles.bmiValue}>{bmi ? bmi.toFixed(1) : '--'}</Text>
+                  {band && <View style={[styles.bmiBadge, { backgroundColor: `${band.color}1A` }]}><Text style={[styles.bmiBadgeText, { color: band.color }]}>{band.label}</Text></View>}
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.bmiSmall}>Current weight</Text>
+                  <Text style={styles.bmiWeight}>{latest ? `${round1(convert(latest.weight, latest.unit, unit))} ${unit}` : '--'}</Text>
+                </View>
               </View>
+              <View style={styles.bmiBar}>
+                <View style={{ width: '17.5%', backgroundColor: '#3B82F6' }} />
+                <View style={{ width: '32.5%', backgroundColor: '#10B981' }} />
+                <View style={{ width: '25%', backgroundColor: '#F59E0B' }} />
+                <View style={{ width: '25%', backgroundColor: '#EF4444' }} />
+              </View>
+              {bmi && <View style={{ height: 0 }}><View style={[styles.bmiMarker, { left: `${bmiPos}%` }]} /></View>}
+              <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                {BMI_BANDS.map((b) => <Text key={b.label} style={styles.bmiLabel}>{b.label}</Text>)}
+              </View>
+              {!heightM && <Text style={[styles.hint, { marginTop: 8, textAlign: 'left' }]}>Add your height in Your Details to see your BMI.</Text>}
             </View>
-            {(() => {
-              const days = weightStatsRange === '7 days' ? 7 : weightStatsRange === '30 days' ? 30 : weightStatsRange === '90 days' ? 90 : weightStatsRange === '180 days' ? 180 : 99999;
-              const logs = weightLogs || [];
-              const rangeLogs = days === 99999 ? logs : logs.filter((_, i) => i < Math.min(days, logs.length));
-              const hasData = rangeLogs.length >= 2;
-              const unit = logs.length > 0 ? logs[0].unit : 'kg';
-
-              const totalChange = hasData ? (rangeLogs[0].weight - rangeLogs[rangeLogs.length - 1].weight) : 0;
-              const weeks = Math.max(days / 7, 1);
-              const avgWeekly = hasData ? (totalChange / weeks) : 0;
-              const avgWeight = rangeLogs.length > 0 ? (rangeLogs.reduce((s, l) => s + l.weight, 0) / rangeLogs.length) : 0;
-              const highest = rangeLogs.length > 0 ? Math.max(...rangeLogs.map(l => l.weight)) : 0;
-              const lowest = rangeLogs.length > 0 ? Math.min(...rangeLogs.map(l => l.weight)) : 0;
-
-              return (
-                <>
-                  <View style={styles.weightStatsGrid}>
-                    <View style={styles.weightStatCard}>
-                      <Text style={styles.weightStatIcon}>{'\u{1F4C9}'}</Text>
-                      <Text style={styles.weightStatCardValue}>{hasData && avgWeekly < 0 ? `${avgWeekly.toFixed(1)} ${unit}` : '--'}</Text>
-                      <Text style={styles.weightStatCardLabel}>Avg weekly loss</Text>
-                    </View>
-                    <View style={styles.weightStatCard}>
-                      <Text style={styles.weightStatIcon}>{'\u{1F4C8}'}</Text>
-                      <Text style={styles.weightStatCardValue}>{hasData && avgWeekly > 0 ? `+${avgWeekly.toFixed(1)} ${unit}` : '--'}</Text>
-                      <Text style={styles.weightStatCardLabel}>Avg weekly gain</Text>
-                    </View>
-                    <View style={styles.weightStatCard}>
-                      <Text style={styles.weightStatIcon}>{'\u{1F3AF}'}</Text>
-                      <Text style={styles.weightStatCardValue}>{hasData ? `${totalChange >= 0 ? '+' : ''}${totalChange.toFixed(1)} ${unit}` : '--'}</Text>
-                      <Text style={styles.weightStatCardLabel}>Total change</Text>
-                    </View>
-                    <View style={styles.weightStatCard}>
-                      <Text style={styles.weightStatIcon}>{'⚖️'}</Text>
-                      <Text style={styles.weightStatCardValue}>{rangeLogs.length > 0 ? `${avgWeight.toFixed(1)} ${unit}` : '--'}</Text>
-                      <Text style={styles.weightStatCardLabel}>Avg weight</Text>
-                    </View>
-                  </View>
-                  <View style={styles.weightStatsMini}>
-                    <View style={styles.weightStatMiniItem}>
-                      <Text style={styles.weightStatMiniLabel}>Highest</Text>
-                      <Text style={styles.weightStatMiniValue}>{rangeLogs.length > 0 ? `${highest} ${unit}` : '--'}</Text>
-                    </View>
-                    <View style={styles.weightStatMiniDivider} />
-                    <View style={styles.weightStatMiniItem}>
-                      <Text style={styles.weightStatMiniLabel}>Lowest</Text>
-                      <Text style={styles.weightStatMiniValue}>{rangeLogs.length > 0 ? `${lowest} ${unit}` : '--'}</Text>
-                    </View>
-                    <View style={styles.weightStatMiniDivider} />
-                    <View style={styles.weightStatMiniItem}>
-                      <Text style={styles.weightStatMiniLabel}>Entries</Text>
-                      <Text style={styles.weightStatMiniValue}>{rangeLogs.length > 0 ? rangeLogs.length : '--'}</Text>
-                    </View>
-                  </View>
-                </>
-              );
-            })()}
           </View>
 
-          {/* Past Logs Section - Compact */}
-          <View style={styles.pastLogsCompact}>
-            <View style={styles.pastLogsHeaderRow}>
-              <Text style={styles.pastLogsTitleCompact}>Past Logs</Text>
-              <TouchableOpacity style={styles.exportBtn}>
-                <Text style={styles.exportBtnText}>{'↓'} Export</Text>
+          {/* Trends */}
+          <View style={styles.section}>
+            <View style={styles.rowBetween}>
+              <Text style={styles.sectionTitle}>Your weight trends</Text>
+              <TouchableOpacity style={styles.rangePill} onPress={() => setRangeIdx((i) => (i + 1) % RANGES.length)} accessibilityLabel={`Showing ${rangeDays} days, tap to change`}>
+                <Text style={styles.rangePillText}>{rangeDays} days</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.logsListCompact}>
-              {weightLogs.length === 0 && (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No weight logs yet. Start tracking above!</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[
+                ['Total change', change == null ? '--' : `${change < 0 ? '↓' : change > 0 ? '↑' : ''} ${Math.abs(round1(change))} ${unit}`.trim()],
+                ['Average weight', avg == null ? '--' : `${round1(avg)} ${unit}`],
+                ['Lowest', lowest == null ? '--' : `${round1(lowest)} ${unit}`],
+              ].map(([label, value]) => (
+                <View key={label} style={styles.trendTile}>
+                  <Text style={styles.trendLabel}>{label}</Text>
+                  <Text style={styles.trendValue}>{value}</Text>
                 </View>
-              )}
-              {weightLogs.slice(0, 15).map((log, index) => {
-                const displayWeight = weightUnit === log.unit
-                  ? log.weight
-                  : convertWeight(log.weight, log.unit, weightUnit);
-                const prevWeight = index < weightLogs.length - 1
-                  ? (weightUnit === weightLogs[index + 1].unit
-                      ? weightLogs[index + 1].weight
-                      : convertWeight(weightLogs[index + 1].weight, weightLogs[index + 1].unit, weightUnit))
-                  : null;
-                const diff = prevWeight ? (displayWeight - prevWeight).toFixed(1) : null;
-                const isGain = diff > 0;
+              ))}
+            </View>
+          </View>
 
-                const logDate = new Date(log.timestamp || log.date);
-                const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-                const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                const dayNum = logDate.getDate();
-                const monthAbbr = MONTHS[logDate.getMonth()];
-                const dayAbbr = DAYS[logDate.getDay()];
-
+          {/* Past logs */}
+          <View style={[styles.section, { paddingHorizontal: 20 }]}>
+            <View style={styles.rowBetween}>
+              <Text style={[styles.sectionTitle, { fontSize: 14 }]}>Past Logs</Text>
+              <TouchableOpacity style={styles.exportBtn} onPress={exportLogs} accessibilityLabel="Export your weight log">
+                <Text style={styles.exportBtnText}>↓ Export</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.logsCard}>
+              {sorted.length === 0 && <Text style={styles.empty}>No weigh-ins yet. Save your first one above.</Text>}
+              {sorted.slice(0, 20).map((log, i, list) => {
+                const d = new Date(log.timestamp || log.date);
+                const w = convert(log.weight, log.unit, unit);
+                const prev = sorted[i + 1];
+                const diff = prev ? round1(w - convert(prev.weight, prev.unit, unit)) : null;
                 return (
-                  <View key={index} style={styles.logItemCompact}>
-                    <View style={styles.logItemLeftCompact}>
-                      <View style={styles.logDateBadgeSmall}>
-                        <Text style={styles.logDateDayNum}>{dayNum}</Text>
-                        <Text style={styles.logDateMonthAbbr}>{monthAbbr}</Text>
-                      </View>
-                      <Text style={styles.logWeightCompact}>{displayWeight} {weightUnit}</Text>
+                  <View key={`${log.timestamp}-${i}`} style={[styles.logRow, i < list.length - 1 && styles.logDivider]}>
+                    <View style={styles.logDate}>
+                      <Text style={styles.logDay}>{isNaN(d.getTime()) ? '--' : d.getDate()}</Text>
+                      <Text style={styles.logMonth}>{isNaN(d.getTime()) ? '' : MONTHS[d.getMonth()]}</Text>
                     </View>
-                    <View style={styles.logItemRightCompact}>
-                      <Text style={styles.logDateCompact}>{dayAbbr}</Text>
-                      {diff && (
-                        <View style={[
-                          styles.logDiffSmall,
-                          { backgroundColor: isGain ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' },
-                        ]}>
-                          <Text style={{ color: isGain ? '#EF4444' : '#10B981', fontSize: 10, fontWeight: '600' }}>
-                            {isGain ? '+' : ''}{diff}
-                          </Text>
-                        </View>
-                      )}
-                      <TouchableOpacity style={styles.logDeleteBtnSmall} onPress={() => deleteWeightLog(index)}>
-                        <Text style={{ color: '#EF4444', fontSize: 12 }}>{'🗑'}</Text>
-                      </TouchableOpacity>
+                    <View style={{ flex: 1, gap: 6, minWidth: 0 }}>
+                      <Text style={styles.logWeight}>{round1(w)} {unit}</Text>
+                      <Text style={styles.logWeekday}>{isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { weekday: 'long' })}</Text>
                     </View>
+                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                      <Text style={styles.logDiff}>{diff == null ? '—' : `${diff < 0 ? '↓' : diff > 0 ? '↑' : ''} ${Math.abs(diff).toFixed(1)} ${unit}`.trim()}</Text>
+                      <Text style={styles.logDiffNote}>{diff == null ? 'First log' : 'vs. previous log'}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.moreBtn} onPress={() => askDelete(log)} accessibilityLabel="More options for this log">
+                      <Ionicons name="ellipsis-horizontal" size={16} color="#1F1F1F" />
+                    </TouchableOpacity>
                   </View>
                 );
               })}
@@ -324,449 +282,80 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
 };
 
 const styles = StyleSheet.create({
-  weightPageOverlay: {
+  overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#F8FAFC',
     zIndex: 10000,
   },
-  weightPage: {
-    width: '100%',
-    maxWidth: 430,
-    alignSelf: 'center',
-    height: SCREEN_HEIGHT,
-    flexDirection: 'column',
-    flex: 1,
-  },
-  weightPageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
-  },
-  weightBackBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(5, 150, 105, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weightPageTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F1F1F',
-  },
-  weightPageContent: {
-    flex: 1,
-    padding: 20,
-  },
-  weightInputCompact: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  weightDashContainerSmall: {
-    position: 'relative',
-    width: 160,
-    height: 160,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weightCirclePlaceholder: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    borderWidth: 3,
-    borderColor: 'rgba(5, 150, 105, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weightInputMedium: {
-    width: 90,
-    fontSize: 36,
-    fontWeight: '700',
-    textAlign: 'center',
-    backgroundColor: 'transparent',
-    color: '#1F1F1F',
-    padding: 0,
-  },
-  unitDropdownSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    backgroundColor: 'rgba(5, 150, 105, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.15)',
-    borderRadius: 14,
-    marginTop: 4,
-  },
-  unitDropdownTextSmall: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#059669',
-    marginRight: 2,
-  },
-  calendarIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(5,150,105,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calendarIconBtnActive: {
-    backgroundColor: '#059669',
-  },
-  selectedStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(5,150,105,0.04)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(5,150,105,0.08)',
-  },
-  selectedStripText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  selectedStripDate: {
-    fontWeight: '700',
-    color: '#059669',
-  },
-  calendarBackdrop: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    zIndex: 199,
-  },
+  page: { width: '100%', maxWidth: 430, alignSelf: 'center', height: SCREEN_HEIGHT, flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingTop: 8, paddingBottom: 4 },
+  headerBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 17, fontWeight: '600', color: '#1F1F1F' },
+
+  calendarBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 199 },
   calendarCard: {
-    position: 'absolute',
-    top: 109,
-    left: 16,
-    right: 16,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 12,
-    zIndex: 200,
+    position: 'absolute', top: 60, left: 16, right: 16, zIndex: 200,
+    backgroundColor: '#fff', borderRadius: 16, padding: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 12,
   },
-  calMonthRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  calMonthLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1F1F1F',
-  },
-  calDayLabels: {
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  calDayLabelText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#aaa',
-    textAlign: 'center',
-  },
-  calGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  calCell: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  calCellSelected: {
-    backgroundColor: '#059669',
-  },
-  calCellToday: {
-    borderWidth: 1,
-    borderColor: '#059669',
-  },
-  calCellText: {
-    fontSize: 13,
-    color: '#333',
-  },
-  calCellTextSelected: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  calCellTextToday: {
-    color: '#059669',
-    fontWeight: '700',
-  },
-  saveWeightBtnCompact: {
-    width: '100%',
-    maxWidth: 200,
-    padding: 12,
-    backgroundColor: '#059669',
-    borderRadius: 12,
-    marginTop: 12,
-    alignItems: 'center',
-    shadowColor: 'rgba(5, 150, 105, 1)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 5,
-  },
-  saveWeightBtnTextSmall: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  weightStatsSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  weightStatsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  weightStatsSectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F1F1F',
-  },
-  weightStatsDropdownContainer: {
-    position: 'relative',
-    zIndex: 100,
-  },
-  weightStatsDropdownBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: 'rgba(5, 150, 105, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.15)',
-    borderRadius: 8,
-  },
-  weightStatsDropdownBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#059669',
-    marginRight: 4,
-  },
-  weightStatsDropdownMenu: {
-    position: 'absolute',
-    top: '100%',
-    right: 0,
-    marginTop: 4,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.1)',
-    minWidth: 120,
-    zIndex: 100,
-  },
-  weightStatsDropdownItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: 'transparent',
-  },
-  weightStatsDropdownItemActive: {
-    backgroundColor: 'rgba(5, 150, 105, 0.08)',
-  },
-  weightStatsDropdownItemText: {
-    fontSize: 13,
-    color: '#444',
-  },
-  weightStatsDropdownItemTextActive: {
-    color: '#059669',
-    fontWeight: '600',
-  },
-  weightStatsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  weightStatCard: {
-    width: '23%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.08)',
-  },
-  weightStatIcon: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  weightStatCardValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1F1F1F',
-  },
-  weightStatCardLabel: {
-    fontSize: 8,
-    color: '#888',
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  weightStatsMini: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(5, 150, 105, 0.04)',
-    borderRadius: 10,
-    padding: 10,
-  },
-  weightStatMiniItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  weightStatMiniLabel: {
-    fontSize: 10,
-    color: '#888',
-  },
-  weightStatMiniValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1F1F1F',
-  },
-  weightStatMiniDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: 'rgba(5, 150, 105, 0.15)',
-    marginHorizontal: 12,
-  },
-  pastLogsCompact: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  pastLogsHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  pastLogsTitleCompact: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F1F1F',
-  },
-  exportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: 'rgba(5, 150, 105, 0.08)',
-    borderRadius: 8,
-  },
-  exportBtnText: {
-    color: '#059669',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  logsListCompact: {
-    flexDirection: 'column',
-  },
-  logItemCompact: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.06)',
-    marginBottom: 6,
-  },
-  logItemLeftCompact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logDateBadgeSmall: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(5, 150, 105, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  logDateDayNum: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#059669',
-    lineHeight: 16,
-  },
-  logDateMonthAbbr: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#059669',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    lineHeight: 11,
-  },
-  logWeightCompact: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1F1F1F',
-  },
-  logDateCompact: {
-    fontSize: 11,
-    color: '#bbb',
-    marginRight: 6,
-  },
-  logItemRightCompact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logDiffSmall: {
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  logDeleteBtnSmall: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: 'rgba(239, 68, 68, 0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyState: {
-    paddingVertical: 32,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: 13,
-    color: '#aaa',
-    textAlign: 'center',
-  },
+  calMonthRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  calMonthLabel: { fontSize: 14, fontWeight: '700', color: '#1F1F1F' },
+  calDayLabels: { flexDirection: 'row', marginBottom: 4 },
+  calDayLabelText: { fontSize: 11, fontWeight: '600', color: '#aaa', textAlign: 'center' },
+  calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  calCell: { alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  calCellSelected: { backgroundColor: '#059669' },
+  calCellToday: { borderWidth: 1, borderColor: '#059669' },
+  calCellText: { fontSize: 13, color: '#333' },
+  calCellTextSelected: { color: '#fff', fontWeight: '700' },
+  calCellTextToday: { color: '#059669', fontWeight: '700' },
+
+  inputCard: { marginTop: 6, marginHorizontal: 16, marginBottom: 14, paddingTop: 14, paddingHorizontal: 16, paddingBottom: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
+  kicker: { fontSize: 12, color: '#4B5563', letterSpacing: 0.3, marginBottom: 4 },
+  inputRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 6, paddingTop: 20, paddingBottom: 14, paddingLeft: 40 },
+  bigInput: { minWidth: 120, fontSize: 56, fontWeight: '700', letterSpacing: -1.5, color: '#1F1F1F', textAlign: 'center', padding: 0 },
+  unitBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 2 },
+  unitText: { fontSize: 24, color: '#4B5563' },
+  hint: { marginTop: 10, fontSize: 13, color: '#6B7280', textAlign: 'center' },
+  saveBtn: { marginTop: 20, paddingVertical: 15, borderRadius: 12, backgroundColor: '#059669', alignItems: 'center' },
+  saveBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+
+  section: { paddingHorizontal: 16, paddingBottom: 20 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 12 },
+  sectionTitle: { fontSize: 17, fontWeight: '600', color: '#1F1F1F' },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  bmiCard: { backgroundColor: '#fff', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(5,150,105,0.08)' },
+  bmiTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  bmiValue: { fontSize: 32, fontWeight: '700', color: '#1F1F1F' },
+  bmiBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6 },
+  bmiBadgeText: { fontSize: 14, fontWeight: '600' },
+  bmiSmall: { fontSize: 10, color: '#6B7280' },
+  bmiWeight: { fontSize: 16, fontWeight: '600', color: '#1F1F1F' },
+  bmiBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden' },
+  bmiMarker: { position: 'absolute', top: -13, width: 4, height: 16, marginLeft: -2, borderRadius: 2, backgroundColor: '#F3F4F6', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 3 },
+  bmiLabel: { flex: 1, textAlign: 'center', fontSize: 8, color: '#9CA3AF' },
+
+  rangePill: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.07)' },
+  rangePillText: { fontSize: 12, fontWeight: '600', color: '#1F1F1F' },
+  trendTile: { flex: 1, gap: 8, paddingTop: 10, paddingHorizontal: 10, paddingBottom: 12, borderRadius: 10, backgroundColor: '#FCFCFC' },
+  trendLabel: { fontSize: 11, color: '#4B5563' },
+  trendValue: { fontSize: 18, fontWeight: '600', color: '#1F1F1F' },
+
+  exportBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: 'rgba(5,150,105,0.08)' },
+  exportBtnText: { color: '#059669', fontSize: 12, fontWeight: '600' },
+  logsCard: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', paddingHorizontal: 14 },
+  logRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 },
+  logDivider: { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' },
+  logDate: { width: 30, alignItems: 'center', gap: 6 },
+  logDay: { fontSize: 17, fontWeight: '600', color: '#1F1F1F', lineHeight: 18 },
+  logMonth: { fontSize: 10, color: '#4B5563', textTransform: 'uppercase' },
+  logWeight: { fontSize: 16, fontWeight: '600', color: '#1F1F1F' },
+  logWeekday: { fontSize: 12, color: '#4B5563' },
+  logDiff: { fontSize: 15, fontWeight: '600', color: '#1F1F1F' },
+  logDiffNote: { fontSize: 10, color: '#6B7280' },
+  moreBtn: { width: 32, height: 44, marginRight: -8, alignItems: 'center', justifyContent: 'center' },
+  empty: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 24 },
 });
 
 export default WeightLogPage;

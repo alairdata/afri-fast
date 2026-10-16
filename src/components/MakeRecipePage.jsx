@@ -693,8 +693,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
       <View style={styles.page}>
         {/* Header: Recipes is a tab now, so no back arrow; the bookmark opens saved recipes */}
         <View style={styles.header}>
-          <View style={{ width: 44 }} />
-          <Text style={styles.pageTitle}>Recipes</Text>
+          <Text style={styles.pageHeading} accessibilityRole="header">What sounds good today?</Text>
           <TouchableOpacity style={styles.headerIconBtn} onPress={() => setShowSaved(true)} accessibilityLabel="Saved recipes">
             <Ionicons name={savedIds.length ? 'bookmark' : 'bookmark-outline'} size={19} color="#1F1F1F" />
           </TouchableOpacity>
@@ -709,8 +708,6 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
           automaticallyAdjustKeyboardInsets
           contentContainerStyle={{ paddingBottom: searchFocused ? 420 : 100 }}
         >
-          <Text style={styles.pageHeading}>What sounds good today?</Text>
-
           {/* Search */}
           <View style={styles.searchBar} onLayout={(e) => { searchY.current = e.nativeEvent.layout.y; }}>
             <Ionicons name="search" size={17} color="#4B5563" style={{ marginRight: 10 }} />
@@ -998,11 +995,11 @@ const styles = StyleSheet.create({
   page: { flex: 1, flexDirection: 'column' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 12, paddingBottom: 8, paddingTop: 10,
+    paddingLeft: 20, paddingRight: 8, paddingBottom: 10, paddingTop: 10,
   },
   headerIconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 17, fontWeight: '600', color: '#1F1F1F' },
-  pageHeading: { fontSize: 22, fontWeight: '700', color: '#1F1F1F', letterSpacing: -0.3, marginBottom: 8 },
+  pageHeading: { flex: 1, fontSize: 20, fontWeight: '700', color: '#1F1F1F', letterSpacing: -0.3 },
   content: { flex: 1, paddingHorizontal: 20 },
 
   actionRow: { flexDirection: 'row', gap: 10 },

@@ -358,6 +358,8 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const editCalInputRef = useRef('');
   const [mealInput, setMealInput] = useState('');
   const [detectedFoods, setDetectedFoods] = useState([]);
+  // The meal's name on the share card: the title it was logged under, else its first food.
+  const cardMealName = (mealTitle || viewingMeal?.name || detectedFoods?.[0]?.name || '').split(',')[0].trim();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -1781,24 +1783,19 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     <View style={styles.shareCardKcalSection}>
                       <View style={styles.shareCardKcalRow}>
                         <View style={styles.shareCardKcalBig}>
-                          <Text style={styles.shareCardKcalLabel}>This meal</Text>
+                          {!!cardMealName && <Text style={styles.shareCardMealName} numberOfLines={2}>{cardMealName}</Text>}
+                          <Text style={styles.shareCardKcalLabel}>This food was</Text>
                           <View style={styles.shareCardKcalNumberRow}>
                             <Text style={[styles.shareCardKcalNumber, mealCal >= 1000 && { fontSize: 40, letterSpacing: -2 }]}>{mealCal}</Text>
                             <Text style={styles.shareCardKcalUnit}>kcal</Text>
                           </View>
                         </View>
-                        <View style={styles.shareCardProgressCol}>
+                        <View style={[styles.shareCardProgressCol, { justifyContent: 'flex-end', gap: 8 }]}>
                           <View style={styles.shareCardProgressMeta}>
-                            <Text style={styles.shareCardProgressLabel}>Today overall</Text>
+                            <Text style={styles.shareCardProgressLabel}>Deficit target</Text>
                             <Text style={[styles.shareCardProgressPct, isOver && { color: '#f97316' }]}>{Math.round(rawPct * 100)}%</Text>
                           </View>
-                          <View>
-                            <View style={styles.shareCardProgressNumbers}>
-                              <Text style={styles.shareCardProgressText}>{dayTotal.toLocaleString()} of {(cardGoal || 0).toLocaleString()} kcal</Text>
-                              <Text style={[styles.shareCardProgressText, { fontWeight: '600', color: isOver ? '#f97316' : 'rgba(255,255,255,0.8)' }]}>
-                                {isOver ? `${(dayTotal - cardGoal).toLocaleString()} over` : `${remaining.toLocaleString()} left`}
-                              </Text>
-                            </View>
+                          <View style={{ marginBottom: 10 }}>
                           <View style={styles.shareCardProgressBar}>
                             <LinearGradient
                               colors={isOver ? ['#f97316', '#ef4444'] : ['#22c55e', '#86efac']}
@@ -3042,6 +3039,7 @@ const styles = StyleSheet.create({
     gap: 2,
     flexShrink: 0,
   },
+  shareCardMealName: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.3, marginBottom: 8, maxWidth: 170 },
   shareCardKcalLabel: {
     fontSize: 10,
     color: 'rgba(255,255,255,0.35)',

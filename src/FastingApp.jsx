@@ -2440,6 +2440,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           onOpenMealHistory={() => setShowMealHistory(true)}
           onOpenNotifications={() => setShowNotifications(true)}
           onOpenWaterLog={() => setShowHydrationDetails(true)}
+          onShowAddActivity={() => setShowAddActivity(true)}
+          onShowActivityLog={() => setShowActivityLog(true)}
           notifUnseen={notifUnseen}
           pendingInsightIndex={pendingInsightIndex}
           onClearPendingInsight={() => setPendingInsightIndex(null)}
@@ -2672,6 +2674,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         setWeightLogs={setWeightLogs}
         weightUnit={weightUnit}
         setWeightUnit={setWeightUnit}
+        height={height}
+        heightUnit={heightUnit}
         onWeightSaved={(log) => { track(EVENTS.WEIGHT_LOGGED, { unit: log.unit }); countSessionLog(); incrementUserProperty('total_weight_logs'); dbSave(supabase.from('weight_logs').insert({ id: log.timestamp, user_id: session?.user?.id, date: log.date, weight: log.weight, unit: log.unit }), 'save weight_log', (msg) => showToast(msg, 'error')); }}
         onWeightDeleted={(log) => dbSave(supabase.from('weight_logs').delete().eq('id', log.timestamp).eq('user_id', session?.user?.id), 'delete weight_log', (msg) => showToast(msg, 'error'))}
       />
