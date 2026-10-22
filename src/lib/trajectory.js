@@ -178,3 +178,49 @@ export function estimateChangeSinceWeighInKg({
   const totalDeficit = loggedDeficit + (loggedDeficit / logged) * unlogged;
   return { kg: -totalDeficit / KCAL_PER_KG, loggedDays: logged, estimatedDays: unlogged };
 }
+
+/**
+ * The scale's own weekly trend, built to survive messy real-life weighing: one weight per day (the caller
+ * passes the last entry of each day), only the last 28 days, readings far off the rest ignored (a typo,
+ * pounds typed as kg, a scale on carpet), and a straight trend line through what's left, so a water
+ * whoosh or a stuck week doesn't swing it. Null when there isn't enough to draw a line.
+ */
+export function scaleTrendWeekly(dailyWeights = [], now = Date.now()) {
+  const recent = dailyWeights.filter((w) => w.ts >= now - 28 * DAY_MS && Number.isFinite(w.weightKg));
+  if (recent.length < 3) return null;
+  const sorted = recent.map((w) => w.weightKg).sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const tolerance = Math.max(3, median * 0.04);
+  const pts = recent.filter((w) => Math.abs(w.weightKg - median) <= tolerance);
+  if (pts.length < 3) return null;
+  const spanDays = (pts[pts.length - 1].ts - pts[0].ts) / DAY_MS;
+  if (spanDays < 10) return null;
+  const xs = pts.map((w) => (w.ts - pts[0].ts) / DAY_MS);
+  const ys = pts.map((w) => w.weightKg);
+  const mx = xs.reduce((a, b) => a + b, 0) / xs.length;
+  const my = ys.reduce((a, b) => a + b, 0) / ys.length;
+  let num = 0, den = 0;
+  xs.forEach((x, i) => { num += (x - mx) * (ys[i] - my); den += (x - mx) ** 2; });
+  if (den === 0) return null;
+  return { rateKg: (num / den) * 7, points: pts.length, spanDays };
+}
+
+/**
+ * The one "per week" number the app shows. It leans on the scale trend only as far as the weigh-ins
+ * earn it (more weigh-in days over a longer span = more trust, never all of it), and on the food-based
+ * estimate (calibrated by observedTdee from past weigh-ins) for the rest, so someone who rarely or never
+ * weighs in still gets an honest rate. tooFast flags a loss above ~1% of body weight a week.
+ */
+export function blendWeeklyRate({ scaleTrend, foodRateKg, bodyKg }) {
+  const hasFood = Number.isFinite(foodRateKg);
+  if (!scaleTrend && !hasFood) return null;
+  let rateKg, scaleShare;
+  if (!scaleTrend) { rateKg = foodRateKg; scaleShare = 0; }
+  else if (!hasFood) { rateKg = scaleTrend.rateKg; scaleShare = 1; }
+  else {
+    scaleShare = Math.min(0.85, Math.min(1, scaleTrend.points / 8) * Math.min(1, scaleTrend.spanDays / 21));
+    rateKg = scaleShare * scaleTrend.rateKg + (1 - scaleShare) * foodRateKg;
+  }
+  const tooFast = bodyKg != null && rateKg < 0 && Math.abs(rateKg) > bodyKg * 0.01;
+  return { rateKg, scaleShare, tooFast };
+}

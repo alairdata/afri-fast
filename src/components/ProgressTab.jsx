@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../lib/theme';
 import { LineChart } from 'react-native-chart-kit';
 import { computeMomentumTimeline, MET, MIN_LOGGED_DAYS } from '../lib/momentum';
-import { computeWeeklyPace, estimateChangeSinceWeighInKg } from '../lib/trajectory';
+import { computeWeeklyPace, estimateChangeSinceWeighInKg, scaleTrendWeekly, blendWeeklyRate } from '../lib/trajectory';
 import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
 import { publishBurnoutSummary } from '../lib/smartNotifications';
@@ -673,24 +673,9 @@ const ProgressTab = ({
   const todayCalories = last7[last7.length - 1]?.total || 0;
   const deficitToday = tdee != null ? tdee - todayCalories : null;
 
-  const weeklyWeightChangeKg = useMemo(() => {
-    const n = sortedWeights.length;
-    if (n < 4) return null;
-    const thisWeek = sortedWeights.slice(-7);
-    const priorWeek = sortedWeights.slice(Math.max(0, n - 14), Math.max(0, n - 7));
-    if (!priorWeek.length) return null;
-    const avg = (arr, key) => arr.reduce((s, w) => s + w[key], 0) / arr.length;
-    // Turn the change between the two groups of weigh-ins into a real per-WEEK rate by dividing by
-    // how much time actually separates them. Without this, a burst of weigh-ins logged close
-    // together (e.g. four in one afternoon) shows up as a huge "weekly" loss like -2.4 kg.
-    const elapsedDays = (avg(thisWeek, 'ts') - avg(priorWeek, 'ts')) / DAY_MS;
-    if (elapsedDays < 3) return null; // too close together in time to call a weekly rate
-    return ((avg(thisWeek, 'weightKg') - avg(priorWeek, 'weightKg')) / elapsedDays) * 7;
-  }, [sortedWeights]);
+  // The scale's own trend (last 28 days, one weight per day, odd readings ignored). See trajectory.js.
+  const scaleTrend = useMemo(() => scaleTrendWeekly(sortedWeights, now), [sortedWeights, now]);
 
-  const deviationKg = (weeklyWeightChangeKg != null && requiredWeeklyRateKg != null)
-    ? weeklyWeightChangeKg - requiredWeeklyRateKg
-    : null;
 
   // Momentum Score — EWMA-smoothed engine (see src/lib/momentum.js): 40% Calorie + 35% Satiety
   // (= 100 - that day's Burnout risk) + 25% Movement.
@@ -765,6 +750,18 @@ const ProgressTab = ({
     now,
   }), [tdee, bmr, recentMeals, pacePreference, today, anchorKg, activityKcalLast7ByDate, now]);
 
+  // The one "per week" number: the scale trend only as far as the weigh-ins earn it, the food-based
+  // estimate (already calibrated by past weigh-ins) for the rest, so rare weighers still get a fair rate.
+  const weeklyRate = useMemo(() => blendWeeklyRate({
+    scaleTrend,
+    foodRateKg: weeklyPace.dailyRateKg != null ? weeklyPace.dailyRateKg * 7 : null,
+    bodyKg: anchorKg,
+  }), [scaleTrend, weeklyPace, anchorKg]);
+  const weeklyWeightChangeKg = weeklyRate ? weeklyRate.rateKg : null;
+  const deviationKg = (weeklyWeightChangeKg != null && requiredWeeklyRateKg != null)
+    ? weeklyWeightChangeKg - requiredWeeklyRateKg
+    : null;
+
   const trajectory = useMemo(() => {
     if (deviationKg == null || !requiredWeeklyRateKg) return null;
     const ratio = deviationKg / Math.abs(requiredWeeklyRateKg);
@@ -822,7 +819,7 @@ const ProgressTab = ({
           note: 'An estimate that gets sharper as you keep logging.',
           lost: fromKg(lostEst, weightUnit),
           togo: fromKg(togoKg, weightUnit),
-          weeklyRate: fromKg(Math.abs(predictedWeekly), weightUnit),
+          weeklyRate: fromKg(predictedWeekly, weightUnit),
         };
       }
       return { insufficientData: true, needsWeight: (weightLogs || []).length === 0 };
@@ -842,8 +839,10 @@ const ProgressTab = ({
     let note = null;
     let noteSuffix = '';
     const predictedWeeklyKg = weeklyPace && weeklyPace.dailyRateKg != null ? weeklyPace.dailyRateKg * 7 : null;
-    if (predictedWeeklyKg != null && Math.abs(weeklyWeightChangeKg - predictedWeeklyKg) > Math.max(0.5, (currentWeightKg || 70) * 0.006)) {
-      noteSuffix = weeklyWeightChangeKg < predictedWeeklyKg
+    if (weeklyRate?.tooFast) {
+      noteSuffix = ' That is faster than about 1% of your body weight a week, which early on is usually water. Expect it to settle.';
+    } else if (scaleTrend && predictedWeeklyKg != null && Math.abs(scaleTrend.rateKg - predictedWeeklyKg) > Math.max(0.5, (currentWeightKg || 70) * 0.006)) {
+      noteSuffix = scaleTrend.rateKg < predictedWeeklyKg
         ? " Your weight is moving faster than expected. That's often water weight or weigh-in timing, so trust the trend over a few weeks."
         : " Your scale is moving slower than your eating alone suggests. Water and timing can hide progress for a while, so keep going.";
     }
@@ -865,9 +864,9 @@ const ProgressTab = ({
       pct, planPct, note: note ? note + noteSuffix : note,
       lost: fromKg(lostKg, weightUnit),
       togo: fromKg(togoKg, weightUnit),
-      weeklyRate: fromKg(Math.abs(weeklyWeightChangeKg), weightUnit),
+      weeklyRate: fromKg(weeklyWeightChangeKg, weightUnit),
     };
-  }, [startingWeightKg, targetWeightKg, currentWeightKg, weeklyWeightChangeKg, goalDate, userJoinDate, trajectory, requiredWeeklyRateKg, projectedGoalDate, weightUnit, weeklyPace, now]);
+  }, [startingWeightKg, targetWeightKg, currentWeightKg, weeklyWeightChangeKg, weeklyRate, scaleTrend, goalDate, userJoinDate, trajectory, requiredWeeklyRateKg, projectedGoalDate, weightUnit, weeklyPace, now]);
 
   // Ledger's real eaten total for each day, not the live recompute -- falls back to live only
   // for a day the ledger hasn't caught up to yet. Each day judged against its own day's goal.
@@ -1963,7 +1962,7 @@ const ProgressTab = ({
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.statLabel}>PER WEEK</Text>
-                    <Text style={styles.statValue}>{goalIsLoss ? '-' : '+'}{pace.weeklyRate.toFixed(2)}</Text>
+                    <Text style={styles.statValue}>{pace.weeklyRate <= 0 ? '−' : '+'}{Math.abs(pace.weeklyRate).toFixed(2)}</Text>
                   </View>
                 </View>
                 {pace.note && <Text style={[styles.mutedBody, { marginTop: 12 }]}>{pace.note}</Text>}
