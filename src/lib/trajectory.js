@@ -146,3 +146,29 @@ export function computeWeeklyPace({
 
   return { dTarget, d7d, dBar, vEnergyKg, pRatio, unsafe, belowBmrFloor, threeDayAvgCalories, bmrSafetyFloor, badge, dailyRateKg, projectDay };
 }
+
+/**
+ * When the last weigh-in is old, the smoothed weight is stuck where it was. This estimates how much
+ * weight has likely changed since then from the food logged in between: each finished, logged day
+ * adds (burn - eaten) / 7,700 kcal per kg. Unlogged days add nothing (unknown, not "ate zero"), so the
+ * estimate stays conservative. Negative = lost weight. Null when it can't be estimated.
+ */
+export function estimateChangeSinceWeighInKg({
+  tdee, bmr, recentMeals = [], activityKcalByDate = {}, daysSinceWeighIn, now = Date.now(),
+}) {
+  if (tdee == null || !Number.isFinite(daysSinceWeighIn) || daysSinceWeighIn < 2) return null;
+  const mealsByDate = {};
+  recentMeals.forEach((m) => { if (m.date) mealsByDate[m.date] = (mealsByDate[m.date] || 0) + (m.calories || 0); });
+  let deficit = 0, logged = 0;
+  // Days after the weigh-in day, up to yesterday (today is unfinished), capped at 60 days back.
+  for (let i = Math.min(daysSinceWeighIn - 1, 60); i >= 1; i--) {
+    const ds = new Date(now - i * DAY_MS).toDateString();
+    const eaten = mealsByDate[ds] || 0;
+    if (eaten <= 0) continue;
+    const activityKcal = activityKcalByDate[ds] || 0;
+    const burn = (activityKcal > 0 && bmr != null) ? bmr + bmr * TEF_RATIO + activityKcal : tdee;
+    deficit += burn - eaten;
+    logged++;
+  }
+  return logged > 0 ? -deficit / KCAL_PER_KG : null;
+}

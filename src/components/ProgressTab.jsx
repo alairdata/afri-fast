@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../lib/theme';
 import { LineChart } from 'react-native-chart-kit';
 import { computeMomentumTimeline, MET, MIN_LOGGED_DAYS } from '../lib/momentum';
-import { computeWeeklyPace } from '../lib/trajectory';
+import { computeWeeklyPace, estimateChangeSinceWeighInKg } from '../lib/trajectory';
 import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
 import { publishBurnoutSummary } from '../lib/smartNotifications';
@@ -730,15 +730,28 @@ const ProgressTab = ({
     return map;
   }, [activities, stepLogs, currentWeightKg, now]);
 
+  // Where the forecast and the Prediction chart start. After more than a week without a weigh-in, the
+  // smoothed weight is stale, so it's moved by what the food logged since then suggests, and a note says so.
+  const baseAnchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
+  const staleWeighInDays = Number.isFinite(today.daysSinceWeighIn) && today.daysSinceWeighIn > 7 ? today.daysSinceWeighIn : null;
+  const changeSinceWeighInKg = useMemo(() => (staleWeighInDays == null ? null : estimateChangeSinceWeighInKg({
+    tdee, bmr, recentMeals, activityKcalByDate: activityKcalLast7ByDate, daysSinceWeighIn: staleWeighInDays, now,
+  })), [staleWeighInDays, tdee, bmr, recentMeals, activityKcalLast7ByDate, now]);
+  const anchorKg = baseAnchorKg != null && changeSinceWeighInKg != null ? baseAnchorKg + changeSinceWeighInKg : baseAnchorKg;
+  const staleWeighInNote = staleWeighInDays == null ? null
+    : changeSinceWeighInKg != null
+      ? `Your last weigh-in was ${staleWeighInDays} days ago, so this starts from an estimate (${fromKg(anchorKg, weightUnit).toFixed(1)} ${weightUnit}) based on what you've logged since. Weigh in for a sharper forecast.`
+      : `Based on your weigh-in from ${staleWeighInDays} days ago. Weigh in for a sharper forecast.`;
+
   // Weekly Pace & Trajectory Engine — purely calorie-driven.
   const weeklyPace = useMemo(() => computeWeeklyPace({
     tdee, bmr, recentMeals, pacePreference,
-    weightEwmaTodayKg: today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg,
+    weightEwmaTodayKg: anchorKg,
     confidence: today.confidence,
     daysSinceWeighIn: today.daysSinceWeighIn,
     activityKcalByDate: activityKcalLast7ByDate,
     now,
-  }), [tdee, bmr, recentMeals, pacePreference, today, currentWeightKg, activityKcalLast7ByDate, now]);
+  }), [tdee, bmr, recentMeals, pacePreference, today, anchorKg, activityKcalLast7ByDate, now]);
 
   const trajectory = useMemo(() => {
     if (deviationKg == null || !requiredWeeklyRateKg) return null;
@@ -756,10 +769,10 @@ const ProgressTab = ({
     const kg = (weeklyPace.dailyRateKg || 0) * days;
     return `${kg <= 0 ? '-' : '+'}${Math.abs(fromKg(kg, weightUnit)).toFixed(2)} ${weightUnit}`;
   };
-  const forecastAnchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
-  const forecastAnchorNote = forecastAnchorKg != null && currentWeightKg != null && Math.abs(forecastAnchorKg - currentWeightKg) > 0.05
+  const forecastAnchorKg = anchorKg;
+  const forecastAnchorNote = staleWeighInNote || (forecastAnchorKg != null && currentWeightKg != null && Math.abs(forecastAnchorKg - currentWeightKg) > 0.05
     ? `Starts from ${fromKg(forecastAnchorKg, weightUnit).toFixed(1)} ${weightUnit}, which can differ a little from your last weigh-in.`
-    : null;
+    : null);
   // Forecast lands on Saturdays (this one, next, and the one after), the same week end the Prediction card
   // uses, so the dates on the two cards line up. On a Saturday, "this Saturday" is a week away.
   const toSat = (6 - new Date(now).getDay()) || 7;
@@ -769,7 +782,6 @@ const ProgressTab = ({
   const projected14Kg = weeklyPace.projectDay(FORECAST_DAYS[2])?.projectedKg ?? null;
 
   const projectedGoalDate = useMemo(() => {
-    const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
     if (anchorKg == null || targetWeightKg == null || !weeklyPace.dailyRateKg) return null;
     const remainingKg = targetWeightKg - anchorKg;
     const dailyRateKg = weeklyPace.dailyRateKg;
@@ -777,7 +789,7 @@ const ProgressTab = ({
     const daysNeeded = remainingKg / dailyRateKg;
     if (!isFinite(daysNeeded) || daysNeeded <= 0) return null;
     return new Date(now + daysNeeded * DAY_MS);
-  }, [today, currentWeightKg, targetWeightKg, weeklyPace, now]);
+  }, [anchorKg, targetWeightKg, weeklyPace, now]);
 
   const confidence = today.confidence >= 0.85 ? 'High' : today.confidence >= 0.5 ? 'Medium' : 'Low';
   const confidenceColor = confidence === 'High' ? accent : confidence === 'Medium' ? WARN : DANGER;
@@ -1223,7 +1235,6 @@ const ProgressTab = ({
     const startOfWeek = new Date(startOfToday);
     startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
 
-    const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
     const confidenceVal = today.confidence;
     const dailyRateKg = weeklyPace.dailyRateKg;
     if (anchorKg == null || dailyRateKg == null) return null;
@@ -1259,7 +1270,7 @@ const ProgressTab = ({
       label: p.label, value: p.proj, changeFromStart: p.proj - weekStartVal, xFrac: i / 6,
     }));
     return { proj: smooth(pts('proj')), band, dots, points, labels: data.map((p) => p.label), weekChange, weekEndDate };
-  }, [today, currentWeightKg, weeklyPace, accent, colors.card, now, weightUnit]);
+  }, [today, anchorKg, weeklyPace, accent, colors.card, now, weightUnit]);
 
   const predictionSnapshot = useMemo(() => {
     const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
@@ -1830,6 +1841,7 @@ const ProgressTab = ({
                 <View style={styles.axisRow}>
                   {chart.labels.map((l, i) => <Text key={i} style={styles.axisLabel}>{l}</Text>)}
                 </View>
+                {staleWeighInNote ? <Text style={[styles.mutedSmall, { marginTop: 8 }]}>{staleWeighInNote}</Text> : null}
                 {trendNote && (
                   <View style={[styles.nudgeBox, (trendBadge?.label === 'Too Aggressive' || trendBadge?.label === 'Stalled') && styles.nudgeBoxUrgent]}>
                     <Text style={[styles.nudgeText, (trendBadge?.label === 'Too Aggressive' || trendBadge?.label === 'Stalled') && styles.nudgeTextUrgent]}>
