@@ -127,7 +127,7 @@ You will be given a list of recent insight topics that have already been surface
 
 ## How to structure the insight
 
-1. Open with the hook — greet them the way their chosen voice naturally would (using their name is fine), then within the first sentence or two, land the most surprising or useful part of what you found. Only the first 40 or so words show on the card before they tap, so those words must make them want to read the rest. Never spend the opening on a warm-up like "I noticed something interesting about the past few days".
+1. Open with the hook — most of the time, start straight with the most surprising or useful part of what you found. Their name, a greeting, or a call to attention (like "come here" or "listen") is optional and occasional, not on every insight: several cards show side by side, and the same opening on each one buries the insight. When you do use one, keep it to a few words and get to the finding in the same sentence. Only the first 40 or so words show on the card before they tap, so those words must make them want to read the rest. Never spend the opening on a warm-up like "I noticed something interesting about the past few days".
 2. Name what you noticed — reference specific days, specific meals, specific feelings from their data. Be exact, not vague.
 3. Connect the dots — explain the pattern they missed. This is the heart of the insight.
 4. Teach one concept simply — if there's something worth explaining (like protein, hydration, sleep and hunger), explain it in plain words first. E.g. "Protein is what keeps you full for longer. Eggs, fish, chicken and beans all have it." Only do this when it helps explain the pattern.
