@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Platform, 
 import { setPaywallPresenter, loadPlans, purchasePlan, restorePurchases, getSubscription } from '../lib/subscription';
 import { track, EVENTS } from '../lib/analytics';
 import ProFeatureCarousel from './ProFeatureCarousel';
+import { showAlert } from '../lib/alert';
 
 const INK = '#16201b';
 const INK500 = '#6c7872';
@@ -111,7 +112,7 @@ const PaywallModal = ({ goal }) => {
       }
     } catch (e) {
       track(EVENTS.PURCHASE_FAILED, { plan: choice, message: String(e?.message || '').slice(0, 120) });
-      Alert.alert("Couldn't complete the purchase", 'Nothing was charged. Please try again in a moment.');
+      showAlert("Couldn't complete the purchase", 'Nothing was charged. Please try again in a moment.');
     } finally {
       setBusy(false);
     }
@@ -123,10 +124,10 @@ const PaywallModal = ({ goal }) => {
     try {
       const found = await restorePurchases();
       track(EVENTS.PURCHASES_RESTORED, { found });
-      if (found) { setVisible(false); Alert.alert('Welcome back', 'Your Logga Pro subscription is active again.'); }
-      else Alert.alert('No subscription found', "We couldn't find a Logga Pro subscription on this Apple ID.");
+      if (found) { setVisible(false); showAlert('Welcome back', 'Your Logga Pro subscription is active again.'); }
+      else showAlert('No subscription found', "We couldn't find a Logga Pro subscription on this Apple ID.");
     } catch (_) {
-      Alert.alert("Couldn't restore", 'Please check your connection and try again.');
+      showAlert("Couldn't restore", 'Please check your connection and try again.');
     } finally {
       setBusy(false);
     }

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { SourcesLink } from './HealthSourcesPage';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform, Alert, Keyboard } from 'react-native';
 import Svg, { Path, Rect, Ellipse, Defs, LinearGradient, Stop, ClipPath, G } from 'react-native-svg';
+import { showAlert } from '../lib/alert';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -83,7 +84,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
     const entry = choice === 'glass' ? { amount: 250, unit: 'mL' }
       : choice === 'sachet' ? { amount: 1, unit: 'sachet' }
       : { amount: parseFloat(bottleMl) || 0, unit: 'mL' };
-    if (!(entry.amount > 0)) { Alert.alert('How big was the bottle?', 'Type the bottle size in mL, e.g. 750.'); return; }
+    if (!(entry.amount > 0)) { showAlert('How big was the bottle?', 'Type the bottle size in mL, e.g. 750.'); return; }
     Keyboard.dismiss();
     const newLog = {
       id: Date.now(),
@@ -96,7 +97,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
   };
 
   const askDelete = (log) => {
-    Alert.alert(entryName(log), 'Remove this entry?', [
+    showAlert(entryName(log), 'Remove this entry?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: () => {

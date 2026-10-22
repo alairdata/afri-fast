@@ -87,6 +87,7 @@ import FirstMealPrompt from './components/FirstMealPrompt';
 import { LinearGradient } from 'expo-linear-gradient';
 import { initSubscriptions, signOutSubscriptions, useSubscription, openPaywall, FREE_MEALS_PER_DAY } from './lib/subscription';
 import { ensureAiConsent } from './lib/consent';
+import { showAlert } from './lib/alert';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -2865,7 +2866,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
               console.log('[DB Error - insert meal]', error.message, error.code);
               // Roll back the optimistic add so DB and UI agree
               setRecentMeals(prev => prev.filter(m => m.id !== mealToSave.id));
-              Alert.alert(
+              showAlert(
                 "Couldn't save meal",
                 `${mealToSave.name || 'Meal'} didn't save. Tap retry to try again.`,
                 [

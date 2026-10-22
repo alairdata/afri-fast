@@ -17,6 +17,7 @@ import {
 import HealthSourcesPage from './HealthSourcesPage';
 import ProFeatureCarousel from './ProFeatureCarousel';
 import LumiRive from './LumiRive';
+import { showAlert } from '../lib/alert';
 
 // ── Design tokens (the onboarding canvas) ──────────────────────────────────────
 const C = {
@@ -1328,7 +1329,7 @@ function ProScreen({ d, plans, onRetry, onClose, onPurchased }) {
       else track(EVENTS.PURCHASE_CANCELLED, { plan: choice });
     } catch (e) {
       track(EVENTS.PURCHASE_FAILED, { plan: choice, message: String(e?.message || '').slice(0, 120) });
-      Alert.alert("Couldn't complete the purchase", 'Nothing was charged. Please try again in a moment.');
+      showAlert("Couldn't complete the purchase", 'Nothing was charged. Please try again in a moment.');
     } finally {
       setBusy(false);
     }
@@ -1339,10 +1340,10 @@ function ProScreen({ d, plans, onRetry, onClose, onPurchased }) {
     try {
       const found = await restorePurchases();
       track(EVENTS.PURCHASES_RESTORED, { found });
-      if (found) { Alert.alert('Welcome back', 'Your Logga Pro subscription is active again.'); onPurchased(); }
-      else Alert.alert('No subscription found', "We couldn't find a Logga Pro subscription on this Apple ID.");
+      if (found) { showAlert('Welcome back', 'Your Logga Pro subscription is active again.'); onPurchased(); }
+      else showAlert('No subscription found', "We couldn't find a Logga Pro subscription on this Apple ID.");
     } catch (_) {
-      Alert.alert("Couldn't restore", 'Please check your connection and try again.');
+      showAlert("Couldn't restore", 'Please check your connection and try again.');
     } finally {
       setBusy(false);
     }
@@ -1446,7 +1447,7 @@ export function OfferScreen({ d, offer, deadline, onDone, reason = 'onboarding_o
       else track(EVENTS.PURCHASE_CANCELLED, { plan: 'monthly_offer' });
     } catch (e) {
       track(EVENTS.PURCHASE_FAILED, { plan: 'monthly_offer', message: String(e?.message || '').slice(0, 120) });
-      Alert.alert("Couldn't complete the purchase", 'Nothing was charged. Please try again in a moment.');
+      showAlert("Couldn't complete the purchase", 'Nothing was charged. Please try again in a moment.');
     } finally {
       setBusy(false);
     }
@@ -1644,7 +1645,7 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
   const startOver = () => {
     const go = () => { setData({ ...DEFAULT_DATA }); setIdx(FLOW.indexOf('goal')); };
     if (Platform.OS === 'web') { if (typeof window === 'undefined' || window.confirm('Start over? Your answers will be cleared.')) go(); return; }
-    Alert.alert('Start over?', 'Your answers will be cleared and you can go through the questions again.', [
+    showAlert('Start over?', 'Your answers will be cleared and you can go through the questions again.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Start over', style: 'destructive', onPress: go },
     ]);

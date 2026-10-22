@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform, Keyboard, Alert, Share } from 'react-native';
 import InfoTip from './InfoTip';
+import { showAlert } from '../lib/alert';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CELL_SIZE = Math.floor((SCREEN_WIDTH - 40 - 24) / 7);
@@ -97,7 +98,7 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
 
   // Every weigh-in as a spreadsheet (CSV), handed to the phone's share sheet.
   const exportLogs = async () => {
-    if (!weightLogs.length) { Alert.alert('Nothing to export yet', 'Save a weigh-in first.'); return; }
+    if (!weightLogs.length) { showAlert('Nothing to export yet', 'Save a weigh-in first.'); return; }
     const rows = [...weightLogs]
       .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
       .map((l) => {

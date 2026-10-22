@@ -12,6 +12,7 @@ import { useSubscription } from '../lib/subscription';
 import { unlock } from './ProLock';
 import LumiRive from './LumiRive';
 import { useSavedRecipes, toggleSavedRecipe } from '../lib/savedRecipes';
+import { showAlert } from '../lib/alert';
 
 // ── Ingredient amount scaler ─────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
 
   // A reported photo is hidden for everyone straight away (database trigger) until it is reviewed.
   const reportPhoto = (p) => {
-    Alert.alert('Report this photo?', "It will be hidden right away and we'll review it within 24 hours.", [
+    showAlert('Report this photo?', "It will be hidden right away and we'll review it within 24 hours.", [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Report', style: 'destructive', onPress: async () => {
@@ -97,7 +98,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
           const { error } = await supabase.from('community_reports').insert({ photo_id: String(p.id), reporter_id: uid, reason: 'inappropriate' });
           setCommunityPhotos((prev) => prev.filter((x) => x.id !== p.id));
           setCommunityCard(null);
-          Alert.alert(error ? "Couldn't send the report" : 'Thanks for letting us know', error ? 'Please try again, or contact support from Settings.' : "We've hidden this photo and will review it.");
+          showAlert(error ? "Couldn't send the report" : 'Thanks for letting us know', error ? 'Please try again, or contact support from Settings.' : "We've hidden this photo and will review it.");
         },
       },
     ]);
@@ -105,7 +106,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
 
   // Hide every photo from this person, for this user only.
   const blockPoster = (p) => {
-    Alert.alert("Hide this person's photos?", "You won't see any community photos from them again.", [
+    showAlert("Hide this person's photos?", "You won't see any community photos from them again.", [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Hide', style: 'destructive', onPress: async () => {
@@ -569,7 +570,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
     if (!cameraPermission?.granted) {
       const { granted } = await requestCameraPermission();
       if (!granted) {
-        Alert.alert('Camera access needed', 'Please allow camera access to take photos of your ingredients.');
+        showAlert('Camera access needed', 'Please allow camera access to take photos of your ingredients.');
         return;
       }
     }
@@ -590,7 +591,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
   const pickGalleryInsideCamera = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Gallery access needed', 'Please allow gallery access to pick photos.');
+      showAlert('Gallery access needed', 'Please allow gallery access to pick photos.');
       return;
     }
     const picked = await ImagePicker.launchImageLibraryAsync({
@@ -638,7 +639,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
     if (!(await ensureAiConsent())) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Gallery access needed', 'Please allow gallery access to pick photos.');
+      showAlert('Gallery access needed', 'Please allow gallery access to pick photos.');
       return;
     }
     const picked = await ImagePicker.launchImageLibraryAsync({

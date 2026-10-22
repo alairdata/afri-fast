@@ -9,6 +9,7 @@ import PhotoCreditsPage from './PhotoCreditsPage';
 import { useSubscription, openPaywall, restorePurchases } from '../lib/subscription';
 import { FaqSheet, ContactSheet, RateSheet, PrivacySheet, ClearHistorySheet } from './SettingsSheets';
 import { useTheme, DARK_MODE_AVAILABLE } from '../lib/theme';
+import { showAlert } from '../lib/alert';
 
 const COUNTRIES = [
   'Algeria',
@@ -250,9 +251,9 @@ const SettingsTab = ({
     setRestoring(true);
     try {
       const found = await restorePurchases();
-      Alert.alert(found ? 'Welcome back' : 'No subscription found', found ? 'Your Logga Pro subscription is active again.' : "We couldn't find a Logga Pro subscription on this Apple ID.");
+      showAlert(found ? 'Welcome back' : 'No subscription found', found ? 'Your Logga Pro subscription is active again.' : "We couldn't find a Logga Pro subscription on this Apple ID.");
     } catch (_) {
-      Alert.alert("Couldn't restore", 'Please check your connection and try again.');
+      showAlert("Couldn't restore", 'Please check your connection and try again.');
     } finally {
       setRestoring(false);
     }
