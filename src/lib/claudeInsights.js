@@ -304,8 +304,7 @@ export async function getProJustForYou(data, forceRefresh = false) {
     const results = await Promise.all(lenses.map((todayLens) =>
       callApi('just_for_you', { ...data, profile: profileWithoutId, todayLens, recentInsights }).catch(() => null)));
     const cards = results
-      // A "no meaningful finding" answer (lens NONE) is fine once, on the main card, but not as extra Pro cards.
-      .map((r, i) => (r?.insight && r.lens !== 'NONE' ? { insight: r.insight, lens: r.lens || lenses[i], topic: r.topic || '', tag: r.tag || '' } : null))
+      .map((r, i) => (r?.insight ? { insight: r.insight, lens: r.lens || lenses[i], topic: r.topic || '', tag: r.tag || '' } : null))
       .filter(Boolean);
     if (cards.length) await saveCache(JFY_PRO_CACHE_KEY, userId, 'just_for_you_pro_v1', { cards });
     return { cards: cards.length ? cards : null, fromApi: true };
