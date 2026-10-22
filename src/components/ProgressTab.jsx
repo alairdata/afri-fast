@@ -402,15 +402,13 @@ const ProgressTab = ({
     const dailyCalData = fillDays(mealsByDate, 'calories', days);
     const loggedCalDays = dailyCalData.filter(d => d.calories > 0);
 
-    // Weight -- group multiple same-day logs by averaging, then carry-forward fill gaps.
+    // Weight -- a day with several logs shows the LATEST one (a second entry is usually a correction, and
+    // averaging 111 and 105 into 108 hid it), then carry-forward fill gaps.
     const weightsByDate = {};
     rangeWeights.forEach(w => {
       const key = new Date(w.timestamp || w.date).toDateString();
-      if (!weightsByDate[key]) weightsByDate[key] = { ...w, weights: [] };
-      weightsByDate[key].weights.push(w.weight);
-    });
-    Object.values(weightsByDate).forEach(g => {
-      g.weight = parseFloat((g.weights.reduce((a, b) => a + b, 0) / g.weights.length).toFixed(1));
+      const ts = w.timestamp || new Date(w.date).getTime();
+      if (!weightsByDate[key] || ts >= weightsByDate[key].ts) weightsByDate[key] = { ...w, ts, weight: parseFloat(Number(w.weight).toFixed(1)) };
     });
     const uniqueWeights = fillDaysCarryForward(weightsByDate, 'weight', days);
     const weightChartData = uniqueWeights.slice().reverse().map(w => w.weight);
@@ -732,7 +730,9 @@ const ProgressTab = ({
 
   // Where the forecast and the Prediction chart start. After more than a week without a weigh-in, the
   // smoothed weight is stale, so it's moved by what the food logged since then suggests, and a note says so.
-  const baseAnchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
+  // The latest real weigh-in, not the smoothed weight: the smoothing blends a new reading with older ones, so
+  // logging 105 after 111 left the forecast near 110 (it stays in the momentum score and trends instead).
+  const baseAnchorKg = currentWeightKg != null ? currentWeightKg : today.weightEwmaKg;
   const staleWeighInDays = Number.isFinite(today.daysSinceWeighIn) && today.daysSinceWeighIn > 7 ? today.daysSinceWeighIn : null;
   const changeSinceWeighInKg = useMemo(() => (staleWeighInDays == null ? null : estimateChangeSinceWeighInKg({
     tdee, bmr, recentMeals, activityKcalByDate: activityKcalLast7ByDate, daysSinceWeighIn: staleWeighInDays, now,
@@ -769,10 +769,7 @@ const ProgressTab = ({
     const kg = (weeklyPace.dailyRateKg || 0) * days;
     return `${kg <= 0 ? '-' : '+'}${Math.abs(fromKg(kg, weightUnit)).toFixed(2)} ${weightUnit}`;
   };
-  const forecastAnchorKg = anchorKg;
-  const forecastAnchorNote = staleWeighInNote || (forecastAnchorKg != null && currentWeightKg != null && Math.abs(forecastAnchorKg - currentWeightKg) > 0.05
-    ? `Starts from ${fromKg(forecastAnchorKg, weightUnit).toFixed(1)} ${weightUnit}, which can differ a little from your last weigh-in.`
-    : null);
+  const forecastAnchorNote = staleWeighInNote;
   // Forecast lands on Saturdays (this one, next, and the one after), the same week end the Prediction card
   // uses, so the dates on the two cards line up. On a Saturday, "this Saturday" is a week away.
   const toSat = (6 - new Date(now).getDay()) || 7;

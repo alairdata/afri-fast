@@ -167,7 +167,8 @@ export function computeMomentumTimeline({
     // dominate the trend almost completely, not get smoothed as gently as a next-day reading.
     // Only emitted on real weigh-in days, but also used internally as the body-weight input to
     // today's movement calc.
-    const rawWeighInToday = sortedWeights.find((w) => new Date(w.ts).toDateString() === ds);
+    // The LAST weigh-in of the day counts (a second entry is usually a correction), not the first.
+    const rawWeighInToday = sortedWeights.filter((w) => new Date(w.ts).toDateString() === ds).pop();
     if (rawWeighInToday) {
       if (weightEwma == null) {
         weightEwma = rawWeighInToday.weightKg;
