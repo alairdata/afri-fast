@@ -24,7 +24,7 @@ export const INSIGHT_HELP = {
   },
   forecast: {
     title: 'Forecast',
-    body: "Where your weight is heading if you keep going the way you have been: your likely weight a week from now and the date you'd reach your goal.\n\nConfidence is higher when you log your meals and weigh yourself regularly.",
+    body: "Where your weight is heading if you keep going the way you have been: your likely weight on each of the next three Saturdays (the same week end as the Prediction card) and the date you'd reach your goal.\n\nConfidence is higher when you log your meals and weigh yourself regularly.",
   },
   energy: {
     title: 'Energy balance',

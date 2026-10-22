@@ -760,9 +760,13 @@ const ProgressTab = ({
   const forecastAnchorNote = forecastAnchorKg != null && currentWeightKg != null && Math.abs(forecastAnchorKg - currentWeightKg) > 0.05
     ? `Starts from ${fromKg(forecastAnchorKg, weightUnit).toFixed(1)} ${weightUnit}, which can differ a little from your last weigh-in.`
     : null;
-  const projected3Kg = weeklyPace.projectDay(3)?.projectedKg ?? null;
-  const projected7Kg = weeklyPace.projectDay(7)?.projectedKg ?? null;
-  const projected14Kg = weeklyPace.projectDay(14)?.projectedKg ?? null;
+  // Forecast lands on Saturdays (this one, next, and the one after), the same week end the Prediction card
+  // uses, so the dates on the two cards line up. On a Saturday, "this Saturday" is a week away.
+  const toSat = (6 - new Date(now).getDay()) || 7;
+  const FORECAST_DAYS = [toSat, toSat + 7, toSat + 14];
+  const projected3Kg = weeklyPace.projectDay(FORECAST_DAYS[0])?.projectedKg ?? null;
+  const projected7Kg = weeklyPace.projectDay(FORECAST_DAYS[1])?.projectedKg ?? null;
+  const projected14Kg = weeklyPace.projectDay(FORECAST_DAYS[2])?.projectedKg ?? null;
 
   const projectedGoalDate = useMemo(() => {
     const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
@@ -1856,28 +1860,28 @@ const ProgressTab = ({
                   </View>
                 </View>
                 {!isPro ? (
-                  <LockedChartPreview reason="forecast" kind="line" caption="Your 7- and 14-day forecast and likely goal date" />
+                  <LockedChartPreview reason="forecast" kind="line" caption="Your weight for the next three Saturdays and likely goal date" />
                 ) : (<>
                 <View style={[styles.statsRow, { marginTop: 10 }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + 3 * DAY_MS)).toUpperCase()} (IN 3D)</Text>
+                    <Text style={styles.statLabel}>SAT {fmtDayMonth(new Date(now + FORECAST_DAYS[0] * DAY_MS)).toUpperCase()} (IN {FORECAST_DAYS[0]}D)</Text>
                     <Text style={styles.statValue}>{projected3Kg != null ? `${fromKg(projected3Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
                     {weeklyPace.dailyRateKg != null && (
-                      <Text style={styles.mutedSmall}>{forecastDelta(3)}</Text>
+                      <Text style={styles.mutedSmall}>{forecastDelta(FORECAST_DAYS[0])}</Text>
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + 7 * DAY_MS)).toUpperCase()} (7D)</Text>
+                    <Text style={styles.statLabel}>SAT {fmtDayMonth(new Date(now + FORECAST_DAYS[1] * DAY_MS)).toUpperCase()} ({FORECAST_DAYS[1]}D)</Text>
                     <Text style={styles.statValue}>{projected7Kg != null ? `${fromKg(projected7Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
                     {weeklyPace.dailyRateKg != null && (
-                      <Text style={styles.mutedSmall}>{forecastDelta(7)}</Text>
+                      <Text style={styles.mutedSmall}>{forecastDelta(FORECAST_DAYS[1])}</Text>
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + 14 * DAY_MS)).toUpperCase()} (14D)</Text>
+                    <Text style={styles.statLabel}>SAT {fmtDayMonth(new Date(now + FORECAST_DAYS[2] * DAY_MS)).toUpperCase()} ({FORECAST_DAYS[2]}D)</Text>
                     <Text style={styles.statValue}>{projected14Kg != null ? `${fromKg(projected14Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
                     {weeklyPace.dailyRateKg != null && (
-                      <Text style={styles.mutedSmall}>{forecastDelta(14)}</Text>
+                      <Text style={styles.mutedSmall}>{forecastDelta(FORECAST_DAYS[2])}</Text>
                     )}
                   </View>
                 </View>
