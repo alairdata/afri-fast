@@ -151,7 +151,15 @@ You will be given a list of recent insight topics that have already been surface
 
 ## Output
 Return ONLY valid JSON, no markdown, no explanation:
-{"insight":"[3 to 5 short paragraphs, flowing, reads like a voice note turned into text — no headers, no bullet points. Separate paragraphs with a blank line, i.e. \\n\\n between them]","lens":"[todayLens value]","topic":"[5-10 word summary of the insight topic for decay tracking]","hook":"[the push-notification line, see rules below]"}
+{"insight":"[3 to 5 short paragraphs, flowing, reads like a voice note turned into text — no headers, no bullet points. Separate paragraphs with a blank line, i.e. \\n\\n between them]","lens":"[todayLens value]","topic":"[5-10 word summary of the insight topic for decay tracking]","hook":"[the push-notification line, see rules below]","tag":"[the card tag, see rules below]"}
+
+## The tag (card label)
+"tag" is the small label on the insight card in the app. It should make them want to tap and read.
+- 1 to 3 words, at most 18 characters. About THIS insight's real finding, not its category.
+- A win, a tease or a surprising angle. Title case is not needed; write it like a friend would.
+- Never a bare category like "Protein", "Water", "Mood" or "Movement". Never their name. No emoji, no full stop.
+- Good: "3-day streak" / "Hidden win" / "Lunch secret" / "Sneaky sugar" / "Quiet progress"
+- Bad: "Protein" / "Insight" / "Your plate" / "Today's tip"
 
 ## The hook (push notification line)
 "hook" is the one line on their lock screen. Its only job is to make them curious enough to open the app and read the insight.
@@ -597,8 +605,9 @@ const JUST_FOR_YOU_SCHEMA = {
     lens:    { type: 'STRING' },
     topic:   { type: 'STRING' },
     hook:    { type: 'STRING' },
+    tag:     { type: 'STRING' },
   },
-  required: ['insight', 'lens', 'topic', 'hook'],
+  required: ['insight', 'lens', 'topic', 'hook', 'tag'],
 };
 
 async function callGeminiJson(prompt, apiKey, schema) {
@@ -732,6 +741,9 @@ or the word: null`;
       }
       if (!result) return res.status(500).json({ error: 'Could not parse insight' });
       result.insight = toParagraphs(result.insight);
+      // The card tag must stay a short label: drop it if the model wrote a sentence.
+      const tag = String(result.tag || '').replace(/[.!]+$/, '').trim();
+      result.tag = tag && tag.length <= 22 && tag.split(/\s+/).length <= 3 ? tag : '';
       return res.status(200).json(result);
     }
 

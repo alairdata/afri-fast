@@ -244,7 +244,7 @@ export async function getJustForYou(data, forceRefresh = false) {
   if (!forceRefresh) {
     const cached = await getCached(JFY_CACHE_KEY, userId, 'just_for_you_v4');
     if (cached?.cards?.[0]?.insight && cached.timestamp >= lastJfySlot()) {
-      return { insight: cached.cards[0].insight, fromApi: false };
+      return { insight: cached.cards[0].insight, tag: cached.cards[0].tag || '', fromApi: false };
     }
   }
 
@@ -256,11 +256,11 @@ export async function getJustForYou(data, forceRefresh = false) {
       const todayStr = new Date().toISOString().split('T')[0];
       const newEntry = { date: todayStr, lens: result.lens || todayLens, topic: result.topic || '' };
       const updatedRecent = [newEntry, ...recentInsights].slice(0, 7);
-      const cacheCard = { insight: result.insight, lens: result.lens, topic: result.topic, hook: result.hook || '', createdAt: Date.now(), recentInsights: updatedRecent };
+      const cacheCard = { insight: result.insight, lens: result.lens, topic: result.topic, hook: result.hook || '', tag: result.tag || '', createdAt: Date.now(), recentInsights: updatedRecent };
       await saveCache(JFY_CACHE_KEY, userId, 'just_for_you_v4', { cards: [cacheCard] });
       jfySavedListeners.forEach((fn) => { try { fn(); } catch (_) {} });
     }
-    return { insight: result?.insight || null, fromApi: true };
+    return { insight: result?.insight || null, tag: result?.tag || '', fromApi: true };
   } catch (e) {
     console.error('[JustForYou error]', e);
     return { insight: null, fromApi: false };
@@ -304,7 +304,7 @@ export async function getProJustForYou(data, forceRefresh = false) {
     const results = await Promise.all(lenses.map((todayLens) =>
       callApi('just_for_you', { ...data, profile: profileWithoutId, todayLens, recentInsights }).catch(() => null)));
     const cards = results
-      .map((r, i) => (r?.insight ? { insight: r.insight, lens: r.lens || lenses[i], topic: r.topic || '' } : null))
+      .map((r, i) => (r?.insight ? { insight: r.insight, lens: r.lens || lenses[i], topic: r.topic || '', tag: r.tag || '' } : null))
       .filter(Boolean);
     if (cards.length) await saveCache(JFY_PRO_CACHE_KEY, userId, 'just_for_you_pro_v1', { cards });
     return { cards: cards.length ? cards : null, fromApi: true };

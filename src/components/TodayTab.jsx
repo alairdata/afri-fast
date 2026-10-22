@@ -300,13 +300,17 @@ const JFY_PALETTES = [
   { colors: ['#EAF5FF', '#CBE4FF'], ink: '#0F2F52', chip: 'rgba(15,47,82,0.08)' },   // sky
 ];
 
+// The tag (a short hook the AI writes for this insight) sits bottom right, across from the button.
 const JfyCard = ({ palette, label, text, onPress, width }) => (
-  <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={{ width, marginRight: 12 }}>
+  <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={{ width, marginRight: 12 }} accessibilityRole="button" accessibilityLabel={label ? `${label}. See why` : 'See why'}>
     <LinearGradient colors={palette.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={jfyStyles.card}>
-      {label ? <View style={[jfyStyles.chip, { backgroundColor: palette.chip }]}><Text style={[jfyStyles.chipTxt, { color: palette.ink }]}>{label}</Text></View> : null}
-      <Text style={[jfyStyles.text, { color: palette.ink }]} numberOfLines={label ? 3 : 4}>{text}</Text>
-      <View style={[jfyStyles.btn, { borderColor: palette.chip, backgroundColor: 'rgba(255,255,255,0.55)' }]}>
-        <Text style={[jfyStyles.btnTxt, { color: palette.ink }]}>Read more</Text>
+      <Text style={[jfyStyles.text, { color: palette.ink }]} numberOfLines={5}>{text}</Text>
+      <View style={jfyStyles.footer}>
+        <View style={[jfyStyles.btnSolid, { backgroundColor: palette.ink }]}>
+          <Text style={jfyStyles.btnSolidTxt}>See why</Text>
+          <Ionicons name="chevron-forward" size={14} color="#fff" />
+        </View>
+        {label ? <View style={[jfyStyles.chip, { backgroundColor: palette.chip }]}><Text style={[jfyStyles.chipTxt, { color: palette.ink }]} numberOfLines={1}>{label}</Text></View> : null}
       </View>
     </LinearGradient>
   </TouchableOpacity>
@@ -316,30 +320,37 @@ const JfyCard = ({ palette, label, text, onPress, width }) => (
 const LockedJfyCard = ({ palette, label, onPress, width }) => (
   <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={{ width, marginRight: 12 }} accessibilityRole="button" accessibilityLabel={`${label} insight. Unlock with Logga Pro`}>
     <LinearGradient colors={palette.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={jfyStyles.card}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={[jfyStyles.chip, { backgroundColor: palette.chip, marginBottom: 0 }]}><Text style={[jfyStyles.chipTxt, { color: palette.ink }]}>{label}</Text></View>
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
         <View style={[jfyStyles.lock, { backgroundColor: palette.chip }]}><Ionicons name="lock-closed" size={12} color={palette.ink} /></View>
       </View>
-      <View style={{ marginTop: 14, marginBottom: 16, gap: 8 }}>
+      <View style={{ marginTop: 10, marginBottom: 16, gap: 8 }}>
         {[1, 0.92, 0.7].map((w, i) => (
           <View key={i} style={{ height: 11, width: `${w * 100}%`, borderRadius: 6, backgroundColor: palette.ink, opacity: 0.12 }} />
         ))}
       </View>
-      <View style={[jfyStyles.btn, { borderColor: palette.chip, backgroundColor: 'rgba(255,255,255,0.55)', flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-        <Ionicons name="lock-closed" size={11} color={palette.ink} />
-        <Text style={[jfyStyles.btnTxt, { color: palette.ink }]}>See more</Text>
+      <View style={jfyStyles.footer}>
+        <View style={[jfyStyles.btn, { borderColor: palette.chip, backgroundColor: 'rgba(255,255,255,0.55)', flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+          <Ionicons name="lock-closed" size={11} color={palette.ink} />
+          <Text style={[jfyStyles.btnTxt, { color: palette.ink }]}>See more</Text>
+        </View>
+        <View style={[jfyStyles.chip, { backgroundColor: palette.chip }]}><Text style={[jfyStyles.chipTxt, { color: palette.ink }]} numberOfLines={1}>{label}</Text></View>
       </View>
     </LinearGradient>
   </TouchableOpacity>
 );
 
 const LOCKED_LENSES = ['MOOD_AND_FOOD', 'MOVEMENT', 'WEIGHT_TREND'];
+// One-word tags for the locked cards (the words are hidden, so there's no finding to tease).
+const LOCKED_TAGS = { MOOD_AND_FOOD: 'Mood', MOVEMENT: 'Movement', WEIGHT_TREND: 'Weight' };
 
 const jfyStyles = StyleSheet.create({
-  card: { borderRadius: 16, padding: 16, minHeight: 160, justifyContent: 'space-between' },
-  chip: { alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, marginBottom: 8 },
+  card: { borderRadius: 16, padding: 16, minHeight: 196, justifyContent: 'space-between' },
+  chip: { flexShrink: 1, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
   chipTxt: { fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
-  text: { fontSize: 15, fontWeight: '700', lineHeight: 22, flex: 1, marginBottom: 16 },
+  text: { fontSize: 13.5, fontWeight: '700', lineHeight: 20, flex: 1, marginBottom: 16 },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  btnSolid: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12 },
+  btnSolidTxt: { fontSize: 13.5, fontWeight: '700', color: '#fff' },
   btn: { paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12, borderWidth: 1, alignSelf: 'flex-start' },
   btnTxt: { fontSize: 13.5, fontWeight: '700' },
   lock: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
@@ -504,6 +515,7 @@ const TodayTab = ({
 
   const [timeSinceFast, setTimeSinceFast] = useState(null);
   const [justForYouInsight, setJustForYouInsight] = useState(null);
+  const [justForYouTag, setJustForYouTag] = useState('');
   const [jfyLoading, setJfyLoading] = useState(true);
   const [jfyRefreshing, setJfyRefreshing] = useState(false);
   const [jfyFreshReady, setJfyFreshReady] = useState(false);
@@ -598,6 +610,7 @@ const TodayTab = ({
     const cached = await getCachedJustForYou(userId);
     if (cached?.insight) {
       setJustForYouInsight(cached.insight);
+      setJustForYouTag(cached.tag || '');
       setJfyLoading(false);
     }
 
@@ -605,9 +618,10 @@ const TodayTab = ({
     setJfyFreshReady(false);
     setJfyRefreshing(true);
     getJustForYou(payload, forceRefresh)
-      .then(({ insight: freshInsight, fromApi }) => {
+      .then(({ insight: freshInsight, tag: freshTag, fromApi }) => {
         if (!freshInsight) { setJfyLoading(false); return; } // e.g. AI features off: drop the skeleton, keep the articles
         setJustForYouInsight(freshInsight);
+        setJustForYouTag(freshTag || '');
         setJfyLoading(false);
         if (fromApi) { setJfyFreshReady(true); setJfyExpanded(false); }
       })
@@ -1088,6 +1102,7 @@ const TodayTab = ({
             ) : justForYouInsight ? (
               <JfyCard
                 palette={JFY_PALETTES[0]}
+                label={justForYouTag}
                 text={justForYouInsight}
                 width={JFY_CARD_WIDTH}
                 onPress={() => { setJfyOpen({ text: justForYouInsight, title: "Today's Insight" }); setJfyExpanded(true); setJfyFreshReady(false); }}
@@ -1100,7 +1115,7 @@ const TodayTab = ({
                 <JfyCard
                   key={`pro-${i}`}
                   palette={JFY_PALETTES[i + 1]}
-                  label={LENS_LABELS[c.lens] || 'Insight'}
+                  label={c.tag || LENS_LABELS[c.lens] || 'Insight'}
                   text={c.insight}
                   width={JFY_CARD_WIDTH}
                   onPress={() => { setJfyOpen({ text: c.insight, title: LENS_LABELS[c.lens] || 'Insight' }); setJfyExpanded(true); }}
@@ -1110,7 +1125,7 @@ const TodayTab = ({
                 <LockedJfyCard
                   key={`locked-${lens}`}
                   palette={JFY_PALETTES[i + 1]}
-                  label={LENS_LABELS[lens]}
+                  label={LOCKED_TAGS[lens]}
                   width={JFY_CARD_WIDTH}
                   onPress={() => unlock('jfy')}
                 />
