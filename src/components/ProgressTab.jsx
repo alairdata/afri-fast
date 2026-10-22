@@ -1871,14 +1871,14 @@ const ProgressTab = ({
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + FORECAST_DAYS[1] * DAY_MS)).toUpperCase()} ({FORECAST_DAYS[1]}D)</Text>
+                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + FORECAST_DAYS[1] * DAY_MS)).toUpperCase()}</Text>
                     <Text style={styles.statValue}>{projected7Kg != null ? `${fromKg(projected7Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
                     {weeklyPace.dailyRateKg != null && (
                       <Text style={styles.mutedSmall}>{forecastDelta(FORECAST_DAYS[1])}</Text>
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + FORECAST_DAYS[2] * DAY_MS)).toUpperCase()} ({FORECAST_DAYS[2]}D)</Text>
+                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + FORECAST_DAYS[2] * DAY_MS)).toUpperCase()}</Text>
                     <Text style={styles.statValue}>{projected14Kg != null ? `${fromKg(projected14Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
                     {weeklyPace.dailyRateKg != null && (
                       <Text style={styles.mutedSmall}>{forecastDelta(FORECAST_DAYS[2])}</Text>
