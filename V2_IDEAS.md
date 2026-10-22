@@ -11,3 +11,8 @@
 - **Categories**: Hunger Tips, Fasting Wins, Motivation, Recipes, Struggles, Science, Confessions.
 - **Pages**: Official curated pages (e.g. "Weight Loss Tips") can exist alongside user posts and are followable — these show page names, not emoji avatars.
 
+
+## Show that a weigh-in updated the predictions (parked 2026-10-22)
+- **Problem**: logging a new weight silently recalculates the Prediction this week, Forecast and goal date, but nothing tells the user it did anything.
+- **Ideas**: (1) a confirmation after saving the weight that says what moved ("Saved 78.4 kg. Your goal date is now 12 Dec, 5 days sooner"; after a long gap: "Your forecast now uses your real weight instead of an estimate"), possibly in the coach's chosen voice; (2) a brief "Updated just now" highlight on the Insights cards; or both.
+- **Status**: the owner said to park it for now. It needs a build to reach phones.
