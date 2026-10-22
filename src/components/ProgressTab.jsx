@@ -733,15 +733,20 @@ const ProgressTab = ({
   // The latest real weigh-in, not the smoothed weight: the smoothing blends a new reading with older ones, so
   // logging 105 after 111 left the forecast near 110 (it stays in the momentum score and trends instead).
   const baseAnchorKg = currentWeightKg != null ? currentWeightKg : today.weightEwmaKg;
-  const staleWeighInDays = Number.isFinite(today.daysSinceWeighIn) && today.daysSinceWeighIn > 7 ? today.daysSinceWeighIn : null;
-  const changeSinceWeighInKg = useMemo(() => (staleWeighInDays == null ? null : estimateChangeSinceWeighInKg({
-    tdee, bmr, recentMeals, activityKcalByDate: activityKcalLast7ByDate, daysSinceWeighIn: staleWeighInDays, now,
-  })), [staleWeighInDays, tdee, bmr, recentMeals, activityKcalLast7ByDate, now]);
-  const anchorKg = baseAnchorKg != null && changeSinceWeighInKg != null ? baseAnchorKg + changeSinceWeighInKg : baseAnchorKg;
-  const staleWeighInNote = staleWeighInDays == null ? null
-    : changeSinceWeighInKg != null
-      ? `Your last weigh-in was ${staleWeighInDays} days ago, so this starts from an estimate (${fromKg(anchorKg, weightUnit).toFixed(1)} ${weightUnit}) based on what you've logged since. Weigh in for a sharper forecast.`
-      : `Based on your weigh-in from ${staleWeighInDays} days ago. Weigh in for a sharper forecast.`;
+  // Between weigh-ins the weight is carried forward day by day from the food and activity logged since
+  // (unlogged days follow their usual pattern), so someone without a scale still sees a close estimate.
+  const lastWeighIn = sortedWeights.length ? sortedWeights[sortedWeights.length - 1] : null;
+  const daysSinceWeighIn = Number.isFinite(today.daysSinceWeighIn) ? today.daysSinceWeighIn : null;
+  const sinceWeighIn = useMemo(() => (daysSinceWeighIn == null ? null : estimateChangeSinceWeighInKg({
+    tdee, bmr, recentMeals, activityKcalByDate: activityKcalLast7ByDate, daysSinceWeighIn, now,
+  })), [daysSinceWeighIn, tdee, bmr, recentMeals, activityKcalLast7ByDate, now]);
+  const anchorKg = baseAnchorKg != null && sinceWeighIn != null ? baseAnchorKg + sinceWeighIn.kg : baseAnchorKg;
+  const lastWeighInLabel = lastWeighIn ? fmtDayMonth(new Date(lastWeighIn.ts)) : null;
+  const staleWeighInNote = sinceWeighIn != null && lastWeighIn
+    ? `Estimated ${fromKg(anchorKg, weightUnit).toFixed(1)} ${weightUnit} today: your weigh-in on ${lastWeighInLabel}, carried forward with ${sinceWeighIn.loggedDays} logged ${sinceWeighIn.loggedDays === 1 ? 'day' : 'days'}${sinceWeighIn.estimatedDays ? ` and ${sinceWeighIn.estimatedDays} ${sinceWeighIn.estimatedDays === 1 ? 'day' : 'days'} from your usual pattern` : ''}.${daysSinceWeighIn > 7 ? ' Weigh in when you can to sharpen it.' : ''}`
+    : daysSinceWeighIn != null && daysSinceWeighIn > 7
+      ? `Based on your weigh-in from ${daysSinceWeighIn} days ago. Log your meals or weigh in for a sharper forecast.`
+      : null;
 
   // Weekly Pace & Trajectory Engine — purely calorie-driven.
   const weeklyPace = useMemo(() => computeWeeklyPace({
@@ -1266,7 +1271,7 @@ const ProgressTab = ({
     const points = data.map((p, i) => ({
       label: p.label, value: p.proj, changeFromStart: p.proj - weekStartVal, xFrac: i / 6,
     }));
-    return { proj: smooth(pts('proj')), band, dots, points, labels: data.map((p) => p.label), weekChange, weekEndDate };
+    return { proj: smooth(pts('proj')), band, dots, points, labels: data.map((p) => p.label), weekChange, weekEndDate, weekEndVal };
   }, [today, anchorKg, weeklyPace, accent, colors.card, now, weightUnit]);
 
   const predictionSnapshot = useMemo(() => {
@@ -1796,12 +1801,16 @@ const ProgressTab = ({
                 <View style={styles.rowBetween}>
                   <View>
                     <View style={styles.titleTipRow}><Text style={styles.kicker}>PREDICTION THIS WEEK</Text><InfoTip id="prediction" /></View>
+                    {/* The predicted weight on Saturday, from the latest (or carried-forward) weight plus the days left */}
                     <Text style={styles.bigStat}>
-                      {chart.weekChange != null
-                        ? `${Math.abs(chart.weekChange).toFixed(2)} ${weightUnit} ${chart.weekChange > 0 ? 'gain' : chart.weekChange < 0 ? 'loss' : 'change'}`
-                        : '--'}
-                      <Text style={styles.bigStatSub}> by {fmtShort(chart.weekEndDate)}</Text>
+                      {chart.weekEndVal != null ? `About ${chart.weekEndVal.toFixed(1)} ${weightUnit}` : '--'}
+                      <Text style={styles.bigStatSub}> by {fmtDayMonth(chart.weekEndDate)}</Text>
                     </Text>
+                    {lastWeighIn && chart.weekEndVal != null && (() => {
+                      const diff = chart.weekEndVal - fromKg(lastWeighIn.weightKg, weightUnit);
+                      const when = daysSinceWeighIn != null && daysSinceWeighIn < 1 ? 'your weigh-in today' : `your last weigh-in (${lastWeighInLabel})`;
+                      return <Text style={styles.mutedSmall}>{`${diff <= 0 ? '−' : '+'}${Math.abs(diff).toFixed(1)} ${weightUnit} since ${when}`}</Text>;
+                    })()}
                   </View>
                   {trendBadge && (
                     <View style={[styles.pill, { backgroundColor: trendBadge.bg }]}>

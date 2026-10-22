@@ -148,10 +148,13 @@ export function computeWeeklyPace({
 }
 
 /**
- * When the last weigh-in is old, the smoothed weight is stuck where it was. This estimates how much
- * weight has likely changed since then from the food logged in between: each finished, logged day
- * adds (burn - eaten) / 7,700 kcal per kg. Unlogged days add nothing (unknown, not "ate zero"), so the
- * estimate stays conservative. Negative = lost weight. Null when it can't be estimated.
+ * Estimated weight change since the last weigh-in, so the app can carry a person's weight forward day by
+ * day without a scale. Each finished day after the weigh-in adds (burn - eaten) / 7,700 kcal per kg:
+ *   - a day with food logged uses what they really ate and their measured activity;
+ *   - a day with nothing logged uses their average deficit over the logged days (their usual pattern),
+ *     never "ate zero" and never "no change".
+ * Burn is the calibrated TDEE (observedTdee.js learns each person's real burn from past weigh-ins), so
+ * the estimate improves as they log. Negative = lost weight. Null when it can't be estimated.
  */
 export function estimateChangeSinceWeighInKg({
   tdee, bmr, recentMeals = [], activityKcalByDate = {}, daysSinceWeighIn, now = Date.now(),
@@ -159,16 +162,19 @@ export function estimateChangeSinceWeighInKg({
   if (tdee == null || !Number.isFinite(daysSinceWeighIn) || daysSinceWeighIn < 2) return null;
   const mealsByDate = {};
   recentMeals.forEach((m) => { if (m.date) mealsByDate[m.date] = (mealsByDate[m.date] || 0) + (m.calories || 0); });
-  let deficit = 0, logged = 0;
-  // Days after the weigh-in day, up to yesterday (today is unfinished), capped at 60 days back.
-  for (let i = Math.min(daysSinceWeighIn - 1, 60); i >= 1; i--) {
+  const span = Math.min(daysSinceWeighIn - 1, 90); // days after the weigh-in day, up to yesterday
+  let loggedDeficit = 0, logged = 0;
+  for (let i = span; i >= 1; i--) {
     const ds = new Date(now - i * DAY_MS).toDateString();
     const eaten = mealsByDate[ds] || 0;
     if (eaten <= 0) continue;
     const activityKcal = activityKcalByDate[ds] || 0;
     const burn = (activityKcal > 0 && bmr != null) ? bmr + bmr * TEF_RATIO + activityKcal : tdee;
-    deficit += burn - eaten;
+    loggedDeficit += burn - eaten;
     logged++;
   }
-  return logged > 0 ? -deficit / KCAL_PER_KG : null;
+  if (logged === 0) return null;
+  const unlogged = span - logged;
+  const totalDeficit = loggedDeficit + (loggedDeficit / logged) * unlogged;
+  return { kg: -totalDeficit / KCAL_PER_KG, loggedDays: logged, estimatedDays: unlogged };
 }
