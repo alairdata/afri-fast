@@ -1864,21 +1864,21 @@ const ProgressTab = ({
                 ) : (<>
                 <View style={[styles.statsRow, { marginTop: 10 }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statLabel}>SAT {fmtDayMonth(new Date(now + FORECAST_DAYS[0] * DAY_MS)).toUpperCase()} (IN {FORECAST_DAYS[0]}D)</Text>
+                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + FORECAST_DAYS[0] * DAY_MS)).toUpperCase()} (IN {FORECAST_DAYS[0]}D)</Text>
                     <Text style={styles.statValue}>{projected3Kg != null ? `${fromKg(projected3Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
                     {weeklyPace.dailyRateKg != null && (
                       <Text style={styles.mutedSmall}>{forecastDelta(FORECAST_DAYS[0])}</Text>
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statLabel}>SAT {fmtDayMonth(new Date(now + FORECAST_DAYS[1] * DAY_MS)).toUpperCase()} ({FORECAST_DAYS[1]}D)</Text>
+                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + FORECAST_DAYS[1] * DAY_MS)).toUpperCase()} ({FORECAST_DAYS[1]}D)</Text>
                     <Text style={styles.statValue}>{projected7Kg != null ? `${fromKg(projected7Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
                     {weeklyPace.dailyRateKg != null && (
                       <Text style={styles.mutedSmall}>{forecastDelta(FORECAST_DAYS[1])}</Text>
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statLabel}>SAT {fmtDayMonth(new Date(now + FORECAST_DAYS[2] * DAY_MS)).toUpperCase()} ({FORECAST_DAYS[2]}D)</Text>
+                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + FORECAST_DAYS[2] * DAY_MS)).toUpperCase()} ({FORECAST_DAYS[2]}D)</Text>
                     <Text style={styles.statValue}>{projected14Kg != null ? `${fromKg(projected14Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
                     {weeklyPace.dailyRateKg != null && (
                       <Text style={styles.mutedSmall}>{forecastDelta(FORECAST_DAYS[2])}</Text>
