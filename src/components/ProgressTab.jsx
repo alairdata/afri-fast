@@ -530,11 +530,18 @@ const ProgressTab = ({
   // INSIGHTS — momentum / burnout / pace engines (profile & goals baseline)
   // ══════════════════════════════════════════════════════════════════════
 
+  // One weigh-in per day: the LAST of the day (a second entry is usually a correction). Counting both
+  // 111.7 and a corrected 105 on the same day skewed the weekly rate and the smoothing.
   const sortedWeights = useMemo(() => {
-    return (weightLogs || [])
+    const byDay = {};
+    (weightLogs || [])
       .map((w) => ({ ...w, ts: w.timestamp || new Date(w.date).getTime(), weightKg: toKg(w.weight, weightUnit) }))
       .filter((w) => !isNaN(w.ts) && typeof w.weight === 'number')
-      .sort((a, b) => a.ts - b.ts);
+      .forEach((w) => {
+        const day = new Date(w.ts).toDateString();
+        if (!byDay[day] || w.ts >= byDay[day].ts) byDay[day] = w;
+      });
+    return Object.values(byDay).sort((a, b) => a.ts - b.ts);
   }, [weightLogs, weightUnit]);
 
   const currentWeight = sortedWeights.length ? sortedWeights[sortedWeights.length - 1].weight : startingWeight;
