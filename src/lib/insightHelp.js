@@ -20,7 +20,7 @@ export const INSIGHT_HELP = {
   },
   prediction: {
     title: 'Prediction this week',
-    body: "How much your weight is likely to change by the end of this week if you keep going as you are.\n\nThe label tells you how that compares with the pace you chose: ahead, on track, drifting or stalled.",
+    body: "Where your weight is likely to be on Saturday if you keep going as you are.\n\nIt starts from your last weigh-in. If that was a few days ago, your weight is carried forward day by day from the food and activity you logged since (days you didn't log follow your usual pattern), so you don't need to weigh yourself often. Each time you do weigh in, the app learns how your body really responds and the next predictions get closer.\n\nThe label tells you how your pace compares with the one you chose.",
   },
   forecast: {
     title: 'Forecast',
