@@ -775,10 +775,10 @@ const ProgressTab = ({
     return `${kg <= 0 ? '-' : '+'}${Math.abs(fromKg(kg, weightUnit)).toFixed(2)} ${weightUnit}`;
   };
   const forecastAnchorNote = staleWeighInNote;
-  // Forecast lands on Saturdays (this one, next, and the one after), the same week end the Prediction card
-  // uses, so the dates on the two cards line up. On a Saturday, "this Saturday" is a week away.
-  const toSat = (6 - new Date(now).getDay()) || 7;
-  const FORECAST_DAYS = [toSat, toSat + 7, toSat + 14];
+  // Forecast lands on the three Saturdays AFTER this week's: this Saturday is the Prediction card's job, so the
+  // two cards never repeat a number, and both use the same Saturday week end.
+  const toSat = 6 - new Date(now).getDay();
+  const FORECAST_DAYS = [toSat + 7, toSat + 14, toSat + 21];
   const projected3Kg = weeklyPace.projectDay(FORECAST_DAYS[0])?.projectedKg ?? null;
   const projected7Kg = weeklyPace.projectDay(FORECAST_DAYS[1])?.projectedKg ?? null;
   const projected14Kg = weeklyPace.projectDay(FORECAST_DAYS[2])?.projectedKg ?? null;
@@ -1878,11 +1878,11 @@ const ProgressTab = ({
                   </View>
                 </View>
                 {!isPro ? (
-                  <LockedChartPreview reason="forecast" kind="line" caption="Your weight for the next three Saturdays and likely goal date" />
+                  <LockedChartPreview reason="forecast" kind="line" caption="Your weight for the three Saturdays after this week and likely goal date" />
                 ) : (<>
                 <View style={[styles.statsRow, { marginTop: 10 }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + FORECAST_DAYS[0] * DAY_MS)).toUpperCase()} (IN {FORECAST_DAYS[0]}D)</Text>
+                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + FORECAST_DAYS[0] * DAY_MS)).toUpperCase()}</Text>
                     <Text style={styles.statValue}>{projected3Kg != null ? `${fromKg(projected3Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
                     {weeklyPace.dailyRateKg != null && (
                       <Text style={styles.mutedSmall}>{forecastDelta(FORECAST_DAYS[0])}</Text>
