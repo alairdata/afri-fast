@@ -347,7 +347,8 @@ const jfyStyles = StyleSheet.create({
   card: { borderRadius: 16, padding: 16, minHeight: 196, justifyContent: 'space-between' },
   chip: { flexShrink: 1, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
   chipTxt: { fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
-  text: { fontSize: 13.5, fontWeight: '700', lineHeight: 20, flex: 1, marginBottom: 16 },
+  // No flex: 1 here. A stretched box lets the web show the clipped 6th line under the "…".
+  text: { fontSize: 13.5, fontWeight: '700', lineHeight: 20, marginBottom: 16, overflow: 'hidden' },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   btnSolid: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12 },
   btnSolidTxt: { fontSize: 13.5, fontWeight: '700', color: '#fff' },
