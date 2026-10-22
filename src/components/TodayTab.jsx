@@ -300,14 +300,27 @@ const JFY_PALETTES = [
   { colors: ['#EAF5FF', '#CBE4FF'], ink: '#0F2F52', chip: 'rgba(15,47,82,0.08)' },   // sky
 ];
 
+// Short button labels, so the cards side by side don't all say the same thing. Each card gets a different
+// one, and the set shifts every day.
+const JFY_CTAS = [
+  'See why', 'Tell me', 'Show me', 'Go on', 'Read on', 'Hear this', 'Dig in', 'Find out', 'Say more', 'Why though?',
+  "Let's see", 'Spill it', 'Keep reading', 'Learn more', 'Look closer', 'Unpack it', 'Explain', 'How come?', 'Open up',
+  'See more', 'Get details', 'Inside scoop', 'More please', 'Catch up', 'Read it', 'Hear more', 'Look inside', 'Zoom in',
+  'Know more', 'Get it',
+];
+const jfyCta = (cardIndex) => {
+  const day = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
+  return JFY_CTAS[(day * 7 + cardIndex * 5) % JFY_CTAS.length];
+};
+
 // The tag (a short hook the AI writes for this insight) sits bottom right, across from the button.
-const JfyCard = ({ palette, label, text, onPress, width }) => (
-  <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={{ width, marginRight: 12 }} accessibilityRole="button" accessibilityLabel={label ? `${label}. See why` : 'See why'}>
+const JfyCard = ({ palette, label, text, onPress, width, cta = 'See why' }) => (
+  <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={{ width, marginRight: 12 }} accessibilityRole="button" accessibilityLabel={label ? `${label}. ${cta}` : cta}>
     <LinearGradient colors={palette.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={jfyStyles.card}>
       <Text style={[jfyStyles.text, { color: palette.ink }]} numberOfLines={5}>{text}</Text>
       <View style={jfyStyles.footer}>
         <View style={[jfyStyles.btnSolid, { backgroundColor: palette.ink }]}>
-          <Text style={jfyStyles.btnSolidTxt}>See why</Text>
+          <Text style={jfyStyles.btnSolidTxt} numberOfLines={1}>{cta}</Text>
           <Ionicons name="chevron-forward" size={14} color="#fff" />
         </View>
         {label ? <View style={[jfyStyles.chip, { backgroundColor: palette.chip }]}><Text style={[jfyStyles.chipTxt, { color: palette.ink }]} numberOfLines={1}>{label}</Text></View> : null}
@@ -1104,6 +1117,7 @@ const TodayTab = ({
               <JfyCard
                 palette={JFY_PALETTES[0]}
                 label={justForYouTag}
+                cta={jfyCta(0)}
                 text={justForYouInsight}
                 width={JFY_CARD_WIDTH}
                 onPress={() => { setJfyOpen({ text: justForYouInsight, title: "Today's Insight" }); setJfyExpanded(true); setJfyFreshReady(false); }}
@@ -1117,6 +1131,7 @@ const TodayTab = ({
                   key={`pro-${i}`}
                   palette={JFY_PALETTES[i + 1]}
                   label={c.tag || LENS_LABELS[c.lens] || 'Insight'}
+                  cta={jfyCta(i + 1)}
                   text={c.insight}
                   width={JFY_CARD_WIDTH}
                   onPress={() => { setJfyOpen({ text: c.insight, title: LENS_LABELS[c.lens] || 'Insight' }); setJfyExpanded(true); }}
