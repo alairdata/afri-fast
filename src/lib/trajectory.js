@@ -224,3 +224,16 @@ export function blendWeeklyRate({ scaleTrend, foodRateKg, bodyKg }) {
   const tooFast = bodyKg != null && rateKg < 0 && Math.abs(rateKg) > bodyKg * 0.01;
   return { rateKg, scaleShare, tooFast };
 }
+
+/**
+ * Weigh-ins from the last 28 days that sit far off the rest (likely a typo, the wrong unit, or a scale on
+ * carpet). The trend leaves them out; the app shows them to the person so they can fix or delete them.
+ */
+export function findOddWeighIns(dailyWeights = [], now = Date.now()) {
+  const recent = dailyWeights.filter((w) => w.ts >= now - 28 * DAY_MS && Number.isFinite(w.weightKg));
+  if (recent.length < 3) return [];
+  const sorted = recent.map((w) => w.weightKg).sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const tolerance = Math.max(3, median * 0.04);
+  return recent.filter((w) => Math.abs(w.weightKg - median) > tolerance);
+}

@@ -36,11 +36,47 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
 
   const unit = isLb(weightUnit) ? 'lb' : 'kg';
 
-  const saveWeight = () => {
-    const value = parseFloat(newWeight);
+  // A weight far from the nearest earlier weigh-in is checked with the person before saving (typo, wrong
+  // unit), instead of being saved and quietly ignored later. Shown inline: pop-ups don't work on the web.
+  const [confirm, setConfirm] = useState(null); // { value, message, lbValue? }
+  const checkWeight = (value) => {
+    const ts = selectedDate.getTime();
+    const logs = [...(weightLogs || [])].map((l) => ({ ...l, ts: l.timestamp || new Date(l.date).getTime() })).filter((l) => !isNaN(l.ts));
+    if (!logs.length) return null;
+    const before = logs.filter((l) => l.ts <= ts).sort((a, b) => b.ts - a.ts)[0] || logs.sort((a, b) => a.ts - b.ts)[0];
+    const prevKg = toKg(Number(before.weight), before.unit);
+    const valueKg = toKg(value, unit);
+    const days = Math.abs(ts - before.ts) / 86400000;
+    const allowed = Math.max(2.5, prevKg * 0.025) + days * 0.3; // water swings plus a fast-but-real weekly loss
+    if (Math.abs(valueKg - prevKg) <= allowed) return null;
+    const prevShown = round1(convert(before.weight, before.unit, unit));
+    const diff = round1(Math.abs(value - prevShown));
+    const ratio = valueKg / prevKg;
+    const whenText = days < 1 ? 'earlier the same day' : days < 1.5 ? 'the day before' : `${Math.round(days)} days earlier`;
+    if (unit === 'kg' && ratio > 2 && ratio < 2.45) {
+      return { value, lbValue: round1(value / 2.20462), message: `${value} kg is more than double your last weigh-in (${prevShown} kg). Did you mean ${value} lb?` };
+    }
+    if (unit === 'lb' && ratio > 0.4 && ratio < 0.5) {
+      return { value, message: `${value} lb is less than half your last weigh-in (${prevShown} lb). Did you enter kilograms?` };
+    }
+    return { value, message: `That's ${diff} ${unit} ${value > prevShown ? 'more' : 'less'} than your weigh-in ${whenText} (${prevShown} ${unit}). Is that right?` };
+  };
+
+  const saveWeight = (force = false, overrideValue = null, overrideUnit = null) => {
+    const value = overrideValue != null ? overrideValue : parseFloat(newWeight);
     if (!(value > 0)) return;
+    if (!force) {
+      const flag = checkWeight(value);
+      if (flag) { Keyboard.dismiss(); setConfirm(flag); return; }
+    }
+    setConfirm(null);
     Keyboard.dismiss();
-    const newLog = { date: selectedDate.toDateString(), timestamp: selectedDate.getTime(), weight: value, unit };
+    const logUnit = overrideUnit || unit;
+    // The picked day at the current time of day, so two weigh-ins on one day get different ids (the id is
+    // the timestamp); reusing selectedDate's fixed time made the second one clash on save and delete.
+    const nowT = new Date();
+    const ts = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), nowT.getHours(), nowT.getMinutes(), nowT.getSeconds(), nowT.getMilliseconds()).getTime();
+    const newLog = { date: selectedDate.toDateString(), timestamp: ts, weight: overrideUnit ? round1(overrideValue * 2.20462) : value, unit: logUnit };
     // Insert in date order, not always at the front -- logging a past date (via the calendar picker
     // above) must not make it look like your most recent weigh-in everywhere weightLogs[0] is read
     // as "current weight" (BMI card, weight stats, activity calorie estimates).
@@ -49,17 +85,15 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
     setNewWeight('');
   };
 
-  const askDelete = (log) => {
-    Alert.alert(`${round1(convert(log.weight, log.unit, unit))} ${unit}`, 'Remove this weigh-in?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: () => {
-          setWeightLogs(weightLogs.filter((l) => l !== log));
-          onWeightDeleted && onWeightDeleted(log);
-        },
-      },
-    ]);
+  // Delete is confirmed inline on the row: Alert pop-ups with buttons don't show on the web.
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const askDelete = (log) => setPendingDelete((p) => (p === log ? null : log));
+  const confirmDelete = (log) => {
+    setWeightLogs(weightLogs.filter((l) => l !== log));
+    onWeightDeleted && onWeightDeleted(log);
+    setPendingDelete(null);
   };
+
 
   // Every weigh-in as a spreadsheet (CSV), handed to the phone's share sheet.
   const exportLogs = async () => {
@@ -170,8 +204,8 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
                 placeholder={latest ? String(round1(convert(latest.weight, latest.unit, unit))) : unit === 'kg' ? '72' : '160'}
                 placeholderTextColor="#C4C8CC"
                 value={newWeight}
-                onChangeText={setNewWeight}
-                onSubmitEditing={saveWeight}
+                onChangeText={(t) => { setNewWeight(t); setConfirm(null); }}
+                onSubmitEditing={() => saveWeight()}
                 returnKeyType="done"
                 style={styles.bigInput}
                 keyboardType="decimal-pad"
@@ -183,9 +217,28 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
               </TouchableOpacity>
             </View>
             <Text style={styles.hint}>Enter your current weight</Text>
-            <TouchableOpacity style={[styles.saveBtn, !(parseFloat(newWeight) > 0) && { opacity: 0.6 }]} onPress={saveWeight} activeOpacity={0.85}>
+            {confirm ? (
+              <View style={styles.confirmBox} accessibilityLiveRegion="polite">
+                <Text style={styles.confirmText}>{confirm.message}</Text>
+                <View style={styles.confirmRow}>
+                  <TouchableOpacity style={styles.confirmFix} onPress={() => setConfirm(null)} accessibilityRole="button">
+                    <Text style={styles.confirmFixText}>Fix it</Text>
+                  </TouchableOpacity>
+                  {confirm.lbValue != null ? (
+                    <TouchableOpacity style={styles.confirmYes} onPress={() => saveWeight(true, confirm.lbValue, 'lb')} accessibilityRole="button">
+                      <Text style={styles.confirmYesText}>Yes, it's {confirm.value} lb</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  <TouchableOpacity style={confirm.lbValue != null ? styles.confirmFix : styles.confirmYes} onPress={() => saveWeight(true, confirm.value)} accessibilityRole="button">
+                    <Text style={confirm.lbValue != null ? styles.confirmFixText : styles.confirmYesText}>{confirm.lbValue != null ? 'Save as kg' : 'Yes, save it'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+            <TouchableOpacity style={[styles.saveBtn, !(parseFloat(newWeight) > 0) && { opacity: 0.6 }]} onPress={() => saveWeight()} activeOpacity={0.85}>
               <Text style={styles.saveBtnText}>Save Weight</Text>
             </TouchableOpacity>
+            )}
           </View>
 
           {/* BMI */}
@@ -254,7 +307,8 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
                 const prev = sorted[i + 1];
                 const diff = prev ? round1(w - convert(prev.weight, prev.unit, unit)) : null;
                 return (
-                  <View key={`${log.timestamp}-${i}`} style={[styles.logRow, i < list.length - 1 && styles.logDivider]}>
+                  <React.Fragment key={`${log.timestamp}-${i}`}>
+                  <View style={[styles.logRow, i < list.length - 1 && pendingDelete !== log && styles.logDivider]}>
                     <View style={styles.logDate}>
                       <Text style={styles.logDay}>{isNaN(d.getTime()) ? '--' : d.getDate()}</Text>
                       <Text style={styles.logMonth}>{isNaN(d.getTime()) ? '' : MONTHS[d.getMonth()]}</Text>
@@ -267,10 +321,22 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
                       <Text style={styles.logDiff}>{diff == null ? '—' : `${diff < 0 ? '↓' : diff > 0 ? '↑' : ''} ${Math.abs(diff).toFixed(1)} ${unit}`.trim()}</Text>
                       <Text style={styles.logDiffNote}>{diff == null ? 'First log' : 'vs. previous log'}</Text>
                     </View>
-                    <TouchableOpacity style={styles.moreBtn} onPress={() => askDelete(log)} accessibilityLabel="More options for this log">
-                      <Ionicons name="ellipsis-horizontal" size={16} color="#1F1F1F" />
+                    <TouchableOpacity style={styles.moreBtn} onPress={() => askDelete(log)} accessibilityLabel={`Remove the ${round1(w)} ${unit} weigh-in`}>
+                      <Ionicons name="trash-outline" size={16} color="#1F1F1F" />
                     </TouchableOpacity>
                   </View>
+                  {pendingDelete === log && (
+                    <View style={[styles.deleteRow, i < list.length - 1 && styles.logDivider]}>
+                      <Text style={styles.deleteText}>Remove this weigh-in?</Text>
+                      <TouchableOpacity style={styles.deleteCancel} onPress={() => setPendingDelete(null)} accessibilityRole="button">
+                        <Text style={styles.deleteCancelText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.deleteYes} onPress={() => confirmDelete(log)} accessibilityRole="button">
+                        <Text style={styles.deleteYesText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  </React.Fragment>
                 );
               })}
             </View>
@@ -282,6 +348,19 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
 };
 
 const styles = StyleSheet.create({
+  deleteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 4 },
+  deleteText: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#1F1F1F' },
+  deleteCancel: { minHeight: 40, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', justifyContent: 'center' },
+  deleteCancelText: { fontSize: 13.5, fontWeight: '700', color: '#1F1F1F' },
+  deleteYes: { minHeight: 40, paddingHorizontal: 14, borderRadius: 10, backgroundColor: '#DC2626', justifyContent: 'center' },
+  deleteYesText: { fontSize: 13.5, fontWeight: '700', color: '#fff' },
+  confirmBox: { marginTop: 14, padding: 14, borderRadius: 14, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FCE3CB' },
+  confirmText: { fontSize: 14, lineHeight: 20, color: '#7C2D12', fontWeight: '600' },
+  confirmRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  confirmYes: { flexGrow: 1, minHeight: 44, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' },
+  confirmYesText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  confirmFix: { flexGrow: 1, minHeight: 44, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
+  confirmFixText: { color: '#1F1F1F', fontSize: 14, fontWeight: '700' },
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,

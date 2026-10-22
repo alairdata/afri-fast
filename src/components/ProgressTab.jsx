@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../lib/theme';
 import { LineChart } from 'react-native-chart-kit';
 import { computeMomentumTimeline, MET, MIN_LOGGED_DAYS } from '../lib/momentum';
-import { computeWeeklyPace, estimateChangeSinceWeighInKg, scaleTrendWeekly, blendWeeklyRate } from '../lib/trajectory';
+import { computeWeeklyPace, estimateChangeSinceWeighInKg, scaleTrendWeekly, blendWeeklyRate, findOddWeighIns } from '../lib/trajectory';
 import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
 import { publishBurnoutSummary } from '../lib/smartNotifications';
@@ -675,6 +675,7 @@ const ProgressTab = ({
 
   // The scale's own trend (last 28 days, one weight per day, odd readings ignored). See trajectory.js.
   const scaleTrend = useMemo(() => scaleTrendWeekly(sortedWeights, now), [sortedWeights, now]);
+  const oddWeighIns = useMemo(() => findOddWeighIns(sortedWeights, now), [sortedWeights, now]);
 
 
   // Momentum Score — EWMA-smoothed engine (see src/lib/momentum.js): 40% Calorie + 35% Satiety
@@ -1790,6 +1791,18 @@ const ProgressTab = ({
                     </>
                   );
                 })()}
+                {oddWeighIns.length > 0 && (
+                  <View style={[styles.nudgeBox, { marginTop: 10 }]}>
+                    <Text style={[styles.nudgeText, { textAlign: 'left' }]}>
+                      {oddWeighIns.length === 1
+                        ? `One weigh-in (${Number(oddWeighIns[0].weight).toFixed(1)} ${oddWeighIns[0].unit || weightUnit} on ${fmtDayMonth(new Date(oddWeighIns[0].ts))}) looks very different from your others, so it isn't counted in your trend. If it's a typo, fix or delete it in your logs.`
+                        : `${oddWeighIns.length} weigh-ins look very different from your others, so they aren't counted in your trend. If they're typos, fix or delete them in your logs.`}
+                    </Text>
+                    <TouchableOpacity onPress={() => onShowWeightModal && onShowWeightModal()} style={{ marginTop: 6, minHeight: 32, justifyContent: 'center' }} accessibilityRole="button">
+                      <Text style={{ color: '#A8811F', fontSize: 12.5, fontWeight: '800' }}>Check my logs ›</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
                 <View style={styles.weightActionsCompact}>
                   <TouchableOpacity style={styles.weightActionBtnCompact} onPress={() => onShowWeightModal && onShowWeightModal()}>
                     <Text style={styles.weightActionBtnText}>Log weight</Text>
