@@ -12,7 +12,7 @@ import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import { track } from '../lib/analytics';
 import HeaderFade from './HeaderFade';
 import { SourcesLink } from './HealthSourcesPage';
-import { estimateSatiety, satietyCurve } from '../lib/satiety';
+import { estimateSatiety, satietyCurve, formatFullFor } from '../lib/satiety';
 
 // "Fit it in": the person already has food (bought it, or it's at home) and wants portions that fit
 // the calories they have left. Four steps: what you have → how much to use → working it out → your plate.
@@ -264,7 +264,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const satEst = useMemo(() => estimateSatiety({ foods: items, tdee, meals: recentMeals }), [items, tdee, recentMeals]);
   const sat = useMemo(() => satietyCurve(satEst.hours), [satEst.hours]);
   const LEVEL_COLORS = { High: ['#D1FAE5', '#047857'], Medium: ['#FEF3C7', '#B45309'], Low: ['#FEE2E2', '#B91C1C'] };
-  const hrsText = String(Math.round(satEst.hours * 2) / 2).replace('.5', '½');
+
   // Scale a food's calories and nutrients together (the scan screen's −/+ and typed calories).
   const scaleFood = (f, newCal) => {
     const ratio = f.cal > 0 ? newCal / f.cal : 0;
@@ -561,7 +561,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.kickerDark}>SATIETY ESTIMATE</Text>
-                  <Text style={styles.satHead}>Full for ~{hrsText} {hrsText === '1' ? 'hr' : 'hrs'}</Text>
+                  <Text style={styles.satHead}>Full for ~{formatFullFor(satEst.hours)}</Text>
                   <Text style={styles.satSub}>{satEst.driver ? `Mostly from ${satEst.driver}` : `${Math.round(satEst.protein)}g of protein on this plate`}</Text>
                 </View>
                 <View style={[styles.levelPill, { backgroundColor: LEVEL_COLORS[satEst.level][0] }]}><Text style={[styles.levelText, { color: LEVEL_COLORS[satEst.level][1] }]}>{satEst.level}</Text></View>

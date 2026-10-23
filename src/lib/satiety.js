@@ -95,7 +95,7 @@ export function personalRatio(meals = []) {
     .map((m) => ({ ...m, t: m.timestamp || (typeof m.id === 'number' ? m.id : NaN) }))
     .filter((m) => Number.isFinite(m.t) && (m.calories || 0) >= 100)
     .sort((a, b) => a.t - b.t);
-  const ratios = [];
+  const ratios = [], gaps = [];
   for (let i = 0; i < timed.length - 1; i++) {
     const a = timed[i], b = timed[i + 1];
     if (new Date(a.t).toDateString() !== new Date(b.t).toDateString()) continue; // overnight
@@ -105,10 +105,12 @@ export function personalRatio(meals = []) {
       ? a.foods
       : [{ name: a.name, cal: a.calories, protein: a.protein, fats: a.fats, fiber: a.fiber }];
     ratios.push(gapMin / a.calories / plateFactor(foods).factor);
+    gaps.push(gapMin);
   }
-  if (ratios.length < 3) return { ratio: null, n: ratios.length };
+  if (ratios.length < 3) return { ratio: null, gapMin: null, n: ratios.length };
+  gaps.sort((x, y) => x - y);
   ratios.sort((x, y) => x - y);
-  return { ratio: ratios[Math.floor(ratios.length / 2)], n: ratios.length };
+  return { ratio: ratios[Math.floor(ratios.length / 2)], gapMin: gaps[Math.floor(gaps.length / 2)], n: ratios.length };
 }
 
 // The estimate for a plate: hours until hungry again, a High/Medium/Low label, and what it's based on.
@@ -122,10 +124,12 @@ export function estimateSatiety({ foods = [], tdee, meals = [] }) {
     ratio = Math.exp(w * Math.log(clamp(mine.ratio, base * 0.5, base * 2)) + (1 - w) * Math.log(base));
   }
   const plate = plateFactor(foods);
-  const hours = clamp((kcal * ratio * plate.factor) / 60, kcal > 0 ? 0.5 : 0, 7);
+  const hours = clamp((kcal * ratio * plate.factor) / 60, 0, 12);
   return {
     hours,
-    level: hours >= 4 ? 'High' : hours >= 2.5 ? 'Medium' : 'Low',
+    // Judged against how long they usually go between meals (their log, or the waking day over three meals).
+    level: (() => { const usual = (mine.gapMin || WAKING_MIN / 3) / 60; const r = hours / usual; return r >= 0.75 ? 'High' : r >= 0.45 ? 'Medium' : 'Low'; })(),
+    usualHours: (mine.gapMin || WAKING_MIN / 3) / 60,
     driver: plate.driver,
     protein: plate.protein || 0,
     personal: !!mine.ratio,
@@ -133,10 +137,21 @@ export function estimateSatiety({ foods = [], tdee, meals = [] }) {
   };
 }
 
+// The estimate as it is, to the minute: "37 mins", "1 hr", "2 hrs 17 mins".
+export function formatFullFor(hours) {
+  const total = Math.max(1, Math.round(hours * 60));
+  const h = Math.floor(total / 60), m = total % 60;
+  const hrs = h === 0 ? '' : h === 1 ? '1 hr' : `${h} hrs`;
+  const mins = m === 0 ? '' : m === 1 ? '1 min' : `${m} mins`;
+  return [hrs, mins].filter(Boolean).join(' ');
+}
+
 // The fullness curve drawn on the chart, shaped so it drops below the "hungry again" line at `hours`.
 export function satietyCurve(hours, { width = 318, top = 18, bot = 108, hungry = 35 } = {}) {
-  const span = Math.max(6, Math.ceil(hours + 1));
-  const full = (t, tau) => 100 * (1 - Math.exp(-t / 0.35)) * Math.exp(-t / tau);
+  // Short spans (a snack) zoom the chart in to 2 hours; long ones stretch past 6.
+  const span = hours < 1.5 ? 2 : Math.max(6, Math.ceil(hours + 1));
+  const rise = Math.max(0.01, Math.min(0.35, hours / 5));
+  const full = (t, tau) => 100 * (1 - Math.exp(-t / rise)) * Math.exp(-t / tau);
   let lo = 0.2, hi = 60;
   for (let k = 0; k < 40; k++) { const mid = (lo + hi) / 2; if (full(hours, mid) < hungry) lo = mid; else hi = mid; }
   const tau = (lo + hi) / 2;
@@ -144,10 +159,16 @@ export function satietyCurve(hours, { width = 318, top = 18, bot = 108, hungry =
   const pts = [];
   for (let t = 0; t <= span + 1e-4; t += span / 60) pts.push(`${X(t).toFixed(1)} ${Y(full(t, tau)).toFixed(1)}`);
   const curve = `M${pts.join(' L')}`;
-  const ticks = span <= 6 ? [0, 2, 4, 6] : [0, Math.round(span / 3), Math.round((2 * span) / 3), span];
+  const ticks = span === 2 ? [0, 2 / 3, 4 / 3, 2] : span <= 6 ? [0, 2, 4, 6] : [0, Math.round(span / 3), Math.round((2 * span) / 3), span];
+  const tickLabel = (t) => {
+    if (t === 0) return 'Now';
+    const m = Math.round(t * 60);
+    if (m < 60) return `${m}m`;
+    return m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h`;
+  };
   return {
     curve, area: `${curve} L${width} ${bot} L0 ${bot} Z`,
     hungerY: Y(hungry), dotX: X(Math.min(hours, span)),
-    ticks: ticks.map((t) => (t === 0 ? 'Now' : `${t}h`)),
+    ticks: ticks.map(tickLabel),
   };
 }
