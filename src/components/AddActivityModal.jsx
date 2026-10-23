@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Platform, Modal, KeyboardAvoidingView } from 'react-native';
+import HeaderFade from './HeaderFade';
 
 const INK = '#16201b';
 const MUTED = '#6c7872';
@@ -91,6 +92,7 @@ const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null, hideW
         <View style={styles.overlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} />
           <View style={styles.sheet}>
+            <HeaderFade bg="#FFFFFF" variant="sheet" />
             <View style={styles.handle} />
             <View style={styles.header}>
               {step === 2 ? (
@@ -258,7 +260,7 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheet: {
     width: '100%', maxWidth: 430, alignSelf: 'center',
-    backgroundColor: '#fff', borderTopLeftRadius: 26, borderTopRightRadius: 26,
+    backgroundColor: '#fff', borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden',
     maxHeight: '90%', paddingBottom: Platform.OS === 'ios' ? 28 : 12,
   },
   handle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: '#DDE3E0', marginTop: 8 },

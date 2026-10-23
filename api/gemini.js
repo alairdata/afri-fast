@@ -311,6 +311,17 @@ export default async function handler(req, res) {
       });
     }
 
+    // ── Voice to text (phones; the web uses the browser's own speech recognition) ──
+    if (type === 'transcribe_audio') {
+      const { base64 } = data;
+      const raw = await callGemini(GEMINI_KEY, [
+        { text: 'Write down exactly what the person says about the food they have, in plain words. Keep local food names as they say them. If nothing is said, return an empty string.' },
+        { inline_data: { mime_type: 'audio/m4a', data: base64 } },
+      ], { schema: { type: 'OBJECT', properties: { text: { type: 'STRING' } }, required: ['text'] } });
+      const parsed = parseJson(raw);
+      return res.json({ text: String(parsed?.text || '').trim() });
+    }
+
     // ── Fit it in: plan portions of food they already have to a calorie amount ──
     if (type === 'plan_portions') {
       const { text: haveText, base64, budget, userCountry } = data;

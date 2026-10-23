@@ -1275,6 +1275,7 @@ const TodayTab = ({
         onRequestClose={() => setJfyExpanded(false)}
       >
         <View style={[styles.articleModal, Platform.OS === 'android' && { paddingTop: 44 }]}>
+          <HeaderFade bg={colors.card} variant="sheet" />
           <View style={styles.articleHeader}>
             <TouchableOpacity onPress={() => setJfyExpanded(false)} style={styles.articleCloseBtn}>
               <Text style={styles.articleCloseText}>✕</Text>
@@ -1299,6 +1300,7 @@ const TodayTab = ({
         onRequestClose={() => setSelectedArticle(null)}
       >
         <View style={[styles.articleModal, Platform.OS === 'android' && { paddingTop: 44 }]}>
+          <HeaderFade bg={colors.card} variant="sheet" />
           <View style={styles.articleHeader}>
             <TouchableOpacity onPress={() => setSelectedArticle(null)} style={styles.articleCloseBtn}>
               <Text style={styles.articleCloseText}>✕</Text>
@@ -2122,8 +2124,6 @@ const makeStyles = (c) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   articleCloseBtn: {
     width: 40,

@@ -7,6 +7,7 @@ import Slider from '@react-native-community/slider';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Audio } from 'expo-av';
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import { track } from '../lib/analytics';
 import HeaderFade from './HeaderFade';
@@ -63,6 +64,19 @@ async function planPortions({ text, photoUri, budget, userCountry }) {
   return result;
 }
 
+async function transcribe(uri) {
+  if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError();
+  const base64 = await readUriAsBase64(uri);
+  const response = await fetch(`${BASE}/api/gemini`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'transcribe_audio', data: { base64 } }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Could not hear that');
+  return result.text || '';
+}
+
 // ¼, ½, ¾ for home measures ("1½ cups cooked").
 const frac = (n) => {
   const q = Math.round(n * 4) / 4, w = Math.floor(q), r = q - w;
@@ -103,6 +117,82 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const [plan, setPlan] = useState(null);
   const [grams, setGrams] = useState([]);
   const resultRef = useRef(null);
+  const [editing, setEditing] = useState(false);
+  // Voice: 'idle' | 'listening' | 'transcribing'. The words land in the text box so they can be checked first.
+  const [voice, setVoice] = useState('idle');
+  const [voiceNote, setVoiceNote] = useState(null);
+  const recordingRef = useRef(null);
+  const speechRef = useRef(null);
+  const baseTextRef = useRef('');
+  const joinText = (a, b) => [a.trim(), b.trim()].filter(Boolean).join(a.trim() ? ', ' : '');
+
+  const startVoice = async () => {
+    setVoiceNote(null);
+    baseTextRef.current = text;
+    if (Platform.OS === 'web') {
+      const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+      if (!SR) { setVoiceNote('Voice isn’t supported in this browser. Try Chrome, or type it.'); return; }
+      const rec = new SR();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = 'en-US';
+      rec.onresult = (e) => {
+        let said = '';
+        for (let i = 0; i < e.results.length; i++) said += e.results[i][0].transcript;
+        setText(joinText(baseTextRef.current, said));
+      };
+      rec.onerror = () => setVoice('idle');
+      rec.onend = () => setVoice((v) => (v === 'listening' ? 'idle' : v));
+      speechRef.current = rec;
+      rec.start();
+      setVoice('listening');
+      return;
+    }
+    try {
+      const { granted } = await Audio.requestPermissionsAsync();
+      if (!granted) { setVoiceNote('Allow the microphone in Settings to use voice.'); return; }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      recordingRef.current = recording;
+      setVoice('listening');
+    } catch (_) {
+      setVoiceNote('Couldn’t start the microphone. Try again, or type it.');
+    }
+  };
+
+  const stopVoice = async () => {
+    if (Platform.OS === 'web') {
+      speechRef.current?.stop();
+      speechRef.current = null;
+      setVoice('idle');
+      return;
+    }
+    const rec = recordingRef.current;
+    recordingRef.current = null;
+    try { await rec?.stopAndUnloadAsync(); } catch (_) {}
+    try { await Audio.setAudioModeAsync({ allowsRecordingIOS: false }); } catch (_) {}
+    const uri = rec?.getURI();
+    if (!uri) { setVoice('idle'); return; }
+    setVoice('transcribing');
+    try {
+      const said = await transcribe(uri);
+      if (said) setText(joinText(baseTextRef.current, said));
+      else setVoiceNote('Didn’t catch that. Try again, or type it.');
+    } catch (e) {
+      setVoiceNote(e instanceof AiConsentError ? 'AI features are off. Turn them on in Settings › Privacy Settings.' : 'Didn’t catch that. Try again, or type it.');
+    }
+    setVoice('idle');
+  };
+
+  // Stop listening if the planner closes mid-recording.
+  useEffect(() => {
+    if (visible) return undefined;
+    speechRef.current?.stop?.();
+    recordingRef.current?.stopAndUnloadAsync?.().catch(() => {});
+    recordingRef.current = null;
+    setVoice('idle');
+    return undefined;
+  }, [visible]);
 
   // Fresh each time it opens.
   useEffect(() => {
@@ -164,6 +254,10 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const sum = (key) => items.reduce((s, i) => s + i[key], 0);
   const sat = useMemo(() => satietyOf(sum('protein'), sum('carbs'), sum('fats'), sum('fiber')), [items]);
   const setG = (i, d) => setGrams((prev) => prev.map((g, j) => (j === i ? Math.max(0, Math.min(1000, g + d)) : g)));
+  const removeItem = (i) => {
+    setPlan((p) => ({ ...p, foods: p.foods.filter((_, j) => j !== i) }));
+    setGrams((prev) => prev.filter((_, j) => j !== i));
+  };
 
   const logPlate = () => {
     const foods = items.filter((i) => i.g > 0).map((i) => ({
@@ -242,6 +336,13 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                   </TouchableOpacity>
                 </View>
               )}
+              {voice !== 'idle' && (
+                <View style={styles.listeningRow}>
+                  <View style={styles.listeningDot} />
+                  <Text style={styles.listeningText}>{voice === 'listening' ? 'Listening… tap stop when you’re done' : 'Writing down what you said…'}</Text>
+                </View>
+              )}
+              {voiceNote && voice === 'idle' && <Text style={styles.voiceNote}>{voiceNote}</Text>}
               <TextInput
                 style={styles.composerInput}
                 placeholder="What do you have?"
@@ -262,8 +363,16 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 )}
                 <View style={{ flex: 1 }} />
                 <TouchableOpacity
-                  style={[styles.sendBtn, !canSend && { opacity: 0.35 }]}
-                  disabled={!canSend}
+                  style={[styles.composerBtn, voice === 'listening' && styles.micOn]}
+                  onPress={voice === 'listening' ? stopVoice : startVoice}
+                  disabled={voice === 'transcribing'}
+                  accessibilityLabel={voice === 'listening' ? 'Stop recording' : 'Say it'}
+                >
+                  <Ionicons name={voice === 'listening' ? 'stop' : 'mic-outline'} size={voice === 'listening' ? 16 : 20} color={voice === 'listening' ? '#fff' : INK} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.sendBtn, (!canSend || voice !== 'idle') && { opacity: 0.35 }]}
+                  disabled={!canSend || voice !== 'idle'}
                   onPress={() => setStep('budget')}
                   accessibilityLabel="Send"
                 >
@@ -383,7 +492,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 <TouchableOpacity onPress={() => setStep('input')} style={{ alignSelf: 'center', padding: 8, marginTop: 6 }}><Text style={styles.cancelText}>Change what I have</Text></TouchableOpacity>
               </>
             ) : ready ? (
-              <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep('plate')}>
+              <TouchableOpacity style={styles.primaryBtn} onPress={() => { setEditing(false); setStep('plate'); }}>
                 <Text style={styles.primaryBtnText}>See your plate</Text>
                 <Ionicons name="arrow-forward" size={18} color="#fff" />
               </TouchableOpacity>
@@ -446,30 +555,69 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               </View>
             </View>
 
-            <Text style={styles.hint}>Portions not right? Use − / + to change the weight.</Text>
+            <Text style={styles.hint}>{editing ? 'Type the exact grams, or remove a food you won’t eat.' : 'Portions not right? Use − / + to change the weight, or tap Edit.'}</Text>
             <View style={styles.portionsCard}>
               <View style={[styles.portionsHead, styles.rowDivider]}>
                 <Text style={styles.kickerDark}>YOUR PORTIONS</Text>
-                <Text style={styles.countText}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                  <Text style={styles.countText}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text>
+                  <TouchableOpacity onPress={() => setEditing((e) => !e)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={[styles.editText, editing && { color: GREEN }]}>{editing ? 'Done' : 'Edit'}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               {items.map((it, i) => (
                 <View key={i} style={[styles.portionRow, styles.rowDivider]}>
                   <View style={{ flex: 1, minWidth: 0, gap: 7 }}>
                     <Text style={styles.portionName}>{it.name}</Text>
-                    <View style={styles.measureChip}><Text style={styles.measureText}>{it.measure} · {it.g} g</Text></View>
+                    {editing ? (
+                      <View style={styles.gramsEdit}>
+                        <TextInput
+                          style={styles.gramsInput}
+                          value={String(it.g)}
+                          onChangeText={(v) => { const n = parseInt(v.replace(/[^0-9]/g, ''), 10); setGrams((prev) => prev.map((g, j) => (j === i ? (Number.isFinite(n) ? Math.min(n, 2000) : 0) : g))); }}
+                          keyboardType="number-pad"
+                          maxLength={4}
+                          accessibilityLabel={`Grams of ${it.name}`}
+                        />
+                        <Text style={styles.measureText}>g · {it.measure}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.measureChip}><Text style={styles.measureText}>{it.measure} · {it.g} g</Text></View>
+                    )}
                   </View>
-                  <TouchableOpacity style={styles.stepBtn} onPress={() => setG(i, -10)} accessibilityLabel={`Less ${it.name}`}>
-                    <Ionicons name="remove" size={18} color={INK} />
-                  </TouchableOpacity>
-                  <View style={{ width: 44, alignItems: 'center' }}>
-                    <Text style={styles.portionCal}>{it.cal}</Text>
-                    <Text style={styles.portionCalUnit}>CAL</Text>
-                  </View>
-                  <TouchableOpacity style={styles.stepBtn} onPress={() => setG(i, 10)} accessibilityLabel={`More ${it.name}`}>
-                    <Ionicons name="add" size={18} color={INK} />
-                  </TouchableOpacity>
+                  {editing ? (
+                    <>
+                      <View style={{ width: 44, alignItems: 'center' }}>
+                        <Text style={styles.portionCal}>{it.cal}</Text>
+                        <Text style={styles.portionCalUnit}>CAL</Text>
+                      </View>
+                      <TouchableOpacity style={[styles.stepBtn, { backgroundColor: '#FEE2E2' }]} onPress={() => removeItem(i)} accessibilityLabel={`Remove ${it.name}`}>
+                        <Ionicons name="trash-outline" size={17} color="#B91C1C" />
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <TouchableOpacity style={styles.stepBtn} onPress={() => setG(i, -10)} accessibilityLabel={`Less ${it.name}`}>
+                        <Ionicons name="remove" size={18} color={INK} />
+                      </TouchableOpacity>
+                      <View style={{ width: 44, alignItems: 'center' }}>
+                        <Text style={styles.portionCal}>{it.cal}</Text>
+                        <Text style={styles.portionCalUnit}>CAL</Text>
+                      </View>
+                      <TouchableOpacity style={styles.stepBtn} onPress={() => setG(i, 10)} accessibilityLabel={`More ${it.name}`}>
+                        <Ionicons name="add" size={18} color={INK} />
+                      </TouchableOpacity>
+                    </>
+                  )}
                 </View>
               ))}
+              {editing && plan.foods.length < (resultRef.current?.foods?.length || 0) && (
+                <TouchableOpacity style={[styles.portionRow, styles.rowDivider, { justifyContent: 'center' }]} onPress={() => { setPlan(resultRef.current); setGrams(resultRef.current.foods.map((f) => f.grams)); }}>
+                  <Ionicons name="arrow-undo-outline" size={16} color={GREEN} />
+                  <Text style={[styles.editText, { color: GREEN }]}>Bring back removed foods</Text>
+                </TouchableOpacity>
+              )}
               <View style={styles.totalRow}>
                 <Text style={styles.kickerDark}>TOTAL</Text>
                 <Text style={styles.totalText}>{total} cal</Text>
@@ -530,6 +678,14 @@ const styles = StyleSheet.create({
   composerBtnOutline: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
   composerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   sendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' },
+  micOn: { backgroundColor: '#DC2626' },
+  listeningRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  listeningDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#DC2626' },
+  listeningText: { fontSize: 12.5, fontWeight: '600', color: '#B91C1C' },
+  voiceNote: { fontSize: 12.5, color: MUTED, marginBottom: 6 },
+  editText: { fontSize: 14, fontWeight: '600', color: MUTED },
+  gramsEdit: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  gramsInput: { minWidth: 56, height: 32, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1.5, borderColor: GREEN, backgroundColor: '#fff', fontSize: 14, fontWeight: '700', color: INK, textAlign: 'center' },
   photoChip: { alignSelf: 'flex-start', marginBottom: 8 },
   photoThumb: { width: 56, height: 56, borderRadius: 12 },
   photoRemove: { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' },

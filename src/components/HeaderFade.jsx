@@ -11,17 +11,24 @@ const mix = (a, b, t) => {
 };
 
 // The soft mint fade at the top of a screen. It sits behind the content and melts into the page's own
-// background over about 360px, so there's no visible edge. Light theme only.
-const HeaderFade = ({ bg, height = 360, style }) => {
+// background over about 360px, so there's no visible edge. Light theme only. variant="sheet" is the
+// lighter, shorter version for pop-up sheets.
+const HeaderFade = ({ bg, height, style, variant }) => {
   const { colors, isDark } = useTheme();
   if (isDark) return null;
-  const base = /^#[0-9a-f]{6}$/i.test(bg || '') ? bg : (/^#[0-9a-f]{6}$/i.test(colors.appBg || '') ? colors.appBg : '#F9FAFB');
+  const hex = (c) => {
+    if (/^#[0-9a-f]{6}$/i.test(c || '')) return c;
+    if (/^#[0-9a-f]{3}$/i.test(c || '')) return '#' + c.slice(1).split('').map((d) => d + d).join('');
+    return null;
+  };
+  const base = hex(bg) || hex(colors.appBg) || '#F9FAFB';
+  const sheet = variant === 'sheet';
   return (
     <LinearGradient
       pointerEvents="none"
-      colors={['#CFF3DE', '#D9F5E4', '#E9F8EF', mix('#E9F8EF', base, 0.5), base]}
-      locations={[0, 0.19, 0.42, 0.67, 1]}
-      style={[styles.fade, { height }, style]}
+      colors={sheet ? ['#DDF6E7', '#E9F8EF', mix('#E9F8EF', base, 0.55), base] : ['#CFF3DE', '#D9F5E4', '#E9F8EF', mix('#E9F8EF', base, 0.5), base]}
+      locations={sheet ? [0, 0.23, 0.58, 1] : [0, 0.19, 0.42, 0.67, 1]}
+      style={[styles.fade, { height: height || (sheet ? 260 : 360) }, style]}
     />
   );
 };

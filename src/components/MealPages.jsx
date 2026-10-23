@@ -6,6 +6,7 @@ import { useTheme } from '../lib/theme';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
 import { getConsent, loadConsent, onConsentChange } from '../lib/consent';
 import { LinearGradient } from 'expo-linear-gradient';
+import HeaderFade from './HeaderFade';
 
 // The Meals tab is gone: its pieces live here. The meal list sits on Today, and the
 // Log your meal page, Meal history and the delete prompt open over any tab.
@@ -319,6 +320,7 @@ const MealPages = ({
       {/* Log your meal */}
       {showLogMealOptions && (
         <View style={[styles.logMealPage, Platform.OS === 'web' && { position: 'fixed', bottom: 0, overflowY: 'auto' }]}>
+          <HeaderFade bg="#F2F2F2" />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
             <View style={styles.logMealPageHeader}>
               <TouchableOpacity onPress={() => setShowLogMealOptions(false)} accessibilityLabel="Back" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
