@@ -71,6 +71,7 @@ import NutritionQuizPage from './components/NutritionQuizPage';
 // Modal components
 import LogMealModal, { saveCommunityPhotos, setCommunitySharingEnabled } from './components/LogMealModal';
 import PortionPlanner from './components/PortionPlanner';
+import { computeTdeeSummary } from './lib/tdeeSummary';
 import { processPendingMealPhotos } from './lib/mealPhotoUpload';
 import { AFRICAN_RECIPES } from './lib/africanRecipes';
 import { uploadAvatar } from './lib/avatarUpload';
@@ -2814,6 +2815,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       <PortionPlanner
         visible={showPortionPlanner}
         userCountry={userCountry}
+        recentMeals={recentMeals}
+        tdee={showPortionPlanner ? computeTdeeSummary({ weightLogs, recentMeals, weightUnit, startingWeight, age, sex, height, heightUnit, activityLevel }).tdee : null}
         caloriesLeft={(() => {
           const day = (selectedMealDate ? new Date(selectedMealDate) : new Date()).toDateString();
           const eaten = recentMeals.filter((m) => m.date === day).reduce((sum, m) => sum + (m.calories || 0), 0);

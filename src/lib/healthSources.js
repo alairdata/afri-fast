@@ -230,6 +230,31 @@ export const SOURCES = {
     by: 'Vujović N, Piron MJ, et al. Cell Metabolism, 2022',
     url: 'https://doi.org/10.1016/j.cmet.2022.09.007',
   },
+  holt1995: {
+    title: 'A satiety index of common foods',
+    by: 'Holt SH, Miller JC, Petocz P. European Journal of Clinical Nutrition, 1995',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/7498104/',
+  },
+  deCastro1988: {
+    title: 'Subjective hunger relationships with meal patterns in the spontaneous feeding behavior of humans: Evidence for a causal connection',
+    by: 'de Castro JM, Elmore DK. Physiology & Behavior, 1988',
+    url: 'https://doi.org/10.1016/0031-9384(88)90232-6',
+  },
+  weigle2005: {
+    title: 'A high-protein diet induces sustained reductions in appetite, ad libitum caloric intake, and body weight despite compensatory changes in diurnal plasma leptin and ghrelin concentrations',
+    by: 'Weigle DS, Breen PA, et al. American Journal of Clinical Nutrition, 2005',
+    url: 'https://doi.org/10.1093/ajcn/82.1.41',
+  },
+  wanders2011: {
+    title: 'Effects of dietary fibre on subjective appetite, energy intake and body weight: a systematic review of randomized controlled trials',
+    by: 'Wanders AJ, van den Borne JJ, et al. Obesity Reviews, 2011',
+    url: 'https://doi.org/10.1111/j.1467-789X.2011.00895.x',
+  },
+  rolls2009: {
+    title: 'The relationship between dietary energy density and energy intake',
+    by: 'Rolls BJ. Physiology & Behavior, 2009',
+    url: 'https://doi.org/10.1016/j.physbeh.2009.03.011',
+  },
 };
 
 // The "Health info & sources" page, one section per kind of number or advice Logga shows.
@@ -288,6 +313,12 @@ export const TOPICS = [
     title: 'Healthy eating and food tips',
     summary: 'General food guidance in articles and tips follows WHO healthy-diet advice and research on fibre, whole grains and pulses. Sugar and sodium reference amounts follow WHO guidance. Food calorie values in Logga are estimates.',
     sources: ['whoHealthyDiet', 'reynolds2019', 'li2014', 'whoSugars', 'whoSalt'],
+  },
+  {
+    id: 'satiety',
+    title: 'How long a meal keeps you full',
+    summary: 'The fullness estimate on Fit it in draws on research measuring how long people go between meals for the amount they ate, the Satiety Index of common foods (boiled potatoes and porridge rank among the most filling, pastries among the least), and studies showing protein, fibre and bulkier, lower-calorie-density food keep people full for longer. Your own meal times tune it as you log. It is an estimate: sleep, activity and stress change hunger too.',
+    sources: ['deCastro1988', 'holt1995', 'weigle2005', 'wanders2011', 'rolls2009', 'mifflin1990'],
   },
   {
     id: 'sleep',

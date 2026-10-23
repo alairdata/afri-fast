@@ -11,6 +11,8 @@ import { Audio } from 'expo-av';
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import { track } from '../lib/analytics';
 import HeaderFade from './HeaderFade';
+import { SourcesLink } from './HealthSourcesPage';
+import { estimateSatiety, satietyCurve } from '../lib/satiety';
 
 // "Fit it in": the person already has food (bought it, or it's at home) and wants portions that fit
 // the calories they have left. Four steps: what you have → how much to use → working it out → your plate.
@@ -111,23 +113,7 @@ const measureOf = (f, g) => {
   return `${frac(n)} ${n > 1.125 ? f.unitMany : f.unitOne}`;
 };
 
-// An illustrative fullness curve: protein, fat and fibre slow how fast fullness fades.
-const satietyOf = (P, C, F, fibre) => {
-  const tau = 1.2 + P / 14 + F / 40 + C / 120 + fibre / 30;
-  const full = (t) => 100 * (1 - Math.exp(-t / 0.35)) * Math.exp(-t / tau);
-  const W = 318, top = 18, bot = 108, HUNGRY = 35;
-  const X = (t) => (t / 6) * W, Y = (v) => bot - (v / 100) * (bot - top);
-  const pts = []; let cross = 6;
-  for (let t = 0; t <= 6.0001; t += 0.1) {
-    pts.push(`${X(t).toFixed(1)} ${Y(full(t)).toFixed(1)}`);
-    if (t > 0.5 && cross === 6 && full(t) < HUNGRY) cross = t;
-  }
-  const curve = `M${pts.join(' L')}`;
-  const level = cross >= 4 ? ['High', '#D1FAE5', '#047857'] : cross >= 2.5 ? ['Medium', '#FEF3C7', '#B45309'] : ['Low', '#FEE2E2', '#B91C1C'];
-  return { curve, area: `${curve} L${W} ${bot} L0 ${bot} Z`, hungerY: Y(HUNGRY), dotX: X(cross), hrs: String(Math.round(cross * 2) / 2).replace('.5', '½'), level };
-};
-
-const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', onLogPlate }) => {
+const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', onLogPlate, tdee = null, recentMeals = [] }) => {
   const [step, setStep] = useState('input'); // input | budget | loading | plate
   const [text, setText] = useState('');
   const [photo, setPhoto] = useState(null);
@@ -273,7 +259,12 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const items = foods;
   const total = items.reduce((s, i) => s + (i.cal || 0), 0);
   const sum = (key) => items.reduce((s, i) => s + (i[key] || 0), 0);
-  const sat = useMemo(() => satietyOf(sum('protein'), sum('carbs'), sum('fats'), sum('fiber')), [items]);
+  // How long this plate should keep them full: their energy use, the foods' measured Satiety Index, protein,
+  // fibre and density, tuned by how long they usually go between logged meals (src/lib/satiety.js).
+  const satEst = useMemo(() => estimateSatiety({ foods: items, tdee, meals: recentMeals }), [items, tdee, recentMeals]);
+  const sat = useMemo(() => satietyCurve(satEst.hours), [satEst.hours]);
+  const LEVEL_COLORS = { High: ['#D1FAE5', '#047857'], Medium: ['#FEF3C7', '#B45309'], Low: ['#FEE2E2', '#B91C1C'] };
+  const hrsText = String(Math.round(satEst.hours * 2) / 2).replace('.5', '½');
   // Scale a food's calories and nutrients together (the scan screen's −/+ and typed calories).
   const scaleFood = (f, newCal) => {
     const ratio = f.cal > 0 ? newCal / f.cal : 0;
@@ -570,10 +561,10 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.kickerDark}>SATIETY ESTIMATE</Text>
-                  <Text style={styles.satHead}>Full for ~{sat.hrs} hrs</Text>
-                  <Text style={styles.satSub}>Mostly from {Math.round(sum('protein'))}g of protein</Text>
+                  <Text style={styles.satHead}>Full for ~{hrsText} {hrsText === '1' ? 'hr' : 'hrs'}</Text>
+                  <Text style={styles.satSub}>{satEst.driver ? `Mostly from ${satEst.driver}` : `${Math.round(satEst.protein)}g of protein on this plate`}</Text>
                 </View>
-                <View style={[styles.levelPill, { backgroundColor: sat.level[1] }]}><Text style={[styles.levelText, { color: sat.level[2] }]}>{sat.level[0]}</Text></View>
+                <View style={[styles.levelPill, { backgroundColor: LEVEL_COLORS[satEst.level][0] }]}><Text style={[styles.levelText, { color: LEVEL_COLORS[satEst.level][1] }]}>{satEst.level}</Text></View>
               </View>
               <View style={{ marginTop: 14 }}>
                 <Svg width="100%" height={128} viewBox="0 0 318 128" preserveAspectRatio="none" accessibilityLabel="Estimated fullness over the next 6 hours">
@@ -590,7 +581,13 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 </Svg>
                 <Text style={[styles.hungryLabel, { top: sat.hungerY - 22 }]}>Hungry again</Text>
               </View>
-              <View style={styles.axisRow}>{['Now', '2h', '4h', '6h'].map((l) => <Text key={l} style={styles.axisText}>{l}</Text>)}</View>
+              <View style={styles.axisRow}>{sat.ticks.map((l) => <Text key={l} style={styles.axisText}>{l}</Text>)}</View>
+              <View style={styles.satBasisRow}>
+                <Text style={styles.satBasis}>
+                  {satEst.personal ? `Tuned to your last ${satEst.mealsUsed} meals and your energy needs` : 'Based on your energy needs and these foods. Log more meals and it learns how long you usually last.'}
+                </Text>
+                <SourcesLink topic="satiety" only label="Sources" color={MUTED} />
+              </View>
               <View style={{ marginTop: 16 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                   <Text style={styles.budgetText}>{total} of {chosen} cal</Text>
@@ -830,6 +827,8 @@ const styles = StyleSheet.create({
   hungryLabel: { position: 'absolute', right: 0, fontSize: 11, fontWeight: '600', color: '#B45309', backgroundColor: '#fff', paddingLeft: 6 },
   axisRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   axisText: { fontSize: 11, color: MUTED },
+  satBasisRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 10 },
+  satBasis: { flex: 1, fontSize: 11.5, lineHeight: 16, color: MUTED },
   budgetText: { fontSize: 13, fontWeight: '600', color: INK },
   budgetTrack: { height: 8, borderRadius: 4, backgroundColor: '#E7F3EC', overflow: 'hidden' },
   budgetFill: { height: 8, borderRadius: 4 },
