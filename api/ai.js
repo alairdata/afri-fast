@@ -601,7 +601,7 @@ function toParagraphs(text) {
 }
 
 // Just for You is written by 2.5 Pro (better at the chosen voice and a hook-first opening); Flash only if Pro is busy.
-const GEMINI_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
 const JUST_FOR_YOU_SCHEMA = {
   type: 'OBJECT',
