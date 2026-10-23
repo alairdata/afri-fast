@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Platform, Image, KeyboardAvoidingView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Platform, Image, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
 import Svg, { Circle, Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
@@ -77,12 +77,34 @@ async function transcribe(uri) {
   return result.text || '';
 }
 
+async function callApi(type, data) {
+  if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError();
+  const response = await fetch(`${BASE}/api/gemini`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, data }),
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result) throw new Error(result?.error || 'AI service error');
+  return result;
+}
+
 // ¼, ½, ¾ for home measures ("1½ cups cooked").
 const frac = (n) => {
   const q = Math.round(n * 4) / 4, w = Math.floor(q), r = q - w;
   const s = r === 0.25 ? '¼' : r === 0.5 ? '½' : r === 0.75 ? '¾' : '';
   return ((w === 0 && s ? '' : String(w)) + s) || '0';
 };
+// A planned food (per-100 g values + grams) as a scan-style food row: "1½ cups cooked (230 g)".
+const toFood = (f) => {
+  const k = f.grams / 100;
+  const r1 = (v) => Math.round((v || 0) * k * 10) / 10;
+  return {
+    name: f.name, qty: `${measureOf(f, f.grams)} (${f.grams} g)`, cal: Math.round(f.kcal100 * k),
+    protein: r1(f.protein100), carbs: r1(f.carbs100), fats: r1(f.fat100), fiber: r1(f.fiber100), sugar: r1(f.sugar100), sodium: Math.round((f.sodium100 || 0) * k),
+  };
+};
+
 const measureOf = (f, g) => {
   const n = g / f.unitGrams;
   if (f.unitGrams <= 40) { const c = Math.max(1, Math.round(n)); return `${c} ${c === 1 ? f.unitOne : f.unitMany}`; }
@@ -115,9 +137,19 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const [pct, setPct] = useState(0);
   const [error, setError] = useState(null);
   const [plan, setPlan] = useState(null);
-  const [grams, setGrams] = useState([]);
+  // The plate as a list of foods, the same shape (and editing) as a scanned meal's detected foods.
+  const [foods, setFoods] = useState([]);
   const resultRef = useRef(null);
-  const [editing, setEditing] = useState(false);
+  const [isFoodEditMode, setIsFoodEditMode] = useState(false);
+  const [editingQtyIdx, setEditingQtyIdx] = useState(null);
+  const [editQtyValue, setEditQtyValue] = useState('');
+  const [updatingQtyIdx, setUpdatingQtyIdx] = useState(null);
+  const [editingCalIdx, setEditingCalIdx] = useState(null);
+  const [editCalInputValue, setEditCalInputValue] = useState('');
+  const editCalInputRef = useRef('');
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
+  const [addItemDetecting, setAddItemDetecting] = useState(false);
   // Voice: 'idle' | 'listening' | 'transcribing'. The words land in the text box so they can be checked first.
   const [voice, setVoice] = useState('idle');
   const [voiceNote, setVoiceNote] = useState(null);
@@ -234,39 +266,58 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   useEffect(() => {
     if (pct === 100 && resultRef.current?.foods) {
       setPlan(resultRef.current);
-      setGrams(resultRef.current.foods.map((f) => f.grams));
+      setFoods(resultRef.current.foods.map(toFood));
     }
   }, [pct]);
 
-  const items = useMemo(() => (plan?.foods || []).map((f, i) => {
-    const g = grams[i] ?? f.grams;
-    const k = g / 100;
-    return {
-      ...f, g,
-      cal: Math.round(f.kcal100 * k),
-      protein: Math.round(f.protein100 * k * 10) / 10, carbs: Math.round(f.carbs100 * k * 10) / 10,
-      fats: Math.round(f.fat100 * k * 10) / 10, fiber: Math.round((f.fiber100 || 0) * k * 10) / 10,
-      sugar: Math.round((f.sugar100 || 0) * k * 10) / 10, sodium: Math.round((f.sodium100 || 0) * k),
-      measure: measureOf(f, g),
-    };
-  }), [plan, grams]);
-  const total = items.reduce((s, i) => s + i.cal, 0);
-  const sum = (key) => items.reduce((s, i) => s + i[key], 0);
+  const items = foods;
+  const total = items.reduce((s, i) => s + (i.cal || 0), 0);
+  const sum = (key) => items.reduce((s, i) => s + (i[key] || 0), 0);
   const sat = useMemo(() => satietyOf(sum('protein'), sum('carbs'), sum('fats'), sum('fiber')), [items]);
-  const setG = (i, d) => setGrams((prev) => prev.map((g, j) => (j === i ? Math.max(0, Math.min(1000, g + d)) : g)));
-  const removeItem = (i) => {
-    setPlan((p) => ({ ...p, foods: p.foods.filter((_, j) => j !== i) }));
-    setGrams((prev) => prev.filter((_, j) => j !== i));
+  // Scale a food's calories and nutrients together (the scan screen's −/+ and typed calories).
+  const scaleFood = (f, newCal) => {
+    const ratio = f.cal > 0 ? newCal / f.cal : 0;
+    const r1 = (v) => (ratio > 0 ? Math.round((v || 0) * ratio * 10) / 10 : v);
+    return { ...f, cal: newCal, protein: r1(f.protein), carbs: r1(f.carbs), fats: r1(f.fats), fiber: r1(f.fiber), sugar: r1(f.sugar), sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium };
+  };
+  const nudgeCal = (i, d) => setFoods((prev) => prev.map((f, idx) => (idx === i ? scaleFood(f, Math.max(0, f.cal + d)) : f)));
+  const resetEditing = () => { setIsFoodEditMode(false); setEditingQtyIdx(null); setEditingCalIdx(null); setShowAddItem(false); setNewItemName(''); };
+
+  const saveQty = async (i) => {
+    const food = foods[i];
+    if (!editQtyValue.trim()) { setEditingQtyIdx(null); return; }
+    const raw = editQtyValue.trim();
+    const newQty = /[a-zA-Z]/.test(raw) ? raw : `${raw} ${(food.name || 'serving').toLowerCase()}`;
+    setEditingQtyIdx(null);
+    setUpdatingQtyIdx(i);
+    const r = await callApi('recalculate_portion', { foodName: food.name, oldQty: food.qty, newQty, currentNutrition: food }).catch(() => null);
+    setFoods((prev) => prev.map((f, idx) => (idx === i ? {
+      ...f,
+      name: r?.name || f.name,
+      qty: r?.qty || newQty,
+      cal: r?.cal > 0 ? r.cal : f.cal,
+      protein: r?.protein ?? f.protein ?? 0, carbs: r?.carbs ?? f.carbs ?? 0, fats: r?.fats ?? f.fats ?? 0,
+      fiber: r?.fiber ?? f.fiber ?? 0, sugar: r?.sugar ?? f.sugar ?? 0, sodium: r?.sodium ?? f.sodium ?? 0,
+    } : f)));
+    setUpdatingQtyIdx(null);
+  };
+
+  const addItem = async () => {
+    const name = newItemName.trim();
+    if (!name) return;
+    setAddItemDetecting(true);
+    const r = await callApi('lookup_nutrition', { itemName: name }).catch(() => null);
+    setFoods((prev) => [...prev, r || { name, qty: '1 serving', cal: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, sugar: 0, sodium: 0 }]);
+    setNewItemName('');
+    setAddItemDetecting(false);
+    setShowAddItem(false);
   };
 
   const logPlate = () => {
-    const foods = items.filter((i) => i.g > 0).map((i) => ({
-      name: i.name, qty: `${i.measure} (${i.g} g)`, cal: i.cal, protein: i.protein, carbs: i.carbs, fats: i.fats,
-      fiber: i.fiber, sugar: i.sugar, sodium: i.sodium,
-    }));
-    if (!foods.length) return;
-    track('portion_plan_logged', { calories: total, target: chosen, items: foods.length });
-    onLogPlate && onLogPlate({ title: plan?.title || null, foods });
+    const toLog = foods.filter((f) => (f.cal || 0) > 0).map(({ name, qty, cal, protein, carbs, fats, fiber, sugar, sodium }) => ({ name, qty, cal, protein, carbs, fats, fiber, sugar, sodium }));
+    if (!toLog.length) return;
+    track('portion_plan_logged', { calories: total, target: chosen, items: toLog.length });
+    onLogPlate && onLogPlate({ title: plan?.title || null, foods: toLog });
   };
 
   const pickPhoto = async (fromCamera) => {
@@ -492,7 +543,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 <TouchableOpacity onPress={() => setStep('input')} style={{ alignSelf: 'center', padding: 8, marginTop: 6 }}><Text style={styles.cancelText}>Change what I have</Text></TouchableOpacity>
               </>
             ) : ready ? (
-              <TouchableOpacity style={styles.primaryBtn} onPress={() => { setEditing(false); setStep('plate'); }}>
+              <TouchableOpacity style={styles.primaryBtn} onPress={() => { resetEditing(); setStep('plate'); }}>
                 <Text style={styles.primaryBtnText}>See your plate</Text>
                 <Ionicons name="arrow-forward" size={18} color="#fff" />
               </TouchableOpacity>
@@ -555,72 +606,91 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               </View>
             </View>
 
-            <Text style={styles.hint}>{editing ? 'Type the exact grams, or remove a food you won’t eat.' : 'Portions not right? Use − / + to change the weight, or tap Edit.'}</Text>
-            <View style={styles.portionsCard}>
-              <View style={[styles.portionsHead, styles.rowDivider]}>
-                <Text style={styles.kickerDark}>YOUR PORTIONS</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                  <Text style={styles.countText}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text>
-                  <TouchableOpacity onPress={() => setEditing((e) => !e)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Text style={[styles.editText, editing && { color: GREEN }]}>{editing ? 'Done' : 'Edit'}</Text>
+            <Text style={styles.portionNote}>Calories and nutrients are AI estimates. Portions not right? Tap the green label to adjust.</Text>
+            <View style={styles.foodCard}>
+              <View style={styles.foodCardHead}>
+                <Text style={styles.foodCardTitle}>YOUR PORTIONS</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Text style={styles.foodCardCount}>{foods.length} items</Text>
+                  <TouchableOpacity onPress={() => { setIsFoodEditMode((v) => !v); setShowAddItem(false); }}>
+                    <Text style={[styles.foodCardEditBtn, isFoodEditMode && { color: GREEN }]}>{isFoodEditMode ? 'Done' : 'Edit'}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-              {items.map((it, i) => (
-                <View key={i} style={[styles.portionRow, styles.rowDivider]}>
-                  <View style={{ flex: 1, minWidth: 0, gap: 7 }}>
-                    <Text style={styles.portionName}>{it.name}</Text>
-                    {editing ? (
-                      <View style={styles.gramsEdit}>
-                        <TextInput
-                          style={styles.gramsInput}
-                          value={String(it.g)}
-                          onChangeText={(v) => { const n = parseInt(v.replace(/[^0-9]/g, ''), 10); setGrams((prev) => prev.map((g, j) => (j === i ? (Number.isFinite(n) ? Math.min(n, 2000) : 0) : g))); }}
-                          keyboardType="number-pad"
-                          maxLength={4}
-                          accessibilityLabel={`Grams of ${it.name}`}
-                        />
-                        <Text style={styles.measureText}>g · {it.measure}</Text>
+              {foods.map((food, i) => (
+                <View key={i} style={styles.foodRow}>
+                  {isFoodEditMode && (
+                    <TouchableOpacity style={styles.foodDeleteBtn} onPress={() => setFoods((prev) => prev.filter((_, idx) => idx !== i))} accessibilityLabel={`Remove ${food.name}`}>
+                      <Ionicons name="remove-circle" size={22} color="#ef4444" />
+                    </TouchableOpacity>
+                  )}
+                  <View style={{ flex: 1, marginRight: 12 }}>
+                    <Text style={styles.foodName}>{food.name}</Text>
+                    {editingQtyIdx === i ? (
+                      <View style={styles.editQtyRow}>
+                        <TextInput style={styles.editQtyInput} value={editQtyValue} onChangeText={setEditQtyValue} autoFocus />
+                        <TouchableOpacity style={styles.editQtyDone} onPress={() => saveQty(i)} disabled={updatingQtyIdx === i}>
+                          <Text style={styles.editQtyDoneText}>Done</Text>
+                        </TouchableOpacity>
                       </View>
                     ) : (
-                      <View style={styles.measureChip}><Text style={styles.measureText}>{it.measure} · {it.g} g</Text></View>
+                      <TouchableOpacity style={styles.foodQtyEditable} onPress={() => { setEditingQtyIdx(i); setEditQtyValue(food.qty); }}>
+                        <Text style={styles.foodQtyEditableText}>{food.qty}</Text>
+                      </TouchableOpacity>
                     )}
                   </View>
-                  {editing ? (
-                    <>
-                      <View style={{ width: 44, alignItems: 'center' }}>
-                        <Text style={styles.portionCal}>{it.cal}</Text>
-                        <Text style={styles.portionCalUnit}>CAL</Text>
+                  {editingQtyIdx !== i && (
+                    <View style={styles.qtyControl}>
+                      <TouchableOpacity style={styles.qtyBtn} onPress={() => nudgeCal(i, -25)} accessibilityLabel={`Less ${food.name}`}>
+                        <Text style={styles.qtyBtnText}>−</Text>
+                      </TouchableOpacity>
+                      <View style={{ alignItems: 'center', minWidth: 50 }}>
+                        {updatingQtyIdx === i ? (
+                          <ActivityIndicator size="small" color={GREEN} />
+                        ) : isFoodEditMode && editingCalIdx === i ? (
+                          <TextInput
+                            style={styles.calInlineInput}
+                            value={editCalInputValue}
+                            onChangeText={(t) => { setEditCalInputValue(t); editCalInputRef.current = t; }}
+                            keyboardType="numeric"
+                            autoFocus
+                            selectTextOnFocus
+                            onBlur={() => {
+                              const val = parseInt(editCalInputRef.current, 10);
+                              if (!isNaN(val) && val >= 0) setFoods((prev) => prev.map((f, idx) => (idx === i ? scaleFood(f, val) : f)));
+                              setEditingCalIdx(null);
+                            }}
+                          />
+                        ) : (
+                          <TouchableOpacity disabled={!isFoodEditMode} onPress={() => { setEditingCalIdx(i); setEditCalInputValue(String(food.cal)); editCalInputRef.current = String(food.cal); }}>
+                            <Text style={[styles.foodCal, isFoodEditMode && { textDecorationLine: 'underline', color: GREEN }]}>{food.cal}</Text>
+                          </TouchableOpacity>
+                        )}
+                        <Text style={styles.foodCalLabel}>CAL</Text>
                       </View>
-                      <TouchableOpacity style={[styles.stepBtn, { backgroundColor: '#FEE2E2' }]} onPress={() => removeItem(i)} accessibilityLabel={`Remove ${it.name}`}>
-                        <Ionicons name="trash-outline" size={17} color="#B91C1C" />
+                      <TouchableOpacity style={styles.qtyBtn} onPress={() => nudgeCal(i, 25)} accessibilityLabel={`More ${food.name}`}>
+                        <Text style={styles.qtyBtnText}>+</Text>
                       </TouchableOpacity>
-                    </>
-                  ) : (
-                    <>
-                      <TouchableOpacity style={styles.stepBtn} onPress={() => setG(i, -10)} accessibilityLabel={`Less ${it.name}`}>
-                        <Ionicons name="remove" size={18} color={INK} />
-                      </TouchableOpacity>
-                      <View style={{ width: 44, alignItems: 'center' }}>
-                        <Text style={styles.portionCal}>{it.cal}</Text>
-                        <Text style={styles.portionCalUnit}>CAL</Text>
-                      </View>
-                      <TouchableOpacity style={styles.stepBtn} onPress={() => setG(i, 10)} accessibilityLabel={`More ${it.name}`}>
-                        <Ionicons name="add" size={18} color={INK} />
-                      </TouchableOpacity>
-                    </>
+                    </View>
                   )}
                 </View>
               ))}
-              {editing && plan.foods.length < (resultRef.current?.foods?.length || 0) && (
-                <TouchableOpacity style={[styles.portionRow, styles.rowDivider, { justifyContent: 'center' }]} onPress={() => { setPlan(resultRef.current); setGrams(resultRef.current.foods.map((f) => f.grams)); }}>
-                  <Ionicons name="arrow-undo-outline" size={16} color={GREEN} />
-                  <Text style={[styles.editText, { color: GREEN }]}>Bring back removed foods</Text>
+              {isFoodEditMode && (showAddItem ? (
+                <View style={styles.addItemRow}>
+                  <TextInput style={styles.addItemNameInput} placeholder="Item name" placeholderTextColor="#aaa" value={newItemName} onChangeText={setNewItemName} autoFocus />
+                  <TouchableOpacity style={[styles.addItemConfirm, addItemDetecting && { opacity: 0.6 }]} disabled={addItemDetecting} onPress={addItem}>
+                    {addItemDetecting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.addItemConfirmText}>Add</Text>}
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.addItemBtn} onPress={() => setShowAddItem(true)}>
+                  <Ionicons name="add-circle-outline" size={18} color={GREEN} />
+                  <Text style={styles.addItemBtnText}>Add item</Text>
                 </TouchableOpacity>
-              )}
-              <View style={styles.totalRow}>
-                <Text style={styles.kickerDark}>TOTAL</Text>
-                <Text style={styles.totalText}>{total} cal</Text>
+              ))}
+              <View style={styles.foodTotal}>
+                <Text style={styles.foodTotalLabel}>TOTAL</Text>
+                <Text style={styles.foodTotalValue}>{total} cal</Text>
               </View>
             </View>
 
@@ -684,6 +754,36 @@ const styles = StyleSheet.create({
   listeningText: { fontSize: 12.5, fontWeight: '600', color: '#B91C1C' },
   voiceNote: { fontSize: 12.5, color: MUTED, marginBottom: 6 },
   editText: { fontSize: 14, fontWeight: '600', color: MUTED },
+  portionNote: { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 14, marginBottom: 10, marginHorizontal: 20 },
+  foodCard: { backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB', marginHorizontal: 20, overflow: 'hidden' },
+  foodCardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', padding: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  foodCardTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: '#111' },
+  foodCardCount: { fontSize: 11, color: '#999' },
+  foodCardEditBtn: { fontSize: 13, fontWeight: '600', color: '#aaa' },
+  foodRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  foodDeleteBtn: { marginRight: 10, justifyContent: 'center' },
+  foodName: { fontSize: 13, fontWeight: '600', color: '#111' },
+  foodQtyEditable: { backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, marginTop: 4, alignSelf: 'flex-start' },
+  foodQtyEditableText: { fontSize: 12, color: GREEN, fontWeight: '600' },
+  editQtyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  editQtyInput: { flex: 1, fontSize: 13, color: INK, backgroundColor: '#F3F4F6', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1.5, borderColor: GREEN },
+  editQtyDone: { backgroundColor: GREEN, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
+  editQtyDoneText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  qtyControl: { flexDirection: 'row', alignItems: 'center' },
+  qtyBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  qtyBtnText: { fontSize: 18, fontWeight: '600', color: '#111' },
+  foodCal: { fontSize: 15, fontWeight: '700', color: '#111' },
+  foodCalLabel: { fontSize: 9, fontWeight: '600', letterSpacing: 0.8, color: '#aaa' },
+  calInlineInput: { fontSize: 15, fontWeight: '700', color: GREEN, borderBottomWidth: 1.5, borderBottomColor: GREEN, minWidth: 50, textAlign: 'center', paddingVertical: 0 },
+  addItemBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  addItemBtnText: { fontSize: 13, color: GREEN, fontWeight: '600' },
+  addItemRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 10, gap: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  addItemNameInput: { flex: 1, fontSize: 13, color: '#111', backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
+  addItemConfirm: { backgroundColor: GREEN, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
+  addItemConfirmText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  foodTotal: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 13, paddingHorizontal: 20, backgroundColor: '#F8FAFC', borderTopWidth: 1, borderTopColor: '#E5E7EB' },
+  foodTotalLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: '#111' },
+  foodTotalValue: { fontSize: 18, fontWeight: '700', color: '#111' },
   gramsEdit: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   gramsInput: { minWidth: 56, height: 32, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1.5, borderColor: GREEN, backgroundColor: '#fff', fontSize: 14, fontWeight: '700', color: INK, textAlign: 'center' },
   photoChip: { alignSelf: 'flex-start', marginBottom: 8 },
