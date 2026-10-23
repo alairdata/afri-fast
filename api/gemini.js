@@ -332,7 +332,7 @@ export default async function handler(req, res) {
           `They want to eat about ${target} kcal of it now.${userCountry ? ` They live in ${userCountry}; use local dish names and the usual local way of preparing each food, oil included.` : ''}\n\n` +
           'Identify each distinct food. For each give realistic nutrition per 100 g as typically prepared, a household measure people use for it (unitOne and unitMany, e.g. "cup cooked"/"cups cooked", "ladle"/"ladles", "piece"/"pieces", "slice"/"slices", "medium fish"/"medium fish") and how many grams one of that measure weighs (unitGrams).\n' +
           `Then plan grams of each so the plate totals ${target} kcal (within 5%). Favour protein and vegetables so it keeps them full, keep starch and fried foods moderate, and give every food they have at least a small portion unless it is only a condiment.\n` +
-          'tip: one short, practical sentence that would let them fit more in or feel fuller (a swap or a cooking choice). No medical claims, no guilt, never suggest skipping meals.\n' +
+          'tip: one short, practical sentence about THESE foods only, never telling them to add or buy something they did not mention. Make it specific to what they have: which food to take more or less of and why (e.g. "Take the extra piece of chicken instead of more rice: the protein keeps you full longer"), eating the protein or soup first, leaving visible oil or skin, or saving part for later. Do not start with "To feel fuller" or "Consider". No medical claims, no guilt, never suggest skipping meals.\n' +
           'If there is no food at all, set isFood to false and say what you see in whatIsItIfNotFood.',
       }];
       if (base64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: base64 } });
