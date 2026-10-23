@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, Modal } from 'react-native';
-import Svg, { Path, Circle, Line } from 'react-native-svg';
+import Svg, { Path, Circle, Line, Rect, Text as SvgText } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../lib/theme';
 import { LineChart } from 'react-native-chart-kit';
@@ -23,6 +23,7 @@ import RiveMomentum from './RiveMomentum';
 import { useSubscription } from '../lib/subscription';
 import { LockedChartPreview, unlock } from './ProLock';
 import { BlurView } from 'expo-blur';
+import HeaderFade from './HeaderFade';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -1236,9 +1237,11 @@ const ProgressTab = ({
     movement: momentumWhyAi?.movement || momentumWhySentences.movementSentence,
   };
 
-  // Trajectory chart: a PREDICTION, not a log -- every day of the week gets a guess.
+  // Trajectory chart: a PREDICTION for every day of the week (dashed, with a band that widens away from
+  // today), plus the real weigh-ins this week as dots so the two never look alike.
   const chart = useMemo(() => {
-    const W = 320, top = 10, bot = 100, padX = 16;
+    const top = 26, bot = 128;
+    const x = (i) => 16 + i * 49;
     const nowDate = new Date(now);
     const startOfToday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
     const startOfWeek = new Date(startOfToday);
@@ -1247,6 +1250,9 @@ const ProgressTab = ({
     const confidenceVal = today.confidence;
     const dailyRateKg = weeklyPace.dailyRateKg;
     if (anchorKg == null || dailyRateKg == null) return null;
+
+    const weighInByDay = {};
+    sortedWeights.forEach((w) => { weighInByDay[new Date(w.ts).toDateString()] = w.weightKg; });
 
     const data = [];
     for (let offset = 0; offset <= 6; offset++) {
@@ -1257,7 +1263,8 @@ const ProgressTab = ({
       const marginKg = Math.abs(dayDiff) * 0.15 * (2 - confidenceVal);
       const proj = fromKg(projectedKg, weightUnit);
       const margin = fromKg(marginKg, weightUnit);
-      data.push({ label: dayLabel(d), proj, upper: proj + margin, lower: proj - margin });
+      const wKg = dayDiff <= 0 ? weighInByDay[d.toDateString()] : undefined;
+      data.push({ label: dayLabel(d), proj, upper: proj + margin, lower: proj - margin, weighIn: wKg != null ? fromKg(wKg, weightUnit) : null });
     }
 
     const weekStartVal = data[0].proj;
@@ -1267,19 +1274,25 @@ const ProgressTab = ({
     weekEndDate.setDate(startOfWeek.getDate() + 6);
 
     const vals = [];
-    data.forEach((p) => ['proj', 'upper', 'lower'].forEach((k) => vals.push(p[k])));
+    data.forEach((p) => { vals.push(p.proj, p.upper, p.lower); if (p.weighIn != null) vals.push(p.weighIn); });
     const min = Math.min(...vals) - 0.15, max = Math.max(...vals) + 0.15;
-    const x = (i) => padX + (i * (W - padX * 2)) / (data.length - 1);
     const y = (v) => bot - ((v - min) / (max - min || 1)) * (bot - top);
     const pts = (k) => data.map((p, i) => [x(i), y(p[k])]);
     const ups = pts('upper'), los = pts('lower').reverse();
     const band = smooth(ups) + ` L ${los[0][0]} ${los[0][1]} ` + smooth(los).replace(/^M [^C]*/, '') + ' Z';
-    const dots = data.map((p, i) => ({ cx: x(i), cy: y(p.proj), fill: colors.card, stroke: accent }));
-    const points = data.map((p, i) => ({
-      label: p.label, value: p.proj, changeFromStart: p.proj - weekStartVal, xFrac: i / 6,
+    const todayIdx = startOfToday.getDay();
+    const weighIns = data.map((p, i) => (p.weighIn != null ? { cx: x(i), cy: y(p.weighIn) } : null)).filter(Boolean);
+    const points = data.map((p) => ({
+      label: p.label, value: p.weighIn != null ? p.weighIn : p.proj, weighed: p.weighIn != null,
+      changeFromStart: p.proj - weekStartVal,
     }));
-    return { proj: smooth(pts('proj')), band, dots, points, labels: data.map((p) => p.label), weekChange, weekEndDate, weekEndVal };
-  }, [today, anchorKg, weeklyPace, accent, colors.card, now, weightUnit]);
+    return {
+      proj: smooth(pts('proj')), band, weighIns, points, todayIdx,
+      todayPt: { cx: x(todayIdx), cy: y(data[todayIdx].proj) },
+      endPt: todayIdx < 6 ? { cx: x(6), cy: y(weekEndVal) } : null,
+      labels: data.map((p) => p.label), weekChange, weekEndDate, weekEndVal,
+    };
+  }, [today, anchorKg, weeklyPace, now, weightUnit, sortedWeights]);
 
   const predictionSnapshot = useMemo(() => {
     const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
@@ -1592,6 +1605,7 @@ const ProgressTab = ({
 
   return (
     <View style={styles.wrapper}>
+      <HeaderFade bg={colors.bg} />
       {view === 'main' && (
         <>
           <View style={styles.headerCompact}>
@@ -1837,11 +1851,21 @@ const ProgressTab = ({
                     </View>
                   )}
                 </View>
-                <View style={{ position: 'relative', marginTop: 8 }}>
-                  <Svg width="100%" height={104} viewBox="0 0 320 104" preserveAspectRatio="none">
-                    {!!chart.band && <Path d={chart.band} fill={accent} fillOpacity={0.1} />}
-                    <Path d={chart.proj} fill="none" stroke={accent} strokeWidth={2} strokeDasharray="4 4" />
-                    {chart.dots.map((p, i) => <Circle key={i} cx={p.cx} cy={p.cy} r={3.2} fill={p.fill} stroke={p.stroke} strokeWidth={1.6} />)}
+                <View style={{ position: 'relative', marginTop: 12 }}>
+                  <Svg width="100%" height={164} viewBox="0 0 326 164">
+                    <Path d="M0 26H326M0 64H326M0 102H326M0 140H326" stroke={colors.border} strokeWidth={1} strokeOpacity={0.5} />
+                    {!!chart.band && <Path d={chart.band} fill={accent} fillOpacity={0.07} />}
+                    <Line x1={chart.todayPt.cx} y1={12} x2={chart.todayPt.cx} y2={140} stroke={colors.textMuted} strokeOpacity={0.5} strokeWidth={1} strokeDasharray="3 3" />
+                    <Rect x={Math.min(Math.max(chart.todayPt.cx - 20, 0), 286)} y={0} width={40} height={16} rx={8} fill={colors.text} />
+                    <SvgText x={Math.min(Math.max(chart.todayPt.cx, 20), 306)} y={11.5} textAnchor="middle" fontSize={9.5} fontWeight="700" fill={colors.card}>Today</SvgText>
+                    <Path d={chart.proj} fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="round" strokeDasharray="6 6" strokeOpacity={0.75} />
+                    {chart.weighIns.map((p, i) => <Circle key={i} cx={p.cx} cy={p.cy} r={4} fill={accent} stroke={colors.card} strokeWidth={2} />)}
+                    <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={10} fill={accent} fillOpacity={0.15} />
+                    <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={5.5} fill={accent} stroke={colors.card} strokeWidth={2} />
+                    {chart.endPt && <Circle cx={chart.endPt.cx} cy={chart.endPt.cy} r={5} fill={colors.card} stroke={accent} strokeWidth={2} />}
+                    {chart.labels.map((l, i) => (
+                      <SvgText key={i} x={16 + i * 49} y={158} textAnchor="middle" fontSize={10} fontWeight={i === chart.todayIdx ? '800' : '600'} fill={i === chart.todayIdx ? colors.text : colors.textMuted}>{l}</SvgText>
+                    ))}
                   </Svg>
                   <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
                     <View style={{ flex: 1, flexDirection: 'row' }} pointerEvents="box-none">
@@ -1856,16 +1880,24 @@ const ProgressTab = ({
                     </View>
                   </View>
                 </View>
-                <View style={styles.chartInfoRow}>
-                  <Text style={styles.chartInfoText}>
-                    {chartTooltip
-                      ? `${chartTooltip.label}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.changeFromStart != null ? `  ·  ${Math.abs(chartTooltip.changeFromStart).toFixed(2)} ${weightUnit} ${chartTooltip.changeFromStart > 0 ? 'gain' : chartTooltip.changeFromStart < 0 ? 'loss' : 'change'} vs Sun` : ''}`
-                      : 'Tap a point for that day’s number'}
+                <View style={styles.chartKeyRow}>
+                  <View style={styles.chartKeyItem}>
+                    <Svg width={14} height={4}><Line x1={0} y1={2} x2={14} y2={2} stroke={accent} strokeWidth={3} strokeDasharray="4 3" /></Svg>
+                    <Text style={styles.chartKeyText}>Predicted</Text>
+                  </View>
+                  {chart.weighIns.length > 0 && (
+                    <View style={styles.chartKeyItem}>
+                      <View style={[styles.chartKeyDot, { backgroundColor: accent }]} />
+                      <Text style={styles.chartKeyText}>Your weigh-ins</Text>
+                    </View>
+                  )}
+                  {!chartTooltip && <Text style={[styles.chartInfoText, { marginLeft: 'auto' }]}>Tap a point</Text>}
+                </View>
+                {chartTooltip && (
+                  <Text style={[styles.chartInfoText, { marginTop: 6 }]}>
+                    {`${chartTooltip.label}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.weighed ? ' (your weigh-in)' : ' (predicted)'}${chartTooltip.changeFromStart != null ? `  ·  ${Math.abs(chartTooltip.changeFromStart).toFixed(2)} ${weightUnit} ${chartTooltip.changeFromStart > 0 ? 'gain' : chartTooltip.changeFromStart < 0 ? 'loss' : 'change'} vs Sun` : ''}`}
                   </Text>
-                </View>
-                <View style={styles.axisRow}>
-                  {chart.labels.map((l, i) => <Text key={i} style={styles.axisLabel}>{l}</Text>)}
-                </View>
+                )}
                 {staleWeighInNote ? <Text style={[styles.mutedSmall, { marginTop: 8 }]}>{staleWeighInNote}</Text> : null}
                 {trendNote && (
                   <View style={[styles.nudgeBox, (trendBadge?.label === 'Too Aggressive' || trendBadge?.label === 'Stalled') && styles.nudgeBoxUrgent]}>
@@ -1955,9 +1987,7 @@ const ProgressTab = ({
                 </View>
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: `${pace.pct}%`, backgroundColor: accent }]} />
-                  {pace.planPct != null && (
-                    <View style={[styles.planMarker, { left: `${pace.planPct}%`, backgroundColor: colors.text }]} />
-                  )}
+                  <View style={[styles.planMarker, { left: `${pace.pct}%`, marginLeft: -1, backgroundColor: colors.text }]} />
                 </View>
                 <View style={styles.rowBetween}>
                   <Text style={styles.mutedSmall}>{startingWeight} {weightUnit} start</Text>
@@ -2261,6 +2291,10 @@ const makeStyles = (c) => StyleSheet.create({
   bigStat: { color: c.text, fontSize: 19, fontWeight: '800' },
   bigStatSub: { color: c.textSecondary, fontSize: 13, fontWeight: '600' },
   chartInfoRow: { minHeight: 16, marginTop: 6, alignItems: 'center' },
+  chartKeyRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 8 },
+  chartKeyItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chartKeyText: { color: c.textSecondary, fontSize: 11, fontWeight: '600' },
+  chartKeyDot: { width: 8, height: 8, borderRadius: 4 },
   chartInfoText: { color: c.textMuted, fontSize: 11, fontWeight: '600' },
   axisRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 6 },
   axisLabel: { color: c.textMuted, fontSize: 10, fontWeight: '600' },

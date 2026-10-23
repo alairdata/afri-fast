@@ -14,6 +14,7 @@ import LumiRive from './LumiRive';
 import { useSavedRecipes, toggleSavedRecipe } from '../lib/savedRecipes';
 import { showAlert } from '../lib/alert';
 import ShimmerImage from './ShimmerImage';
+import HeaderFade from './HeaderFade';
 
 // ── Ingredient amount scaler ─────────────────────────────────────────────────
 
@@ -28,6 +29,28 @@ const toNiceFraction = (n) => {
   const fracStr = key ? fracs[key] : (frac > 0.05 ? `${Math.round(frac * 4)}/4` : '');
   if (whole === 0) return fracStr || String(Math.round(n * 10) / 10);
   return fracStr ? `${whole}${fracStr}` : String(Math.round(n * 10) / 10);
+};
+
+// The label above a recipe's name: the kind of dish, read from its name, never a meal time like "Lunch".
+const DISH_TYPES = [
+  [/drink/i, 'DRINK', 'category'],
+  [/soup/i, 'SOUP'],
+  [/rice|waakye/i, 'RICE DISH'],
+  [/porridge|\bpap\b|koko|oatmeal|kunu/i, 'PORRIDGE'],
+  [/yam/i, 'YAM DISH'],
+  [/beans|moi moi/i, 'BEANS DISH'],
+  [/stew|sauce/i, 'STEW'],
+  [/salad/i, 'SALAD'],
+  [/suya|grilled/i, 'GRILL'],
+  [/plantain|dodo/i, 'PLANTAIN DISH'],
+  [/tilapia|fish/i, 'FISH DISH'],
+  [/indomie/i, 'NOODLES'],
+  [/dessert/i, 'SWEET TREAT', 'category'],
+  [/snack/i, 'SNACK', 'category'],
+];
+const dishLabel = (recipe) => {
+  const hit = DISH_TYPES.find(([re, , field]) => re.test(field === 'category' ? recipe.category || '' : recipe.name || ''));
+  return hit ? hit[1] : null;
 };
 
 const scaleAmount = (amount, scale) => {
@@ -132,6 +155,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={detail.container}>
+        <HeaderFade bg="#FFFFFF" />
         {/* Header */}
         <View style={detail.header}>
           <TouchableOpacity style={detail.closeBtn} onPress={onClose}>
@@ -165,8 +189,8 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
           )}
 
           <View style={detail.body}>
-            {/* Category label */}
-            <Text style={detail.categoryLabel}>{recipe.category.toUpperCase()}</Text>
+            {/* What kind of dish it is (not a meal time: people eat the same dish at any time of day) */}
+            {dishLabel(recipe) ? <Text style={detail.categoryLabel}>{dishLabel(recipe)}</Text> : null}
 
             {/* Title + description */}
             <Text style={detail.title}>{displayName}</Text>
@@ -692,6 +716,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
     // 20) like a true full-screen capture UI; otherwise this sits below it so
     // the tab bar stays visible, since this now only renders as the Ideas tab.
     <View style={[styles.overlay, showCamera && { zIndex: 9999 }]}>
+      <HeaderFade bg="#F2F2F2" />
       <View style={styles.page}>
         {/* Header: Recipes is a tab now, so no back arrow; the bookmark opens saved recipes */}
         <View style={styles.header}>
@@ -1123,7 +1148,6 @@ const detail = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)',
   },
   closeBtn: {
     width: 36, height: 36, borderRadius: 18,

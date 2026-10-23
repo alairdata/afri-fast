@@ -4,6 +4,7 @@ import { SourcesLink } from './HealthSourcesPage';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform, Alert, Keyboard } from 'react-native';
 import Svg, { Path, Rect, Ellipse, Defs, LinearGradient, Stop, ClipPath, G } from 'react-native-svg';
 import { showAlert } from '../lib/alert';
+import HeaderFade from './HeaderFade';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -150,6 +151,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
 
   return (
     <View style={styles.overlay}>
+      <HeaderFade bg="#F2F2F2" />
       <View style={styles.page}>
         {/* Header */}
         <View style={styles.header}>

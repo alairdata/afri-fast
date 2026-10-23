@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import HeaderFade from './HeaderFade';
 import {
   View,
   Text,
@@ -404,6 +405,7 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
 
   return (
     <View style={styles.overlay}>
+      <HeaderFade bg="#FAFBFF" />
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.headerBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="close" size={24} color="#374151" />
@@ -548,7 +550,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 20,
     paddingBottom: 8,
-    backgroundColor: '#FAFBFF',
   },
   headerBtn: {
     width: 40,

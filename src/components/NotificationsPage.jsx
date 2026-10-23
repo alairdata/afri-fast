@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, SafeAreaView } from 'react-native';
 import { useTheme } from '../lib/theme';
 import { getInbox, onInboxChange, markAllSeen } from '../lib/notificationInbox';
+import HeaderFade from './HeaderFade';
 
 const ICONS = {
   meal: { name: 'restaurant-outline', color: '#059669', bg: '#ECFDF5' },
@@ -44,7 +45,8 @@ const NotificationsPage = ({ visible, onClose, onOpenItem }) => {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={[styles.page, { backgroundColor: colors.bg }]}>
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <HeaderFade bg={colors.bg} />
+        <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.headerBtn} accessibilityLabel="Close" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="chevron-down" size={24} color={colors.text} />
           </TouchableOpacity>
@@ -90,7 +92,7 @@ const NotificationsPage = ({ visible, onClose, onOpenItem }) => {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12 },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 17, fontWeight: '700' },
   emptyTitle: { fontSize: 16, fontWeight: '700', marginTop: 12 },

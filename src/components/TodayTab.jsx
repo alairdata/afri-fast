@@ -13,6 +13,7 @@ import { SourceList, SourcesLink } from './HealthSourcesPage';
 import { DayMealsCard, ShimmerLogButton } from './MealPages';
 import Svg, { Path } from 'react-native-svg';
 import RiveCalorieGauge from './RiveCalorieGauge';
+import HeaderFade from './HeaderFade';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -887,6 +888,26 @@ const TodayTab = ({
   };
   const calHistory = getWeekCalHistory();
 
+  // This week (Mon-today): days with a meal, their average calories (the ledger's settled totals) and
+  // days within 70-115% of the goal that was active that day.
+  const weekLogStats = (() => {
+    const monday = new Date(); monday.setHours(0, 0, 0, 0); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const byDateLive = {};
+    (recentMeals || []).forEach((m) => {
+      const t = m.timestamp || new Date(m.date).getTime();
+      if (isNaN(t) || t < monday.getTime() || !(m.calories > 0)) return;
+      byDateLive[m.date] = (byDateLive[m.date] || 0) + m.calories;
+    });
+    const dates = Object.keys(byDateLive);
+    if (!dates.length) return { daysLogged: 0, avgCals: null, goalDays: dailyCalorieGoal ? 0 : null };
+    const byDate = dates.map((ds) => [ds, resolveCaloriesEaten(ledgerMap, ds, byDateLive[ds])]);
+    const goalDays = dailyCalorieGoal ? byDate.filter(([ds, cal]) => {
+      const goal = resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal);
+      const r = cal / goal; return r >= 0.7 && r <= 1.15;
+    }).length : null;
+    return { daysLogged: dates.length, avgCals: Math.round(byDate.reduce((sum, [, cal]) => sum + cal, 0) / dates.length), goalDays };
+  })();
+
   // This week (Mon-Sun): logged activities, their minutes and estimated kcal, and which days were active.
   const weekActivity = (() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -956,11 +977,12 @@ const TodayTab = ({
 
   return (
     <View style={styles.wrapper}>
+      <HeaderFade />
       {Platform.OS === 'web' && <View style={{ height: 44 }} />}
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}>
         {/* Header: greeting, calendar, notifications, and the week strip that picks the day shown below */}
-        <LinearGradient colors={isDark ? [colors.appBg, colors.appBg] : ['#CFF3DE', '#E9F8EF', colors.appBg]} locations={isDark ? undefined : [0, 0.55, 1]} style={styles.greetHeader}>
+        <View style={styles.greetHeader}>
           <View style={styles.greetRow}>
             <TouchableOpacity style={styles.greetAvatar} onPress={onOpenSettings} accessibilityLabel="Open settings">
               {profileImage ? (
@@ -998,7 +1020,7 @@ const TodayTab = ({
               </TouchableOpacity>
             ))}
           </View>
-        </LinearGradient>
+        </View>
 
         {/* Calorie gauge hero, for the day picked above */}
         <View style={styles.heroCardCompact}>
@@ -1150,11 +1172,48 @@ const TodayTab = ({
           </ScrollView>
         </View>
 
+        {/* This Week (Mon-Sun): days logged, average calories and days on goal, then which days had a meal logged */}
+        <View style={styles.activityCard}>
+          <View style={styles.activityHead}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="calendar-outline" size={16} color={colors.text} />
+              <Text style={styles.activityTitle}>This Week</Text>
+            </View>
+            <TouchableOpacity onPress={onNavigateToProgress} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.activitySeeAll}>See all</Text>
+              <Ionicons name="arrow-forward" size={13} color="#047857" />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {[
+              [weekLogStats.daysLogged, 'Days logged'],
+              [weekLogStats.avgCals, 'Avg cal'],
+              [weekLogStats.goalDays, 'Goal days'],
+            ].map(([value, label]) => (
+              <View key={label} style={styles.activityStat}>
+                <Text style={styles.activityStatValue}>{value == null ? '--' : value.toLocaleString()}</Text>
+                <Text style={styles.activityStatLabel}>{label}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.activityWeekLabel}>Days you logged your meals</Text>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {weekDays.map((letter, i) => (
+              <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+                <View style={[styles.activityDot, calHistory[i] === true && styles.loggedDotOn, calHistory[i] === null && { opacity: 0.5 }]}>
+                  {calHistory[i] === true && <Ionicons name="checkmark" size={13} color="#fff" />}
+                </View>
+                <Text style={styles.activityDayLetter}>{letter}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
         {/* Activities this week (Mon-Sun) */}
         <View style={styles.activityCard}>
           <View style={styles.activityHead}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="barbell-outline" size={16} color="#F97316" />
+              <Ionicons name="barbell-outline" size={16} color={colors.text} />
               <Text style={styles.activityTitle}>Activities</Text>
             </View>
             <TouchableOpacity onPress={onShowActivityLog} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -1204,159 +1263,6 @@ const TodayTab = ({
             ))}
           </ScrollView>
         </View>
-
-        {/* This Week */}
-        <View style={[styles.sectionTight, { marginTop: 16 }]}>
-          <View style={styles.historyHeader}>
-            <Text style={styles.sectionTitleTightInline}>This Week</Text>
-            <TouchableOpacity onPress={onNavigateToProgress}>
-              <Text style={styles.seeAllBtn}>See all</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.historyCard}>
-            <Text style={styles.historyCardSubtitle}>Days you logged your meals</Text>
-            <View style={styles.historyDots}>
-              {weekDays.map((day, i) => (
-                <View key={i} style={styles.historyDay}>
-                  {calHistory[i] === true ? (
-                    <LinearGradient colors={['#6EE7B7', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.historyDot}>
-                      <Ionicons name="checkmark" size={18} color="#fff" />
-                    </LinearGradient>
-                  ) : (
-                    <View style={[
-                      styles.historyDot,
-                      {
-                        backgroundColor: calHistory[i] === null ? colors.cardAlt : 'transparent',
-                        borderWidth: calHistory[i] === false ? 2 : 0,
-                        borderColor: calHistory[i] === false ? colors.border : 'transparent',
-                      }
-                    ]} />
-                  )}
-                  <Text style={[styles.dayLabel, { color: i === (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1) ? '#059669' : colors.textMuted }]}>{day}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* Your Stats */}
-        <View style={styles.sectionTight}>
-          <View style={styles.historyHeader}>
-            <Text style={styles.sectionTitleTightInline}>Your Stats</Text>
-            <TouchableOpacity onPress={onNavigateToProgress}>
-              <Text style={styles.seeAllBtn}>See all</Text>
-            </TouchableOpacity>
-          </View>
-          {(() => {
-            const now = new Date();
-            const cutoff7 = now.getTime() - 7 * 24 * 60 * 60 * 1000;
-            const week7Meals = (recentMeals || []).filter(m => {
-              const t = m.timestamp || new Date(m.date).getTime();
-              return !isNaN(t) && t >= cutoff7;
-            });
-            const daysLogged = new Set(week7Meals.map(m => m.date)).size;
-            const byDate7Live = {};
-            week7Meals.forEach(m => { byDate7Live[m.date] = (byDate7Live[m.date] || 0) + (m.calories || 0); });
-            // Ledger's real eaten total per day, not the live recompute -- falls back to live
-            // only for a day the ledger hasn't caught up to yet (today, before the next hourly
-            // refresh).
-            const byDate7 = {};
-            Object.entries(byDate7Live).forEach(([ds, liveTotal]) => {
-              byDate7[ds] = resolveCaloriesEaten(ledgerMap, ds, liveTotal);
-            });
-            const totalCals7 = Object.values(byDate7).reduce((s, c) => s + c, 0);
-            const avgCals = daysLogged > 0 ? Math.round(totalCals7 / daysLogged) : 0;
-            // Each day judged against the goal that was active THAT day, not today's live
-            // goal — otherwise changing your goal retroactively repaints the past week.
-            const daysOnTarget = Object.entries(byDate7).filter(([ds, dc]) => {
-              if (!dc || !dailyCalorieGoal) return false;
-              const dayGoal = resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal);
-              const r = dc / dayGoal; return r >= 0.7 && r <= 1.15;
-            }).length;
-            // "On track"/"High" is judged against the average of each logged day's own goal,
-            // not today's live goal — a week mostly logged under an old goal shouldn't get
-            // graded against whatever the goal was just changed to.
-            const loggedDates7 = Object.keys(byDate7);
-            const avgGoal7 = loggedDates7.length
-              ? loggedDates7.reduce((s, ds) => s + resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal), 0) / loggedDates7.length
-              : dailyCalorieGoal;
-
-            return (
-              <View style={styles.statsGrid}>
-                <View style={styles.statCard}>
-                  <Text style={styles.statValue}>{daysLogged > 0 ? avgCals.toLocaleString() : '--'}</Text>
-                  <Text style={styles.statLabel}>Avg daily cal</Text>
-                  {daysLogged > 0 && dailyCalorieGoal > 0 && (
-                    <View style={styles.statBadge}>
-                      <Text style={styles.statBadgeText}>{avgCals <= avgGoal7 * 1.1 ? 'On track' : 'High'}</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.statCard}>
-                  <Text style={styles.statValue}>{daysLogged > 0 ? daysLogged : '--'}</Text>
-                  <Text style={styles.statLabel}>Days logged</Text>
-                  {daysLogged > 0 && (
-                    <View style={[styles.statBadge, { backgroundColor: daysLogged >= 5 ? '#E8F5E9' : '#FFF3E0' }]}>
-                      <Text style={[styles.statBadgeText, { color: daysLogged >= 5 ? '#2E7D32' : '#E65100' }]}>{daysLogged >= 5 ? 'Great' : 'Keep going'}</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.statCard}>
-                  <Text style={styles.statValue}>{dailyCalorieGoal ? daysOnTarget : '--'}</Text>
-                  <Text style={styles.statLabel}>Goal days (7d)</Text>
-                  {dailyCalorieGoal > 0 && daysOnTarget > 0 && (
-                    <View style={[styles.statBadge, { backgroundColor: '#E8F5E9' }]}>
-                      <Text style={[styles.statBadgeText, { color: '#2E7D32' }]}>{'\u{1F525}'}</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            );
-          })()}
-        </View>
-
-        {/* Calories & Hydration */}
-        <View style={styles.sectionTight}>
-          <View style={styles.wellnessCard}>
-            <View style={styles.wellnessItem}>
-              <Text style={styles.wellnessIcon}>{'\u{1F372}'}</Text>
-              <View style={styles.wellnessInfo}>
-                <Text style={styles.wellnessLabel}>Today's Calories</Text>
-                <Text style={styles.wellnessValue}>{todayCalories > 0 ? `${todayCalories.toLocaleString()} cal` : '--'}</Text>
-              </View>
-            </View>
-            <View style={styles.wellnessDivider} />
-            <View style={styles.wellnessItem}>
-              <Text style={styles.wellnessIcon}>{'\u{1F4A7}'}</Text>
-              <View style={styles.wellnessInfo}>
-                <Text style={styles.wellnessLabel}>Hydration</Text>
-                <Text style={styles.wellnessValue}>{(() => {
-                  const logs = waterLogs || [];
-                  const today = new Date().toDateString();
-                  const todayLogs = logs.filter(l => l.date === today);
-                  if (todayLogs.length === 0) return '--';
-                  const totalML = todayLogs.reduce((sum, l) => {
-                    const ml = l.unit === 'mL' ? l.amount : l.unit === 'oz' ? l.amount * 29.574 : l.unit === 'sachet' ? l.amount * 500 : l.unit === 'bottle' ? l.amount * 750 : l.amount * 237;
-                    return sum + ml;
-                  }, 0);
-                  return `${(totalML / 1000).toFixed(1)} L`;
-                })()}</Text>
-              </View>
-              {onQuickAddWater && (
-                undoWaterId != null ? (
-                  <TouchableOpacity style={styles.waterAddBtn} onPress={undoQuickWater} activeOpacity={0.7}>
-                    <Text style={[styles.waterAddText, { color: '#6B7280' }]}>Undo</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity style={styles.waterAddBtn} onPress={quickAddWater} activeOpacity={0.7} accessibilityLabel={`Add ${quickWaterLabel(volumeUnit)} of water`}>
-                    <Ionicons name="add" size={18} color="#059669" />
-                  </TouchableOpacity>
-                )
-              )}
-            </View>
-          </View>
-        </View>
-
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -1465,6 +1371,7 @@ const makeStyles = (c) => StyleSheet.create({
   activityWeekLabel: { fontSize: 12, color: c.textSecondary, marginTop: 14, marginBottom: 8 },
   activityDot: { width: '100%', aspectRatio: 1, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: c.cardAlt === '#F3F4F6' ? '#F7F7F8' : c.cardAlt, alignItems: 'center', justifyContent: 'center' },
   activityDotOn: { backgroundColor: '#F97316', borderColor: '#F97316' },
+  loggedDotOn: { backgroundColor: '#059669', borderColor: '#059669' },
   activityDayLetter: { fontSize: 11, color: c.textSecondary },
   activityLogBtn: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 999, borderWidth: 1, borderColor: '#D1D5DB', backgroundColor: c.card },
   activityLogBtnText: { fontSize: 14, fontWeight: '600', color: c.text },

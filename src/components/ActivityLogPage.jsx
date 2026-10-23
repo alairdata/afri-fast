@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
+import HeaderFade from './HeaderFade';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const ACCENT = '#F97316';
@@ -25,6 +26,7 @@ const ActivityLogPage = ({ show, onClose, activities, setActivities, onActivityD
 
   return (
     <View style={styles.overlay}>
+      <HeaderFade bg="#F8FAFC" />
       <View style={styles.page}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={onClose}>
@@ -98,7 +100,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 16, paddingHorizontal: 20,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)',
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,

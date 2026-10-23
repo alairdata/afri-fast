@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
 import { computeTdeeSummary, projectGoal, fromKg, MIN_CALORIES, MAX_SURPLUS, MAX_TARGET_NO_TDEE } from '../lib/tdeeSummary';
 import { SourcesLink } from './HealthSourcesPage';
+import HeaderFade from './HeaderFade';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -122,6 +123,7 @@ const CalorieTargetPage = ({
 
   return (
     <View style={styles.overlay}>
+      <HeaderFade bg="#F8FAFC" />
       <View style={styles.page}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={onClose} accessibilityLabel="Close">
@@ -273,8 +275,7 @@ const styles = StyleSheet.create({
   page: { width: '100%', maxWidth: 430, alignSelf: 'center', height: SCREEN_HEIGHT, flexDirection: 'column', flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 16, paddingHorizontal: 20, backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)',
+    paddingVertical: 16, paddingHorizontal: 20,
   },
   backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(5,150,105,0.08)', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 18, fontWeight: '700', color: '#1F1F1F' },
