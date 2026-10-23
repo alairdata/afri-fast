@@ -1,24 +1,29 @@
-// How long a plate is likely to keep someone full ("Full for ~X hrs" on Fit it in's Your plate).
+// How satisfying a plate is and how long until hunger returns ("Full for ~X" on Fit it in's Your plate).
+// Two separate questions, worked out from the food and the person's body (never from meal-log times, which
+// don't show when someone actually got hungry):
 //
-// The measure is the satiety ratio: minutes until the next meal per kcal eaten (de Castro & Elmore 1988).
-//   1. A starting ratio from the person's own energy use: their daily burn (TDEE, from weight, height, age,
-//      activity and, once there is history, their logs) spread over the waking day. A bigger burn means the
-//      same plate runs out sooner.
-//   2. What the plate is made of: measured Satiety Index values of the closest common foods (Holt 1995:
-//      boiled potatoes most filling, croissants least), protein (Weigle 2005), fibre (Wanders 2011) and energy
-//      density (Rolls 2009). Each effect is bounded to a realistic size.
-//   3. Their own meal log: how long they actually go after a meal of a given size before logging the next
-//      one. It takes over gradually as meals build up; overnight gaps and batch-logged meals are ignored.
+//   How satisfying: how much food it is (stomach fill), its protein, its fibre, and how filling the foods are
+//   (the Satiety Index of the closest measured food, Holt 1995; Rolls 2009 on food volume; Weigle 2005 on
+//   protein; Wanders 2011 on fibre).
+//
+//   How long: modelled on stomach emptying. Solid food waits about 20 minutes, then a mixed meal leaves the
+//   stomach at roughly 2.5 kcal a minute (Hunt 1985; Brener 1983). Protein, fat and fibre slow it; bulky,
+//   low-calorie food (vegetables, soup solids) takes extra room and time; the Satiety Index scales it; and a
+//   bigger daily energy burn (weight, height, age, activity) uses the meal up a little sooner.
 
-const WAKING_MIN = 16 * 60;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const LAG_MIN = 20;
+const KCAL_PER_MIN = 2.5;
+const BULK_MIN_PER_G = 0.25;
+const REF_TDEE = 2200;
+const TYPICAL_SI = 130; // an ordinary mixed plate
 
-// Satiety Index (white bread = 100) of the closest measured food, Holt et al. 1995. African foods are mapped
-// to the nearest food that was actually tested; foods with no close match (soups, stews, sauces) are left out
-// and the plate is judged on its other foods and its make-up.
+// Satiety Index (white bread = 100) of the closest food Holt et al. 1995 actually tested. Foods with no close
+// match (soups, stews, sauces, salads, garden egg) are left out and judged on their make-up alone.
 const SATIETY_INDEX = [
+  [/garden ?egg|eggplant|aubergine|soup|stew|sauce|salad|shito|pepper/i, null],
   [/kelewele|fried plantain|dodo|chips|fries|fried yam|fried potato/i, 116], // French fries
-  [/puff ?puff|doughnut|donut|bofrot|mandazi|buns?\b/i, 68], // doughnuts
+  [/puff ?puff|doughnut|donut|bofrot|mandazi|\bbuns?\b/i, 68], // doughnuts
   [/croissant|pastry|meat ?pie|sausage roll/i, 47],
   [/cake|muffin/i, 65],
   [/chin ?chin|biscuit|cookie/i, 120],
@@ -27,14 +32,14 @@ const SATIETY_INDEX = [
   [/yog(h)?urt/i, 88],
   [/groundnut|peanut|kuli ?kuli/i, 84],
   [/potato|yam|cassava|cocoyam|taro|ampesi|boiled plantain|unripe plantain/i, 323], // boiled potatoes
-  [/oat|porridge|koko|\bpap\b|akamu|ogi|tom brown|hausa koko/i, 209], // porridge
+  [/oat|porridge|koko|\bpap\b|akamu|ogi|tom brown/i, 209], // porridge
   [/fish|tilapia|mackerel|sardine|wele|kpomo|shrimp|prawn|crab/i, 225], // ling fish
   [/beef|goat|chicken|turkey|meat|suya|steak|gizzard|liver|lamb/i, 176], // beef steak
-  [/egg/i, 150],
+  [/\beggs?\b/i, 150],
   [/beans|red red|akara|moi ?moi|cowpea|black-eyed/i, 168], // baked beans
   [/lentil|chickpea/i, 133],
   [/brown rice/i, 132],
-  [/rice|jollof|waakye|fried rice|benachin/i, 138], // white rice
+  [/rice|jollof|waakye|benachin/i, 138], // white rice
   [/pasta|spaghetti|macaroni|noodle|indomie/i, 119],
   [/wholemeal|whole ?wheat|brown bread/i, 157],
   [/bread|toast|agege/i, 100],
@@ -47,17 +52,22 @@ const SATIETY_INDEX = [
   [/fufu|banku|eba|kenkey|tuo|amala|pounded|semo|garri|gari/i, 138], // dense starch: closest tested is white rice
 ];
 const siOf = (name = '') => { const hit = SATIETY_INDEX.find(([re]) => re.test(name)); return hit ? hit[1] : null; };
-const TYPICAL_SI = 130; // a mixed everyday plate
 
-// How much longer (or shorter) than an average plate of the same calories this one should keep them full.
-export function plateFactor(foods = []) {
-  const kcal = foods.reduce((s, f) => s + (f.cal || 0), 0);
-  if (kcal <= 0) return { factor: 1, driver: null };
-  const g = (k) => foods.reduce((s, f) => s + (Number(f[k]) || 0), 0);
-  const protein = g('protein'), fat = g('fats'), fibre = g('fiber');
-  const grams = foods.reduce((s, f) => { const m = String(f.qty || '').match(/(\d+(?:\.\d+)?)\s*g\b/); return s + (m ? Number(m[1]) : 0); }, 0);
+// Grams of a food: its own grams, the "(230 g)" in its amount, or, failing both, a typical 1.5 kcal per gram.
+export const gramsOf = (f) => {
+  if (Number(f.grams) > 0) return Number(f.grams);
+  const m = String(f.qty || '').match(/(\d+(?:\.\d+)?)\s*g\b/i);
+  if (m) return Number(m[1]);
+  return (f.cal || 0) / 1.5;
+};
 
-  // Satiety Index of the foods we can match, weighted by their calories.
+export function estimateSatiety({ foods = [], tdee } = {}) {
+  const sum = (k) => foods.reduce((s, f) => s + (Number(f[k]) || 0), 0);
+  const kcal = sum('cal'), protein = sum('protein'), fat = sum('fats'), fibre = sum('fiber');
+  const grams = foods.reduce((s, f) => s + gramsOf(f), 0);
+  if (kcal <= 0 && grams <= 0) return { hours: 0, level: 'Light', driver: null, protein: 0 };
+
+  // How filling the foods are, weighted by their calories (only the ones the study measured).
   let siKcal = 0, siSum = 0, top = null;
   foods.forEach((f) => {
     const si = siOf(f.name);
@@ -65,79 +75,38 @@ export function plateFactor(foods = []) {
     siKcal += f.cal; siSum += si * f.cal;
     if (!top || si * f.cal > top.score) top = { name: f.name, si, score: si * f.cal };
   });
-  const coverage = siKcal / kcal;
+  const coverage = kcal > 0 ? siKcal / kcal : 0;
   const si = siKcal > 0 ? siSum / siKcal : TYPICAL_SI;
-  const fSI = Math.pow(clamp(si, 47, 323) / TYPICAL_SI, 0.3 * coverage);
 
-  // The make-up effects overlap with the Satiety Index (it already reflects them), so they count for less when
-  // most of the plate was matched.
-  const damp = 1 - 0.5 * coverage;
-  const proteinShare = (protein * 4) / kcal, fatShare = (fat * 9) / kcal;
-  const fProtein = 1 + damp * clamp((proteinShare - 0.15) * 1.0, -0.08, 0.2);
-  const fFibre = 1 + damp * clamp((fibre - 5) * 0.012, -0.05, 0.12);
-  const fFat = 1 + damp * clamp((fatShare - 0.3) * 0.25, -0.04, 0.05);
-  const density = grams > 0 ? kcal / grams : null;
-  const fDensity = density == null ? 1 : 1 + damp * clamp((1.6 - density) * 0.08, -0.1, 0.1);
+  // How long: stomach emptying.
+  const proteinShare = kcal > 0 ? (protein * 4) / kcal : 0;
+  const fatShare = kcal > 0 ? (fat * 9) / kcal : 0;
+  const slow = clamp(1 + 0.5 * (proteinShare - 0.15) + 0.3 * (fatShare - 0.3) + 0.02 * fibre, 0.85, 1.4);
+  const energyMin = (kcal / KCAL_PER_MIN) * slow;
+  const bulkMin = Math.max(0, grams - kcal / 2) * BULK_MIN_PER_G;
+  const fSI = Math.pow(clamp(si, 47, 323) / TYPICAL_SI, 0.5 * coverage);
+  const body = tdee ? clamp(Math.sqrt(REF_TDEE / tdee), 0.8, 1.25) : 1;
+  const minutes = (LAG_MIN + energyMin + bulkMin) * fSI * body;
 
-  const factor = clamp(fSI * fProtein * fFibre * fFat * fDensity, 0.6, 1.6);
-  let driver = null;
-  if (top && top.si >= 160) driver = `the ${top.name.toLowerCase()} and ${Math.round(protein)}g of protein`;
-  else if (proteinShare >= 0.22) driver = `${Math.round(protein)}g of protein`;
-  else if (fibre >= 8) driver = `${Math.round(fibre)}g of fibre`;
-  else if (top && top.si <= 100) driver = null;
-  return { factor, driver, protein, fibre };
+  // How satisfying: stomach fill, protein, fibre, how filling the foods are.
+  const score = 40 * Math.min(1, grams / 500) + 30 * Math.min(1, protein / 30) + 15 * Math.min(1, fibre / 8)
+    + 15 * clamp((si - 47) / (323 - 47), 0, 1);
+  const level = score >= 65 ? 'Very satisfying' : score >= 40 ? 'Satisfying' : 'Light';
+
+  // The main reasons, in plain words.
+  const reasons = [];
+  if (top && top.si >= 200) reasons.push(`filling ${top.name.toLowerCase()}`);
+  if (grams >= 400) reasons.push('a big plate');
+  else if (grams - kcal / 2 >= 80) reasons.push('bulky but light');
+  if (protein >= 20) reasons.push(`${Math.round(protein)}g of protein`);
+  if (fibre >= 6) reasons.push(`${Math.round(fibre)}g of fibre`);
+  if (!reasons.length && top && top.si <= 100) reasons.push(`${top.name.toLowerCase()} doesn't fill you for long`);
+  const driver = reasons.length ? reasons.slice(0, 2).join(' and ') : null;
+
+  return { hours: minutes / 60, level, score, driver, protein, grams };
 }
 
-// Their own satiety ratio from the meal log: gap to the next logged meal per kcal, with the plate effect taken
-// out so meals of any make-up compare fairly.
-export function personalRatio(meals = []) {
-  const timed = (meals || [])
-    .map((m) => ({ ...m, t: m.timestamp || (typeof m.id === 'number' ? m.id : NaN) }))
-    .filter((m) => Number.isFinite(m.t) && (m.calories || 0) >= 100)
-    .sort((a, b) => a.t - b.t);
-  const ratios = [], gaps = [];
-  for (let i = 0; i < timed.length - 1; i++) {
-    const a = timed[i], b = timed[i + 1];
-    if (new Date(a.t).toDateString() !== new Date(b.t).toDateString()) continue; // overnight
-    const gapMin = (b.t - a.t) / 60000;
-    if (gapMin < 45 || gapMin > 7 * 60) continue; // batch-logged, or a missed log in between
-    const foods = Array.isArray(a.foods) && a.foods.length
-      ? a.foods
-      : [{ name: a.name, cal: a.calories, protein: a.protein, fats: a.fats, fiber: a.fiber }];
-    ratios.push(gapMin / a.calories / plateFactor(foods).factor);
-    gaps.push(gapMin);
-  }
-  if (ratios.length < 3) return { ratio: null, gapMin: null, n: ratios.length };
-  gaps.sort((x, y) => x - y);
-  ratios.sort((x, y) => x - y);
-  return { ratio: ratios[Math.floor(ratios.length / 2)], gapMin: gaps[Math.floor(gaps.length / 2)], n: ratios.length };
-}
-
-// The estimate for a plate: hours until hungry again, a High/Medium/Low label, and what it's based on.
-export function estimateSatiety({ foods = [], tdee, meals = [] }) {
-  const kcal = foods.reduce((s, f) => s + (f.cal || 0), 0);
-  const base = WAKING_MIN / clamp(tdee || 2000, 1200, 4500); // minutes per kcal
-  const mine = personalRatio(meals);
-  let ratio = base;
-  if (mine.ratio) {
-    const w = mine.n / (mine.n + 10);
-    ratio = Math.exp(w * Math.log(clamp(mine.ratio, base * 0.5, base * 2)) + (1 - w) * Math.log(base));
-  }
-  const plate = plateFactor(foods);
-  const hours = clamp((kcal * ratio * plate.factor) / 60, 0, 12);
-  return {
-    hours,
-    // Judged against how long they usually go between meals (their log, or the waking day over three meals).
-    level: (() => { const usual = (mine.gapMin || WAKING_MIN / 3) / 60; const r = hours / usual; return r >= 0.75 ? 'High' : r >= 0.45 ? 'Medium' : 'Low'; })(),
-    usualHours: (mine.gapMin || WAKING_MIN / 3) / 60,
-    driver: plate.driver,
-    protein: plate.protein || 0,
-    personal: !!mine.ratio,
-    mealsUsed: mine.n,
-  };
-}
-
-// The estimate as it is, to the minute: "37 mins", "1 hr", "2 hrs 17 mins".
+// The estimate as it is, to the minute: "37 mins", "1 hr", "3 hrs 8 mins".
 export function formatFullFor(hours) {
   const total = Math.max(1, Math.round(hours * 60));
   const h = Math.floor(total / 60), m = total % 60;

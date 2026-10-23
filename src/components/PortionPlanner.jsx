@@ -12,7 +12,7 @@ import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import { track } from '../lib/analytics';
 import HeaderFade from './HeaderFade';
 import { SourcesLink } from './HealthSourcesPage';
-import { estimateSatiety, satietyCurve, formatFullFor } from '../lib/satiety';
+import { estimateSatiety, satietyCurve, formatFullFor, gramsOf } from '../lib/satiety';
 
 // "Fit it in": the person already has food (bought it, or it's at home) and wants portions that fit
 // the calories they have left. Four steps: what you have → how much to use → working it out → your plate.
@@ -102,7 +102,7 @@ const toFood = (f) => {
   const k = f.grams / 100;
   const r1 = (v) => Math.round((v || 0) * k * 10) / 10;
   return {
-    name: f.name, qty: `${measureOf(f, f.grams)} (${f.grams} g)`, cal: Math.round(f.kcal100 * k),
+    name: f.name, qty: `${measureOf(f, f.grams)} (${f.grams} g)`, grams: f.grams, cal: Math.round(f.kcal100 * k),
     protein: r1(f.protein100), carbs: r1(f.carbs100), fats: r1(f.fat100), fiber: r1(f.fiber100), sugar: r1(f.sugar100), sodium: Math.round((f.sodium100 || 0) * k),
   };
 };
@@ -113,7 +113,7 @@ const measureOf = (f, g) => {
   return `${frac(n)} ${n > 1.125 ? f.unitMany : f.unitOne}`;
 };
 
-const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', onLogPlate, tdee = null, recentMeals = [] }) => {
+const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', onLogPlate, tdee = null }) => {
   const [step, setStep] = useState('input'); // input | budget | loading | plate
   const [text, setText] = useState('');
   const [photo, setPhoto] = useState(null);
@@ -261,15 +261,15 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const sum = (key) => items.reduce((s, i) => s + (i[key] || 0), 0);
   // How long this plate should keep them full: their energy use, the foods' measured Satiety Index, protein,
   // fibre and density, tuned by how long they usually go between logged meals (src/lib/satiety.js).
-  const satEst = useMemo(() => estimateSatiety({ foods: items, tdee, meals: recentMeals }), [items, tdee, recentMeals]);
+  const satEst = useMemo(() => estimateSatiety({ foods: items, tdee }), [items, tdee]);
   const sat = useMemo(() => satietyCurve(satEst.hours), [satEst.hours]);
-  const LEVEL_COLORS = { High: ['#D1FAE5', '#047857'], Medium: ['#FEF3C7', '#B45309'], Low: ['#FEE2E2', '#B91C1C'] };
+  const LEVEL_COLORS = { 'Very satisfying': ['#D1FAE5', '#047857'], Satisfying: ['#ECFDF5', '#047857'], Light: ['#FEF3C7', '#B45309'] };
 
   // Scale a food's calories and nutrients together (the scan screen's −/+ and typed calories).
   const scaleFood = (f, newCal) => {
     const ratio = f.cal > 0 ? newCal / f.cal : 0;
     const r1 = (v) => (ratio > 0 ? Math.round((v || 0) * ratio * 10) / 10 : v);
-    return { ...f, cal: newCal, protein: r1(f.protein), carbs: r1(f.carbs), fats: r1(f.fats), fiber: r1(f.fiber), sugar: r1(f.sugar), sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium };
+    return { ...f, cal: newCal, grams: ratio > 0 ? Math.round(gramsOf(f) * ratio) : f.grams, protein: r1(f.protein), carbs: r1(f.carbs), fats: r1(f.fats), fiber: r1(f.fiber), sugar: r1(f.sugar), sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium };
   };
   const nudgeCal = (i, d) => setFoods((prev) => prev.map((f, idx) => (idx === i ? scaleFood(f, Math.max(0, f.cal + d)) : f)));
   const resetEditing = () => { setIsFoodEditMode(false); setEditingQtyIdx(null); setEditingCalIdx(null); setShowAddItem(false); setNewItemName(''); };
@@ -286,6 +286,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
       ...f,
       name: r?.name || f.name,
       qty: r?.qty || newQty,
+      grams: (() => { const g = String(r?.qty || newQty).match(/(d+(?:.d+)?)s*g/i); if (g) return Number(g[1]); const c = r?.cal > 0 ? r.cal : f.cal; return f.cal > 0 ? Math.round(gramsOf(f) * (c / f.cal)) : undefined; })(),
       cal: r?.cal > 0 ? r.cal : f.cal,
       protein: r?.protein ?? f.protein ?? 0, carbs: r?.carbs ?? f.carbs ?? 0, fats: r?.fats ?? f.fats ?? 0,
       fiber: r?.fiber ?? f.fiber ?? 0, sugar: r?.sugar ?? f.sugar ?? 0, sodium: r?.sodium ?? f.sodium ?? 0,
@@ -298,7 +299,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
     if (!name) return;
     setAddItemDetecting(true);
     const r = await callApi('lookup_nutrition', { itemName: name }).catch(() => null);
-    setFoods((prev) => [...prev, r || { name, qty: '1 serving', cal: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, sugar: 0, sodium: 0 }]);
+    setFoods((prev) => [...prev, r ? { ...r, grams: gramsOf(r) } : { name, qty: '1 serving', cal: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, sugar: 0, sodium: 0 }]);
     setNewItemName('');
     setAddItemDetecting(false);
     setShowAddItem(false);
@@ -584,7 +585,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               <View style={styles.axisRow}>{sat.ticks.map((l) => <Text key={l} style={styles.axisText}>{l}</Text>)}</View>
               <View style={styles.satBasisRow}>
                 <Text style={styles.satBasis}>
-                  {satEst.personal ? `Tuned to your last ${satEst.mealsUsed} meals and your energy needs` : 'Based on your energy needs and these foods. Log more meals and it learns how long you usually last.'}
+                  Based on how much food this is, its protein and fibre, how filling these foods are, and your body's energy needs.
                 </Text>
                 <SourcesLink topic="satiety" only label="Sources" color={MUTED} />
               </View>

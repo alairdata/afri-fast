@@ -2815,7 +2815,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       <PortionPlanner
         visible={showPortionPlanner}
         userCountry={userCountry}
-        recentMeals={recentMeals}
         tdee={showPortionPlanner ? computeTdeeSummary({ weightLogs, recentMeals, weightUnit, startingWeight, age, sex, height, heightUnit, activityLevel }).tdee : null}
         caloriesLeft={(() => {
           const day = (selectedMealDate ? new Date(selectedMealDate) : new Date()).toDateString();
