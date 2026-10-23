@@ -13,6 +13,7 @@ import { unlock } from './ProLock';
 import LumiRive from './LumiRive';
 import { useSavedRecipes, toggleSavedRecipe } from '../lib/savedRecipes';
 import { showAlert } from '../lib/alert';
+import ShimmerImage from './ShimmerImage';
 
 // ── Ingredient amount scaler ─────────────────────────────────────────────────
 
@@ -156,7 +157,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
         <ScrollView style={detail.scroll} showsVerticalScrollIndicator={false}>
           {/* Image */}
           {recipe.imageUrl ? (
-            <Image source={{ uri: recipe.imageUrl }} style={detail.heroImage} resizeMode="cover" />
+            <ShimmerImage uri={recipe.imageUrl} style={detail.heroImage} />
           ) : (
             <View style={[detail.heroImage, detail.heroPlaceholder]}>
               <Text style={detail.heroEmoji}>🍽️</Text>
@@ -287,7 +288,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
                       <View style={detail.communityAvatar}>
                         <Ionicons name="person-circle" size={36} color="#059669" />
                       </View>
-                      <Image source={{ uri: p.photo_url }} style={detail.communityPhoto} resizeMode="cover" />
+                      <ShimmerImage uri={p.photo_url} style={detail.communityPhoto} />
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -318,7 +319,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
                 <View style={detail.card}>
                   {/* Photo */}
                   <View style={[detail.cardImgPanel, { height: 340 }]}>
-                    <Image source={{ uri: communityCard.photo_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    <ShimmerImage uri={communityCard.photo_url} style={StyleSheet.absoluteFill} />
                   </View>
                   {/* Detected foods */}
                   <View style={detail.cardInfoPanel}>
@@ -425,10 +426,9 @@ export const RecipeCard = ({ recipe, onPress, userCountry }) => {
   return (
     <TouchableOpacity style={styles.recipeCard} onPress={onPress}>
       {showImg ? (
-        <Image
-          source={{ uri: recipe.imageUrl }}
+        <ShimmerImage
+          uri={recipe.imageUrl}
           style={styles.recipeCardImg}
-          resizeMode="cover"
           onError={() => setImgError(true)}
         />
       ) : (
@@ -658,7 +658,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
     return (
       <TouchableOpacity key={recipe.id} style={styles.recipeCard} onPress={() => (locked ? unlock('recipe') : openRecipe(recipe))}>
         {recipe.imageUrl ? (
-          <Image source={{ uri: recipe.imageUrl }} style={styles.recipeCardImg} resizeMode="cover" />
+          <ShimmerImage uri={recipe.imageUrl} style={styles.recipeCardImg} />
         ) : (
           <View style={[styles.recipeCardImg, { alignItems: 'center', justifyContent: 'center' }]}>
             <Text style={styles.recipeCardEmoji}>🍽️</Text>
