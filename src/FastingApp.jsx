@@ -70,6 +70,7 @@ import NutritionQuizPage from './components/NutritionQuizPage';
 
 // Modal components
 import LogMealModal, { saveCommunityPhotos, setCommunitySharingEnabled } from './components/LogMealModal';
+import PortionPlanner from './components/PortionPlanner';
 import { processPendingMealPhotos } from './lib/mealPhotoUpload';
 import { AFRICAN_RECIPES } from './lib/africanRecipes';
 import { uploadAvatar } from './lib/avatarUpload';
@@ -242,6 +243,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   const conflictBypassStartTime = useRef(null);
   const [isOffline, setIsOffline] = useState(false);
   const [showLogMealModal, setShowLogMealModal] = useState(false);
+  const [showPortionPlanner, setShowPortionPlanner] = useState(false);
   const [showLogMealOptions, setShowLogMealOptions] = useState(false);
   const [logMealOpenedFromOptions, setLogMealOpenedFromOptions] = useState(false);
   // "Ask" in the log-meal picker grid hides that grid to show its own screen —
@@ -1493,8 +1495,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   const startMealLog = async (method) => {
     if (!canLogMealOn(selectedMealDate)) return;
     // Scan, voice and text all go through Google Gemini, so they need AI consent; 'manual' never does.
-    if (['scan', 'say', 'write'].includes(method) && !(await ensureAiConsent())) { setShowLogMealOptions(true); showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; }
+    if (['scan', 'say', 'write', 'fit'].includes(method) && !(await ensureAiConsent())) { setShowLogMealOptions(true); showToast("AI features are off. Use 'Enter it yourself', or turn AI on in Settings › Privacy Settings."); return; }
     setShowLogMealOptions(false);
+    // Fit it in: plan portions of food they already have; logging the plate goes through the logger below.
+    if (method === 'fit') { setShowPortionPlanner(true); return; }
     setLogMealMethod(method);
     setLogMealOpenedFromOptions(true);
     setShowLogMealModal(true);
@@ -2805,6 +2809,24 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           track('first_meal_prompt', { choice: method });
           await startMealLog(method);
           setLogMealOpenedFromOptions(false); // closing the logger goes back to Today, not the options sheet
+        }}
+      />
+      <PortionPlanner
+        visible={showPortionPlanner}
+        userCountry={userCountry}
+        caloriesLeft={(() => {
+          const day = (selectedMealDate ? new Date(selectedMealDate) : new Date()).toDateString();
+          const eaten = recentMeals.filter((m) => m.date === day).reduce((sum, m) => sum + (m.calories || 0), 0);
+          return Math.max(0, (dailyCalorieGoal || 0) - eaten);
+        })()}
+        onClose={(backToOptions) => { setShowPortionPlanner(false); if (backToOptions) setShowLogMealOptions(true); }}
+        onLogPlate={(meal) => {
+          if (!canLogMealOn(selectedMealDate)) return;
+          setShowPortionPlanner(false);
+          setChatMealToLog(meal);
+          setLogMealMethod('chat');
+          setLogMealOpenedFromOptions(false);
+          setShowLogMealModal(true);
         }}
       />
       <LogMealModal

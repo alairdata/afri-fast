@@ -343,15 +343,21 @@ const MealPages = ({
               </Text>
             </View>
 
-            {/* Scan: the main way, full width */}
-            <TouchableOpacity style={styles.scanCard} onPress={() => handleLogMethod('scan')} activeOpacity={0.85} accessibilityLabel="Scan your food">
-              <View style={styles.scanCardTop}>
-                <Ionicons name="camera-outline" size={24} color="#16A34A" />
-                <Ionicons name="arrow-up-outline" size={15} color="#16A34A" style={{ transform: [{ rotate: '45deg' }] }} />
-              </View>
-              <Text style={styles.scanCardTitle}>Scan your food</Text>
-              <Text style={styles.scanCardDesc}>Take a photo and let Logga estimate your meal.</Text>
-            </TouchableOpacity>
+            {/* Scan (log what you ate) and Fit it in (portions of food you already have that fit your calories) */}
+            <View style={styles.optionRow}>
+              <TouchableOpacity style={{ flex: 1 }} onPress={() => handleLogMethod('scan')} activeOpacity={0.85} accessibilityLabel="Scan your food">
+                <LinearGradient colors={['#34D399', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroTile}>
+                  <View style={[styles.heroTileIcon, { backgroundColor: 'rgba(255,255,255,0.22)' }]}><Ionicons name="camera-outline" size={20} color="#fff" /></View>
+                  <Text style={styles.heroTileTitle}>Scan your food</Text>
+                  <Text style={styles.heroTileDesc}>Snap it and Logga estimates it</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.heroTile, { flex: 1, backgroundColor: '#064E3B' }]} onPress={() => handleLogMethod('fit')} activeOpacity={0.85} accessibilityLabel="Fit it in, get portions that fit your calories">
+                <View style={[styles.heroTileIcon, { backgroundColor: 'rgba(255,255,255,0.14)' }]}><Ionicons name="pie-chart-outline" size={20} color="#fff" /></View>
+                <Text style={styles.heroTileTitle}>Fit it in</Text>
+                <Text style={[styles.heroTileDesc, { color: 'rgba(255,255,255,0.85)' }]}>Get portions that fit your calories</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.optionRow}>
               <TouchableOpacity style={styles.optionCard} onPress={() => handleLogMethod('say')} activeOpacity={0.85} accessibilityLabel="Say it">
@@ -523,6 +529,10 @@ const makeStyles = (c) => StyleSheet.create({
   scanCardTitle: { fontSize: 18, fontWeight: '600', color: '#1F1F1F', marginTop: 36 },
   scanCardDesc: { fontSize: 13, color: '#4B5563', marginTop: 12 },
   optionRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  heroTile: { flex: 1, borderRadius: 20, padding: 16, gap: 10 },
+  heroTileIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  heroTileTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  heroTileDesc: { fontSize: 12, lineHeight: 17, color: 'rgba(255,255,255,0.92)' },
   optionCard: { flex: 1, borderRadius: 14, paddingTop: 18, paddingHorizontal: 14, paddingBottom: 22, backgroundColor: '#FCFCFC' },
   optionTitle: { fontSize: 16, fontWeight: '600', color: '#1F1F1F', marginTop: 24 },
   optionDesc: { fontSize: 12, color: '#4B5563', marginTop: 10 },

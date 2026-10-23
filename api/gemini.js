@@ -171,6 +171,31 @@ const PATTERN_INSIGHT_SCHEMA = {
   required: ['title', 'body'],
 };
 
+const PORTION_PLAN_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    isFood: { type: 'BOOLEAN' },
+    whatIsItIfNotFood: { type: 'STRING' },
+    title: { type: 'STRING', description: 'Short meal title, starch first, e.g. "Rice and garden egg stew".' },
+    foods: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING' },
+          kcal100: { type: 'NUMBER' }, protein100: { type: 'NUMBER' }, carbs100: { type: 'NUMBER' }, fat100: { type: 'NUMBER' },
+          fiber100: { type: 'NUMBER' }, sugar100: { type: 'NUMBER' }, sodium100: { type: 'NUMBER', description: 'mg per 100 g' },
+          unitGrams: { type: 'NUMBER' }, unitOne: { type: 'STRING' }, unitMany: { type: 'STRING' },
+          grams: { type: 'NUMBER', description: 'Planned portion in grams.' },
+        },
+        required: ['name', 'kcal100', 'protein100', 'carbs100', 'fat100', 'unitGrams', 'unitOne', 'unitMany', 'grams'],
+      },
+    },
+    tip: { type: 'STRING' },
+  },
+  required: ['isFood', 'foods', 'title', 'tip'],
+};
+
 // ── Core fetch helper ────────────────────────────────────────────────────────
 
 async function callGemini(apiKey, parts, { systemInstruction, schema } = {}) {
@@ -284,6 +309,44 @@ export default async function handler(req, res) {
         title: parsed.title || null,
         foods: (parsed.foods || []).map(f => normalizeFood(f)),
       });
+    }
+
+    // ── Fit it in: plan portions of food they already have to a calorie amount ──
+    if (type === 'plan_portions') {
+      const { text: haveText, base64, budget, userCountry } = data;
+      const target = Math.max(100, Math.min(3000, Math.round(Number(budget) || 0)));
+      if (!haveText && !base64) return res.status(400).json({ error: 'Tell us what food you have' });
+      const parts = [{
+        text: `The person already has this food (they bought it or it's at home, so they don't know exactly how it was made)${haveText ? `: "${String(haveText).slice(0, 600)}"` : ' (see the photo)'}.\n` +
+          `They want to eat about ${target} kcal of it now.${userCountry ? ` They live in ${userCountry}; use local dish names and the usual local way of preparing each food, oil included.` : ''}\n\n` +
+          'Identify each distinct food. For each give realistic nutrition per 100 g as typically prepared, a household measure people use for it (unitOne and unitMany, e.g. "cup cooked"/"cups cooked", "ladle"/"ladles", "piece"/"pieces", "slice"/"slices", "medium fish"/"medium fish") and how many grams one of that measure weighs (unitGrams).\n' +
+          `Then plan grams of each so the plate totals ${target} kcal (within 5%). Favour protein and vegetables so it keeps them full, keep starch and fried foods moderate, and give every food they have at least a small portion unless it is only a condiment.\n` +
+          'tip: one short, practical sentence that would let them fit more in or feel fuller (a swap or a cooking choice). No medical claims, no guilt, never suggest skipping meals.\n' +
+          'If there is no food at all, set isFood to false and say what you see in whatIsItIfNotFood.',
+      }];
+      if (base64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: base64 } });
+      const raw = await callGemini(GEMINI_KEY, parts, { systemInstruction: `${NUTRITION_SYSTEM}\n\n${MEDICAL_SAFETY}`, schema: PORTION_PLAN_SCHEMA });
+      const parsed = parseJson(raw);
+      if (!parsed) return res.status(500).json({ error: 'Could not plan that meal. Try again.' });
+      if (!parsed.isFood) return res.json({ notFood: true, identified: parsed.whatIsItIfNotFood || '' });
+
+      const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+      let foods = (parsed.foods || []).filter((f) => f && f.name && num(f.kcal100) > 0).slice(0, 8).map((f) => ({
+        name: String(f.name),
+        kcal100: num(f.kcal100), protein100: num(f.protein100), carbs100: num(f.carbs100), fat100: num(f.fat100),
+        fiber100: num(f.fiber100), sugar100: num(f.sugar100), sodium100: num(f.sodium100),
+        unitGrams: Math.max(5, num(f.unitGrams) || 100), unitOne: f.unitOne || 'serving', unitMany: f.unitMany || f.unitOne || 'servings',
+        grams: Math.max(0, num(f.grams)),
+      }));
+      if (!foods.length) return res.json({ notFood: true, identified: '' });
+      // Hold the plan to the amount they chose: scale every portion if the model's total drifted.
+      const total = foods.reduce((s, f) => s + (f.kcal100 * f.grams) / 100, 0);
+      const factor = total > 0 ? target / total : 1;
+      if (total <= 0 || Math.abs(factor - 1) > 0.05) {
+        foods = foods.map((f) => ({ ...f, grams: total > 0 ? f.grams * factor : (target / foods.length / f.kcal100) * 100 }));
+      }
+      foods = foods.map((f) => ({ ...f, grams: Math.max(5, Math.round(f.grams / 5) * 5) }));
+      return res.json({ title: parsed.title || null, tip: parsed.tip || '', foods });
     }
 
     // ── Nutrition lookup ─────────────────────────────────────────────────────
