@@ -233,7 +233,7 @@ const ShareCardImage = ({ uri, height, style }) => {
   );
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, goalHistory = [], dailyGoalLedger = [], recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, chatMealToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, goalHistory = [], dailyGoalLedger = [], recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, chatMealToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null, onQuickCheckIn = null }) => {
   // These screens are full-screen layers that sit BELOW the top of the phone (under the notch area), but the
   // keyboard measures from the top of the screen. Without telling it about that gap it lifts the input by too
   // little and the keyboard still covers part of what you type.
@@ -374,6 +374,23 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const effectiveTitle = mealTitle && (titleFoodsRef.current == null || titleFoodsRef.current === foodNamesKey)
     ? mealTitle
     : (detectedFoods.length ? titleFromFoods() : mealTitle);
+  // Quick check-in before a meal is saved: stomach and mood chips, then log (or skip and log). Skipped when
+  // this meal already has a check-in.
+  const [quickCheckIn, setQuickCheckIn] = useState(null); // { doLog }
+  const [quickPicks, setQuickPicks] = useState({ stomach: [], mood: [] });
+  const requestLog = (doLog) => {
+    if (!onQuickCheckIn || collectCheckInIcons(mealCheckInSnapshot).length) { doLog(); return; }
+    setQuickPicks({ stomach: [], mood: [] });
+    setQuickCheckIn({ doLog });
+  };
+  const finishQuickCheckIn = (save) => {
+    const pending = quickCheckIn;
+    setQuickCheckIn(null);
+    if (save && (quickPicks.stomach.length || quickPicks.mood.length)) {
+      onQuickCheckIn({ satietyMoods: quickPicks.stomach, emotionalMoods: quickPicks.mood });
+    }
+    pending?.doLog?.();
+  };
   // The meal's name on the share card: the (current) title, else its first food.
   const cardMealName = (effectiveTitle || viewingMeal?.name || detectedFoods?.[0]?.name || '').split(',')[0].trim();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -430,18 +447,26 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setScanPhase('recipeConfirm');
   }, [show, recipeToLog]);
 
-  // When opened with a meal already worked out in the Ask chat, log it and skip straight to the share card
+  // When opened with a meal already worked out in the Ask chat (or Fit it in), show the quick check-in, then
+  // log it and go straight to the share card.
   useLayoutEffect(() => {
     if (!show || !chatMealToLog) return;
+    const foodsNow = (chatMealToLog.foods || []).map((f, i) => ({ ...f, id: i }));
+    setMealTitle(chatMealToLog.title || null);
+    setDetectedFoods(foodsNow);
+    requestLog(() => logChatMeal(chatMealToLog));
+  }, [show, chatMealToLog]);
+
+  const logChatMeal = (meal) => {
     const mealDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
     const isToday = mealDate.toDateString() === new Date().toDateString();
     const timeStr = `${isToday ? 'Today' : mealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${mealDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
     const mealId = Date.now();
-    const foods = (chatMealToLog.foods || []).map((f, i) => ({ ...f, id: i }));
+    const foods = (meal.foods || []).map((f, i) => ({ ...f, id: i }));
     if (onSaveMeal) {
       onSaveMeal({
         id: mealId,
-        name: chatMealToLog.title || foods.map(f => f.name).join(', '),
+        name: meal.title || foods.map(f => f.name).join(', '),
         calories: foods.reduce((sum, f) => sum + (f.cal || 0), 0),
         protein: foods.reduce((sum, f) => sum + (f.protein || 0), 0),
         carbs: foods.reduce((sum, f) => sum + (f.carbs || 0), 0),
@@ -455,13 +480,13 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         foods,
       });
     }
-    setMealTitle(chatMealToLog.title || null);
+    setMealTitle(meal.title || null);
     setDetectedFoods(foods);
     setCapturedPhoto(null);
     setCapturedPhotoSize(null);
     setLoggedMealId(mealId);
     setScanPhase('shareCard');
-  }, [show, chatMealToLog]);
+  };
 
   useEffect(() => {
     if (scanPhase !== 'results' || detectedFoods.length > 0 || scanError) return;
@@ -1380,7 +1405,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   {renderCheckInWidget()}
 
                   {/* Log Meal */}
-                  <TouchableOpacity style={styles.logBtn} onPress={logMeal}>
+                  <TouchableOpacity style={styles.logBtn} onPress={() => requestLog(logMeal)}>
                     <Text style={styles.logBtnText}>Log Meal</Text>
                   </TouchableOpacity>
                 </View>
@@ -1680,7 +1705,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
             {renderCheckInWidget()}
 
-            <TouchableOpacity style={[styles.logBtn, { marginHorizontal: 20 }]} onPress={logMeal}>
+            <TouchableOpacity style={[styles.logBtn, { marginHorizontal: 20 }]} onPress={() => requestLog(logMeal)}>
               <Text style={styles.logBtnText}>Log Meal</Text>
             </TouchableOpacity>
           </ScrollView>
@@ -1796,32 +1821,27 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   const rawPct = cardGoal > 0 ? dayTotal / cardGoal : 0;
                   const isOver = rawPct > 1;
                   const barPct = Math.min(rawPct, 1);
-                  const remaining = Math.max(cardGoal - dayTotal, 0);
+                  // Meal name on its own full-width line, then the day's total so far (this meal included),
+                  // then the Deficit target bar on its own line so a big number never squeezes it.
                   return (
                     <View style={styles.shareCardKcalSection}>
-                      <View style={styles.shareCardKcalRow}>
-                        <View style={styles.shareCardKcalBig}>
-                          {!!cardMealName && <Text style={styles.shareCardMealName} numberOfLines={2}>{cardMealName}</Text>}
-                          <Text style={styles.shareCardKcalLabel}>This food was</Text>
-                          <View style={styles.shareCardKcalNumberRow}>
-                            <Text style={[styles.shareCardKcalNumber, mealCal >= 1000 && { fontSize: 40, letterSpacing: -2 }]}>{mealCal}</Text>
-                            <Text style={styles.shareCardKcalUnit}>kcal</Text>
-                          </View>
+                      {!!cardMealName && <Text style={[styles.shareCardMealName, { flex: 0 }]} numberOfLines={2}>{cardMealName}</Text>}
+                      <Text style={[styles.shareCardKcalLabel, { marginTop: 10, marginBottom: 4 }]}>Total calories</Text>
+                      <View style={styles.shareCardKcalNumberRow}>
+                        <Text style={styles.shareCardKcalNumber}>{String(Math.round(dayTotal || mealCal))}</Text>
+                        <Text style={styles.shareCardKcalUnit}>kcal</Text>
+                      </View>
+                      <View style={{ marginTop: 14, gap: 8 }}>
+                        <View style={styles.shareCardProgressMeta}>
+                          <Text style={styles.shareCardProgressLabel}>Deficit target</Text>
+                          <Text style={[styles.shareCardProgressPct, isOver && { color: '#f97316' }]}>{Math.round(rawPct * 100)}%</Text>
                         </View>
-                        <View style={[styles.shareCardProgressCol, { justifyContent: 'flex-end', gap: 8 }]}>
-                          <View style={styles.shareCardProgressMeta}>
-                            <Text style={styles.shareCardProgressLabel}>Deficit target</Text>
-                            <Text style={[styles.shareCardProgressPct, isOver && { color: '#f97316' }]}>{Math.round(rawPct * 100)}%</Text>
-                          </View>
-                          <View style={{ marginBottom: 10 }}>
-                          <View style={styles.shareCardProgressBar}>
-                            <LinearGradient
-                              colors={isOver ? ['#f97316', '#ef4444'] : ['#22c55e', '#86efac']}
-                              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                              style={[styles.shareCardProgressFill, { width: `${Math.round(barPct * 100)}%` }]}
-                            />
-                          </View>
-                          </View>
+                        <View style={styles.shareCardProgressBar}>
+                          <LinearGradient
+                            colors={isOver ? ['#f97316', '#ef4444'] : ['#22c55e', '#86efac']}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                            style={[styles.shareCardProgressFill, { width: `${Math.round(barPct * 100)}%` }]}
+                          />
                         </View>
                       </View>
                     </View>
@@ -1857,6 +1877,10 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <Text style={styles.shareCardFoodCal}>{food.cal} cal</Text>
                     </View>
                   ))}
+                  <View style={[styles.shareCardFoodRow, { justifyContent: 'space-between', borderTopColor: 'rgba(0,0,0,0.08)' }]}>
+                    <Text style={styles.shareCardFoodsTotalLabel}>Total detected food calories</Text>
+                    <Text style={styles.shareCardFoodsTotalValue}>{detectedFoods.reduce((s, f) => s + (f.cal || 0), 0).toLocaleString()} cal</Text>
+                  </View>
                 </View>
               )}
 
@@ -2194,7 +2218,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   {renderCheckInWidget()}
 
                   {/* Log Button */}
-                  <TouchableOpacity style={styles.logBtn} onPress={logMeal}>
+                  <TouchableOpacity style={styles.logBtn} onPress={() => requestLog(logMeal)}>
                     <Text style={styles.logBtnText}>Log this meal</Text>
                   </TouchableOpacity>
                 </View>
@@ -2234,6 +2258,53 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
           )}
         </ScrollView>
       </View>
+
+      {/* Quick check-in before logging */}
+      {quickCheckIn && (
+        <View style={styles.qcBackdrop}>
+          <LinearGradient colors={['#DDF6E7', '#E9F8EF', '#F4FBF7', '#FFFFFF']} locations={[0, 0.12, 0.3, 0.5]} style={styles.qcSheet}>
+            <View style={styles.qcGrabber} />
+            <Text style={styles.qcKicker}>QUICK CHECK-IN</Text>
+            <Text style={styles.qcTitle}>How are you feeling about this meal?</Text>
+            <Text style={styles.qcSub}>Tap all that fit. It helps Logga spot how food affects you.</Text>
+            {[
+              ['Your stomach', 'stomach', ['Full', 'Satisfied', 'Still hungry', 'Bloated', 'Uncomfortable'], '#F0FDF4', '#22C55E'],
+              ['Your mood', 'mood', ['Happy', 'Energized', 'Calm', 'Guilty', 'Stressed'], '#FAF5FF', '#9333EA'],
+            ].map(([label, key, options, bg, ring]) => (
+              <View key={key}>
+                <Text style={styles.qcGroup}>{label}</Text>
+                <View style={styles.qcChips}>
+                  {options.map((o) => {
+                    const on = quickPicks[key].includes(o);
+                    return (
+                      <TouchableOpacity
+                        key={o}
+                        style={[styles.qcChip, { backgroundColor: bg, borderColor: on ? ring : 'transparent' }]}
+                        onPress={() => setQuickPicks((prev) => ({ ...prev, [key]: on ? prev[key].filter((x) => x !== o) : [...prev[key], o] }))}
+                        accessibilityState={{ selected: on }}
+                      >
+                        <Text style={styles.qcChipText}>{on ? `✓ ${o}` : o}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+            {!!onOpenCheckIn && (
+              <TouchableOpacity onPress={openMiniCheckIn} style={{ marginTop: 14 }}>
+                <Text style={styles.qcMore}>More detail (body, place, company) ›</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.qcPrimary} onPress={() => finishQuickCheckIn(true)} activeOpacity={0.85}>
+              <Ionicons name="checkmark" size={18} color="#fff" />
+              <Text style={styles.qcPrimaryText}>{quickPicks.stomach.length || quickPicks.mood.length ? 'Save feelings & log meal' : 'Log meal'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => finishQuickCheckIn(false)} style={{ alignSelf: 'center', padding: 8, marginTop: 6 }}>
+              <Text style={styles.qcSkip}>Skip and log</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
+      )}
 
       {/* Scan — Camera (absolute full screen overlay) */}
       {logMealMethod === 'scan' && scanPhase === 'camera' && (
@@ -2891,6 +2962,22 @@ const styles = StyleSheet.create({
   shareCardFoodName: { flex: 1, fontSize: 13, fontWeight: '500', color: '#1F1F1F' },
   shareCardFoodQty: { fontSize: 12, color: '#9CA3AF', fontWeight: '400' },
   shareCardFoodCal: { fontSize: 13, fontWeight: '700', color: '#059669', minWidth: 52, textAlign: 'right' },
+  qcBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end', zIndex: 10001 },
+  qcSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 10, paddingHorizontal: 20, paddingBottom: 34 },
+  qcGrabber: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#D1D5DB', alignSelf: 'center', marginBottom: 16 },
+  qcKicker: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: '#059669' },
+  qcTitle: { fontSize: 21, fontWeight: '800', letterSpacing: -0.4, lineHeight: 27, color: '#1F1F1F', marginTop: 6 },
+  qcSub: { fontSize: 14, lineHeight: 20, color: '#4B5563', marginTop: 6 },
+  qcGroup: { fontSize: 13, fontWeight: '700', color: '#1F1F1F', marginTop: 16 },
+  qcChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  qcChip: { paddingVertical: 9, paddingHorizontal: 13, borderRadius: 14, borderWidth: 1.5 },
+  qcChipText: { fontSize: 13, fontWeight: '600', color: '#1F1F1F' },
+  qcMore: { fontSize: 13, fontWeight: '600', color: '#047857' },
+  qcPrimary: { marginTop: 18, height: 54, borderRadius: 16, backgroundColor: '#059669', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  qcPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  qcSkip: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
+  shareCardFoodsTotalLabel: { flex: 1, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: '#1F1F1F' },
+  shareCardFoodsTotalValue: { fontSize: 15, fontWeight: '800', color: '#059669' },
   macroCard: {
     alignSelf: 'stretch',
     backgroundColor: '#fff',

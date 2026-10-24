@@ -2008,12 +2008,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     ]).start(() => setToastMessage(''));
   };
 
-  const saveCheckIn = (data = {}) => {
+  // sourceOverride: the quick check-in on the meal screen saves as a meal check-in without opening this page.
+  const saveCheckIn = (data = {}, sourceOverride = null) => {
     const now = new Date();
     const dateStr = now.toDateString();
     const existingCI = checkInHistory.find(c => c.date === dateStr);
 
-    if (checkInSource === 'meal') {
+    if ((sourceOverride || checkInSource) === 'meal') {
       // Merge ALL fields from this meal's check-in into the master — never wipe other data.
       // If the master row predates v2Data, rebuild a baseline from its legacy fields.
       const existingV2 = existingCI?.v2Data || (existingCI ? {
@@ -2942,6 +2943,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         recentMeals={recentMeals}
         checkInHistory={checkInHistory}
         mealCheckInSnapshot={mealCheckInSnapshot}
+        onQuickCheckIn={(data) => saveCheckIn(data, 'meal')}
         onOpenCheckIn={() => openCheckInPage('meal')}
         volumeUnit={volumeUnit}
         viewingMeal={viewingMeal}

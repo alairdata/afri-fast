@@ -21,6 +21,7 @@ export const CHECKIN_ICON_SECTIONS = {
       'Frustrated':  'close-circle-outline',
       'Indifferent': 'remove-circle-outline',
       'Distracted':  'shuffle-outline',
+      'Guilty':      'alert-circle-outline',
     },
   },
   satietyMoods: {
@@ -36,6 +37,9 @@ export const CHECKIN_ICON_SECTIONS = {
       'Motivated':     'trending-up-outline',
       'Numb':          'remove-circle-outline',
       'Restless':      'walk-outline',
+      'Satisfied':     'happy-outline',
+      'Still hungry':  'fast-food-outline',
+      'Bloated':       'ellipse-outline',
     },
   },
   fastingSymptoms: {
