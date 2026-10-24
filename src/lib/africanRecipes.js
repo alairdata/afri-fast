@@ -1156,7 +1156,7 @@ export const AFRICAN_RECIPES = [
       "Cool completely — they only get crunchy once cold."
     ],
     "imageFilename": "chin-chin-baked.jpg",
-  "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/88/Chin-chin.jpg",
+  "imageUrl": "https://afri-fast.vercel.app/food/chin-chin-bowl.jpg",
     "fastingFriendly": false
   },
   {
@@ -1354,7 +1354,7 @@ export const AFRICAN_RECIPES = [
       "Cool at least 20 mins; it hardens into crunchy candy as it cools."
     ],
     "imageFilename": "coconut-candy.jpg",
-  "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/7/74/Coconut_Candy_%2852311610055%29.jpg",
+  "imageUrl": "https://afri-fast.vercel.app/food/coconut-candy-clusters.jpg",
     "fastingFriendly": false
   },
   {
