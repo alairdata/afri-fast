@@ -11,7 +11,7 @@ import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
 import { useSubscription } from '../lib/subscription';
 import { unlock } from './ProLock';
 import LumiRive from './LumiRive';
-import { useSavedRecipes, toggleSavedRecipe } from '../lib/savedRecipes';
+import { useSavedRecipes, toggleSavedRecipe, useCustomRecipes, removeCustomRecipe } from '../lib/savedRecipes';
 import { showAlert } from '../lib/alert';
 import ShimmerImage from './ShimmerImage';
 import HeaderFade from './HeaderFade';
@@ -165,10 +165,10 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
           {userId ? (
             <TouchableOpacity
               style={[detail.closeBtn, { marginRight: onLogMeal ? 10 : 0 }]}
-              onPress={() => toggleSavedRecipe(userId, recipe.id)}
-              accessibilityLabel={savedIds.includes(recipe.id) ? 'Remove from saved recipes' : 'Save recipe'}
+              onPress={() => (recipe.custom ? (removeCustomRecipe(userId, recipe.id), onClose()) : toggleSavedRecipe(userId, recipe.id))}
+              accessibilityLabel={recipe.custom || savedIds.includes(recipe.id) ? 'Remove from saved recipes' : 'Save recipe'}
             >
-              <Ionicons name={savedIds.includes(recipe.id) ? 'bookmark' : 'bookmark-outline'} size={17} color={savedIds.includes(recipe.id) ? '#059669' : '#4B5563'} />
+              <Ionicons name={recipe.custom || savedIds.includes(recipe.id) ? 'bookmark' : 'bookmark-outline'} size={17} color={recipe.custom || savedIds.includes(recipe.id) ? '#059669' : '#4B5563'} />
             </TouchableOpacity>
           ) : null}
           {onLogMeal && (
@@ -513,7 +513,8 @@ const recipesForCountry = (country) => {
   return [...matched, ...AFRICAN_RECIPES.filter(r => !matched.includes(r))];
 };
 
-const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
+const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen }) => {
+  const customRecipes = useCustomRecipes(userId);
   const savedIds = useSavedRecipes(userId);
   const [showSaved, setShowSaved] = useState(false);
   // The search box is well down the page. When the keyboard opens we scroll the page so the box sits at the
@@ -543,7 +544,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
     RECIPE_CATEGORIES.forEach(cat => { const first = visibleRecipes.find(r => r.category === cat); if (first) ids.add(first.id); });
     return ids;
   }, [visibleRecipes]);
-  const isLocked = (recipe) => !isPro && !freeRecipeIds.has(recipe.id);
+  const isLocked = (recipe) => !recipe.custom && !isPro && !freeRecipeIds.has(recipe.id);
 
   // 'List it': match recipes to the ingredients you type (no AI needed).
   const findFromList = () => {
@@ -722,7 +723,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
         <View style={styles.header}>
           <Text style={styles.pageHeading} accessibilityRole="header">What sounds good today?</Text>
           <TouchableOpacity style={styles.headerIconBtn} onPress={() => setShowSaved(true)} accessibilityLabel="Saved recipes">
-            <Ionicons name={savedIds.length ? 'bookmark' : 'bookmark-outline'} size={19} color="#1F1F1F" />
+            <Ionicons name={savedIds.length || customRecipes.length ? 'bookmark' : 'bookmark-outline'} size={19} color="#1F1F1F" />
           </TouchableOpacity>
         </View>
 
@@ -733,6 +734,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets
+          stickyHeaderIndices={[0]}
           contentContainerStyle={{ paddingBottom: searchFocused ? 420 : 100 }}
         >
           {/* Search */}
@@ -758,21 +760,16 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
             )}
           </View>
 
-          {/* Snap It / List It (Pro) */}
-          {SHOW_RECIPE_CREATORS && (<View style={styles.actionRow}>
-            <TouchableOpacity style={styles.actionCard} onPress={() => (isPro ? openCamera() : unlock('recipe_photo'))} accessibilityLabel="Snap It, cook with what you have">
-              <Ionicons name="camera-outline" size={22} color="#16A34A" />
-              <Text style={styles.actionTitle}>Snap It</Text>
-              <Text style={styles.actionDesc}>Cook with what you have</Text>
+          {/* Build a recipe from my kitchen (Pro): type, snap or say what you have and get a recipe that fits */}
+          <TouchableOpacity style={styles.kitchenCard} onPress={() => (isPro ? onOpenKitchen && onOpenKitchen() : unlock('recipe_photo'))} activeOpacity={0.85} accessibilityLabel="Build a recipe from my kitchen">
+            <View style={styles.kitchenIcon}><Ionicons name="restaurant-outline" size={20} color="#16A34A" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.kitchenTitle}>Build a recipe from my kitchen</Text>
+              <Text style={styles.actionDesc}>Snap a photo or list what you have</Text>
               {!isPro && <View style={styles.proPill}><Text style={styles.proPillText}>PRO</Text></View>}
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionCard} onPress={() => (isPro ? setListOpen(v => !v) : unlock('recipe_photo'))} accessibilityLabel="List It, enter your ingredients">
-              <Ionicons name="clipboard-outline" size={22} color="#16A34A" />
-              <Text style={styles.actionTitle}>List It</Text>
-              <Text style={styles.actionDesc}>Enter your ingredients</Text>
-              {!isPro && <View style={styles.proPill}><Text style={styles.proPillText}>PRO</Text></View>}
-            </TouchableOpacity>
-          </View>)}
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#6B7280" />
+          </TouchableOpacity>
 
           {/* Shop It (a grocery list from the meals you plan to cook) is hidden until it is built */}
 
@@ -951,7 +948,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId }) => {
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
             {(() => {
-              const saved = savedIds.map(id => AFRICAN_RECIPES.find(r => r.id === id)).filter(Boolean);
+              const saved = [...customRecipes, ...savedIds.map(id => AFRICAN_RECIPES.find(r => r.id === id)).filter(Boolean)];
               if (!saved.length) return (
                 <View style={{ alignItems: 'center', paddingVertical: 80 }}>
                   <Ionicons name="bookmark-outline" size={32} color="#9CA3AF" />
@@ -1012,6 +1009,9 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 20 },
 
   actionRow: { flexDirection: 'row', gap: 10 },
+  kitchenCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#E2E9E4', borderRadius: 16, padding: 14, marginBottom: 18 },
+  kitchenIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  kitchenTitle: { fontSize: 16, fontWeight: '700', color: '#1F1F1F' },
   actionCard: { flex: 1, backgroundColor: '#E2E9E4', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
   actionTitle: { fontSize: 16, fontWeight: '600', color: '#1F1F1F', marginTop: 8 },
   actionDesc: { fontSize: 12, color: '#4B5563', marginTop: 3 },
@@ -1037,6 +1037,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCFCFC', borderRadius: 10,
     paddingVertical: 13, paddingHorizontal: 14,
     marginBottom: 14,
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2,
   },
   searchInput: { flex: 1, fontSize: 14, color: '#1F1F1F' },
 

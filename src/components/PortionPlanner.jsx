@@ -13,9 +13,13 @@ import { track } from '../lib/analytics';
 import HeaderFade from './HeaderFade';
 import { SourcesLink } from './HealthSourcesPage';
 import { estimateSatiety, satietyCurve, formatFullFor, gramsOf } from '../lib/satiety';
+import { saveCustomRecipe } from '../lib/savedRecipes';
 
-// "Fit it in": the person already has food (bought it, or it's at home) and wants portions that fit
-// the calories they have left. Four steps: what you have → how much to use → working it out → your plate.
+// Two flows share this screen:
+//   "Fit it in" (mode 'fit'): food they already have, portioned to fit the calories they have left.
+//   "Build a recipe from my kitchen" (mode 'kitchen'): a recipe made from their ingredients, scaled to a calorie
+//   amount per person, with method, an AI photo and Save recipe.
+// Four steps either way: what you have → how much to use → working it out → the result.
 
 const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
 const INK = '#1F1F1F';
@@ -31,6 +35,40 @@ const STEP_LABELS = (cal) => [
   'Turning grams into cups and ladles',
 ];
 
+const COPY = {
+  fit: {
+    h1: 'Got food already?\nLet\u2019s make it fit.',
+    when: [
+      ['bag-handle-outline', 'You just bought it', 'Waakye on the way home, a pack of kelewele'],
+      ['help-circle-outline', 'You don\u2019t know how it was made', 'No recipe, no label, no problem'],
+      ['home-outline', 'It\u2019s already at home', 'Leftovers, Sunday\u2019s stew, whatever\u2019s in the fridge'],
+    ],
+    inputLabel: 'Tell Logga what food you have',
+    sheetTitle: 'How much should this meal use?',
+    steps: STEP_LABELS,
+    loadingTitle: 'Fitting it in\u2026', readyTitle: 'Your plate is ready', errorTitle: 'Couldn\u2019t plan that',
+    loadingSub: (cal) => `Working out portions for your ${cal} cal`,
+    seeBtn: 'See your plate',
+  },
+  kitchen: {
+    h1: 'What\u2019s in your kitchen?\nLet\u2019s build a recipe.',
+    when: [
+      ['basket-outline', 'Your fridge is half full', 'A few tomatoes, an onion, some chicken'],
+      ['help-circle-outline', 'You\u2019re out of ideas', 'Tell us what\u2019s around, we\u2019ll do the thinking'],
+      ['home-outline', 'You want to use up leftovers', 'Yesterday\u2019s rice, half a tin of beans'],
+    ],
+    inputLabel: 'Tell Logga what ingredients you have',
+    sheetTitle: 'How many calories for this recipe?',
+    steps: (cal) => ['Reading your ingredients', 'Matching dishes you can make', 'Picking the best one for you', 'Working out calories per ingredient', `Scaling it to ${cal} cal`, 'Writing your step-by-step method'],
+    loadingTitle: 'Building your recipe\u2026', readyTitle: 'Your recipe is ready', errorTitle: 'Couldn\u2019t build a recipe',
+    loadingSub: (cal) => `Creating a recipe that fits your ${cal} cal`,
+    seeBtn: 'See your recipe',
+  },
+};
+
+// Generated recipe photos, kept for the session so reopening a recipe never pays for a second picture.
+const recipeImageCache = new Map();
+
 const readUriAsBase64 = async (uri) => {
   if (Platform.OS === 'web') {
     if (uri.startsWith('data:')) return uri.split(',')[1];
@@ -45,7 +83,7 @@ const readUriAsBase64 = async (uri) => {
   return FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
 };
 
-async function planPortions({ text, photoUri, budget, userCountry }) {
+async function planPortions({ text, photoUri, budget, userCountry, type = 'plan_portions', servings }) {
   if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError();
   let base64 = null;
   if (photoUri) {
@@ -58,7 +96,7 @@ async function planPortions({ text, photoUri, budget, userCountry }) {
   const response = await fetch(`${BASE}/api/gemini`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'plan_portions', data: { text, base64, budget, userCountry } }),
+    body: JSON.stringify({ type, data: { text, base64, budget, userCountry, servings } }),
   });
   let result;
   try { result = JSON.parse(await response.text()); } catch { throw new Error('Something went wrong. Try again.'); }
@@ -113,8 +151,13 @@ const measureOf = (f, g) => {
   return `${frac(n)} ${n > 1.125 ? f.unitMany : f.unitOne}`;
 };
 
-const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', onLogPlate, tdee = null }) => {
+const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', onLogPlate, tdee = null, mode = 'fit', userId = null }) => {
+  const kitchen = mode === 'kitchen';
+  const copy = COPY[kitchen ? 'kitchen' : 'fit'];
   const [step, setStep] = useState('input'); // input | budget | loading | plate
+  const [servings, setServings] = useState(1);
+  const [recipeImage, setRecipeImage] = useState(null); // data URI, or 'failed'
+  const [savedRecipe, setSavedRecipe] = useState(false);
   const [text, setText] = useState('');
   const [photo, setPhoto] = useState(null);
   const lowBudget = caloriesLeft < 150;
@@ -215,7 +258,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   // Fresh each time it opens.
   useEffect(() => {
     if (!visible) return;
-    setStep('input'); setText(''); setPhoto(null); setPlan(null); setError(null);
+    setStep('input'); setText(''); setPhoto(null); setPlan(null); setError(null); setServings(1); setRecipeImage(null); setSavedRecipe(false);
     const left = Math.max(0, Math.round(caloriesLeft));
     setUseAll(false);
     setAmount(left >= 150 ? Math.min(left, Math.max(100, Math.round((left * 0.6) / 10) * 10)) : 300);
@@ -227,8 +270,9 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   // Working it out: the ring counts up while the plan is made and only reaches 100% once it's back.
   const run = () => {
     setStep('loading'); setPct(0); setError(null); resultRef.current = null;
-    track('portion_plan_started', { has_photo: !!photo, calories: chosen });
-    planPortions({ text: text.trim(), photoUri: photo, budget: chosen, userCountry })
+    setRecipeImage(null); setSavedRecipe(false);
+    track(kitchen ? 'kitchen_recipe_started' : 'portion_plan_started', { has_photo: !!photo, calories: chosen, servings: kitchen ? servings : undefined });
+    planPortions({ text: text.trim(), photoUri: photo, budget: chosen, userCountry, type: kitchen ? 'build_recipe' : 'plan_portions', servings: kitchen ? servings : undefined })
       .then((r) => { resultRef.current = r; })
       .catch((e) => { resultRef.current = { error: e instanceof AiConsentError ? 'AI features are off. Turn them on in Settings › Privacy Settings.' : e.message }; });
   };
@@ -255,6 +299,17 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
       setFoods(resultRef.current.foods.map(toFood));
     }
   }, [pct]);
+
+  useEffect(() => {
+    if (!kitchen || step !== 'plate' || !plan?.title || recipeImage) return;
+    const key = plan.title + '|' + (plan.foods || []).map((f) => f.name).join(',');
+    if (recipeImageCache.has(key)) { setRecipeImage(recipeImageCache.get(key)); return; }
+    let cancelled = false;
+    callApi('recipe_image', { title: plan.title, ingredients: (plan.foods || []).map((f) => f.name) })
+      .then((r) => { const uri = `data:${r.mimeType || 'image/png'};base64,${r.data}`; recipeImageCache.set(key, uri); if (!cancelled) setRecipeImage(uri); })
+      .catch(() => { if (!cancelled) setRecipeImage('failed'); });
+    return () => { cancelled = true; };
+  }, [kitchen, step, plan]);
 
   const items = foods;
   const total = items.reduce((s, i) => s + (i.cal || 0), 0);
@@ -312,6 +367,26 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
     onLogPlate && onLogPlate({ title: plan?.title || null, foods: toLog });
   };
 
+  const saveRecipe = async () => {
+    if (!plan || savedRecipe) return;
+    const r1 = (k) => Math.round(foods.reduce((s, f) => s + (f[k] || 0), 0));
+    await saveCustomRecipe(userId, {
+      id: `k-${Date.now()}`,
+      name: plan.title || 'My recipe',
+      category: 'From my kitchen',
+      description: plan.description || '',
+      calories: total, protein: r1('protein'), carbs: r1('carbs'), fats: r1('fats'), fiber: r1('fiber'), sugar: r1('sugar'), sodium: r1('sodium'),
+      prepTime: plan.minutes ? `${plan.minutes} min` : '', cookTime: '',
+      servings: 1, yield: '1 serving',
+      ingredients: foods.map((f) => ({ name: f.name, amount: f.qty })),
+      instructions: plan.method || [],
+      note: plan.tip || '',
+      imageUrl: null, localNames: {}, countries: [],
+    });
+    setSavedRecipe(true);
+    track('kitchen_recipe_saved', { calories: total });
+  };
+
   const pickPhoto = async (fromCamera) => {
     try {
       if (fromCamera && Platform.OS !== 'web') {
@@ -327,7 +402,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
 
   if (!visible) return null;
   const canSend = text.trim().length > 0 || !!photo;
-  const labels = STEP_LABELS(chosen);
+  const labels = copy.steps(chosen);
   const stepIdx = Math.min(labels.length, Math.floor((pct * labels.length) / 100));
   const shown = labels.slice(0, Math.min(stepIdx, labels.length - 1) + 1);
   const ready = pct >= 100 && !!resultRef.current?.foods;
@@ -350,14 +425,10 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 <Text style={styles.leftChipText}>{lowBudget ? 'At your goal today' : `${Math.round(caloriesLeft).toLocaleString()} cal left today`}</Text>
               </View>
             </View>
-            <Text style={styles.h1}>{'Got food already?\nLet’s make it fit.'}</Text>
+            <Text style={styles.h1}>{copy.h1}</Text>
             <Text style={styles.kicker}>PERFECT FOR WHEN</Text>
             <View style={styles.whenCard}>
-              {[
-                ['bag-handle-outline', 'You just bought it', 'Waakye on the way home, a pack of kelewele'],
-                ['help-circle-outline', 'You don’t know how it was made', 'No recipe, no label, no problem'],
-                ['home-outline', 'It’s already at home', 'Leftovers, Sunday’s stew, whatever’s in the fridge'],
-              ].map(([icon, title, sub], i) => (
+              {copy.when.map(([icon, title, sub], i) => (
                 <View key={title} style={[styles.whenRow, i < 2 && styles.rowDivider]}>
                   <View style={styles.whenIcon}><Ionicons name={icon} size={16} color={INK} /></View>
                   <View style={{ flex: 1 }}>
@@ -393,7 +464,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 value={text}
                 onChangeText={setText}
                 multiline
-                accessibilityLabel="Tell Logga what food you have"
+                accessibilityLabel={copy.inputLabel}
               />
               <View style={styles.composerRow}>
                 <TouchableOpacity style={styles.composerBtnOutline} onPress={() => pickPhoto(false)} accessibilityLabel="Add a photo">
@@ -433,9 +504,9 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setStep('input')} accessibilityLabel="Cancel" />
           <LinearGradient colors={['#DDF6E7', '#E9F8EF', '#F4FBF7', '#FFFFFF']} locations={[0, 0.12, 0.3, 0.5]} style={styles.sheet}>
             <View style={styles.grabber} />
-            <Text style={styles.sheetTitle}>How much should this meal use?</Text>
+            <Text style={styles.sheetTitle}>{copy.sheetTitle}</Text>
             <Text style={styles.sheetSub}>
-              {lowBudget ? 'You’ve reached today’s calories. Pick an amount and you’ll see how it fits.' : <>You have <Text style={{ color: INK, fontWeight: '700' }}>{Math.round(caloriesLeft).toLocaleString()} cal</Text> left today.</>}
+              {lowBudget ? 'You’ve reached today’s calories. Pick an amount and you’ll see how it fits.' : <>You have <Text style={{ color: INK, fontWeight: '700' }}>{Math.round(caloriesLeft).toLocaleString()} cal</Text> left today.{kitchen ? ' We’ll build the recipe to fit.' : ''}</>}
             </Text>
 
             {!lowBudget && (
@@ -485,6 +556,22 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               )}
             </View>
 
+            {kitchen && (
+              <View style={[styles.option, { marginTop: 12 }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.optionTitle}>Cooking for</Text>
+                  <Text style={styles.optionSub}>Calories above are per person</Text>
+                </View>
+                <TouchableOpacity style={styles.stepBtnRound} onPress={() => setServings((n) => Math.max(1, n - 1))} accessibilityLabel="Fewer servings">
+                  <Ionicons name="remove" size={16} color={INK} />
+                </TouchableOpacity>
+                <Text style={styles.servingsNum}>{servings}</Text>
+                <TouchableOpacity style={styles.stepBtnRound} onPress={() => setServings((n) => Math.min(8, n + 1))} accessibilityLabel="More servings">
+                  <Ionicons name="add" size={16} color={INK} />
+                </TouchableOpacity>
+              </View>
+            )}
+
             <TouchableOpacity style={styles.primaryBtn} onPress={run} activeOpacity={0.85}>
               <Text style={styles.primaryBtnText}>Continue</Text>
             </TouchableOpacity>
@@ -508,8 +595,8 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 <Text style={styles.pctText}>{pct}<Text style={styles.pctSign}>%</Text></Text>
               </View>
             </View>
-            <Text style={styles.loadingTitle}>{error ? 'Couldn’t plan that' : ready ? 'Your plate is ready' : 'Fitting it in…'}</Text>
-            <Text style={styles.loadingSub}>{error || `Working out portions for your ${chosen} cal`}</Text>
+            <Text style={styles.loadingTitle}>{error ? copy.errorTitle : ready ? copy.readyTitle : copy.loadingTitle}</Text>
+            <Text style={styles.loadingSub}>{error || copy.loadingSub(chosen)}</Text>
           </View>
           {!error && (
             <View style={styles.stepsCard}>
@@ -536,7 +623,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               </>
             ) : ready ? (
               <TouchableOpacity style={styles.primaryBtn} onPress={() => { resetEditing(); setStep('plate'); }}>
-                <Text style={styles.primaryBtnText}>See your plate</Text>
+                <Text style={styles.primaryBtnText}>{copy.seeBtn}</Text>
                 <Ionicons name="arrow-forward" size={18} color="#fff" />
               </TouchableOpacity>
             ) : null}
@@ -547,16 +634,44 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
       {/* 4. Your plate */}
       {step === 'plate' && plan && (
         <View style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ paddingBottom: 170 }}>
+          <ScrollView contentContainerStyle={{ paddingBottom: kitchen ? 230 : 170 }}>
             <View style={[styles.headerRow, { justifyContent: 'flex-start', gap: 12 }]}>
               <TouchableOpacity style={styles.roundBtn} onPress={() => setStep('input')} accessibilityLabel="Back">
                 <Ionicons name="chevron-back" size={22} color={INK} />
               </TouchableOpacity>
               <View style={{ flex: 1 }}>
-                <Text style={styles.plateSmall}>{plan.title || 'Your plate'}</Text>
-                <Text style={styles.plateBig}>Planned by Logga</Text>
+                <Text style={styles.plateSmall}>{kitchen ? 'Built from your kitchen' : (plan.title || 'Your plate')}</Text>
+                <Text style={styles.plateBig}>{kitchen ? 'Your recipe' : 'Planned by Logga'}</Text>
               </View>
             </View>
+
+            {kitchen && (
+              <View style={styles.heroCard}>
+                <View style={styles.heroImageBox}>
+                  {recipeImage && recipeImage !== 'failed'
+                    ? <Image source={{ uri: recipeImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    : recipeImage === 'failed'
+                      ? <LinearGradient colors={['#FDE7C8', '#F6C38B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><Text style={{ fontSize: 40 }}>🍲</Text></LinearGradient>
+                      : <View style={[StyleSheet.absoluteFill, styles.heroShimmer]}><ActivityIndicator color={GREEN} /></View>}
+                  {recipeImage && recipeImage !== 'failed' && (
+                    <View style={styles.aiBadge}>
+                      <Ionicons name="sparkles-outline" size={11} color="#fff" />
+                      <Text style={styles.aiBadgeText}>AI image · how it could look</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={{ padding: 16 }}>
+                  <Text style={styles.heroKicker}>MADE FROM WHAT YOU HAVE</Text>
+                  <Text style={styles.heroTitle}>{plan.title}</Text>
+                  {!!plan.description && <Text style={styles.heroDesc}>{plan.description}</Text>}
+                  <View style={styles.heroChips}>
+                    {!!plan.minutes && <Text style={styles.heroChip}>{plan.minutes} min</Text>}
+                    <Text style={styles.heroChip}>{plan.servings || servings} {(plan.servings || servings) === 1 ? 'serving' : 'servings'}</Text>
+                    {!!plan.usedCount && !!plan.totalCount && <Text style={[styles.heroChip, styles.heroChipGreen]}>Uses {plan.usedCount} of your {plan.totalCount} ingredients</Text>}
+                  </View>
+                </View>
+              </View>
+            )}
 
             <View style={styles.satCard}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
@@ -607,7 +722,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
             <Text style={styles.portionNote}>Calories and nutrients are AI estimates. Portions not right? Tap the green label to adjust.</Text>
             <View style={styles.foodCard}>
               <View style={styles.foodCardHead}>
-                <Text style={styles.foodCardTitle}>YOUR PORTIONS</Text>
+                <Text style={styles.foodCardTitle}>{kitchen ? 'INGREDIENTS (PER PERSON)' : 'YOUR PORTIONS'}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <Text style={styles.foodCardCount}>{foods.length} items</Text>
                   <TouchableOpacity onPress={() => { setIsFoodEditMode((v) => !v); setShowAddItem(false); }}>
@@ -692,6 +807,18 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               </View>
             </View>
 
+            {kitchen && (plan.method || []).length > 0 && (
+              <View style={styles.methodCard}>
+                <Text style={[styles.kickerDark, { marginBottom: 12 }]}>METHOD{(plan.servings || servings) > 1 ? ` · FOR ${plan.servings || servings}` : ''}</Text>
+                {plan.method.map((m, i) => (
+                  <View key={i} style={styles.methodRow}>
+                    <View style={styles.methodNum}><Text style={styles.methodNumText}>{i + 1}</Text></View>
+                    <Text style={styles.methodText}>{m}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
             {!!plan.tip && (
               <LinearGradient colors={['#EAF9F1', '#C7EEDA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tip}>
                 <Ionicons name="bulb-outline" size={18} color="#0B3D2E" />
@@ -705,12 +832,18 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
             <TouchableOpacity onPress={logPlate} activeOpacity={0.85} disabled={total <= 0}>
               <LinearGradient colors={['#34D399', GREEN]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.primaryBtn, styles.logBtn, total <= 0 && { opacity: 0.5 }]}>
                 <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-                <Text style={styles.primaryBtnText}>Log this plate</Text>
+                <Text style={styles.primaryBtnText}>{kitchen ? 'Log this meal' : 'Log this plate'}</Text>
               </LinearGradient>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep('input')}>
+            {kitchen && (
+              <TouchableOpacity style={styles.secondaryBtn} onPress={saveRecipe} disabled={savedRecipe}>
+                <Ionicons name={savedRecipe ? 'bookmark' : 'bookmark-outline'} size={17} color={savedRecipe ? GREEN : INK} />
+                <Text style={[styles.secondaryBtnText, savedRecipe && { color: GREEN }]}>{savedRecipe ? 'Saved to your recipes' : 'Save recipe'}</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={kitchen ? styles.textBtn : styles.secondaryBtn} onPress={() => setStep('input')}>
               <Ionicons name="refresh" size={17} color={INK} />
-              <Text style={styles.secondaryBtnText}>Try another combo</Text>
+              <Text style={styles.secondaryBtnText}>{kitchen ? 'Try another recipe' : 'Try another combo'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -851,6 +984,25 @@ const styles = StyleSheet.create({
   disclaimer: { marginTop: 12, fontSize: 11.5, color: '#9CA3AF', textAlign: 'center' },
   logBtn: { marginTop: 0, backgroundColor: 'transparent' },
   secondaryBtn: { height: 48, borderRadius: 16, borderWidth: 1, borderColor: '#D1D5DB', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  textBtn: { height: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  stepBtnRound: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F3F7', alignItems: 'center', justifyContent: 'center' },
+  servingsNum: { minWidth: 22, textAlign: 'center', fontSize: 17, fontWeight: '700', color: INK },
+  heroCard: { marginTop: 16, marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(5,150,105,0.1)', overflow: 'hidden' },
+  heroImageBox: { height: 200, backgroundColor: '#F3F4F6' },
+  heroShimmer: { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
+  aiBadge: { position: 'absolute', left: 12, bottom: 12, flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: 9, borderRadius: 999, backgroundColor: 'rgba(17,24,39,0.6)' },
+  aiBadgeText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  heroKicker: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: GREEN },
+  heroTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5, lineHeight: 28, color: INK, marginTop: 6 },
+  heroDesc: { fontSize: 13, lineHeight: 19, color: '#4B5563', marginTop: 6 },
+  heroChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  heroChip: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, backgroundColor: '#F3F4F6', fontSize: 12, fontWeight: '600', color: INK, overflow: 'hidden' },
+  heroChipGreen: { backgroundColor: '#ECFDF5', color: '#047857', fontWeight: '700' },
+  methodCard: { marginTop: 14, marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 22, borderWidth: 1, borderColor: '#E5E7EB', paddingVertical: 16, paddingHorizontal: 18 },
+  methodRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  methodNum: { width: 24, height: 24, borderRadius: 12, backgroundColor: GREEN, alignItems: 'center', justifyContent: 'center' },
+  methodNumText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  methodText: { flex: 1, fontSize: 14, lineHeight: 21, color: '#374151' },
   secondaryBtnText: { fontSize: 15, fontWeight: '600', color: INK },
 });
 

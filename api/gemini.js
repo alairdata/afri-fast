@@ -196,6 +196,23 @@ const PORTION_PLAN_SCHEMA = {
   required: ['isFood', 'foods', 'title', 'tip'],
 };
 
+const RECIPE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    isFood: { type: 'BOOLEAN' },
+    whatIsItIfNotFood: { type: 'STRING' },
+    title: { type: 'STRING' },
+    description: { type: 'STRING' },
+    minutes: { type: 'NUMBER' },
+    usedCount: { type: 'NUMBER' },
+    totalCount: { type: 'NUMBER' },
+    foods: PORTION_PLAN_SCHEMA.properties.foods,
+    method: { type: 'ARRAY', items: { type: 'STRING' } },
+    tip: { type: 'STRING' },
+  },
+  required: ['isFood', 'title', 'description', 'foods', 'method', 'tip'],
+};
+
 // ── Core fetch helper ────────────────────────────────────────────────────────
 
 async function callGemini(apiKey, parts, { systemInstruction, schema } = {}) {
@@ -321,6 +338,67 @@ export default async function handler(req, res) {
       ], { schema: { type: 'OBJECT', properties: { text: { type: 'STRING' } }, required: ['text'] } });
       const parsed = parseJson(raw);
       return res.json({ text: String(parsed?.text || '').trim() });
+    }
+
+    // ── Build a recipe from my kitchen: a recipe from what they have, scaled to a calorie amount per person ──
+    if (type === 'build_recipe') {
+      const { text: haveText, base64, budget, servings, userCountry } = data;
+      const target = Math.max(100, Math.min(3000, Math.round(Number(budget) || 0)));
+      const people = Math.max(1, Math.min(8, Math.round(Number(servings) || 1)));
+      if (!haveText && !base64) return res.status(400).json({ error: 'Tell us what ingredients you have' });
+      const parts = [{
+        text: `The person has these ingredients at home${haveText ? `: "${String(haveText).slice(0, 600)}"` : ' (see the photo)'}.\n` +
+          `Create ONE home recipe they can cook mainly from these (salt, pepper, water and a little oil may be assumed), cooking for ${people} ${people === 1 ? 'person' : 'people'}, about ${target} kcal per person.${userCountry ? ` They live in ${userCountry}: prefer a familiar local dish and local names.` : ''}\n` +
+          'Prefer lighter cooking (grilling, boiling, roasting, less oil) when it still tastes right.\n' +
+          'foods: every ingredient with nutrition per 100 g as prepared in this recipe, a household measure (unitOne/unitMany and unitGrams for one of them) and grams PER PERSON.\n' +
+          'method: 4 to 7 short, clear steps for the whole pot (all servings). minutes: total time. usedCount: how many of the ingredients they listed the recipe uses; totalCount: how many they listed.\n' +
+          'description: one appetising sentence. tip: one practical sentence about this recipe (a swap or cooking choice and what it saves or adds), no medical claims.\n' +
+          'If there are no usable ingredients, set isFood to false and say what you see in whatIsItIfNotFood.',
+      }];
+      if (base64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: base64 } });
+      const raw = await callGemini(GEMINI_KEY, parts, { systemInstruction: `${NUTRITION_SYSTEM}\n\n${MEDICAL_SAFETY}`, schema: RECIPE_SCHEMA });
+      const parsed = parseJson(raw);
+      if (!parsed) return res.status(500).json({ error: 'Could not build a recipe. Try again.' });
+      if (!parsed.isFood) return res.json({ notFood: true, identified: parsed.whatIsItIfNotFood || '' });
+      const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+      let foods = (parsed.foods || []).filter((f) => f && f.name && num(f.kcal100) >= 0).slice(0, 12).map((f) => ({
+        name: String(f.name),
+        kcal100: num(f.kcal100), protein100: num(f.protein100), carbs100: num(f.carbs100), fat100: num(f.fat100),
+        fiber100: num(f.fiber100), sugar100: num(f.sugar100), sodium100: num(f.sodium100),
+        unitGrams: Math.max(1, num(f.unitGrams) || 100), unitOne: f.unitOne || 'serving', unitMany: f.unitMany || f.unitOne || 'servings',
+        grams: Math.max(0, num(f.grams)),
+      }));
+      if (!foods.length) return res.json({ notFood: true, identified: '' });
+      const total = foods.reduce((s, f) => s + (f.kcal100 * f.grams) / 100, 0);
+      const factor = total > 0 ? target / total : 1;
+      if (total > 0 && Math.abs(factor - 1) > 0.05) foods = foods.map((f) => ({ ...f, grams: f.grams * factor }));
+      foods = foods.map((f) => ({ ...f, grams: Math.max(1, Math.round(f.grams)) }));
+      return res.json({
+        title: parsed.title || 'Your recipe', description: parsed.description || '', tip: parsed.tip || '',
+        minutes: Math.round(num(parsed.minutes)) || null, servings: people,
+        usedCount: Math.round(num(parsed.usedCount)) || null, totalCount: Math.round(num(parsed.totalCount)) || null,
+        method: (parsed.method || []).map(String).filter(Boolean).slice(0, 8), foods,
+      });
+    }
+
+    // ── A photo of a recipe (generated only when someone opens the recipe) ──
+    if (type === 'recipe_image') {
+      const { title, ingredients } = data;
+      if (!title) return res.status(400).json({ error: 'Missing recipe' });
+      const prompt = `A realistic, appetising overhead food photo of "${String(title).slice(0, 120)}", a home-cooked West African-style dish` +
+        `${Array.isArray(ingredients) && ingredients.length ? ` made with ${ingredients.slice(0, 10).map(String).join(', ')}` : ''}. ` +
+        'One normal single-person portion on a simple plate, natural daylight, plain kitchen table, no text, no hands, no extra garnish.';
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['IMAGE'] } }),
+      });
+      const out = await response.json().catch(() => ({}));
+      if (!response.ok) return res.status(502).json({ error: out.error?.message || 'Image service error' });
+      const img = (out?.candidates?.[0]?.content?.parts || []).find((p) => p.inlineData || p.inline_data);
+      const inline = img?.inlineData || img?.inline_data;
+      if (!inline?.data) return res.status(502).json({ error: 'No image returned' });
+      return res.json({ mimeType: inline.mimeType || inline.mime_type || 'image/png', data: inline.data });
     }
 
     // ── Fit it in: plan portions of food they already have to a calorie amount ──

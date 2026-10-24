@@ -245,6 +245,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   const [isOffline, setIsOffline] = useState(false);
   const [showLogMealModal, setShowLogMealModal] = useState(false);
   const [showPortionPlanner, setShowPortionPlanner] = useState(false);
+  const [showKitchen, setShowKitchen] = useState(false);
   const [showLogMealOptions, setShowLogMealOptions] = useState(false);
   const [logMealOpenedFromOptions, setLogMealOpenedFromOptions] = useState(false);
   // "Ask" in the log-meal picker grid hides that grid to show its own screen —
@@ -2814,6 +2815,28 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         }}
       />
       <PortionPlanner
+        mode="kitchen"
+        visible={showKitchen}
+        userId={session?.user?.id}
+        userCountry={userCountry}
+        tdee={showKitchen ? computeTdeeSummary({ weightLogs, recentMeals, weightUnit, startingWeight, age, sex, height, heightUnit, activityLevel }).tdee : null}
+        caloriesLeft={(() => {
+          const day = new Date().toDateString();
+          const eaten = recentMeals.filter((m) => m.date === day).reduce((sum, m) => sum + (m.calories || 0), 0);
+          return Math.max(0, (dailyCalorieGoal || 0) - eaten);
+        })()}
+        onClose={() => setShowKitchen(false)}
+        onLogPlate={(meal) => {
+          if (!canLogMealOn(selectedMealDate)) return;
+          setShowKitchen(false);
+          setActiveTab('today');
+          setChatMealToLog(meal);
+          setLogMealMethod('chat');
+          setLogMealOpenedFromOptions(false);
+          setShowLogMealModal(true);
+        }}
+      />
+      <PortionPlanner
         visible={showPortionPlanner}
         userCountry={userCountry}
         tdee={showPortionPlanner ? computeTdeeSummary({ weightLogs, recentMeals, weightUnit, startingWeight, age, sex, height, heightUnit, activityLevel }).tdee : null}
@@ -2955,6 +2978,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         show={activeTab === 'recipes'}
         userCountry={userCountry}
         userId={session?.user?.id}
+        onOpenKitchen={async () => { if (await ensureAiConsent()) setShowKitchen(true); else showToast("AI features are off. Turn them on in Settings › Privacy Settings."); }}
         onLogMeal={(recipe) => {
           if (!canLogMealOn(selectedMealDate)) return;
           setActiveTab('today');
