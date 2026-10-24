@@ -359,8 +359,23 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const editCalInputRef = useRef('');
   const [mealInput, setMealInput] = useState('');
   const [detectedFoods, setDetectedFoods] = useState([]);
-  // The meal's name on the share card: the title it was logged under, else its first food.
-  const cardMealName = (mealTitle || viewingMeal?.name || detectedFoods?.[0]?.name || '').split(',')[0].trim();
+  // The AI's meal title only holds while the foods are the ones it saw. Once they're edited (a renamed food,
+  // one added or removed), the title is rebuilt from the foods actually there: the two biggest, joined by "and".
+  const titleFoodsRef = useRef(null);
+  const foodNamesKey = detectedFoods.map((f) => f.name).join('|');
+  useEffect(() => { titleFoodsRef.current = null; }, [mealTitle]);
+  useEffect(() => {
+    if (mealTitle && titleFoodsRef.current == null && detectedFoods.length) titleFoodsRef.current = foodNamesKey;
+  }, [foodNamesKey, mealTitle]);
+  const titleFromFoods = () => {
+    const names = [...detectedFoods].sort((a, b) => (b.cal || 0) - (a.cal || 0)).map((f) => f.name).filter(Boolean);
+    return names.length ? names.slice(0, 2).join(' and ') : null;
+  };
+  const effectiveTitle = mealTitle && (titleFoodsRef.current == null || titleFoodsRef.current === foodNamesKey)
+    ? mealTitle
+    : (detectedFoods.length ? titleFromFoods() : mealTitle);
+  // The meal's name on the share card: the (current) title, else its first food.
+  const cardMealName = (effectiveTitle || viewingMeal?.name || detectedFoods?.[0]?.name || '').split(',')[0].trim();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -675,7 +690,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       const mealType = selectedMealType.toLowerCase();
       const dateStr = shareDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
       const detailsText = [
-        `${dateStr}'s ${mealType} was ${mealTitle || 'my meal'} — ${mealCal} cal`,
+        `${dateStr}'s ${mealType} was ${effectiveTitle || 'my meal'} — ${mealCal} cal`,
         ...(includeIngredients ? ['', '*Here is the breakdown:*', foodLines] : []),
         '',
         `Overall Calories: ${totalCal.toLocaleString()} / ${cardGoal.toLocaleString()} kcal`,
@@ -811,7 +826,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       const photoUrl = await uploadMealPhoto(capturedPhoto) || await convertToDataUrl(capturedPhoto);
       onSaveMeal({
         id: mealId,
-        name: mealTitle || detectedFoods.map(f => f.name).join(', '),
+        name: effectiveTitle || detectedFoods.map(f => f.name).join(', '),
         calories: detectedFoods.reduce((sum, f) => sum + f.cal, 0),
         protein: detectedFoods.reduce((sum, f) => sum + (f.protein || 0), 0),
         carbs: detectedFoods.reduce((sum, f) => sum + (f.carbs || 0), 0),
@@ -987,7 +1002,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       // Save immediately with local photo URI so it appears in the list right away
       onSaveMeal({
         id: mealId,
-        name: mealTitle || detectedFoods.map(f => f.name).join(', '),
+        name: effectiveTitle || detectedFoods.map(f => f.name).join(', '),
         calories: detectedFoods.reduce((sum, f) => sum + f.cal, 0),
         protein: detectedFoods.reduce((sum, f) => sum + (f.protein || 0), 0),
         carbs: detectedFoods.reduce((sum, f) => sum + (f.carbs || 0), 0),
