@@ -324,6 +324,7 @@ export default async function handler(req, res) {
 
   // The meal chat has to think (ask the right question, keep the meal straight), so it runs on Pro, Flash if busy.
   const GEMINI_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+  let answeredBy = null; // which model replied (returned for checking; the app ignores it)
   const callGemini = async (systemPrompt, userMessages, schema) => {
     const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
     if (!GEMINI_KEY) throw new Error('AI service not configured');
@@ -348,6 +349,7 @@ export default async function handler(req, res) {
       if ([429, 503, 404].includes(response.status)) continue;
       const result = await response.json();
       if (!response.ok) throw new Error(result.error?.message || 'AI service error');
+      answeredBy = model;
       return result?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim() || '';
     }
     throw new Error('AI service unavailable');
@@ -413,7 +415,7 @@ export default async function handler(req, res) {
         logToSupabase(SUPABASE_URL, SUPABASE_SERVICE_KEY, rows);
       }
 
-      return res.status(200).json({ reply, loggableMeal });
+      return res.status(200).json({ reply, loggableMeal, model: answeredBy });
     }
 
     // === Update personality from chat session ===
