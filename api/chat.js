@@ -164,7 +164,7 @@ STYLE:
 - If the user gives a precise weight or volume for a food (e.g. "150g rice", "200ml milk"), use that exact figure as the qty verbatim — do not convert it into an approximate description like "1 cup". Only use approximate descriptions when they haven't given a precise measurement.
 - In "reply", wrap the final total calorie figure in **double asterisks** so it renders bold (e.g. "That's **550 kcal** total."). Only bold the final total — not ranges, individual items or other numbers.
 - The user often explores several portion sizes or food options before deciding (e.g. "what about 400g of fries instead?", "what if I add cheese?"). Always read the FULL conversation and treat the LATEST quantity or choice mentioned for each food as what they've settled on — ignore earlier options they've moved away from. Never mix an earlier discarded quantity into a later total.
-- cal must always equal (protein × 4) + (carbs × 4) + (fats × 9) — never guess it independently.
+- Calories come first: estimate each food's cal directly from what that food and portion typically contains as prepared (as a food composition table would give it, oil included), not by adding up macros. Then give protein, carbs and fats that fit that calorie figure (roughly 4, 4 and 9 kcal per gram).
 - Set isLoggable to true only when the conversation has settled on specific food item(s) with clear quantities that could be logged as a real meal right now — not for vague, hypothetical, or off-topic messages. When true, "foods" must list every finalized food item under discussion (using each one's LATEST settled quantity) with accurate macros, and "title" is a short natural name for the whole meal — lead with the main item, then the most prominent other item, joined by "and", no commas (e.g. "Fries and Chicken", not "Fries, Chicken, Cheese").
 - When isLoggable is false, "foods" must be an empty array and "title" can be empty.
 ${voice ? `\n${voice} The voice only colours the wording of "reply"; the numbers and foods stay exact.\n` : ''}
@@ -231,7 +231,7 @@ const MEALS_CHAT_FOOD_ITEM = {
     fiber:   { type: 'NUMBER', description: 'Grams of fiber.' },
     sugar:   { type: 'NUMBER', description: 'Grams of total sugars (natural and added).' },
     sodium:  { type: 'NUMBER', description: 'Milligrams of sodium, including salt and seasoning cubes used in cooking.' },
-    cal:     { type: 'NUMBER', description: 'Calories: (protein*4)+(carbs*4)+(fats*9).' },
+    cal:     { type: 'NUMBER', description: 'Calories for this portion, estimated directly from what this food typically contains as prepared (like a food composition table), not added up from the macros.' },
   },
   required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'sugar', 'sodium', 'cal'],
 };
@@ -263,8 +263,9 @@ function normalizeFood(f, fallback = 'Unknown food') {
   const fiber   = Number(f.fiber)   || 0;
   const sugar   = Number(f.sugar)   || 0;
   const sodium  = Number(f.sodium)  || 0;
+  // Calories come first: the model's own estimate for that food and portion. Macros only fill in when it gave none.
   const macroCal = Math.round(protein * 4 + carbs * 4 + fats * 9);
-  const cal = macroCal > 0 ? macroCal : (Number(f.cal) || 0);
+  const cal = Number(f.cal) > 0 ? Math.round(Number(f.cal)) : macroCal;
   return { name: f.name || fallback, qty: f.qty || '1 serving', cal, protein, carbs, fats, fiber, sugar, sodium };
 }
 
@@ -319,7 +320,8 @@ export default async function handler(req, res) {
     return result.content?.[0]?.text?.trim() || '';
   };
 
-  const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
+  // The meal chat has to think (ask the right question, keep the meal straight), so it runs on Pro, Flash if busy.
+  const GEMINI_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
   const callGemini = async (systemPrompt, userMessages, schema) => {
     const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
     if (!GEMINI_KEY) throw new Error('AI service not configured');
@@ -336,12 +338,12 @@ export default async function handler(req, res) {
           contents,
           systemInstruction: { parts: [{ text: systemPrompt }] },
           generationConfig: {
-            temperature: 0.1,
+            temperature: 0.4,
             ...(schema ? { responseMimeType: 'application/json', responseSchema: schema } : {}),
           },
         }),
       });
-      if (response.status === 503) continue;
+      if ([429, 503, 404].includes(response.status)) continue;
       const result = await response.json();
       if (!response.ok) throw new Error(result.error?.message || 'AI service error');
       return result?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim() || '';
@@ -366,11 +368,21 @@ export default async function handler(req, res) {
           content: `The user just tapped on this observation you flagged for them: "${openingContext}". Open the conversation by addressing it directly and personally. Ask one follow-up question. Keep it to 2-3 sentences. Rephrase naturally — don't repeat it word for word.`,
         }];
       } else {
-        // Regular conversation — last 10 messages
-        conversation = (messages || []).slice(-10).map(m => ({
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: m.content,
-        }));
+        // Regular conversation: the last 40 messages, so it remembers what was said earlier. A meal-chat reply
+        // carries the foods and portions it had settled on, so adding "and a malt" keeps the rest of the meal.
+        conversation = (messages || []).slice(-40).map(m => {
+          const isAssistant = m.role === 'assistant';
+          let content = String(m.content || '');
+          const foods = isAssistant && m.loggableMeal?.foods;
+          if (Array.isArray(foods) && foods.length) {
+            content += `\n\n[Meal settled so far: ${foods.map(f => `${f.name} (${f.qty}, ${f.cal} kcal)`).join('; ')}]`;
+          }
+          return { role: isAssistant ? 'assistant' : 'user', content };
+        }).filter(m => m.content.trim());
+        // The chat opens with a greeting from Logga; the models expect the conversation to start with the user.
+        if (conversation.length && conversation[0].role === 'assistant') {
+          conversation.unshift({ role: 'user', content: '(I opened the chat.)' });
+        }
       }
 
       let reply;

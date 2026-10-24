@@ -10,7 +10,7 @@ const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-
 const NUTRITION_SYSTEM =
   'You are an expert nutritionist and visual analysis AI specializing in African cuisine. ' +
   'Accurately identify dishes, estimate realistic portions, and calculate macro structures. ' +
-  'cal must always equal (protein × 4) + (carbs × 4) + (fats × 9) — never guess it independently. ' +
+  'Calories come first: estimate cal directly from what that food and portion typically contains as prepared (as a food composition table would, oil included), not by adding up macros; then give protein, carbs and fats that fit it (roughly 4, 4 and 9 kcal per gram). ' +
   'For portions: use COUNT + SIZE + ITEM for countable foods (e.g. "2 medium eggs", "1 large chicken thigh") ' +
   'and SIZE + ITEM for non-countable foods (e.g. "1 heaped cup of white rice", "1 medium wrap of fufu"). ' +
   'EXCEPTION: if the user explicitly states a precise weight or volume for a food (e.g. "150g rice", "200ml milk", "0.5kg beef"), ' +
@@ -65,7 +65,7 @@ const FOOD_ITEM = {
     fiber:   { type: 'NUMBER', description: 'Grams of fiber.' },
     sugar:   { type: 'NUMBER', description: 'Grams of total sugars (natural and added).' },
     sodium:  { type: 'NUMBER', description: 'Milligrams of sodium, including salt and seasoning cubes used in cooking.' },
-    cal:     { type: 'NUMBER', description: 'Calories: (protein*4)+(carbs*4)+(fats*9).' },
+    cal:     { type: 'NUMBER', description: 'Calories for this portion, estimated directly from what this food typically contains as prepared (like a food composition table), not added up from the macros.' },
   },
   required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'sugar', 'sodium', 'cal'],
 };
@@ -238,8 +238,9 @@ function normalizeFood(f, fallback = 'Unknown food') {
   const fiber   = Number(f.fiber)   || 0;
   const sugar   = Number(f.sugar)   || 0;
   const sodium  = Number(f.sodium)  || 0;
+  // Calories come first: the model's own estimate for that food and portion. Macros only fill in when it gave none.
   const macroCal = Math.round(protein * 4 + carbs * 4 + fats * 9);
-  const cal = macroCal > 0 ? macroCal : (Number(f.cal) || 0);
+  const cal = Number(f.cal) > 0 ? Math.round(Number(f.cal)) : macroCal;
   return { name: f.name || fallback, qty: f.qty || '1 serving', cal, protein, carbs, fats, fiber, sugar, sodium };
 }
 
