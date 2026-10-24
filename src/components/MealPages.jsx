@@ -59,15 +59,6 @@ const shimmerStyles = StyleSheet.create({
   sweep: { position: 'absolute', top: -20, bottom: -20, left: 0, width: 60 },
 });
 
-const REVIEWS = [
-  { name: 'Amina O.', text: 'It actually knew the calories in my jollof rice! I was shocked. Even got the portion right.', stars: 5 },
-  { name: 'Chidi K.', text: 'I scanned my egusi soup and it broke down the macros perfectly. This app gets African food.', stars: 5 },
-  { name: 'Fatima B.', text: 'Finally an app that doesn\'t just say "unknown food" when I log pounded yam and ogbono.', stars: 5 },
-  { name: 'Kwame A.', text: 'The calorie count for my waakye was spot on. Even tracked the shito on the side!', stars: 4 },
-  { name: 'Ngozi E.', text: 'I\'ve tried 5 calorie apps before. This is the first one that understands suya, chin chin, and puff puff.', stars: 5 },
-  { name: 'Yemi D.', text: 'Tracked amala and ewedu for a week. The numbers matched what my nutritionist said. Impressive.', stars: 5 },
-];
-
 const SWIPE_DELETE_WIDTH = 76;
 
 // Swipe-left-to-delete wrapper for a meal row. Reveals a red delete
@@ -294,21 +285,6 @@ const MealPages = ({
 
   const mealLogStreak = useMemo(() => computeCurrentMealStreak(recentMeals), [recentMeals]);
 
-  const [reviewIndex, setReviewIndex] = useState(0);
-  const reviewFade = useRef(new Animated.Value(1)).current;
-
-  // Rotate through the reviews, one at a time, while the page is open.
-  useEffect(() => {
-    if (!showLogMealOptions) return;
-    const interval = setInterval(() => {
-      Animated.timing(reviewFade, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
-        setReviewIndex(prev => (prev + 1) % REVIEWS.length);
-        Animated.timing(reviewFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-      });
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [showLogMealOptions]);
-
   // The app closes this page itself once logging actually starts, so if it can't (daily limit, AI off)
   // the person stays here on the options.
   const handleLogMethod = (method) => {
@@ -384,23 +360,6 @@ const MealPages = ({
               <Ionicons name="chevron-forward" size={16} color="#ccc" />
             </TouchableOpacity>}
 
-            {/* Reviews — one at a time */}
-            <View style={styles.reviewsSection}>
-              <Text style={styles.reviewsSectionTitle}>What people are saying</Text>
-              <Animated.View style={{ opacity: reviewFade }}>
-                {[REVIEWS[reviewIndex]].map((review, i) => (
-                  <View key={i} style={styles.reviewCard}>
-                    <View style={styles.reviewStars}>
-                      {[...Array(review.stars)].map((_, s) => (
-                        <Ionicons key={s} name="star" size={12} color="#F59E0B" />
-                      ))}
-                    </View>
-                    <Text style={styles.reviewText}>"{review.text}"</Text>
-                    <Text style={styles.reviewName}>— {review.name}</Text>
-                  </View>
-                ))}
-              </Animated.View>
-            </View>
           </ScrollView>
         </View>
       )}
@@ -541,12 +500,6 @@ const makeStyles = (c) => StyleSheet.create({
   manualRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#FCFCFC' },
   manualTitle: { fontSize: 15, fontWeight: '700' },
   manualSub: { fontSize: 12.5, color: c.textMuted, marginTop: 2 },
-  reviewsSection: { marginTop: 32 },
-  reviewsSectionTitle: { fontSize: 13, fontWeight: '600', color: '#BDBDBD', marginBottom: 12 },
-  reviewCard: { backgroundColor: '#FCFCFC', borderRadius: 14, padding: 16 },
-  reviewStars: { flexDirection: 'row', gap: 2, marginBottom: 8 },
-  reviewText: { fontSize: 14, color: '#1F1F1F', lineHeight: 20, fontStyle: 'italic' },
-  reviewName: { fontSize: 12, color: '#9CA3AF', fontWeight: '600', marginTop: 8 },
 
   recentMealsSectionClean: {
     backgroundColor: c.card, borderRadius: 20, paddingTop: 14, paddingHorizontal: 16, paddingBottom: 12,
