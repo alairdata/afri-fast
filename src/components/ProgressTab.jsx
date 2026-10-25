@@ -4,7 +4,6 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platf
 import Svg, { Path, Circle, Line, Rect, Text as SvgText } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../lib/theme';
-import { LineChart } from 'react-native-chart-kit';
 import { computeMomentumTimeline, MET, MIN_LOGGED_DAYS } from '../lib/momentum';
 import { computeWeeklyPace, estimateChangeSinceWeighInKg, scaleTrendWeekly, blendWeeklyRate, findOddWeighIns } from '../lib/trajectory';
 import { computeObservedTdee } from '../lib/observedTdee';
@@ -53,7 +52,31 @@ const PillBars = ({ values, max, letters, color, styles, label }) => (
     </View>
   </View>
 );
+// Calories for the last 7 days: square bars, a dashed line at the goal, red on days over it, today's letter bold.
+const GoalBars = ({ values, goals, goal, letters, todayIdx, styles, label }) => {
+  const max = Math.max(...values, goal || 0, 1) * 1.1;
+  const goalPct = goal > 0 ? (goal / max) * 100 : null;
+  return (
+    <View style={{ flex: 1, gap: 6 }} accessible accessibilityLabel={label}>
+      <View style={styles.goalBarsBox}>
+        <View style={[styles.goalBarsGrid, { top: 0 }]} />
+        <View style={[styles.goalBarsGrid, { top: '50%' }]} />
+        {goalPct != null && <View style={[styles.goalBarsGoalLine, { bottom: `${goalPct}%` }]} />}
+        {goalPct != null && <Text style={[styles.goalBarsGoalText, { bottom: `${goalPct}%` }]}>{`Goal ${Math.round(goal)}`}</Text>}
+        <View style={styles.goalBarsRow}>
+          {values.map((v, i) => (
+            <View key={i} style={{ flex: 1, height: `${Math.min(100, ((v || 0) / max) * 100)}%`, backgroundColor: goals[i] > 0 && v > goals[i] ? '#F87171' : '#34D399' }} />
+          ))}
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 4 }}>
+        {letters.map((l, i) => <Text key={i} style={[styles.pillLetter, i === todayIdx && styles.pillLetterToday]}>{l}</Text>)}
+      </View>
+    </View>
+  );
+};
 const DANGER_BG = '#FEF2F2';
+const PREDICTED = '#818CF8';
 const ACTIVITY_MULTIPLIERS = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 };
 const RANGE_OPTIONS = ['7 days', '14 days', '30 days', '90 days', 'All time'];
 const RANGE_SHORT = { '7 days': '7D', '14 days': '14D', '30 days': '30D', '90 days': '90D', 'All time': 'All' };
@@ -248,12 +271,10 @@ const ProgressTab = ({
   const [waterRange, setWaterRange] = useState('7 days');
   const [stepsRange, setStepsRange] = useState('7 days');
 
-  const [weightTooltip, setWeightTooltip] = useState(null);
   const [stepsTooltip, setStepsTooltip] = useState(null);
   const [calTooltip, setCalTooltip] = useState(null);
   const [waterTooltip, setWaterTooltip] = useState(null);
 
-  useEffect(() => { if (!weightTooltip) return; const t = setTimeout(() => setWeightTooltip(null), 2000); return () => clearTimeout(t); }, [weightTooltip]);
   useEffect(() => { if (!calTooltip) return; const t = setTimeout(() => setCalTooltip(null), 2000); return () => clearTimeout(t); }, [calTooltip]);
   useEffect(() => { if (!waterTooltip) return; const t = setTimeout(() => setWaterTooltip(null), 2000); return () => clearTimeout(t); }, [waterTooltip]);
   useEffect(() => { if (!stepsTooltip) return; const t = setTimeout(() => setStepsTooltip(null), 2000); return () => clearTimeout(t); }, [stepsTooltip]);
@@ -1289,7 +1310,7 @@ const ProgressTab = ({
     }));
     return {
       proj: smooth(pts('proj')), band, weighIns, points, todayIdx,
-      todayPt: { cx: x(todayIdx), cy: y(data[todayIdx].proj) },
+      todayPt: { cx: x(todayIdx), cy: y(data[todayIdx].proj) }, todayVal: data[todayIdx].proj,
       endPt: todayIdx < 6 ? { cx: x(6), cy: y(weekEndVal) } : null,
       labels: data.map((p) => p.label), weekChange, weekEndDate, weekEndVal,
     };
@@ -1716,96 +1737,113 @@ const ProgressTab = ({
                   <Text style={[styles.statFactLabel, { marginTop: 18 }]}>{week7.gapPct == null ? 'Avg goal gap' : week7.gapPct > 0 ? 'Avg over goal' : week7.gapPct < 0 ? 'Avg under goal' : 'Avg on goal'}</Text>
                   <Text style={styles.statFactValue}>{week7.gapPct == null ? '--' : week7.gapPct > 0 ? `+${week7.gapPct}%` : week7.gapPct < 0 ? `−${Math.abs(week7.gapPct)}%` : '0%'}</Text>
                 </View>
-                <PillBars values={week7.days.map((d) => d.cal)} max={Math.max(...week7.days.map((d) => Math.max(d.cal, d.calGoal)), 1)} letters={week7.days.map((d) => d.letter)} color={accent} styles={styles} label="Calories for the last 7 days" />
+                <GoalBars values={week7.days.map((d) => d.cal)} goals={week7.days.map((d) => d.calGoal)} goal={week7.days[week7.days.length - 1].calGoal} letters={week7.days.map((d) => d.letter)} todayIdx={week7.days.length - 1} styles={styles} label="Calories for the last 7 days against your goal" />
               </View>
             </View>
 
-            {/* Weight trend */}
+            {/* Weight trend: this week's actual vs predicted weight, today's predicted weight (it moves every day with
+                new weigh-ins and logged meals), the change over the chosen range and this month */}
             <View style={styles.progressSectionCompact}>
               <View style={styles.progressSectionHeader}>
                 <View style={styles.titleTipRow}><Text style={styles.progressSectionTitleCompact}>Weight trend</Text><InfoTip id="weight" /></View>
                 <RangeDropdown value={weightRange} onChange={setWeightRange} styles={styles} />
               </View>
               <View style={styles.chartCardCompact}>
-                {(() => {
-                  const uniqueLogs = weightData.uniqueWeights;
-                  const hasData = weightData.hasLoggedWeight;
-                  const hasMultiple = hasData && uniqueLogs.length >= 2;
-                  const latest = uniqueLogs.length > 0 ? uniqueLogs[0] : null;
-                  const unit = latest ? latest.unit : 'kg';
-                  const displayLogs = uniqueLogs.slice().reverse();
-                  const allWeights = weightData.weightChartData;
-                  const currentWeightVal = latest ? latest.weight : null;
-                  const yMax = currentWeightVal != null ? Math.ceil(currentWeightVal + 5) : undefined;
-                  const yMin = targetWeight != null ? Math.floor(targetWeight - 10) : undefined;
-                  return (
-                    <>
-                      <View style={{ marginLeft: 0, marginRight: -22, height: 200, overflow: 'hidden', position: 'relative' }}>
-                        {hasMultiple ? (
-                          <>
-                          <LineChart
-                            data={{
-                              labels: weightData.buildLabels(displayLogs),
-                              datasets: [
-                                { data: allWeights },
-                                ...(yMin != null ? [{ data: [yMin] }] : []),
-                              ],
-                            }}
-                            fromNumber={yMax}
-                            width={SCREEN_WIDTH + 22}
-                            height={190}
-                            chartConfig={{
-                              backgroundColor: colors.card,
-                              backgroundGradientFrom: colors.card,
-                              backgroundGradientTo: colors.card,
-                              decimalPlaces: 1,
-                              color: (opacity = 1) => `rgba(5, 150, 105, ${opacity})`,
-                              labelColor: () => '#888',
-                              propsForDots: { r: '3.5', strokeWidth: '1.5', stroke: colors.card, fill: '#059669' },
-                              propsForBackgroundLines: { stroke: 'transparent' },
-                              fillShadowGradient: '#059669',
-                              fillShadowGradientFrom: '#059669',
-                              fillShadowGradientTo: '#059669',
-                              fillShadowGradientFromOpacity: 0.3,
-                              fillShadowGradientToOpacity: 0.05,
-                              propsForLabels: { fontSize: 9 },
-                              paddingRight: 48,
-                            }}
-                            onDataPointClick={({ value, x, y }) => setWeightTooltip(t => t?.x === x && t?.y === y ? null : { value, x, y })}
-                            bezier
-                            style={{ borderRadius: 12, marginLeft: -54 }}
-                            withInnerLines={false}
-                            withOuterLines={false}
-                            fromZero={false}
-                            withHorizontalLabels={false}
-                            segments={5}
-                          />
-                          {weightTooltip && (
-                            <View style={[styles.chartTooltip, { left: Math.max(0, Math.min(weightTooltip.x - 30, SCREEN_WIDTH - 120)), top: weightTooltip.y - 12 }]} pointerEvents="none">
-                              <Text style={styles.chartTooltipText}>{weightTooltip.value} kg</Text>
-                            </View>
-                          )}
-                          </>
-                        ) : (
-                          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={styles.chartPlaceholderText}>{hasData ? `${latest.weight} ${unit}` : 'No weight data'}</Text>
-                            <Text style={styles.chartPlaceholderSubtext}>{hasData ? 'Log more to see trends' : 'Log your weight to start'}</Text>
-                          </View>
-                        )}
+                {chart ? (
+                  <>
+                    <View style={styles.rowBetween}>
+                      <View>
+                        <View style={styles.titleTipRow}><Text style={styles.kicker}>ACTUAL VS PREDICTED WEIGHT</Text><InfoTip id="prediction" /></View>
+                        {/* The predicted weight on Saturday, from the latest (or carried-forward) weight plus the days left */}
+                        <Text style={styles.bigStat}>
+                          {chart.weekEndVal != null ? `About ${chart.weekEndVal.toFixed(1)} ${weightUnit}` : '--'}
+                          <Text style={styles.bigStatSub}> by {fmtDayMonth(chart.weekEndDate)}</Text>
+                        </Text>
+                        {lastWeighIn && chart.weekEndVal != null && (() => {
+                          const diff = chart.weekEndVal - fromKg(lastWeighIn.weightKg, weightUnit);
+                          const when = daysSinceWeighIn != null && daysSinceWeighIn < 1 ? 'your weigh-in today' : `your last weigh-in (${lastWeighInLabel})`;
+                          return <Text style={styles.mutedSmall}>{`${diff <= 0 ? '−' : '+'}${Math.abs(diff).toFixed(1)} ${weightUnit} since ${when}`}</Text>;
+                        })()}
                       </View>
-                      <View style={styles.weightStatsCompact}>
-                        <View style={styles.weightStatCompact}>
-                          <Text style={styles.weightStatValueCompact}>{hasMultiple ? weightData.weightChange : '--'}</Text>
-                          <Text style={styles.weightStatLabelCompact}>This period</Text>
+                      {trendBadge && (
+                        <View style={[styles.pill, { backgroundColor: trendBadge.bg }]}>
+                          <Text style={[styles.pillText, { color: trendBadge.color }]}>{trendBadge.label}</Text>
                         </View>
-                        <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(5, 150, 105, 0.08)' }]}>
-                          <Text style={[styles.weightStatValueCompact, { color: '#059669' }]}>{monthWeightChange == null ? '--' : `${monthWeightChange >= 0 ? '+' : ''}${monthWeightChange} kg`}</Text>
-                          <Text style={styles.weightStatLabelCompact}>This month</Text>
+                      )}
+                    </View>
+                    <View style={{ position: 'relative', marginTop: 12 }}>
+                      <Svg width="100%" height={164} viewBox="0 0 326 164">
+                        <Path d="M0 26H326M0 64H326M0 102H326M0 140H326" stroke={colors.border} strokeWidth={1} strokeOpacity={0.5} />
+                        {!!chart.band && <Path d={chart.band} fill="#6366F1" fillOpacity={0.07} />}
+                        <Line x1={chart.todayPt.cx} y1={12} x2={chart.todayPt.cx} y2={140} stroke={colors.textMuted} strokeOpacity={0.5} strokeWidth={1} strokeDasharray="3 3" />
+                        <Rect x={Math.min(Math.max(chart.todayPt.cx - 20, 0), 286)} y={0} width={40} height={16} rx={8} fill={colors.text} />
+                        <SvgText x={Math.min(Math.max(chart.todayPt.cx, 20), 306)} y={11.5} textAnchor="middle" fontSize={9.5} fontWeight="700" fill={colors.card}>Today</SvgText>
+                        <Path d={chart.proj} fill="none" stroke={PREDICTED} strokeWidth={2.5} strokeLinecap="round" strokeDasharray="6 6" />
+                        {chart.weighIns.map((p, i) => <Circle key={i} cx={p.cx} cy={p.cy} r={4} fill={accent} stroke={colors.card} strokeWidth={2} />)}
+                        <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={10} fill={accent} fillOpacity={0.15} />
+                        <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={5.5} fill={accent} stroke={colors.card} strokeWidth={2} />
+                        {chart.endPt && <Circle cx={chart.endPt.cx} cy={chart.endPt.cy} r={5} fill={colors.card} stroke={PREDICTED} strokeWidth={2} />}
+                        {chart.labels.map((l, i) => (
+                          <SvgText key={i} x={16 + i * 49} y={158} textAnchor="middle" fontSize={10} fontWeight={i === chart.todayIdx ? '800' : '600'} fill={i === chart.todayIdx ? colors.text : colors.textMuted}>{l}</SvgText>
+                        ))}
+                      </Svg>
+                      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+                        <View style={{ flex: 1, flexDirection: 'row' }} pointerEvents="box-none">
+                          {chart.points.map((pt, i) => (
+                            <TouchableOpacity
+                              key={i}
+                              disabled={pt.value == null}
+                              style={{ flex: 1 }}
+                              onPress={() => setChartTooltip((t) => (t?.i === i ? null : { i, ...pt }))}
+                            />
+                          ))}
                         </View>
                       </View>
-                    </>
-                  );
-                })()}
+                    </View>
+                    <View style={styles.chartKeyRow}>
+                      <View style={styles.chartKeyItem}>
+                        <Svg width={14} height={4}><Line x1={0} y1={2} x2={14} y2={2} stroke={PREDICTED} strokeWidth={3} strokeDasharray="4 3" /></Svg>
+                        <Text style={styles.chartKeyText}>Predicted</Text>
+                      </View>
+                      {chart.weighIns.length > 0 && (
+                        <View style={styles.chartKeyItem}>
+                          <View style={[styles.chartKeyDot, { backgroundColor: accent }]} />
+                          <Text style={styles.chartKeyText}>Your weigh-ins</Text>
+                        </View>
+                      )}
+                      {!chartTooltip && <Text style={[styles.chartInfoText, { marginLeft: 'auto' }]}>Tap a point</Text>}
+                    </View>
+                    {chartTooltip && (
+                      <Text style={[styles.chartInfoText, { marginTop: 6 }]}>
+                        {`${chartTooltip.label}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.weighed ? ' (your weigh-in)' : ' (predicted)'}${chartTooltip.changeFromStart != null ? `  ·  ${Math.abs(chartTooltip.changeFromStart).toFixed(2)} ${weightUnit} ${chartTooltip.changeFromStart > 0 ? 'gain' : chartTooltip.changeFromStart < 0 ? 'loss' : 'change'} vs Sun` : ''}`}
+                      </Text>
+                    )}
+                    {staleWeighInNote ? <Text style={[styles.mutedSmall, { marginTop: 8 }]}>{staleWeighInNote}</Text> : null}
+                    {trendNote && (
+                      <View style={[styles.nudgeBox, (trendBadge?.label === 'Too Aggressive' || trendBadge?.label === 'Stalled') && styles.nudgeBoxUrgent]}>
+                        <Text style={[styles.nudgeText, (trendBadge?.label === 'Too Aggressive' || trendBadge?.label === 'Stalled') && styles.nudgeTextUrgent]}>
+                          {trendNote}
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <Text style={styles.mutedBody}>Log a couple of weigh-ins to see your trend here.</Text>
+                )}
+                <View style={[styles.weightStatsCompact, { marginTop: 12 }]}>
+                  <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(99, 102, 241, 0.08)' }]}>
+                    <Text style={[styles.weightStatValueCompact, { color: '#4F46E5' }]}>{chart ? `${chart.todayVal.toFixed(1)} ${weightUnit}` : '--'}</Text>
+                    <Text style={styles.weightStatLabelCompact}>Today's prediction</Text>
+                  </View>
+                  <View style={styles.weightStatCompact}>
+                    <Text style={styles.weightStatValueCompact}>{weightData.hasLoggedWeight && weightData.uniqueWeights.length >= 2 ? weightData.weightChange : '--'}</Text>
+                    <Text style={styles.weightStatLabelCompact}>This period</Text>
+                  </View>
+                  <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(5, 150, 105, 0.08)' }]}>
+                    <Text style={[styles.weightStatValueCompact, { color: '#059669' }]}>{monthWeightChange == null ? '--' : `${monthWeightChange >= 0 ? '+' : ''}${monthWeightChange} kg`}</Text>
+                    <Text style={styles.weightStatLabelCompact}>This month</Text>
+                  </View>
+                </View>
                 {oddWeighIns.length > 0 && (
                   <View style={[styles.nudgeBox, { marginTop: 10 }]}>
                     <Text style={[styles.nudgeText, { textAlign: 'left' }]}>
@@ -1826,99 +1864,17 @@ const ProgressTab = ({
                     <Text style={styles.weightActionLinkText}>View all logs</Text>
                   </TouchableOpacity>
                 </View>
+                {chart && (
+                  <>
+                    <TouchableOpacity style={styles.detailsBtn} onPress={() => (isPro ? setView('details') : unlock('forecast'))}>
+                      <Text style={styles.detailsBtnText}>See details</Text>
+                      {!isPro && <Ionicons name="sparkles" size={13} color="#F5A524" style={{ marginLeft: 5 }} />}
+                      <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             </View>
-
-            {/* Prediction this week */}
-            {chart && (
-              <View style={styles.card}>
-                <View style={styles.rowBetween}>
-                  <View>
-                    <View style={styles.titleTipRow}><Text style={styles.kicker}>PREDICTION THIS WEEK</Text><InfoTip id="prediction" /></View>
-                    {/* The predicted weight on Saturday, from the latest (or carried-forward) weight plus the days left */}
-                    <Text style={styles.bigStat}>
-                      {chart.weekEndVal != null ? `About ${chart.weekEndVal.toFixed(1)} ${weightUnit}` : '--'}
-                      <Text style={styles.bigStatSub}> by {fmtDayMonth(chart.weekEndDate)}</Text>
-                    </Text>
-                    {lastWeighIn && chart.weekEndVal != null && (() => {
-                      const diff = chart.weekEndVal - fromKg(lastWeighIn.weightKg, weightUnit);
-                      const when = daysSinceWeighIn != null && daysSinceWeighIn < 1 ? 'your weigh-in today' : `your last weigh-in (${lastWeighInLabel})`;
-                      return <Text style={styles.mutedSmall}>{`${diff <= 0 ? '−' : '+'}${Math.abs(diff).toFixed(1)} ${weightUnit} since ${when}`}</Text>;
-                    })()}
-                  </View>
-                  {trendBadge && (
-                    <View style={[styles.pill, { backgroundColor: trendBadge.bg }]}>
-                      <Text style={[styles.pillText, { color: trendBadge.color }]}>{trendBadge.label}</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={{ position: 'relative', marginTop: 12 }}>
-                  <Svg width="100%" height={164} viewBox="0 0 326 164">
-                    <Path d="M0 26H326M0 64H326M0 102H326M0 140H326" stroke={colors.border} strokeWidth={1} strokeOpacity={0.5} />
-                    {!!chart.band && <Path d={chart.band} fill={accent} fillOpacity={0.07} />}
-                    <Line x1={chart.todayPt.cx} y1={12} x2={chart.todayPt.cx} y2={140} stroke={colors.textMuted} strokeOpacity={0.5} strokeWidth={1} strokeDasharray="3 3" />
-                    <Rect x={Math.min(Math.max(chart.todayPt.cx - 20, 0), 286)} y={0} width={40} height={16} rx={8} fill={colors.text} />
-                    <SvgText x={Math.min(Math.max(chart.todayPt.cx, 20), 306)} y={11.5} textAnchor="middle" fontSize={9.5} fontWeight="700" fill={colors.card}>Today</SvgText>
-                    <Path d={chart.proj} fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="round" strokeDasharray="6 6" strokeOpacity={0.75} />
-                    {chart.weighIns.map((p, i) => <Circle key={i} cx={p.cx} cy={p.cy} r={4} fill={accent} stroke={colors.card} strokeWidth={2} />)}
-                    <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={10} fill={accent} fillOpacity={0.15} />
-                    <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={5.5} fill={accent} stroke={colors.card} strokeWidth={2} />
-                    {chart.endPt && <Circle cx={chart.endPt.cx} cy={chart.endPt.cy} r={5} fill={colors.card} stroke={accent} strokeWidth={2} />}
-                    {chart.labels.map((l, i) => (
-                      <SvgText key={i} x={16 + i * 49} y={158} textAnchor="middle" fontSize={10} fontWeight={i === chart.todayIdx ? '800' : '600'} fill={i === chart.todayIdx ? colors.text : colors.textMuted}>{l}</SvgText>
-                    ))}
-                  </Svg>
-                  <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-                    <View style={{ flex: 1, flexDirection: 'row' }} pointerEvents="box-none">
-                      {chart.points.map((pt, i) => (
-                        <TouchableOpacity
-                          key={i}
-                          disabled={pt.value == null}
-                          style={{ flex: 1 }}
-                          onPress={() => setChartTooltip((t) => (t?.i === i ? null : { i, ...pt }))}
-                        />
-                      ))}
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.chartKeyRow}>
-                  <View style={styles.chartKeyItem}>
-                    <Svg width={14} height={4}><Line x1={0} y1={2} x2={14} y2={2} stroke={accent} strokeWidth={3} strokeDasharray="4 3" /></Svg>
-                    <Text style={styles.chartKeyText}>Predicted</Text>
-                  </View>
-                  {chart.weighIns.length > 0 && (
-                    <View style={styles.chartKeyItem}>
-                      <View style={[styles.chartKeyDot, { backgroundColor: accent }]} />
-                      <Text style={styles.chartKeyText}>Your weigh-ins</Text>
-                    </View>
-                  )}
-                  {!chartTooltip && <Text style={[styles.chartInfoText, { marginLeft: 'auto' }]}>Tap a point</Text>}
-                </View>
-                {chartTooltip && (
-                  <Text style={[styles.chartInfoText, { marginTop: 6 }]}>
-                    {`${chartTooltip.label}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.weighed ? ' (your weigh-in)' : ' (predicted)'}${chartTooltip.changeFromStart != null ? `  ·  ${Math.abs(chartTooltip.changeFromStart).toFixed(2)} ${weightUnit} ${chartTooltip.changeFromStart > 0 ? 'gain' : chartTooltip.changeFromStart < 0 ? 'loss' : 'change'} vs Sun` : ''}`}
-                  </Text>
-                )}
-                {staleWeighInNote ? <Text style={[styles.mutedSmall, { marginTop: 8 }]}>{staleWeighInNote}</Text> : null}
-                {trendNote && (
-                  <View style={[styles.nudgeBox, (trendBadge?.label === 'Too Aggressive' || trendBadge?.label === 'Stalled') && styles.nudgeBoxUrgent]}>
-                    <Text style={[styles.nudgeText, (trendBadge?.label === 'Too Aggressive' || trendBadge?.label === 'Stalled') && styles.nudgeTextUrgent]}>
-                      {trendNote}
-                    </Text>
-                  </View>
-                )}
-                <TouchableOpacity style={styles.detailsBtn} onPress={() => (isPro ? setView('details') : unlock('forecast'))}>
-                  <Text style={styles.detailsBtnText}>See details</Text>
-                  {!isPro && <Ionicons name="sparkles" size={13} color="#F5A524" style={{ marginLeft: 5 }} />}
-                  <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-            )}
-            {!chart && (
-              <View style={styles.card}>
-                <Text style={styles.mutedBody}>Log a couple of weigh-ins to see your trend here.</Text>
-              </View>
-            )}
 
             {/* Forecast — dates instead of "next 7 days" */}
             {(projected7Kg != null || projectedGoalDate) && (
@@ -2419,6 +2375,12 @@ const makeStyles = (c) => StyleSheet.create({
   statFactValue: { fontSize: 18, fontWeight: '700', color: c.text },
   pillTrack: { flex: 1, justifyContent: 'flex-end', borderRadius: 999, backgroundColor: c.cardAlt === '#F3F4F6' ? '#EEF0F2' : c.cardAlt, overflow: 'hidden' },
   pillLetter: { flex: 1, textAlign: 'center', fontSize: 10, color: c.textSecondary },
+  pillLetterToday: { fontWeight: '800', color: c.text },
+  goalBarsBox: { height: 120, position: 'relative', borderBottomWidth: 1, borderBottomColor: c.border },
+  goalBarsGrid: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1, borderTopColor: c.border, opacity: 0.5 },
+  goalBarsGoalLine: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1.5, borderTopColor: '#9CA3AF', borderStyle: 'dashed', zIndex: 2 },
+  goalBarsGoalText: { position: 'absolute', right: 0, marginBottom: 2, fontSize: 9, fontWeight: '700', color: c.textSecondary, backgroundColor: c.card, paddingLeft: 4, zIndex: 3 },
+  goalBarsRow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
   aheadDay: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 6, borderRadius: 10, borderWidth: 1.5, borderColor: 'transparent' },
   aheadDayOn: { borderColor: '#D1D5DB', backgroundColor: c.card },
   aheadDayName: { fontSize: 10, color: c.textSecondary },
