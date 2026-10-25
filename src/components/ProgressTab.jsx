@@ -1261,9 +1261,11 @@ const ProgressTab = ({
 
   // Trajectory chart: a PREDICTION for every day of the week (dashed, with a band that widens away from
   // today), plus the real weigh-ins this week as dots so the two never look alike.
+  // The Weight trend chart follows the range picker. 7 days: this week, Sunday to Saturday. Longer: the chosen
+  // range back from today up to this Saturday. Real weigh-ins are the solid line across the whole range; the
+  // dashed prediction (and its band) only ever covers the current week.
   const chart = useMemo(() => {
     const top = 26, bot = 128;
-    const x = (i) => 16 + i * 49;
     const nowDate = new Date(now);
     const startOfToday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
     const startOfWeek = new Date(startOfToday);
@@ -1276,45 +1278,61 @@ const ProgressTab = ({
     const weighInByDay = {};
     sortedWeights.forEach((w) => { weighInByDay[new Date(w.ts).toDateString()] = w.weightKg; });
 
+    const rangeDays = weightRange === 'All time' ? daysSinceEarliest(sortedWeights, (w) => w.ts) : (RANGE_DAYS[weightRange] || 7);
+    const weekOnly = rangeDays <= 7;
+    const start = weekOnly ? startOfWeek : new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() - (rangeDays - 1));
+    const n = Math.round((startOfWeek.getTime() - start.getTime()) / DAY_MS) + 7;
+
     const data = [];
-    for (let offset = 0; offset <= 6; offset++) {
-      const d = new Date(startOfWeek);
-      d.setDate(startOfWeek.getDate() + offset);
+    for (let offset = 0; offset < n; offset++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + offset);
       const dayDiff = Math.round((d.getTime() - startOfToday.getTime()) / DAY_MS);
+      const inWeek = d.getTime() >= startOfWeek.getTime();
       const projectedKg = anchorKg + dailyRateKg * dayDiff;
       const marginKg = Math.abs(dayDiff) * 0.15 * (2 - confidenceVal);
-      const proj = fromKg(projectedKg, weightUnit);
+      const proj = inWeek ? fromKg(projectedKg, weightUnit) : null;
       const margin = fromKg(marginKg, weightUnit);
       const wKg = dayDiff <= 0 ? weighInByDay[d.toDateString()] : undefined;
-      data.push({ label: dayLabel(d), proj, upper: proj + margin, lower: proj - margin, weighIn: wKg != null ? fromKg(wKg, weightUnit) : null });
+      data.push({
+        date: d, proj, upper: proj != null ? proj + margin : null, lower: proj != null ? proj - margin : null,
+        weighIn: wKg != null ? fromKg(wKg, weightUnit) : null,
+      });
     }
 
-    const weekStartVal = data[0].proj;
-    const weekEndVal = data[data.length - 1].proj;
+    const week = data.filter((p) => p.proj != null);
+    const weekStartVal = week[0].proj;
+    const weekEndVal = week[week.length - 1].proj;
     const weekChange = weekEndVal - weekStartVal;
     const weekEndDate = new Date(startOfWeek);
     weekEndDate.setDate(startOfWeek.getDate() + 6);
 
+    const x = (i) => 16 + i * (294 / Math.max(n - 1, 1));
     const vals = [];
-    data.forEach((p) => { vals.push(p.proj, p.upper, p.lower); if (p.weighIn != null) vals.push(p.weighIn); });
+    data.forEach((p) => { if (p.proj != null) vals.push(p.proj, p.upper, p.lower); if (p.weighIn != null) vals.push(p.weighIn); });
     const min = Math.min(...vals) - 0.15, max = Math.max(...vals) + 0.15;
     const y = (v) => bot - ((v - min) / (max - min || 1)) * (bot - top);
-    const pts = (k) => data.map((p, i) => [x(i), y(p[k])]);
+    const pts = (k) => data.map((p, i) => (p[k] != null ? [x(i), y(p[k])] : null)).filter(Boolean);
     const ups = pts('upper'), los = pts('lower').reverse();
     const band = smooth(ups) + ` L ${los[0][0]} ${los[0][1]} ` + smooth(los).replace(/^M [^C]*/, '') + ' Z';
-    const todayIdx = startOfToday.getDay();
+    const todayIdx = Math.round((startOfToday.getTime() - start.getTime()) / DAY_MS);
     const weighIns = data.map((p, i) => (p.weighIn != null ? { cx: x(i), cy: y(p.weighIn) } : null)).filter(Boolean);
     const points = data.map((p) => ({
-      label: p.label, value: p.weighIn != null ? p.weighIn : p.proj, weighed: p.weighIn != null,
-      changeFromStart: p.proj - weekStartVal,
+      label: weekOnly ? dayLabel(p.date) : fmtDayMonth(p.date),
+      value: p.weighIn != null ? p.weighIn : p.proj, weighed: p.weighIn != null,
+      changeFromStart: p.proj != null ? p.proj - weekStartVal : null,
     }));
+    // 7 days: a letter per day. Longer: five dates spread across the range.
+    const labels = weekOnly
+      ? data.map((p, i) => ({ x: x(i), text: dayLabel(p.date), bold: i === todayIdx }))
+      : [0, 0.25, 0.5, 0.75, 1].map((f) => { const i = Math.round(f * (n - 1)); return { x: x(i), text: fmtDayMonth(data[i].date), bold: false }; });
     return {
-      proj: smooth(pts('proj')), band, weighIns, points, todayIdx,
+      proj: smooth(pts('proj')), band, weighIns, points, todayIdx, weekOnly, labels,
       todayPt: { cx: x(todayIdx), cy: y(data[todayIdx].proj) }, todayVal: data[todayIdx].proj,
-      endPt: todayIdx < 6 ? { cx: x(6), cy: y(weekEndVal) } : null,
-      labels: data.map((p) => p.label), weekChange, weekEndDate, weekEndVal,
+      endPt: todayIdx < n - 1 ? { cx: x(n - 1), cy: y(weekEndVal) } : null,
+      weekChange, weekEndDate, weekEndVal,
     };
-  }, [today, anchorKg, weeklyPace, now, weightUnit, sortedWeights]);
+  }, [today, anchorKg, weeklyPace, now, weightUnit, sortedWeights, weightRange]);
 
   const predictionSnapshot = useMemo(() => {
     const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
@@ -1775,12 +1793,12 @@ const ProgressTab = ({
                         <SvgText x={Math.min(Math.max(chart.todayPt.cx, 20), 306)} y={11.5} textAnchor="middle" fontSize={9.5} fontWeight="700" fill={colors.card}>Today</SvgText>
                         <Path d={chart.proj} fill="none" stroke={PREDICTED} strokeWidth={2.5} strokeLinecap="round" strokeDasharray="6 6" />
                         {chart.weighIns.length >= 2 && <Path d={smooth(chart.weighIns.map((p) => [p.cx, p.cy]))} fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="round" />}
-                        {chart.weighIns.map((p, i) => <Circle key={i} cx={p.cx} cy={p.cy} r={4} fill={accent} stroke={colors.card} strokeWidth={2} />)}
+                        {chart.weighIns.map((p, i) => <Circle key={i} cx={p.cx} cy={p.cy} r={chart.weekOnly ? 4 : 3} fill={accent} stroke={colors.card} strokeWidth={chart.weekOnly ? 2 : 1.5} />)}
                         <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={10} fill={accent} fillOpacity={0.15} />
                         <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={5.5} fill={accent} stroke={colors.card} strokeWidth={2} />
                         {chart.endPt && <Circle cx={chart.endPt.cx} cy={chart.endPt.cy} r={5} fill={colors.card} stroke={PREDICTED} strokeWidth={2} />}
                         {chart.labels.map((l, i) => (
-                          <SvgText key={i} x={16 + i * 49} y={158} textAnchor="middle" fontSize={10} fontWeight={i === chart.todayIdx ? '800' : '600'} fill={i === chart.todayIdx ? colors.text : colors.textMuted}>{l}</SvgText>
+                          <SvgText key={i} x={l.x} y={158} textAnchor="middle" fontSize={10} fontWeight={l.bold ? '800' : '600'} fill={l.bold ? colors.text : colors.textMuted}>{l.text}</SvgText>
                         ))}
                       </Svg>
                       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
