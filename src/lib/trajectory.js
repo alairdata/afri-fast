@@ -48,9 +48,22 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
  *   the prediction" idea. Days with no movement data logged (map entry missing/0) fall back to
  *   `tdee`, since a silent 0 there usually means "didn't sync," not "didn't move."
  */
+// Today, still in progress: counted as at least the day's calorie goal, so a breakfast alone never reads
+// as a huge "deficit", but eating past the goal shows up straight away. Null when nothing is logged today
+// or there's no goal or burn to compare against.
+function todayDeficit({ mealsByDate, tdee, bmr, activityKcalByDate, calorieGoal, now }) {
+  const ds = new Date(now).toDateString();
+  const eaten = mealsByDate[ds] || 0;
+  if (eaten <= 0 || !(calorieGoal > 0)) return null;
+  const activityKcal = activityKcalByDate[ds] || 0;
+  const burn = (activityKcal > 0 && bmr != null) ? bmr + bmr * TEF_RATIO + activityKcal : tdee;
+  if (burn == null) return null;
+  return burn - Math.max(eaten, calorieGoal);
+}
+
 export function computeWeeklyPace({
   tdee, bmr, recentMeals = [], pacePreference, weightEwmaTodayKg, confidence, daysSinceWeighIn,
-  activityKcalByDate = {}, now = Date.now(),
+  activityKcalByDate = {}, calorieGoal = null, now = Date.now(),
 }) {
   const dTarget = PACE_TARGET_DEFICIT[pacePreference] || null;
 
@@ -60,9 +73,10 @@ export function computeWeeklyPace({
   // Unlogged days are excluded entirely, not counted as a fake full-expenditure deficit -- a day
   // with nothing logged isn't "ate zero calories," it's "we don't know," and averaging it in as a
   // 2,000+kcal deficit would falsely crater the projected line every time a day goes unlogged.
-  // Today is left out: it is still in progress, so one breakfast would read as a huge "deficit" and
-  // fake a forecast. The window is the last 7 FINISHED days; a prediction needs at least one of them.
+  // The window is the last 7 finished days plus today, counted as at least the calorie goal (see todayDeficit).
   let d7d = 0, loggedDaysCount = 0;
+  const today = todayDeficit({ mealsByDate, tdee, bmr, activityKcalByDate, calorieGoal, now });
+  if (today != null) { d7d += today; loggedDaysCount++; }
   for (let i = 7; i >= 1; i--) {
     const d = new Date(now - i * DAY_MS);
     const ds = d.toDateString();
@@ -149,7 +163,8 @@ export function computeWeeklyPace({
 
 /**
  * Estimated weight change since the last weigh-in, so the app can carry a person's weight forward day by
- * day without a scale. Each finished day after the weigh-in adds (burn - eaten) / 7,700 kcal per kg:
+ * day without a scale. Each day after the weigh-in adds (burn - eaten) / 7,700 kcal per kg (today counted
+ * as at least the calorie goal, see todayDeficit):
  *   - a day with food logged uses what they really ate and their measured activity;
  *   - a day with nothing logged uses their average deficit over the logged days (their usual pattern),
  *     never "ate zero" and never "no change".
@@ -157,12 +172,14 @@ export function computeWeeklyPace({
  * the estimate improves as they log. Negative = lost weight. Null when it can't be estimated.
  */
 export function estimateChangeSinceWeighInKg({
-  tdee, bmr, recentMeals = [], activityKcalByDate = {}, daysSinceWeighIn, now = Date.now(),
+  tdee, bmr, recentMeals = [], activityKcalByDate = {}, daysSinceWeighIn, calorieGoal = null, now = Date.now(),
 }) {
-  if (tdee == null || !Number.isFinite(daysSinceWeighIn) || daysSinceWeighIn < 2) return null;
+  if (tdee == null || !Number.isFinite(daysSinceWeighIn) || daysSinceWeighIn < 1) return null;
   const mealsByDate = {};
   recentMeals.forEach((m) => { if (m.date) mealsByDate[m.date] = (mealsByDate[m.date] || 0) + (m.calories || 0); });
+  const today = todayDeficit({ mealsByDate, tdee, bmr, activityKcalByDate, calorieGoal, now }) || 0;
   const span = Math.min(daysSinceWeighIn - 1, 90); // days after the weigh-in day, up to yesterday
+  if (span < 1) return today ? { kg: -today / KCAL_PER_KG, loggedDays: 1, estimatedDays: 0 } : null;
   let loggedDeficit = 0, logged = 0;
   for (let i = span; i >= 1; i--) {
     const ds = new Date(now - i * DAY_MS).toDateString();
@@ -173,10 +190,10 @@ export function estimateChangeSinceWeighInKg({
     loggedDeficit += burn - eaten;
     logged++;
   }
-  if (logged === 0) return null;
+  if (logged === 0) return today ? { kg: -today / KCAL_PER_KG, loggedDays: 1, estimatedDays: 0 } : null;
   const unlogged = span - logged;
-  const totalDeficit = loggedDeficit + (loggedDeficit / logged) * unlogged;
-  return { kg: -totalDeficit / KCAL_PER_KG, loggedDays: logged, estimatedDays: unlogged };
+  const totalDeficit = loggedDeficit + (loggedDeficit / logged) * unlogged + today;
+  return { kg: -totalDeficit / KCAL_PER_KG, loggedDays: logged + (today ? 1 : 0), estimatedDays: unlogged };
 }
 
 /**

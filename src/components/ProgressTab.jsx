@@ -732,8 +732,8 @@ const ProgressTab = ({
   const lastWeighIn = sortedWeights.length ? sortedWeights[sortedWeights.length - 1] : null;
   const daysSinceWeighIn = Number.isFinite(today.daysSinceWeighIn) ? today.daysSinceWeighIn : null;
   const sinceWeighIn = useMemo(() => (daysSinceWeighIn == null ? null : estimateChangeSinceWeighInKg({
-    tdee, bmr, recentMeals, activityKcalByDate: activityKcalLast7ByDate, daysSinceWeighIn, now,
-  })), [daysSinceWeighIn, tdee, bmr, recentMeals, activityKcalLast7ByDate, now]);
+    tdee, bmr, recentMeals, activityKcalByDate: activityKcalLast7ByDate, daysSinceWeighIn, calorieGoal: dailyCalorieGoal, now,
+  })), [daysSinceWeighIn, tdee, bmr, recentMeals, activityKcalLast7ByDate, dailyCalorieGoal, now]);
   const anchorKg = baseAnchorKg != null && sinceWeighIn != null ? baseAnchorKg + sinceWeighIn.kg : baseAnchorKg;
   const lastWeighInLabel = lastWeighIn ? fmtDayMonth(new Date(lastWeighIn.ts)) : null;
   const staleWeighInNote = sinceWeighIn != null && lastWeighIn
@@ -749,8 +749,9 @@ const ProgressTab = ({
     confidence: today.confidence,
     daysSinceWeighIn: today.daysSinceWeighIn,
     activityKcalByDate: activityKcalLast7ByDate,
+    calorieGoal: dailyCalorieGoal,
     now,
-  }), [tdee, bmr, recentMeals, pacePreference, today, anchorKg, activityKcalLast7ByDate, now]);
+  }), [tdee, bmr, recentMeals, pacePreference, today, anchorKg, activityKcalLast7ByDate, dailyCalorieGoal, now]);
 
   // The one "per week" number: the scale trend only as far as the weigh-ins earn it, the food-based
   // estimate (already calibrated by past weigh-ins) for the rest, so rare weighers still get a fair rate.
