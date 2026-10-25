@@ -321,32 +321,26 @@ const MealPages = ({
               </Text>
             </View>
 
-            {/* Scan (log what you ate) and Fit it in (portions of food you already have that fit your calories) */}
-            <View style={styles.optionRow}>
-              <TouchableOpacity style={{ flex: 1 }} onPress={() => handleLogMethod('scan')} activeOpacity={0.85} accessibilityLabel="Scan your food">
-                <LinearGradient colors={['#34D399', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroTile}>
-                  <View style={[styles.heroTileIcon, { backgroundColor: 'rgba(255,255,255,0.22)' }]}><Ionicons name="camera-outline" size={20} color="#fff" /></View>
-                  <Text style={styles.heroTileTitle}>Scan your food</Text>
-                  <Text style={styles.heroTileDesc}>Snap it and Logga estimates it</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+            {/* Scan across the top; Fit it in (portions of food you have that fit your calories) and Ask Logga (talk a
+                meal through) side by side under it */}
+            <TouchableOpacity onPress={() => handleLogMethod('scan')} activeOpacity={0.85} accessibilityLabel="Scan your food" style={{ marginBottom: 12 }}>
+              <LinearGradient colors={['#34D399', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroTile}>
+                <View style={[styles.heroTileIcon, { backgroundColor: 'rgba(255,255,255,0.22)' }]}><Ionicons name="camera-outline" size={20} color="#fff" /></View>
+                <Text style={styles.heroTileTitle}>Scan your food</Text>
+                <Text style={styles.heroTileDesc}>Snap it and Logga estimates it</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <View style={[styles.optionRow, { alignItems: 'stretch' }]}>
               <TouchableOpacity style={[styles.heroTile, { flex: 1, backgroundColor: '#064E3B' }]} onPress={() => handleLogMethod('fit')} activeOpacity={0.85} accessibilityLabel="Fit it in, get portions that fit your calories">
                 <View style={[styles.heroTileIcon, { backgroundColor: 'rgba(255,255,255,0.14)' }]}><Ionicons name="pie-chart-outline" size={20} color="#fff" /></View>
                 <Text style={styles.heroTileTitle}>Fit it in</Text>
                 <Text style={[styles.heroTileDesc, { color: 'rgba(255,255,255,0.85)' }]}>Get portions that fit your calories</Text>
               </TouchableOpacity>
-            </View>
-
-            <View style={styles.optionRow}>
-              <TouchableOpacity style={styles.optionCard} onPress={() => handleLogMethod('say')} activeOpacity={0.85} accessibilityLabel="Say it">
-                <Ionicons name="mic-outline" size={22} color="#2563EB" />
-                <Text style={styles.optionTitle}>Say it</Text>
-                <Text style={styles.optionDesc}>Describe your meal out loud</Text>
-              </TouchableOpacity>
               <TouchableOpacity style={styles.optionCard} onPress={() => { onShowChat && onShowChat(); }} activeOpacity={0.85} accessibilityLabel="Ask Logga">
                 <Ionicons name="chatbubble-outline" size={22} color="#9333EA" />
                 <Text style={styles.optionTitle}>Ask Logga</Text>
-                <Text style={styles.optionDesc}>Chat to log or clarify a meal</Text>
+                <Text style={styles.optionDesc}>Not sure what you ate? Talk it through</Text>
               </TouchableOpacity>
             </View>
 
