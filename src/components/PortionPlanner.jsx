@@ -283,8 +283,11 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const chosen = useAll && !lowBudget ? Math.round(caloriesLeft) : amount;
 
   // Working it out: the ring counts up while the plan is made and only reaches 100% once it's back.
+  // While the answer is still being worked out past 92%, the ring keeps creeping (each step slower, never past 99)
+  // so it never looks stuck.
+  const slowTicksRef = useRef(0);
   const run = () => {
-    setStep('loading'); setPct(0); setError(null); resultRef.current = null;
+    setStep('loading'); setPct(0); setError(null); resultRef.current = null; slowTicksRef.current = 0;
     setRecipeImage(null); setSavedRecipe(false);
     track(kitchen ? 'kitchen_recipe_started' : 'portion_plan_started', { has_photo: !!photo, calories: chosen, servings: kitchen ? servings : undefined });
     planPortions({ text: text.trim(), photoUri: photo, budget: chosen, userCountry, type: kitchen ? 'build_recipe' : 'plan_portions', servings: kitchen ? servings : undefined })
@@ -302,7 +305,11 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
           return p;
         }
         if (p >= 100) { clearInterval(timer); return 100; }
-        if (!r && p >= 92) return p;
+        if (!r && p >= 92) {
+          slowTicksRef.current += 1;
+          if (p < 99 && slowTicksRef.current >= 20 + (p - 92) * 15) { slowTicksRef.current = 0; return p + 1; }
+          return p;
+        }
         return p + 1;
       });
     }, 70);
