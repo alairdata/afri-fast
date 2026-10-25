@@ -1846,7 +1846,7 @@ const ProgressTab = ({
                 )}
                 <View style={[styles.weightStatsCompact, { marginTop: 12 }]}>
                   <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(99, 102, 241, 0.08)' }]}>
-                    <Text style={[styles.weightStatValueCompact, { color: '#4F46E5' }]}>{chart ? `${chart.todayVal.toFixed(1)} ${weightUnit}` : '--'}</Text>
+                    <Text style={[styles.weightStatValueCompact, { color: '#4F46E5' }]}>{chart && chart.weekOnly ? `${chart.todayVal.toFixed(1)} ${weightUnit}` : '--'}</Text>
                     <Text style={styles.weightStatLabelCompact}>Today's prediction</Text>
                   </View>
                   <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(16, 185, 129, 0.08)' }]}>
