@@ -235,6 +235,16 @@ export const SOURCES = {
     by: 'Holt SH, Miller JC, Petocz P. European Journal of Clinical Nutrition, 1995',
     url: 'https://pubmed.ncbi.nlm.nih.gov/7498104/',
   },
+  scheer2013: {
+    title: 'The internal circadian clock increases hunger and appetite in the evening independent of food intake and other behaviors',
+    by: 'Scheer FA, Morris CJ, Shea SA. Obesity, 2013',
+    url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC3655529/',
+  },
+  deCastro2004: {
+    title: 'The time of day of food intake influences overall intake in humans',
+    by: 'de Castro JM. Journal of Nutrition, 2004',
+    url: 'https://doi.org/10.1093/jn/134.1.104',
+  },
   deCastro1988: {
     title: 'Subjective hunger relationships with meal patterns in the spontaneous feeding behavior of humans: Evidence for a causal connection',
     by: 'de Castro JM, Elmore DK. Physiology & Behavior, 1988',
@@ -318,7 +328,7 @@ export const TOPICS = [
     id: 'satiety',
     title: 'How long a meal keeps you full',
     summary: 'The fullness estimate on Fit it in draws on research measuring how long people go between meals for the amount they ate, the Satiety Index of common foods (boiled potatoes and porridge rank among the most filling, pastries among the least), and studies showing protein, fibre and bulkier, lower-calorie-density food keep people full for longer. Your own meal times tune it as you log. It is an estimate: sleep, activity and stress change hunger too.',
-    sources: ['deCastro1988', 'holt1995', 'weigle2005', 'wanders2011', 'rolls2009', 'mifflin1990'],
+    sources: ['deCastro1988', 'holt1995', 'weigle2005', 'wanders2011', 'rolls2009', 'scheer2013', 'deCastro2004', 'mifflin1990'],
   },
   {
     id: 'sleep',

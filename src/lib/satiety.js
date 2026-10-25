@@ -11,7 +11,10 @@
 //   much past 5 (a heavy meal is out of the stomach within about 4-5 hours, Hunt 1985; Brener 1983, and
 //   hunger signals return before digestion is over). Protein, fat and fibre stretch it a little; bulky,
 //   low-calorie food (vegetables, soup solids) adds some; the Satiety Index nudges it; and a bigger daily
-//   energy burn (weight, height, age, activity) uses the meal up a little sooner. Never above 6 hours.
+//   energy burn (weight, height, age, activity) uses the meal up a little sooner. The time of day nudges it:
+//   the body clock makes hunger lowest around 8am and highest around 8pm, about 17% apart, whatever was eaten
+//   (Scheer 2013), and food eaten in the morning is the most satiating (de Castro 2004), so the same plate lasts
+//   up to ~7% longer at breakfast and ~7% shorter in the evening. Never above 6 hours.
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const LAG_MIN = 20;
@@ -19,6 +22,10 @@ const ENERGY_MIN = 330; // the most the meal's energy alone adds, approached slo
 const ENERGY_KCAL = 600; // how quickly it levels off
 const BULK_MIN_PER_G = 0.1;
 const CAP_MIN = 360; // soft ceiling: 6 hours
+const CLOCK_SWING = 0.075; // half the morning-to-evening difference
+
+// The body-clock nudge for a meal eaten at `hour` (0-24): highest at 8am, lowest at 8pm, smooth in between.
+export const timeOfDayFactor = (hour) => 1 + CLOCK_SWING * Math.cos((2 * Math.PI * (hour - 8)) / 24);
 const REF_TDEE = 2200;
 const TYPICAL_SI = 130; // an ordinary mixed plate
 
@@ -65,7 +72,7 @@ export const gramsOf = (f) => {
   return (f.cal || 0) / 1.5;
 };
 
-export function estimateSatiety({ foods = [], tdee } = {}) {
+export function estimateSatiety({ foods = [], tdee, at = new Date() } = {}) {
   const sum = (k) => foods.reduce((s, f) => s + (Number(f[k]) || 0), 0);
   const kcal = sum('cal'), protein = sum('protein'), fat = sum('fats'), fibre = sum('fiber');
   const grams = foods.reduce((s, f) => s + gramsOf(f), 0);
@@ -90,7 +97,8 @@ export function estimateSatiety({ foods = [], tdee } = {}) {
   const bulkMin = Math.min(30, Math.max(0, grams - kcal / 2) * BULK_MIN_PER_G);
   const fSI = Math.pow(clamp(si, 47, 323) / TYPICAL_SI, 0.3 * coverage);
   const body = tdee ? clamp(Math.sqrt(REF_TDEE / tdee), 0.9, 1.1) : 1;
-  const raw = (LAG_MIN + energyMin + bulkMin) * fSI * body;
+  const clock = timeOfDayFactor(at.getHours() + at.getMinutes() / 60);
+  const raw = (LAG_MIN + energyMin + bulkMin) * fSI * body * clock;
   // levels off towards the ceiling instead of running past it
   const minutes = CAP_MIN * Math.tanh(raw / CAP_MIN);
 
