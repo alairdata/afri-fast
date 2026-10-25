@@ -340,7 +340,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const sum = (key) => items.reduce((s, i) => s + (i[key] || 0), 0);
   // How long this plate should keep them full: their energy use, the foods' measured Satiety Index, protein,
   // fibre and density, tuned by how long they usually go between logged meals (src/lib/satiety.js).
-  const satEst = useMemo(() => estimateSatiety({ foods: items }), [items]);
+  const satEst = useMemo(() => estimateSatiety({ foods: items, tdee }), [items, tdee]);
   const sat = useMemo(() => satietyProfile(satEst.hours), [satEst.hours]);
 
   // Scale a food's calories and nutrients together (the scan screen's −/+ and typed calories).

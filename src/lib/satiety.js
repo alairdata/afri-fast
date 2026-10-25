@@ -2,16 +2,21 @@
 //
 //   Satiety Score (0-100): how much food it is (stomach fill), its protein, its fibre, and how filling the foods
 //   are (the Satiety Index of the closest measured food, Holt 1995; Rolls 2009 on food volume).
-//   Fullness Window (hours) = 1.5 + Score / 25, nudged by the time of day (the body clock makes hunger lowest
-//   around 8am and highest around 8pm, Scheer 2013; morning food is the most satiating, de Castro 2004), and never
-//   more than 5 hours: a single meal is out of the stomach by then.
+//   Fullness Window (hours): grows with the meal's energy but levels off (a snack about an hour, an ordinary
+//   500-700 kcal plate 3 to 4 hours, even a very large meal not much past 5, Hunt 1985; Brener 1983). Protein,
+//   fibre and higher fat stretch it a little; bulky, low-calorie food adds some; the Satiety Index nudges it; a
+//   bigger daily energy burn uses the meal up a little sooner; and the time of day nudges it (hunger lowest around
+//   8am, highest around 8pm, Scheer 2013; de Castro 2004). It eases towards 6 hours and never passes it.
 //   Energy Density (kcal/g) = calories / grams: watery, fibre-rich food fills more for its calories.
 // Worked out from the food only, never from meal-log times (they don't show when someone actually got hungry).
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-const WINDOW_BASE_H = 1.5;
-const SCORE_PER_HOUR = 25;
-const WINDOW_CAP_H = 5;
+const LAG_MIN = 20;
+const ENERGY_MIN = 330; // the most the meal's energy alone adds, approached slowly
+const ENERGY_KCAL = 600; // how quickly it levels off
+const BULK_MIN_PER_G = 0.1;
+const CAP_MIN = 360; // soft ceiling: 6 hours
+const REF_TDEE = 2200;
 const CLOCK_SWING = 0.075; // half the morning-to-evening difference
 
 // The body-clock nudge for a meal eaten at `hour` (0-24): highest at 8am, lowest at 8pm, smooth in between.
@@ -61,9 +66,9 @@ export const gramsOf = (f) => {
   return (f.cal || 0) / 1.5;
 };
 
-export function estimateSatiety({ foods = [], at = new Date() } = {}) {
+export function estimateSatiety({ foods = [], tdee, at = new Date() } = {}) {
   const sum = (k) => foods.reduce((acc, f) => acc + (Number(f[k]) || 0), 0);
-  const kcal = sum('cal'), protein = sum('protein'), fibre = sum('fiber');
+  const kcal = sum('cal'), protein = sum('protein'), fat = sum('fats'), fibre = sum('fiber');
   const grams = foods.reduce((acc, f) => acc + gramsOf(f), 0);
   if (kcal <= 0 && grams <= 0) return { hours: 0, score: 0, density: 0, level: 'Light', driver: null, protein: 0, grams: 0 };
 
@@ -75,6 +80,7 @@ export function estimateSatiety({ foods = [], at = new Date() } = {}) {
     siKcal += f.cal; siSum += si * f.cal;
     if (!top || si * f.cal > top.score) top = { name: f.name, si, score: si * f.cal };
   });
+  const coverage = kcal > 0 ? siKcal / kcal : 0;
   const si = siKcal > 0 ? siSum / siKcal : TYPICAL_SI;
 
   // Satiety Score: stomach fill, protein, fibre, how filling the foods are.
@@ -82,9 +88,19 @@ export function estimateSatiety({ foods = [], at = new Date() } = {}) {
     + 15 * clamp((si - 47) / (323 - 47), 0, 1));
   const level = score >= 65 ? 'Very satisfying' : score >= 40 ? 'Satisfying' : 'Light';
 
-  // Fullness Window: 1.5 h + 1 h for every 25 points, nudged by the time of day, at most 5 h.
+  // Fullness Window.
+  const proteinShare = kcal > 0 ? (protein * 4) / kcal : 0;
+  const fatShare = kcal > 0 ? (fat * 9) / kcal : 0;
+  // fat only ever adds (it keeps you full later on); a lean plate isn't marked down for being lean
+  const slow = clamp(1 + 0.4 * (proteinShare - 0.15) + 0.2 * Math.max(0, fatShare - 0.3) + 0.01 * fibre, 0.9, 1.2);
+  const energyMin = ENERGY_MIN * (1 - Math.exp(-kcal / ENERGY_KCAL)) * slow;
+  const bulkMin = Math.min(30, Math.max(0, grams - kcal / 2) * BULK_MIN_PER_G);
+  const fSI = Math.pow(clamp(si, 47, 323) / TYPICAL_SI, 0.3 * coverage);
+  const body = tdee ? clamp(Math.sqrt(REF_TDEE / tdee), 0.9, 1.1) : 1;
   const clock = timeOfDayFactor(at.getHours() + at.getMinutes() / 60);
-  const hours = Math.min(WINDOW_CAP_H, (WINDOW_BASE_H + score / SCORE_PER_HOUR) * clock);
+  const raw = (LAG_MIN + energyMin + bulkMin) * fSI * body * clock;
+  // eases towards the ceiling instead of running past it
+  const hours = (CAP_MIN * Math.tanh(raw / CAP_MIN)) / 60;
 
   // Energy Density: calories per gram.
   const density = grams > 0 ? kcal / grams : 0;
