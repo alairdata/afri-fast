@@ -156,13 +156,15 @@ const toFood = (f) => {
   const r1 = (v) => Math.round((v || 0) * k * 10) / 10;
   return {
     name: f.name, qty: `${measureOf(f, f.grams)} (${f.grams} g)`, grams: f.grams, cal: Math.round(f.kcal100 * k),
+    unitGrams: f.unitGrams, unitOne: f.unitOne, unitMany: f.unitMany,
     protein: r1(f.protein100), carbs: r1(f.carbs100), fats: r1(f.fat100), fiber: r1(f.fiber100), sugar: r1(f.sugar100), sodium: Math.round((f.sodium100 || 0) * k),
   };
 };
 
 const measureOf = (f, g) => {
   const n = g / f.unitGrams;
-  if (f.unitGrams <= 40) { const c = Math.max(1, Math.round(n)); return `${c} ${c === 1 ? f.unitOne : f.unitMany}`; }
+  // things counted whole (eggs, pieces, slices, small items) never show as fractions
+  if (f.unitGrams <= 40 || /(eggs?|pieces?|slices?|fillets?|wings?|drumsticks?)/i.test(f.unitOne || "")) { const c = Math.max(1, Math.round(n)); return `${c} ${c === 1 ? f.unitOne : f.unitMany}`; }
   return `${frac(n)} ${n > 1.125 ? f.unitMany : f.unitOne}`;
 };
 
@@ -346,9 +348,26 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const scaleFood = (f, newCal) => {
     const ratio = f.cal > 0 ? newCal / f.cal : 0;
     const r1 = (v) => (ratio > 0 ? Math.round((v || 0) * ratio * 10) / 10 : v);
-    return { ...f, cal: newCal, grams: ratio > 0 ? Math.round(gramsOf(f) * ratio) : f.grams, protein: r1(f.protein), carbs: r1(f.carbs), fats: r1(f.fats), fiber: r1(f.fiber), sugar: r1(f.sugar), sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium };
+    const grams = ratio > 0 ? Math.round(gramsOf(f) * ratio) : f.grams;
+    // the amount follows the size: "2 eggs (100 g)" becomes "3 eggs (150 g)", not just new calories
+    const qty = f.unitGrams > 0 && grams > 0 ? `${measureOf(f, grams)} (${grams} g)` : f.qty;
+    return { ...f, cal: newCal, grams, qty, protein: r1(f.protein), carbs: r1(f.carbs), fats: r1(f.fats), fiber: r1(f.fiber), sugar: r1(f.sugar), sodium: ratio > 0 ? Math.round((f.sodium || 0) * ratio) : f.sodium };
   };
-  const nudgeCal = (i, d) => setFoods((prev) => prev.map((f, idx) => (idx === i ? scaleFood(f, Math.max(0, f.cal + d)) : f)));
+  // A food they change stays as they set it (locked); the foods they haven't touched are re-sized together so the
+  // plate still comes to the calories they chose. If their own choices already use it all, the rest shrink right
+  // down (never to nothing) and the bar shows how far over it is.
+  const refit = (list) => {
+    const target = chosen;
+    const fixed = list.filter((f) => f.locked).reduce((s, f) => s + (f.cal || 0), 0);
+    const free = list.filter((f) => !f.locked && f.cal > 0);
+    const freeTotal = free.reduce((s, f) => s + f.cal, 0);
+    if (!(target > 0) || !free.length || freeTotal <= 0) return list;
+    const factor = Math.max(0.15, (target - fixed) / freeTotal);
+    if (Math.abs(factor - 1) < 0.01) return list;
+    return list.map((f) => (f.locked || !(f.cal > 0) ? f : scaleFood(f, Math.round(f.cal * factor))));
+  };
+  const changeFood = (i, fn) => setFoods((prev) => refit(prev.map((f, idx) => (idx === i ? { ...fn(f), locked: true } : f))));
+  const nudgeCal = (i, d) => changeFood(i, (f) => scaleFood(f, Math.max(0, f.cal + d)));
   const resetEditing = () => { setIsFoodEditMode(false); setEditingQtyIdx(null); setEditingCalIdx(null); setShowAddItem(false); setNewItemName(''); };
 
   const saveQty = async (i) => {
@@ -359,7 +378,8 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
     setEditingQtyIdx(null);
     setUpdatingQtyIdx(i);
     const r = await callApi('recalculate_portion', { foodName: food.name, oldQty: food.qty, newQty, currentNutrition: food }).catch(() => null);
-    setFoods((prev) => prev.map((f, idx) => (idx === i ? {
+    setFoods((prev) => refit(prev.map((f, idx) => (idx === i ? {
+      locked: true,
       ...f,
       name: r?.name || f.name,
       qty: r?.qty || newQty,
@@ -367,7 +387,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
       cal: r?.cal > 0 ? r.cal : f.cal,
       protein: r?.protein ?? f.protein ?? 0, carbs: r?.carbs ?? f.carbs ?? 0, fats: r?.fats ?? f.fats ?? 0,
       fiber: r?.fiber ?? f.fiber ?? 0, sugar: r?.sugar ?? f.sugar ?? 0, sodium: r?.sodium ?? f.sodium ?? 0,
-    } : f)));
+    } : f))));
     setUpdatingQtyIdx(null);
   };
 
@@ -376,7 +396,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
     if (!name) return;
     setAddItemDetecting(true);
     const r = await callApi('lookup_nutrition', { itemName: name }).catch(() => null);
-    setFoods((prev) => [...prev, r ? { ...r, grams: gramsOf(r) } : { name, qty: '1 serving', cal: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, sugar: 0, sodium: 0 }]);
+    setFoods((prev) => refit([...prev, r ? { ...r, grams: gramsOf(r), locked: true } : { name, qty: '1 serving', cal: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, sugar: 0, sodium: 0, locked: true }]));
     setNewItemName('');
     setAddItemDetecting(false);
     setShowAddItem(false);
@@ -755,7 +775,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               </View>
             </View>
 
-            <Text style={styles.portionNote}>Calories and nutrients are AI estimates. Portions not right? Tap the green label to adjust.</Text>
+            <Text style={styles.portionNote}>Change any amount (tap the green label or use − / +) and Logga re-fits the others to your {Math.round(chosen).toLocaleString()} cal. Foods you change stay as you set them. Calories are AI estimates.</Text>
             <View style={styles.foodCard}>
               <View style={styles.foodCardHead}>
                 <Text style={styles.foodCardTitle}>{kitchen ? 'INGREDIENTS (PER PERSON)' : 'YOUR PORTIONS'}</Text>
@@ -769,12 +789,15 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               {foods.map((food, i) => (
                 <View key={i} style={styles.foodRow}>
                   {isFoodEditMode && (
-                    <TouchableOpacity style={styles.foodDeleteBtn} onPress={() => setFoods((prev) => prev.filter((_, idx) => idx !== i))} accessibilityLabel={`Remove ${food.name}`}>
+                    <TouchableOpacity style={styles.foodDeleteBtn} onPress={() => setFoods((prev) => refit(prev.filter((_, idx) => idx !== i)))} accessibilityLabel={`Remove ${food.name}`}>
                       <Ionicons name="remove-circle" size={22} color="#ef4444" />
                     </TouchableOpacity>
                   )}
                   <View style={{ flex: 1, marginRight: 12 }}>
-                    <Text style={styles.foodName}>{food.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.foodName}>{food.name}</Text>
+                      {food.locked && <View style={styles.yoursTag}><Ionicons name="lock-closed" size={9} color="#047857" /><Text style={styles.yoursTagText}>Yours</Text></View>}
+                    </View>
                     {editingQtyIdx === i ? (
                       <View style={styles.editQtyRow}>
                         <TextInput style={styles.editQtyInput} value={editQtyValue} onChangeText={setEditQtyValue} autoFocus />
@@ -806,7 +829,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                             selectTextOnFocus
                             onBlur={() => {
                               const val = parseInt(editCalInputRef.current, 10);
-                              if (!isNaN(val) && val >= 0) setFoods((prev) => prev.map((f, idx) => (idx === i ? scaleFood(f, val) : f)));
+                              if (!isNaN(val) && val >= 0) changeFood(i, (f) => scaleFood(f, val));
                               setEditingCalIdx(null);
                             }}
                           />
@@ -921,6 +944,8 @@ const styles = StyleSheet.create({
   listeningText: { fontSize: 12.5, fontWeight: '600', color: '#B91C1C' },
   voiceNote: { fontSize: 12.5, color: MUTED, marginBottom: 6 },
   editText: { fontSize: 14, fontWeight: '600', color: MUTED },
+  yoursTag: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 2, paddingHorizontal: 6, borderRadius: 999, backgroundColor: '#ECFDF5' },
+  yoursTagText: { fontSize: 10, fontWeight: '700', color: '#047857' },
   portionNote: { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 14, marginBottom: 10, marginHorizontal: 20 },
   foodCard: { backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB', marginHorizontal: 20, overflow: 'hidden' },
   foodCardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', padding: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
