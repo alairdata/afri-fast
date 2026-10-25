@@ -20,7 +20,7 @@ import { SourcesLink } from './HealthSourcesPage';
 import InfoTip from './InfoTip';
 import RiveMomentum from './RiveMomentum';
 import { useSubscription } from '../lib/subscription';
-import { LockedChartPreview, unlock } from './ProLock';
+import { LockedChartPreview } from './ProLock';
 import { BlurView } from 'expo-blur';
 import HeaderFade from './HeaderFade';
 
@@ -679,7 +679,6 @@ const ProgressTab = ({
   };
   const missingDays = 7 - loggedDays.length;
   const todayCalories = last7[last7.length - 1]?.total || 0;
-  const deficitToday = tdee != null ? tdee - todayCalories : null;
 
   // The scale's own trend (last 28 days, one weight per day, odd readings ignored). See trajectory.js.
   const scaleTrend = useMemo(() => scaleTrendWeekly(sortedWeights, now), [sortedWeights, now]);
@@ -700,12 +699,8 @@ const ProgressTab = ({
   const momentumScore = today.momentum;
   // Not enough logged days yet -> no verdict (a brand-new person is not "stalled", they just haven't started).
   const momentumReady = !!today.ready;
-  const momentumLabel = !momentumReady ? 'Not enough data yet'
-    : today.band.label === 'STRONG' ? 'Strong momentum' : today.band.label === 'DRIFTING' ? 'Drifting' : 'Stalled';
   const momentumColor = !momentumReady ? colors.textMuted : today.band.tone === 'strong' ? accent : today.band.tone === 'drifting' ? WARN : DANGER;
-  const momentumBg = !momentumReady ? colors.border : today.band.tone === 'strong' ? colors.accentLight : today.band.tone === 'drifting' ? WARN_BG : DANGER_BG;
 
-  const gauge = useMemo(() => buildGauge(momentumScore, accent, !momentumReady), [momentumScore, accent, momentumReady]);
 
   // Measured gym+steps kcal per day, last 7 days -- lets Weekly Pace use BMR + real activity
   // instead of the PAL guess on days that actually have movement data logged.
@@ -743,11 +738,6 @@ const ProgressTab = ({
   })), [daysSinceWeighIn, tdee, bmr, recentMeals, activityKcalLast7ByDate, dailyCalorieGoal, now]);
   const anchorKg = baseAnchorKg != null && sinceWeighIn != null ? baseAnchorKg + sinceWeighIn.kg : baseAnchorKg;
   const lastWeighInLabel = lastWeighIn ? fmtDayMonth(new Date(lastWeighIn.ts)) : null;
-  const staleWeighInNote = sinceWeighIn != null && lastWeighIn
-    ? `Estimated ${fromKg(anchorKg, weightUnit).toFixed(1)} ${weightUnit} today: your weigh-in on ${lastWeighInLabel}, carried forward with ${sinceWeighIn.loggedDays} logged ${sinceWeighIn.loggedDays === 1 ? 'day' : 'days'}${sinceWeighIn.estimatedDays ? ` and ${sinceWeighIn.estimatedDays} ${sinceWeighIn.estimatedDays === 1 ? 'day' : 'days'} from your usual pattern` : ''}.${daysSinceWeighIn > 7 ? ' Weigh in when you can to sharpen it.' : ''}`
-    : daysSinceWeighIn != null && daysSinceWeighIn > 7
-      ? `Based on your weigh-in from ${daysSinceWeighIn} days ago. Log your meals or weigh in for a sharper forecast.`
-      : null;
 
   // Weekly Pace & Trajectory Engine — purely calorie-driven.
   const weeklyPace = useMemo(() => computeWeeklyPace({
@@ -1407,19 +1397,6 @@ const ProgressTab = ({
     return { label: weeklyPace.badge.label, ...toneStyle };
   }, [weeklyPace, accent, colors.accentLight, colors.textSecondary, colors.cardAlt]);
 
-  const trendNote = useMemo(() => {
-    const label = trendBadge?.label;
-    if (!label || label === 'On Pace') return null;
-    if (label === 'Too Aggressive') {
-      return `This isn't about going too fast — your recent days are averaging ${Math.round(weeklyPace.threeDayAvgCalories).toLocaleString()} kcal, which is less than your body needs to run well. That's under-eating, not overachieving. Bring your calories back up.`;
-    }
-    if (label === 'Faster Than Planned') return "You're moving faster than your chosen pace, but it's still within a safe range for your body — nothing to fix, unless you'd rather update your pace in Settings to match.";
-    if (label === 'Needs Weigh-in') return "It's been over a week since your last weigh-in — log one so this pace reading actually means something.";
-    if (label === 'Tracking Only') return "No weigh-in in over two weeks, so treat the projection as a rough guess, not a forecast.";
-    if (label === 'Off Pace') return "You're a little behind your chosen pace — nothing urgent, just a nudge to close the gap.";
-    if (label === 'Stalled') return "Progress has slowed this week — worth checking your portions and logging everything you eat and drink.";
-    return null;
-  }, [trendBadge, weeklyPace, bmr]);
 
   const weeklyHitRates = useMemo(() => {
     const weeks = [];

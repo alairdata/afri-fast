@@ -1,7 +1,7 @@
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, ActivityIndicator, KeyboardAvoidingView, Platform, Animated, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, KeyboardAvoidingView, Platform, Animated, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -67,7 +67,6 @@ function TypingDots() {
   );
 }
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
 const API_URL = `${BASE}/api/chat`;

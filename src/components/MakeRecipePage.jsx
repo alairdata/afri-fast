@@ -1,12 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image, Modal, SafeAreaView, Platform, Dimensions, ActivityIndicator, Alert, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image, Modal, SafeAreaView, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
-import Svg, { Path, Circle } from 'react-native-svg';
 import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
 import { useSubscription } from '../lib/subscription';
 import { unlock } from './ProLock';
@@ -150,7 +149,6 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
   const scale = servings;
   const scaled = (val) => Math.round(val * scale);
   const displayName = getLocalName(recipe, userCountry);
-  const isLocalised = displayName !== recipe.name;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -341,7 +339,6 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
           {communityCard && (() => {
             const items = communityCard.items || [];
             const total = items.reduce((s, f) => s + (f.cal || f.calories || 0), 0);
-            const screenWidth = Dimensions.get('window').width - 48;
             return (
               <ScrollView contentContainerStyle={detail.cardScroll} showsVerticalScrollIndicator={false}>
                 <View style={detail.cardTopLabel}>
@@ -428,7 +425,6 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
 
 // ── Make Recipe Page ─────────────────────────────────────────────────────────
 
-const SHOW_RECIPE_CREATORS = true;
 
 const CATEGORY_META = {
   'Weight Loss Friendly': { icon: 'flag-outline', subtitle: 'Low calorie, big satisfaction' },

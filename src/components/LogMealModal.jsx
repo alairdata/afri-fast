@@ -2,11 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Animated, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Share, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Share, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, Line, Polyline, Rect } from 'react-native-svg';
+import Svg, { Path, Line, Polyline } from 'react-native-svg';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -39,7 +38,6 @@ const readUriAsBase64 = async (uri) => {
   return FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
 };
 
-const DOT_COLORS = ['#4ade80', '#f59e0b', '#60a5fa', '#f472b6', '#a78bfa'];
 
 // The user's calorie goal changes over time (see recordGoalChange in FastingApp.jsx). Each
 // goalHistory entry is a snapshot of what the goal became as of its `from` date. To render a
@@ -605,10 +603,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
   const [writeError, setWriteError] = useState(null);
   const [correctedInput, setCorrectedInput] = useState(null);
-  const [recentWrites, setRecentWrites] = useState([
-    'jollof rice and chicken',
-    'eba and egusi soup',
-  ]);
   const [writeDetectProgress, setWriteDetectProgress] = useState(0);
   const writeDetectRef = useRef(null);
   const [isFoodEditMode, setIsFoodEditMode] = useState(false);
@@ -837,15 +831,10 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     clearInterval(writeDetectRef.current);
   };
 
-  const quickSuggestions = ['Jollof Rice', 'Eba & Soup', 'Plantain & Egg', 'Moi Moi', 'Suya', 'Fried Rice', 'Pepper Soup', 'Akara & Pap'];
 
   const submitWrite = async () => {
     if (!mealInput.trim()) return;
     setWriteError(null);
-    setRecentWrites(prev => {
-      const filtered = prev.filter(r => r !== mealInput.trim());
-      return [mealInput.trim(), ...filtered].slice(0, 5);
-    });
     setWritePhase('detecting');
     setWriteDetectProgress(0);
 
@@ -876,49 +865,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setWritePhase('results');
   };
 
-  const convertToDataUrl = async (uri) => {
-    if (!uri) return null;
-    if (Platform.OS !== 'web') return uri;
-    if (uri.startsWith('data:')) return uri;
-    try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      return await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = () => resolve(uri);
-        reader.readAsDataURL(blob);
-      });
-    } catch {
-      return uri;
-    }
-  };
 
-  const handleSaveMeal = async () => {
-    if (detectedFoods.length > 0 && onSaveMeal) {
-      const mealDate = selectedMealDate ? new Date(selectedMealDate) : new Date();
-      const isToday = mealDate.toDateString() === new Date().toDateString();
-      const mealId = Date.now();
-      const timeStr = `${isToday ? 'Today' : mealDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${mealDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-      const photoUrl = await uploadMealPhoto(capturedPhoto) || await convertToDataUrl(capturedPhoto);
-      onSaveMeal({
-        id: mealId,
-        name: effectiveTitle || detectedFoods.map(f => f.name).join(', '),
-        calories: detectedFoods.reduce((sum, f) => sum + f.cal, 0),
-        protein: detectedFoods.reduce((sum, f) => sum + (f.protein || 0), 0),
-        carbs: detectedFoods.reduce((sum, f) => sum + (f.carbs || 0), 0),
-        fats: detectedFoods.reduce((sum, f) => sum + (f.fats || 0), 0),
-        fiber: detectedFoods.reduce((sum, f) => sum + (f.fiber || 0), 0), sugar: detectedFoods.reduce((sum, f) => sum + (f.sugar || 0), 0), sodium: detectedFoods.reduce((sum, f) => sum + (f.sodium || 0), 0),
-        time: timeStr,
-        items: detectedFoods.map(f => `${f.name} (${f.qty})`),
-        date: mealDate.toDateString(),
-        photo: photoUrl,
-        foods: detectedFoods,
-      });
-      saveCommunityPhotos(mealId, photoUrl, detectedFoods, recipes, userEmail, scanShareable);
-    }
-    handleClose();
-  };
 
   const resetSay = () => {
     setIsRecording(false);
