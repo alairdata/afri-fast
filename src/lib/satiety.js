@@ -92,7 +92,8 @@ export function estimateSatiety({ foods = [], tdee, at = new Date() } = {}) {
   // How long: stomach emptying.
   const proteinShare = kcal > 0 ? (protein * 4) / kcal : 0;
   const fatShare = kcal > 0 ? (fat * 9) / kcal : 0;
-  const slow = clamp(1 + 0.4 * (proteinShare - 0.15) + 0.2 * (fatShare - 0.3) + 0.01 * fibre, 0.9, 1.2);
+  // fat only ever adds (it keeps you full later on); a lean plate isn't marked down for being lean
+  const slow = clamp(1 + 0.4 * (proteinShare - 0.15) + 0.2 * Math.max(0, fatShare - 0.3) + 0.01 * fibre, 0.9, 1.2);
   const energyMin = ENERGY_MIN * (1 - Math.exp(-kcal / ENERGY_KCAL)) * slow;
   const bulkMin = Math.min(30, Math.max(0, grams - kcal / 2) * BULK_MIN_PER_G);
   const fSI = Math.pow(clamp(si, 47, 323) / TYPICAL_SI, 0.3 * coverage);
