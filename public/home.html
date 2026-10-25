@@ -25,7 +25,7 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
   --accent:#F4C542;
@@ -80,7 +80,7 @@ h1,h2,h3,p{margin:0}
 .avatars span{width:28px;height:28px;border-radius:50%;border:2px solid #fff}
 .avatars span+span{margin-left:-8px}
 .hero h1{font-weight:800;font-size:clamp(44px,7vw,88px);line-height:1;letter-spacing:-3px;max-width:1000px}
-.word{display:inline-block;margin-top:14px;padding:2px 24px 8px;border-radius:22px;background:var(--accent);white-space:nowrap}
+.word{display:inline-block;margin-top:0;padding:2px 24px 8px;border-radius:22px;background:var(--accent);white-space:nowrap}
 .caret{display:inline-block;width:5px;height:.85em;margin-left:4px;vertical-align:-.05em;background:var(--ink);border-radius:2px;animation:blink 1s step-end infinite}
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
 .lead{font-size:20px;line-height:1.55;color:var(--muted);max-width:620px}
@@ -116,6 +116,11 @@ h1,h2,h3,p{margin:0}
 .home-screen{background:linear-gradient(160deg,var(--green-1),var(--green-2));display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:96px;gap:14px;padding:26px 18px}
 .widget-big{grid-column:span 2;grid-row:span 2;background:#fff;border-radius:24px;padding:16px;display:flex;flex-direction:column;justify-content:space-between}
 .app-slot{border-radius:22px;background:rgba(255,255,255,.18)}
+.widget-sm{background:#fff;border-radius:22px;padding:12px 12px 13px;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.widget-sm .w-label{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--muted)}
+.widget-sm .w-val{font-size:20px;font-weight:800;line-height:1;letter-spacing:-.5px}
+.widget-sm .w-val small{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0}
+.widget-sm .w-bar{height:6px;border-radius:3px}
 
 /* steps */
 .steps{background:var(--ink);color:#fff;padding:72px 24px;margin-top:-40px;position:relative}
@@ -200,7 +205,7 @@ h1,h2,h3,p{margin:0}
 
 /* cta */
 .cta{padding:0 24px 112px}
-.cta-card{border-radius:36px;background:var(--accent);padding:clamp(40px,6vw,72px);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:40px;overflow:hidden}
+.cta-card{border-radius:36px;background:linear-gradient(160deg,#CFF3DE 0%,#E9F8EF 60%,#F4FBF7 100%);border:1px solid rgba(5,150,105,.12);padding:clamp(40px,6vw,72px);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:40px;overflow:hidden}
 .cta-copy{flex:1 1 420px;min-width:0;display:flex;flex-direction:column;gap:20px}
 .cta-copy h2{font-weight:800;font-size:clamp(36px,5vw,64px);line-height:1;letter-spacing:-2.5px}
 .cta-copy p{font-size:19px;line-height:1.55;color:#2A2A2E}
@@ -230,6 +235,27 @@ h1,h2,h3,p{margin:0}
   .caret{animation:none}
   html{scroll-behavior:auto}
 }
+
+/* never wider than the phone */
+html,body{overflow-x:clip}
+img{max-width:100%}
+@media (max-width:520px){
+  .nav-links .pill--outline{display:none}
+  .hero{padding-top:36px}
+  .hero h1{letter-spacing:-1.5px}
+  .lead{font-size:17px}
+  .store{min-height:54px;padding:0 18px}
+  .btn-row{justify-content:center}
+  .phone--main{width:270px}
+  .phone--main .phone-screen{height:520px !important}
+  .phone--main .phone-screen > div{transform:scale(0.638) !important}
+  .feature{border-radius:24px}
+  .price{padding:28px 22px}
+  .cta-card{border-radius:28px}
+  .cta-phone{display:none}
+  .footer-cols{gap:36px}
+  .footer-bottom{flex-direction:column}
+}
 </style>
 </head>
 <body>
@@ -245,7 +271,8 @@ h1,h2,h3,p{margin:0}
       <a class="text" href="#pricing">Pricing</a>
       <a class="text" href="#faq">FAQ</a>
       <div class="nav-ctas">
-        <a class="pill pill--dark" href="/app">Open Logga</a>
+        <a class="pill pill--outline" href="#download">Download app</a>
+        <a class="pill pill--dark" href="/app">Use on web</a>
       </div>
     </div>
   </nav>
@@ -257,17 +284,16 @@ h1,h2,h3,p{margin:0}
   <div class="wrap hero-inner">
     <div class="proof">Built for African food</div>
     <h1>
-      Finally, a calorie app that knows your<br>
-      <span class="sr-word" aria-live="off"><span class="word"><span id="typed">waakye</span><span class="caret" aria-hidden="true"></span></span></span>
+      Finally, a calorie app that knows your <span class="sr-word" aria-live="off"><span class="word"><span id="typed">waakye</span><span class="caret" aria-hidden="true"></span></span></span>
     </h1>
     <p class="lead">Snap your plate or just describe it. Logga knows waakye from jollof, works out the calories, and helps you fit the food you love into your goal.</p>
     <div class="btn-row">
       <a class="store store--dark" href="/app">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"></path></svg>
         <span><small>Start now on the</small><strong>Web</strong></span>
       </a>
       <span class="store store--soon" aria-disabled="true">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"></rect><path d="M11 18h2"></path></svg>
         <span><small>Coming soon on the</small><strong>App Store</strong></span>
       </span>
     </div>
@@ -275,43 +301,450 @@ h1,h2,h3,p{margin:0}
     <div class="phones" aria-hidden="true">
       <!-- scan result -->
       <div class="phone phone--left">
-        <div class="phone-screen">
-          <span class="screen-title">Detected foods</span>
-          <div class="result"><span><b>Waakye</b><small>1 plate (300 g)</small></span><b>390</b></div>
-          <div class="result"><span><b>Boiled egg</b><small>1 egg</small></span><b>75</b></div>
-          <div class="result"><span><b>Shito</b><small>1 tbsp</small></span><b>60</b></div>
-          <div class="result"><span><b>Wele</b><small>3 pieces</small></span><b>45</b></div>
-          <div class="result" style="border:0"><span><b>Total</b></span><b>570 cal</b></div>
+        <div class="phone-screen" style="padding: 0; height: 498px; overflow: hidden; position: relative; display: block">
+          <div style="width: 390px; height: 844px; transform: scale(0.59); transform-origin: top left; pointer-events: none">
+            <div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F8FAFC; font-family: Inter, -apple-system, system-ui, sans-serif; color: #1F1F1F">
+<!-- Header -->
+<div style="display: flex; align-items: center; padding: 58px 20px 12px">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F1F1F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+  <div style="margin-left: 12px">
+    <div style="font-size: 11px; font-weight: 700; color: #888; letter-spacing: 2px; margin-bottom: 4px">LOG FOOD</div>
+    <h1 style="margin: 0; font-size: 20px; font-weight: 800">Say your meal</h1>
+  </div>
+</div>
+
+<div style="padding-top: 8px">
+  <div style="display: flex; align-items: center; margin: 0 20px 14px">
+    <span style="flex: 1; height: 1px; background: #E5E7EB"></span>
+    <button aria-label="Record again" style="width: 48px; height: 48px; border-radius: 24px; border: 0; background: #111; margin: 0 14px; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+    </button>
+    <span style="flex: 1; height: 1px; background: #E5E7EB"></span>
+  </div>
+  <p style="margin: 0 20px 10px; text-align: center; font-size: 12px; color: #9CA3AF">Calories and nutrients are AI estimates. Portions not right? Tap the green label to adjust.</p>
+  <div style="background: #fff; border-radius: 20px; border: 1px solid #E5E7EB; margin: 0 20px; overflow: hidden">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 14px 20px; border-bottom: 1px solid #F1F5F9">
+      <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #111">DETECTED FOODS</span>
+      <span style="display: flex; gap: 10px"><span style="font-size: 11px; color: #999">3 items</span><span style="font-size: 13px; font-weight: 600; color: #aaa">Edit</span></span>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 13px 20px; border-bottom: 1px solid #F1F5F9">
+      <div style="flex: 1; margin-right: 12px">
+        <div style="font-size: 13px; font-weight: 600; color: #111">Jollof rice</div>
+        <span style="display: inline-block; margin-top: 4px; padding: 5px 10px; border-radius: 8px; background: #F3F4F6; font-size: 12px; font-weight: 600; color: #059669">2 ladles</span>
+      </div>
+      <div style="display: flex; align-items: center">
+        <span style="width: 32px; height: 32px; border-radius: 16px; background: #F1F5F9; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600">−</span>
+        <div style="min-width: 50px; text-align: center"><div style="font-size: 15px; font-weight: 700">600</div><div style="font-size: 9px; font-weight: 600; letter-spacing: .8px; color: #aaa">CAL</div></div>
+        <span style="width: 32px; height: 32px; border-radius: 16px; background: #F1F5F9; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600">+</span>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 13px 20px; border-bottom: 1px solid #F1F5F9">
+      <div style="flex: 1; margin-right: 12px">
+        <div style="font-size: 13px; font-weight: 600; color: #111">Fried chicken thigh</div>
+        <span style="display: inline-block; margin-top: 4px; padding: 5px 10px; border-radius: 8px; background: #F3F4F6; font-size: 12px; font-weight: 600; color: #059669">1 medium piece</span>
+      </div>
+      <div style="display: flex; align-items: center">
+        <span style="width: 32px; height: 32px; border-radius: 16px; background: #F1F5F9; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600">−</span>
+        <div style="min-width: 50px; text-align: center"><div style="font-size: 15px; font-weight: 700">320</div><div style="font-size: 9px; font-weight: 600; letter-spacing: .8px; color: #aaa">CAL</div></div>
+        <span style="width: 32px; height: 32px; border-radius: 16px; background: #F1F5F9; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600">+</span>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 13px 20px; border-bottom: 1px solid #F1F5F9">
+      <div style="flex: 1; margin-right: 12px">
+        <div style="font-size: 13px; font-weight: 600; color: #111">Malt drink</div>
+        <span style="display: inline-block; margin-top: 4px; padding: 5px 10px; border-radius: 8px; background: #F3F4F6; font-size: 12px; font-weight: 600; color: #059669">1 bottle</span>
+      </div>
+      <div style="display: flex; align-items: center">
+        <span style="width: 32px; height: 32px; border-radius: 16px; background: #F1F5F9; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600">−</span>
+        <div style="min-width: 50px; text-align: center"><div style="font-size: 15px; font-weight: 700">190</div><div style="font-size: 9px; font-weight: 600; letter-spacing: .8px; color: #aaa">CAL</div></div>
+        <span style="width: 32px; height: 32px; border-radius: 16px; background: #F1F5F9; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600">+</span>
+      </div>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 13px 20px; background: #F8FAFC; border-top: 1px solid #E5E7EB">
+      <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: #111">TOTAL</span>
+      <span style="font-size: 18px; font-weight: 700">1,110 cal</span>
+    </div>
+  </div>
+  <div style="background: #fff; border-radius: 20px; border: 1px solid #E5E7EB; margin: 16px 20px 0; overflow: hidden">
+    <div style="padding: 14px 20px; border-bottom: 1px solid #F1F5F9; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #111">MEAL TYPE</div>
+    <div style="display: flex; gap: 8px; padding: 12px"><span style="flex: 1; padding: 10px 0; border-radius: 12px; text-align: center; font-size: 12px; font-weight: 600; background: #F9FAFB; color: #4B5563; border: 1px solid #E5E7EB"><span style="display: block; font-size: 16px; margin-bottom: 4px">☀</span>Breakfast</span><span style="flex: 1; padding: 10px 0; border-radius: 12px; text-align: center; font-size: 12px; font-weight: 600; background: #ECFDF5; color: #059669; border: 1.5px solid #059669"><span style="display: block; font-size: 16px; margin-bottom: 4px">⛅</span>Lunch</span><span style="flex: 1; padding: 10px 0; border-radius: 12px; text-align: center; font-size: 12px; font-weight: 600; background: #F9FAFB; color: #4B5563; border: 1px solid #E5E7EB"><span style="display: block; font-size: 16px; margin-bottom: 4px">🍎</span>Snack</span><span style="flex: 1; padding: 10px 0; border-radius: 12px; text-align: center; font-size: 12px; font-weight: 600; background: #F9FAFB; color: #4B5563; border: 1px solid #E5E7EB"><span style="display: block; font-size: 16px; margin-bottom: 4px">☾</span>Dinner</span></div>
+  </div>
+  <a href="CheckInSheet.dc.html" style="display: block; box-sizing: border-box; width: calc(100% - 40px); margin: 12px 20px 0; padding: 16px; border-radius: 16px; background: #059669; color: #fff; text-align: center; text-decoration: none; font-size: 14px; font-weight: 700; box-shadow: 0 4px 12px rgba(5,150,105,.3)">Log this meal</a>
+</div>
+</div>
+          </div>
         </div>
       </div>
       <!-- today -->
       <div class="phone phone--main">
-        <div class="phone-screen">
-          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:800;font-size:24px">Today</span><span style="font-size:12px;color:var(--muted)" id="today-date">Today</span></div>
-          <div class="ring-card">
-            <div class="ring"><div>1,240</div></div>
-            <div><div style="font-weight:800;font-size:22px">Calories left</div><div style="font-size:12px;color:var(--muted)">of 1,900 cal</div></div>
+        <div class="phone-screen" style="padding: 0; height: 580px; overflow: hidden; position: relative; display: block">
+          <div style="width: 390px; height: 844px; overflow: hidden; transform: scale(0.687); transform-origin: top left; pointer-events: none">
+            <div style="width: 390px; height: 2200px; position: relative; overflow: hidden; background: #F9FAFB; font-family: Inter, -apple-system, system-ui, sans-serif; color: #1F1F1F">
+
+<!-- Header gradient -->
+<div style="padding: 58px 20px 8px; background: linear-gradient(180deg, #CFF3DE 0%, #E9F8EF 55%, #F9FAFB 100%)">
+  <div style="display: flex; align-items: center; gap: 12px">
+    <button aria-label="Open settings" style="width: 48px; height: 48px; border-radius: 24px; background: #059669; border: 2px solid #fff; color: #fff; font-size: 15px; font-weight: 700; box-shadow: 0 4px 12px rgba(5,150,105,.25); padding: 0">AM</button>
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+      <div style="font-size: 13px; color: #4B5563">Good morning</div>
+      <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.3px">Ama</div>
+    </div>
+    <button aria-label="Calendar" style="width: 44px; height: 44px; border-radius: 22px; background: #fff; border: 0; box-shadow: 0 2px 8px rgba(0,0,0,.05); display: flex; align-items: center; justify-content: center; padding: 0">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F1F1F" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>
+    </button>
+    <button aria-label="Notifications, 2 new" style="position: relative; width: 44px; height: 44px; border-radius: 22px; background: #fff; border: 0; box-shadow: 0 2px 8px rgba(0,0,0,.05); display: flex; align-items: center; justify-content: center; padding: 0">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F1F1F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg>
+      <span style="position: absolute; top: 10px; right: 11px; width: 9px; height: 9px; border-radius: 5px; background: #EF4444; border: 1.5px solid #fff"></span>
+    </button>
+  </div>
+
+  <!-- Week strip -->
+  <div style="margin-top: 16px; padding: 10px 8px; border-radius: 24px; display: flex; justify-content: space-between; background: rgba(255,255,255,.75); border: 1px solid rgba(5,150,105,.08)">
+    
+      <div style="width:42px;padding:9px 0 6px;border-radius:22px;display:flex;flex-direction:column;align-items:center;gap:7px;background:#F1F6F3">
+        <span style="font-size:11px;font-weight:500;color:#6B7280">Mon</span>
+        <span style="width:30px;height:30px;border-radius:15px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-sizing:border-box;color:#1F1F1F">19</span>
+      </div>
+    
+      <div style="width:42px;padding:9px 0 6px;border-radius:22px;display:flex;flex-direction:column;align-items:center;gap:7px;background:#F1F6F3">
+        <span style="font-size:11px;font-weight:500;color:#6B7280">Tue</span>
+        <span style="width:30px;height:30px;border-radius:15px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-sizing:border-box;color:#1F1F1F">20</span>
+      </div>
+    
+      <div style="width:42px;padding:9px 0 6px;border-radius:22px;display:flex;flex-direction:column;align-items:center;gap:7px;background:#F1F6F3">
+        <span style="font-size:11px;font-weight:500;color:#6B7280">Wed</span>
+        <span style="width:30px;height:30px;border-radius:15px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-sizing:border-box;color:#1F1F1F">21</span>
+      </div>
+    
+      <div style="width:42px;padding:9px 0 6px;border-radius:22px;display:flex;flex-direction:column;align-items:center;gap:7px;background:#059669;box-shadow:0 6px 14px rgba(5,150,105,.3)">
+        <span style="font-size:11px;font-weight:600;color:#fff">Thu</span>
+        <span style="width:30px;height:30px;border-radius:15px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-sizing:border-box;color:#059669;border:2px solid rgba(255,255,255,.5)">22</span>
+      </div>
+    
+      <div style="width:42px;padding:9px 0 6px;border-radius:22px;display:flex;flex-direction:column;align-items:center;gap:7px;background:#F1F6F3">
+        <span style="font-size:11px;font-weight:500;color:#6B7280">Fri</span>
+        <span style="width:30px;height:30px;border-radius:15px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-sizing:border-box;color:#9CA3AF">23</span>
+      </div>
+    
+      <div style="width:42px;padding:9px 0 6px;border-radius:22px;display:flex;flex-direction:column;align-items:center;gap:7px;background:#F1F6F3">
+        <span style="font-size:11px;font-weight:500;color:#6B7280">Sat</span>
+        <span style="width:30px;height:30px;border-radius:15px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-sizing:border-box;color:#9CA3AF">24</span>
+      </div>
+    
+      <div style="width:42px;padding:9px 0 6px;border-radius:22px;display:flex;flex-direction:column;align-items:center;gap:7px;background:#F1F6F3">
+        <span style="font-size:11px;font-weight:500;color:#6B7280">Sun</span>
+        <span style="width:30px;height:30px;border-radius:15px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-sizing:border-box;color:#9CA3AF">25</span>
+      </div>
+    
+  </div>
+</div>
+
+<!-- Calorie gauge hero -->
+<div style="margin: 2px 20px 0; padding: 14px 16px; background: #fff; border-radius: 24px; border: 1px solid rgba(5,150,105,.1); display: flex; flex-direction: column; align-items: center">
+  <div style="position: relative; width: 280px; height: 150px">
+    <svg width="280" height="150" viewBox="0 0 280 150" aria-hidden="true">
+      <defs><linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#6EE7B7"></stop><stop offset="1" stop-color="#059669"></stop></linearGradient></defs>
+      <path d="M20 140 A120 120 0 0 1 260 140" fill="none" stroke="#E7F3EC" stroke-width="18" stroke-linecap="round"></path>
+      <path d="M20 140 A120 120 0 0 1 260 140" fill="none" stroke="url(#g1)" stroke-width="18" stroke-linecap="round" stroke-dasharray="233.74 377"></path>
+    </svg>
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="#FB923C" aria-hidden="true"><path d="M12 2c1 3.5 5 6 5 11a5 5 0 0 1-10 0c0-2.3 1.2-3.8 2.4-5 .2 1.6 1 2.6 2 3 0-3.5.6-6.4.6-9z"></path></svg>
+      <div style="font-size: 36px; font-weight: 700; letter-spacing: -1px; line-height: 40px; margin-top: 2px">720</div>
+      <div style="font-size: 14px; color: #4B5563; margin-top: 2px">Remaining</div>
+    </div>
+  </div>
+  <button style="display: flex; align-items: center; gap: 4px; margin: 12px 0 14px; background: #D1FAE5; padding: 6px 12px; border-radius: 20px; border: 0; font-size: 12px; font-weight: 700; color: #047857">1,900 cal goal
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+  </button>
+  <div style="align-self: stretch; margin: 0 -4px; padding: 16px; border-radius: 20px; background: #F6F8F7; border: 1px solid rgba(0,0,0,.05)">
+    <div style="font-size: 13px; font-weight: 600; color: #4B5563; margin-bottom: 12px">Today's Nutrition</div>
+    <div style="display: flex; align-items: center">
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px"><span style="font-size: 18px; font-weight: 700">1,180</span><span style="font-size: 11px; color: #4B5563">Calories</span></div>
+      <span style="width: 1px; height: 30px; background: rgba(0,0,0,.07)"></span>
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px"><span style="font-size: 18px; font-weight: 700">62g</span><span style="font-size: 11px; color: #4B5563">Protein</span></div>
+      <span style="width: 1px; height: 30px; background: rgba(0,0,0,.07)"></span>
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px"><span style="font-size: 18px; font-weight: 700">138g</span><span style="font-size: 11px; color: #4B5563">Carbs</span></div>
+      <span style="width: 1px; height: 30px; background: rgba(0,0,0,.07)"></span>
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px"><span style="font-size: 18px; font-weight: 700">41g</span><span style="font-size: 11px; color: #4B5563">Fats</span></div>
+    </div>
+  </div>
+  <div style="margin: 16px 0 2px; display: flex; align-items: center; gap: 10px">
+    <button style="display: flex; align-items: center; gap: 6px; padding: 11px 22px; border-radius: 14px; border: 0; background: linear-gradient(135deg, #34D399, #059669); color: #fff; font-size: 15px; font-weight: 700; box-shadow: 0 6px 14px rgba(5,150,105,.35)">
+      <span style="width: 20px; height: 20px; border-radius: 10px; background: rgba(255,255,255,.22); display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span>
+      Log Meal
+    </button>
+    <button aria-label="Log water" style="position: relative; width: 44px; height: 44px; border-radius: 14px; background: #DBEAFE; border: 0; display: flex; align-items: center; justify-content: center; padding: 0">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7.3 12.5c1.6-.9 3.1-.9 4.7 0s3.1.9 4.7 0l-.7 7.3a1.8 1.8 0 0 1-1.8 1.6H9.8A1.8 1.8 0 0 1 8 19.8z" fill="#93C5FD"></path><path d="M6 3.5h12l-1.6 16.3a1.8 1.8 0 0 1-1.8 1.6H9.4a1.8 1.8 0 0 1-1.8-1.6z" stroke="#2563EB" stroke-width="1.8" stroke-linejoin="round"></path></svg>
+      <span style="position: absolute; top: 5px; right: 4px; width: 15px; height: 15px; border-radius: 8px; background: #2563EB; border: 2px solid #DBEAFE; box-sizing: border-box; display: flex; align-items: center; justify-content: center"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span>
+    </button>
+  </div>
+</div>
+
+<!-- Meals card -->
+<div style="margin: 12px 12px 0; background: #fff; border-radius: 20px; border: 1px solid rgba(5,150,105,.08); padding: 12px">
+  <div style="display: flex; gap: 6px; background: #F3F4F6; border-radius: 12px; padding: 4px">
+    <span style="flex: 1; text-align: center; padding: 8px; border-radius: 9px; background: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,.06)">Today</span>
+    <span style="flex: 1; text-align: center; padding: 8px; font-size: 13px; font-weight: 600; color: #4B5563">Usual Meals</span>
+  </div>
+  
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid rgba(0,0,0,.04)">
+      <div style="width: 52px; height: 52px; border-radius: 14px; background: #F6E3CF; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #4B5563; text-align: center">photo</div>
+      <div style="flex: 1; min-width: 0">
+        <div style="font-size: 14px; font-weight: 600">Jollof rice & grilled chicken</div>
+        <div style="font-size: 12px; color: #6B7280; margin-top: 3px">1:20 PM</div>
+      </div>
+      <div style="font-size: 13px; font-weight: 700; color: #059669">640 cal</div>
+    </div>
+  
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid rgba(0,0,0,.04)">
+      <div style="width: 52px; height: 52px; border-radius: 14px; background: #EFE6D2; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #4B5563; text-align: center">photo</div>
+      <div style="flex: 1; min-width: 0">
+        <div style="font-size: 14px; font-weight: 600">Koko with groundnuts</div>
+        <div style="font-size: 12px; color: #6B7280; margin-top: 3px">8:05 AM</div>
+      </div>
+      <div style="font-size: 13px; font-weight: 700; color: #059669">380 cal</div>
+    </div>
+  
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid rgba(0,0,0,.04)">
+      <div style="width: 52px; height: 52px; border-radius: 14px; background: #FCE3CC; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #4B5563; text-align: center">photo</div>
+      <div style="flex: 1; min-width: 0">
+        <div style="font-size: 14px; font-weight: 600">Pawpaw</div>
+        <div style="font-size: 12px; color: #6B7280; margin-top: 3px">10:40 AM</div>
+      </div>
+      <div style="font-size: 13px; font-weight: 700; color: #059669">160 cal</div>
+    </div>
+  
+  <div style="text-align: center; padding: 12px 0 4px; font-size: 13px; font-weight: 600; color: #047857">Meal history ›</div>
+</div>
+
+<!-- Just for You -->
+<div style="margin-top: 16px; padding: 0 20px">
+  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px">
+    <div style="display: flex; align-items: center; gap: 6px; flex: 1">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F1F1F" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"></path></svg>
+      <span style="font-size: 15px; font-weight: 700; letter-spacing: -0.3px">Just for Ama</span>
+    </div>
+    <span style="font-size: 18px; color: #059669">↻</span>
+  </div>
+  <div style="display: flex; gap: 12px; margin-right: -20px">
+    <div style="flex: 0 0 300px; border-radius: 16px; padding: 16px; min-height: 196px; box-sizing: border-box; background: linear-gradient(135deg, #EAF9F1, #C7EEDA); color: #0B3D2E; display: flex; flex-direction: column; justify-content: space-between">
+      <div style="font-size: 13.5px; font-weight: 700; line-height: 20px; flex: 1">Three days straight on your protein goal. Your secret weapon? Beans at lunch instead of garri.</div>
+      <div style="margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px">
+      <a href="Insight.dc.html" style="display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 12px; background: #0B3D2E; color: #fff; text-decoration: none; font-size: 13.5px; font-weight: 700">See why<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+      <span style="display: flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 999px; background: rgba(11,61,46,.1); color: #0B3D2E; font-size: 11px; font-weight: 800"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0B3D2E" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.6 2-4.5.3 1.5 1 2.5 2 2.5 0-3 0-5.5 1-8z"></path></svg>3-day streak</span>
+      </div>
+    </div>
+    <div style="flex: 0 0 300px; border-radius: 16px; padding: 16px; min-height: 196px; box-sizing: border-box; background: linear-gradient(135deg, #FFF3EA, #FFD9C2); color: #5A2A10; display: flex; flex-direction: column; justify-content: space-between">
+      <div style="display: flex; align-items: center; justify-content: flex-end">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A2A10" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+        <span style="padding: 10px 18px; border-radius: 12px; border: 1px solid rgba(90,42,16,.25); font-size: 13.5px; font-weight: 700">See more</span>
+        <span style="padding: 4px 9px; border-radius: 999px; background: rgba(90,42,16,.1); font-size: 11px; font-weight: 800">Mood</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- This Week -->
+<div style="margin: 16px 20px 0; padding: 14px; background: #fff; border-radius: 16px; border: 1px solid rgba(0,0,0,.05)">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px">
+    <div style="display: flex; align-items: center; gap: 6px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F1F1F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4"></path></svg>
+      <span style="font-size: 15px; font-weight: 700">This Week</span>
+    </div>
+    <span style="font-size: 13px; font-weight: 600; color: #047857">See all →</span>
+  </div>
+  <div style="display: flex; gap: 8px">
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 10px; background: #F7F7F8"><span style="font-size: 17px; font-weight: 600">3</span><span style="font-size: 11px; color: #4B5563">Days logged</span></div>
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 10px; background: #F7F7F8"><span style="font-size: 17px; font-weight: 600">1,740</span><span style="font-size: 11px; color: #4B5563">Avg cal</span></div>
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 10px; background: #F7F7F8"><span style="font-size: 17px; font-weight: 600">4</span><span style="font-size: 11px; color: #4B5563">Goal days</span></div>
+  </div>
+  <div style="font-size: 12px; color: #4B5563; margin: 14px 0 8px">Days you logged your meals</div>
+  <div style="display: flex; gap: 6px">
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#059669;border:1px solid #059669">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>
+        </div>
+        <span style="font-size:11px;color:#4B5563">M</span>
+      </div>
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#059669;border:1px solid #059669">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>
+        </div>
+        <span style="font-size:11px;color:#4B5563">T</span>
+      </div>
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#F7F7F8;border:1px solid #E5E7EB">
+          
+        </div>
+        <span style="font-size:11px;color:#4B5563">W</span>
+      </div>
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#059669;border:1px solid #059669">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>
+        </div>
+        <span style="font-size:11px;color:#4B5563">T</span>
+      </div>
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#F7F7F8;border:1px solid #E5E7EB;opacity:.5">
+          
+        </div>
+        <span style="font-size:11px;color:#4B5563">F</span>
+      </div>
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#F7F7F8;border:1px solid #E5E7EB;opacity:.5">
+          
+        </div>
+        <span style="font-size:11px;color:#4B5563">S</span>
+      </div>
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#F7F7F8;border:1px solid #E5E7EB;opacity:.5">
+          
+        </div>
+        <span style="font-size:11px;color:#4B5563">S</span>
+      </div>
+    
+  </div>
+</div>
+
+<!-- Activities -->
+<div style="margin: 16px 20px 0; padding: 14px; background: #fff; border-radius: 16px; border: 1px solid rgba(0,0,0,.05)">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px">
+    <div style="display: flex; align-items: center; gap: 6px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F1F1F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"></path></svg>
+      <span style="font-size: 15px; font-weight: 700">Activities</span>
+    </div>
+    <span style="font-size: 13px; font-weight: 600; color: #047857">See all →</span>
+  </div>
+  <div style="display: flex; gap: 8px">
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 10px; background: #F7F7F8"><span style="font-size: 17px; font-weight: 600">3</span><span style="font-size: 11px; color: #4B5563">Workouts</span></div>
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 10px; background: #F7F7F8"><span style="font-size: 17px; font-weight: 600">95</span><span style="font-size: 11px; color: #4B5563">Minutes</span></div>
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 10px; background: #F7F7F8"><span style="font-size: 17px; font-weight: 600">540</span><span style="font-size: 11px; color: #4B5563">Est. kcal</span></div>
+  </div>
+  <div style="font-size: 12px; color: #4B5563; margin: 14px 0 8px">Your active days this week</div>
+  <div style="display: flex; gap: 6px">
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#F97316;border:1px solid #F97316">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>
+        </div>
+        <span style="font-size: 11px; color: #4B5563">M</span>
+      </div>
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#F7F7F8;border:1px solid #E5E7EB">
+          
+        </div>
+        <span style="font-size: 11px; color: #4B5563">T</span>
+      </div>
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#F97316;border:1px solid #F97316">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>
+        </div>
+        <span style="font-size: 11px; color: #4B5563">W</span>
+      </div>
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#F97316;border:1px solid #F97316">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>
+        </div>
+        <span style="font-size: 11px; color: #4B5563">T</span>
+      </div>
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#F7F7F8;border:1px solid #E5E7EB;opacity:.5">
+          
+        </div>
+        <span style="font-size: 11px; color: #4B5563">F</span>
+      </div>
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#F7F7F8;border:1px solid #E5E7EB;opacity:.5">
+          
+        </div>
+        <span style="font-size: 11px; color: #4B5563">S</span>
+      </div>
+    
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#F7F7F8;border:1px solid #E5E7EB;opacity:.5">
+          
+        </div>
+        <span style="font-size: 11px; color: #4B5563">S</span>
+      </div>
+    
+  </div>
+  <button style="margin-top: 12px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 11px; border-radius: 999px; border: 1px solid #D1D5DB; background: #fff; font-size: 14px; font-weight: 600; color: #1F1F1F">+ Log activity</button>
+</div>
+
+<!-- Based on Your Pattern -->
+<div style="margin-top: 16px; padding: 0 20px">
+  <div style="font-size: 15px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 8px">Based on Your Pattern</div>
+  <div style="display: flex; gap: 12px; margin-right: -20px">
+    <div style="flex: 0 0 180px">
+      <div style="height: 140px; border-radius: 16px; background: #E7DCCB; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #4B5563; margin-bottom: 10px">[article photo]</div>
+      <div style="font-size: 14px; font-weight: 700; line-height: 20px; margin-bottom: 4px">Why protein keeps you full longer</div>
+      <div style="font-size: 12px; color: #6B7280">3 min read</div>
+    </div>
+    <div style="flex: 0 0 180px">
+      <div style="height: 140px; border-radius: 16px; background: #D7E8DC; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #4B5563; margin-bottom: 10px">[article photo]</div>
+      <div style="font-size: 14px; font-weight: 700; line-height: 20px; margin-bottom: 4px">Eating well on busy days</div>
+      <div style="font-size: 12px; color: #6B7280">4 min read</div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom tab bar -->
+<nav aria-label="Tabs" style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; background: rgba(255,255,255,.96); border-top: 1px solid rgba(0,0,0,.06); display: flex; justify-content: space-around; padding-top: 10px; box-sizing: border-box">
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: #059669; font-size: 11px; font-weight: 700">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="#059669" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg>Today</div>
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: #6B7280; font-size: 11px; font-weight: 500">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M9 9h6M9 13h4"></path></svg>Recipes</div>
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: #6B7280; font-size: 11px; font-weight: 500">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>Insights</div>
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: #6B7280; font-size: 11px; font-weight: 500">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg>Settings</div>
+</nav>
+</div>
           </div>
-          <div class="macros">
-            <div class="macro">Protein<span class="bar" style="background:linear-gradient(90deg,var(--protein) 45%,var(--protein-bg) 45%)"></span><b>54 g</b></div>
-            <div class="macro">Carbs<span class="bar" style="background:linear-gradient(90deg,var(--carbs) 38%,var(--carbs-bg) 38%)"></span><b>86 g</b></div>
-            <div class="macro">Fat<span class="bar" style="background:linear-gradient(90deg,var(--fat) 35%,var(--fat-bg) 35%)"></span><b>22 g</b></div>
-          </div>
-          <b style="font-size:14px">Logged today</b>
-          <div class="meal"><i style="background:#E7D9B8"></i><span><b>Hausa koko &amp; koose</b><small>1 cup, 3 koose</small></span><em>180</em></div>
-          <div class="meal"><i style="background:#C9A27A"></i><span><b>Waakye with egg</b><small>1 plate</small></span><em>360</em></div>
-          <div class="meal"><i style="background:#F2A65A"></i><span><b>Kelewele</b><small>1 small pack</small></span><em>120</em></div>
         </div>
       </div>
       <!-- home screen -->
       <div class="phone phone--right">
-        <div class="phone-screen home-screen">
+        <div class="phone-screen home-screen" style="grid-auto-rows:90px;gap:12px">
           <div class="widget-big">
             <span style="font-weight:700;font-size:13px;color:var(--muted)">Logga</span>
             <span style="font-weight:800;font-size:30px;line-height:1">1,240<br><span style="font-size:14px;font-weight:600;color:var(--muted)">cal left today</span></span>
             <span style="height:8px;border-radius:4px;background:linear-gradient(90deg,var(--accent) 35%,var(--card-line) 35%)"></span>
           </div>
-          <span class="app-slot"></span><span class="app-slot"></span><span class="app-slot"></span><span class="app-slot"></span>
+          <div class="widget-sm">
+            <span class="w-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" stroke-width="2.4" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"></path></svg>Water</span>
+            <span class="w-val">1.8 <small>/ 2.5 L</small></span>
+            <span class="w-bar" style="background:linear-gradient(90deg,#0EA5E9 72%,#E0F2FE 72%)"></span>
+          </div>
+          <div class="widget-sm">
+            <span class="w-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.6 2-4.5.3 1.5 1 2.5 2 2.5 0-3 0-5.5 1-8z"></path></svg>Streak</span>
+            <span class="w-val">6 <small>days</small></span>
+            <span style="display:flex;gap:3px"><i class="w-bar" style="flex:1;background:#EA580C"></i><i class="w-bar" style="flex:1;background:#EA580C"></i><i class="w-bar" style="flex:1;background:#EA580C"></i><i class="w-bar" style="flex:1;background:#EA580C"></i><i class="w-bar" style="flex:1;background:#EA580C"></i><i class="w-bar" style="flex:1;background:#EA580C"></i><i class="w-bar" style="flex:1;background:#FFEDD5"></i></span>
+          </div>
+          <div class="widget-sm">
+            <span class="w-label"><span style="width:8px;height:8px;border-radius:4px;background:var(--protein)"></span>Protein</span>
+            <span class="w-val">54 <small>/ 90 g</small></span>
+            <span class="w-bar" style="background:linear-gradient(90deg,var(--protein) 60%,var(--protein-bg) 60%)"></span>
+          </div>
+          <div class="widget-sm">
+            <span class="w-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 20c-2 0-3-1.5-3-3.5S6 13 8 13s3 1.5 3 3.5S10 20 8 20zM16 11c-2 0-3-1.5-3-3.5S14 4 16 4s3 1.5 3 3.5S18 11 16 11z"></path></svg>Steps</span>
+            <span class="w-val">6,420</span>
+            <span class="w-bar" style="background:linear-gradient(90deg,#16A34A 80%,#DCFCE7 80%)"></span>
+          </div>
         </div>
       </div>
     </div>
@@ -337,49 +770,130 @@ h1,h2,h3,p{margin:0}
     <div class="feature-grid">
       <article class="feature">
         <h3>Snap your plate</h3><p>Take a photo of your meal and Logga picks out each food and its calories. Fix anything in a tap.</p>
-        <div class="mini" aria-hidden="true"><div class="mini-screen">
-          <b>Jollof rice</b><span style="font-size:12px;color:var(--muted)">1 cup · 280 cal</span>
-          <b>Grilled chicken</b><span style="font-size:12px;color:var(--muted)">1 thigh · 210 cal</span>
-          <b>Fried plantain</b><span style="font-size:12px;color:var(--muted)">4 slices · 150 cal</span>
+        <div class="mini" aria-hidden="true" style="height:300px"><div class="mini-screen" style="padding:0;overflow:hidden;display:block">
+          <img src="/site/snap-your-plate.png" alt="" style="display:block;width:100%;height:100%;object-fit:cover;object-position:top">
         </div></div>
       </article>
       <article class="feature">
         <h3>Fit it in</h3><p>Already bought your food? Tell Logga what you have and how many calories to spend, and get portions that fit.</p>
-        <div class="mini" aria-hidden="true"><div class="mini-screen">
-          <b>Your plate · 600 cal</b>
-          <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip chip--on">3 eggs</span><span class="chip">½ cup rice</span><span class="chip">1 ladle soup</span></div>
-          <span style="margin-top:8px;padding:10px;border-radius:10px;background:var(--accent);font-size:12px;font-weight:800;text-align:center">Log this plate</span>
+        <div class="mini" aria-hidden="true" style="height:300px"><div class="mini-screen" style="padding:0;overflow:hidden;display:block;position:relative">
+          <div style="width:390px;height:640px;overflow:hidden;transform:scale(0.472);transform-origin:top left;pointer-events:none">
+            <div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F9FAFB; font-family: Inter, -apple-system, system-ui, sans-serif; color: #1F1F1F">
+
+<!-- Header -->
+<div style="padding: 58px 20px 32px; background: linear-gradient(180deg, #CFF3DE 0%, #E9F8EF 60%, #F9FAFB 100%)">
+  <div style="display: flex; align-items: center; justify-content: space-between">
+    <a href="LogMeal.dc.html" aria-label="Back" style="width: 44px; height: 44px; border-radius: 22px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.05); display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F1F1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+    </a>
+    <span style="display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; background: #fff; font-size: 13px; font-weight: 700; color: #047857; box-shadow: 0 2px 8px rgba(0,0,0,.05)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="#FB923C" aria-hidden="true"><path d="M12 2c1 3.5 5 6 5 11a5 5 0 0 1-10 0c0-2.3 1.2-3.8 2.4-5 .2 1.6 1 2.6 2 3 0-3.5.6-6.4.6-9z"></path></svg>
+      720 cal left today
+    </span>
+  </div>
+  <h1 style="margin: 20px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.6px; line-height: 32px">Got food already?<br>Let's make it fit.</h1>
+</div>
+
+<div style="padding: 0 20px; display: flex; flex-direction: column; gap: 16px">
+
+  <!-- When to use -->
+  <div>
+    <div style="font-size: 12px; font-weight: 700; letter-spacing: 2px; color: #4B5563; margin-bottom: 10px">PERFECT FOR WHEN</div>
+    <div style="background: #fff; border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #F0F1F3">
+        <span style="width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex: none; background: #F3F4F6">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F1F1F" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8h12l-1 12H7z"></path><path d="M9 8V6a3 3 0 0 1 6 0v2"></path></svg>
+        </span>
+        <div><div style="font-size: 15px; font-weight: 600">You just bought it</div><div style="font-size: 13px; color: #6B7280; margin-top: 2px">Waakye on the way home, a pack of kelewele</div></div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #F0F1F3">
+        <span style="width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex: none; background: #F3F4F6">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F1F1F" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 0 1 4.6 1.3c0 1.7-2.1 2-2.1 3.4M12 17.5h.01"></path></svg>
+        </span>
+        <div><div style="font-size: 15px; font-weight: 600">You don't know how it was made</div><div style="font-size: 13px; color: #6B7280; margin-top: 2px">No recipe, no label, no problem</div></div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px">
+        <span style="width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex: none; background: #F3F4F6">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F1F1F" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-6 8 6v9H4z"></path><path d="M10 20v-5h4v5"></path></svg>
+        </span>
+        <div><div style="font-size: 15px; font-weight: 600">It's already at home</div><div style="font-size: 13px; color: #6B7280; margin-top: 2px">Leftovers, Sunday's stew, whatever's in the fridge</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Composer -->
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 30px; background: linear-gradient(180deg, rgba(249,250,251,0), #F9FAFB 30%)">
+  <div style="background: #fff; border: 1px solid #E5E7EB; border-radius: 28px; padding: 12px 12px 10px 18px; box-shadow: 0 6px 24px rgba(0,0,0,.08)">
+    <label for="have" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Tell Logga what you have</label>
+    <textarea id="have" rows="1" placeholder="What do you have?" style="width: 100%; box-sizing: border-box; border: 0; resize: none; font-size: 16px; line-height: 24px; color: #1F1F1F; padding: 2px 0 0; outline: none; background: transparent"></textarea>
+    <div style="display: flex; align-items: center; gap: 6px; margin-top: 8px">
+      <button aria-label="Add a photo" style="width: 36px; height: 36px; border-radius: 18px; border: 1px solid #E5E7EB; background: #fff; padding: 0; display: flex; align-items: center; justify-content: center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1F1F1F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+      </button>
+      <button aria-label="Take a photo" style="width: 36px; height: 36px; border-radius: 18px; border: 0; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#4B5563" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+      </button>
+      <span style="flex: 1"></span>
+      <button aria-label="Say it" style="width: 36px; height: 36px; border-radius: 18px; border: 0; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#4B5563" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+      </button>
+      <a href="PortionBudget.dc.html" aria-label="Send" style="width: 36px; height: 36px; border-radius: 18px; background: #1F1F1F; display: flex; align-items: center; justify-content: center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg>
+      </a>
+    </div>
+  </div>
+</div>
+</div>
+          </div>
         </div></div>
       </article>
       <article class="feature">
         <h3>Build a recipe from your kitchen</h3><p>List what's in your kitchen and Logga writes a recipe that fits your calories, with exact amounts.</p>
         <div class="mini" aria-hidden="true"><div class="mini-screen">
-          <b>Red red with plantain</b>
-          <span style="font-size:12px;color:var(--muted)">Uses 5 of your 5 ingredients</span>
-          <span class="fav">450 cal per person<span>2 people</span></span>
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><b>Full for ~4½ hrs</b><span style="font-size:10px;font-weight:700;color:#047857">High</span></div>
+          <svg width="160" height="86" viewBox="0 0 160 86" fill="none">
+            <defs><linearGradient id="webSat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34D399" stop-opacity=".45"></stop><stop offset="1" stop-color="#34D399" stop-opacity="0"></stop></linearGradient></defs>
+            <path d="M22 10H156" stroke="#E5E7EB" stroke-dasharray="3 3"></path><path d="M22 40H156" stroke="#E5E7EB" stroke-dasharray="3 3"></path><path d="M22 55H156" stroke="#E5E7EB" stroke-dasharray="3 3"></path><text x="18" y="12" text-anchor="end" font-size="7" fill="#6B7280">Full</text><text x="18" y="42" text-anchor="end" font-size="7" fill="#6B7280">Half</text><text x="18" y="58" text-anchor="end" font-size="7" fill="#6B7280">Hungry</text>
+            <path d="M22.0 10.0 L23.5 11.8 L25.0 13.6 L26.5 15.4 L28.0 17.2 L29.4 17.2 L30.9 17.2 L32.4 17.3 L33.9 17.3 L35.4 17.3 L36.9 17.3 L38.4 17.4 L39.9 17.4 L41.4 17.4 L42.8 17.5 L44.3 17.5 L45.8 17.6 L47.3 17.6 L48.8 17.7 L50.3 17.8 L51.8 17.9 L53.3 18.0 L54.8 18.1 L56.2 18.2 L57.7 18.3 L59.2 18.5 L60.7 18.6 L62.2 18.8 L63.7 19.0 L65.2 19.2 L66.7 19.5 L68.2 19.7 L69.6 20.0 L71.1 20.3 L72.6 20.7 L74.1 21.1 L75.6 21.5 L77.1 22.0 L78.6 22.5 L80.1 23.1 L81.6 23.7 L83.0 24.4 L84.5 25.1 L86.0 25.9 L87.5 26.7 L89.0 27.6 L90.5 28.6 L92.0 29.6 L93.5 30.7 L95.0 31.8 L96.4 33.0 L97.9 34.2 L99.4 35.5 L100.9 36.8 L102.4 38.2 L103.9 39.5 L105.4 40.9 L106.9 42.3 L108.4 43.7 L109.8 45.1 L111.3 46.5 L112.8 47.9 L114.3 49.2 L115.8 50.5 L117.3 51.7 L118.8 52.9 L120.3 54.0 L121.8 55.1 L123.2 56.1 L124.7 57.1 L126.2 58.0 L127.7 58.8 L129.2 59.6 L130.7 60.3 L132.2 61.0 L133.7 61.6 L135.2 62.1 L136.6 62.7 L138.1 63.1 L139.6 63.6 L141.1 64.0 L142.6 64.3 L144.1 64.6 L145.6 64.9 L147.1 65.2 L148.6 65.4 L150.0 65.7 L151.5 65.9 L153.0 66.0 L154.5 66.2 L156.0 66.3 L156 70 L22 70 Z" fill="url(#webSat)"></path>
+            <path d="M22.0 10.0 L23.5 11.8 L25.0 13.6 L26.5 15.4 L28.0 17.2 L29.4 17.2 L30.9 17.2 L32.4 17.3 L33.9 17.3 L35.4 17.3 L36.9 17.3 L38.4 17.4 L39.9 17.4 L41.4 17.4 L42.8 17.5 L44.3 17.5 L45.8 17.6 L47.3 17.6 L48.8 17.7 L50.3 17.8 L51.8 17.9 L53.3 18.0 L54.8 18.1 L56.2 18.2 L57.7 18.3 L59.2 18.5 L60.7 18.6 L62.2 18.8 L63.7 19.0 L65.2 19.2 L66.7 19.5 L68.2 19.7 L69.6 20.0 L71.1 20.3 L72.6 20.7 L74.1 21.1 L75.6 21.5 L77.1 22.0 L78.6 22.5 L80.1 23.1 L81.6 23.7 L83.0 24.4 L84.5 25.1 L86.0 25.9 L87.5 26.7 L89.0 27.6 L90.5 28.6 L92.0 29.6 L93.5 30.7 L95.0 31.8 L96.4 33.0 L97.9 34.2 L99.4 35.5 L100.9 36.8 L102.4 38.2 L103.9 39.5 L105.4 40.9 L106.9 42.3 L108.4 43.7 L109.8 45.1 L111.3 46.5 L112.8 47.9 L114.3 49.2 L115.8 50.5 L117.3 51.7 L118.8 52.9 L120.3 54.0 L121.8 55.1 L123.2 56.1 L124.7 57.1 L126.2 58.0 L127.7 58.8 L129.2 59.6 L130.7 60.3 L132.2 61.0 L133.7 61.6 L135.2 62.1 L136.6 62.7 L138.1 63.1 L139.6 63.6 L141.1 64.0 L142.6 64.3 L144.1 64.6 L145.6 64.9 L147.1 65.2 L148.6 65.4 L150.0 65.7 L151.5 65.9 L153.0 66.0 L154.5 66.2 L156.0 66.3" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            <path d="M121.8 8V70" stroke="#EF4444" stroke-dasharray="2 2"></path><circle cx="121.8" cy="55.1" r="2.8" fill="#EF4444"></circle>
+            <text x="22.0" y="82" text-anchor="middle" font-size="7" fill="#6B7280">0h</text><text x="66.7" y="82" text-anchor="middle" font-size="7" fill="#6B7280">2h</text><text x="111.3" y="82" text-anchor="middle" font-size="7" fill="#6B7280">4h</text><text x="156.0" y="82" text-anchor="middle" font-size="7" fill="#6B7280">6h</text>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)"><span>Satiety <b style="color:var(--ink)">77</b>/100</span><span>Red red · 450 cal</span></div>
         </div></div>
       </article>
       <article class="feature">
         <h3>Ask Logga</h3><p>Not sure what you ate? Talk it through. Logga asks the right questions: fried or grilled, bone in, weighed raw.</p>
-        <div class="mini" aria-hidden="true"><div class="mini-screen" style="gap:6px">
-          <span style="align-self:flex-end;padding:7px 10px;border-radius:12px;background:var(--ink);color:#fff;font-size:11px">Rice and stew at a party</span>
-          <span style="padding:7px 10px;border-radius:12px;background:#fff;border:1px solid var(--card-line);font-size:11px">Was the chicken fried or grilled?</span>
+        <div class="mini" aria-hidden="true"><div class="mini-screen" style="gap:4px;padding-top:10px;justify-content:flex-end;padding-bottom:10px;overflow:hidden">
+          <span style="align-self:flex-end;padding:5px 8px;border-radius:10px;max-width:85%;flex:none;line-height:1.25;background:var(--ink);color:#fff;font-size:9.5px">Rice and stew at a party</span>
+          <span style="padding:5px 8px;border-radius:10px;max-width:85%;flex:none;line-height:1.25;background:#fff;border:1px solid var(--card-line);font-size:9.5px">Was the chicken fried or grilled?</span>
+          <span style="align-self:flex-end;padding:5px 8px;border-radius:10px;max-width:85%;flex:none;line-height:1.25;background:var(--ink);color:#fff;font-size:9.5px">Fried, 2 pieces</span>
+          <span style="padding:5px 8px;border-radius:10px;max-width:85%;flex:none;line-height:1.25;background:#fff;border:1px solid var(--card-line);font-size:9.5px">Got it. About 620 cal. Log it?</span>
         </div></div>
       </article>
       <article class="feature">
         <h3>African recipes</h3><p>Dishes you know, with calories per serving, so cooking at home and staying on track go together.</p>
-        <div class="mini" aria-hidden="true"><div class="mini-screen">
-          <b>Recipes</b>
-          <span class="fav">Light soup<span>★</span></span>
-          <span class="fav">Kontomire stew<span>★</span></span>
-          <span class="fav">Chin chin<span>★</span></span>
+        <div class="mini" aria-hidden="true" style="height:300px"><div class="mini-screen" style="padding:0;overflow:hidden;display:block">
+          <img src="/site/recipes.png" alt="" style="display:block;width:100%;height:100%;object-fit:cover;object-position:top">
         </div></div>
       </article>
       <article class="feature">
         <h3>See where you're heading</h3><p>Log your weight and see your trend next to Logga's prediction, updated every day from what you eat.</p>
         <div class="mini" aria-hidden="true"><div class="mini-screen">
-          <b>Weight trend</b>
-          <svg width="160" height="100" viewBox="0 0 160 100" fill="none"><path d="M0 90H160M0 60H160M0 30H160" stroke="var(--card-line)"/><path d="M4 22L28 30L52 28L76 44L100 50" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M100 50L124 58L156 66" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 5"/><circle cx="100" cy="50" r="5" fill="var(--accent)" stroke="var(--ink)" stroke-width="2"/></svg>
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><b>Weight Trend</b><span style="font-size:10px;font-weight:700;color:#059669">On pace</span></div>
+          <svg width="160" height="92" viewBox="0 0 160 92" fill="none">
+            <path d="M0 14H160M0 40H160M0 66H160" stroke="var(--card-line)"></path>
+            <path d="M4 12L156 64L156 80L4 20Z" fill="#6366F1" fill-opacity=".07"></path>
+            <path d="M130 6V80" stroke="#D1D5DB" stroke-dasharray="3 3"></path>
+            <rect x="116" y="0" width="28" height="11" rx="5.5" fill="#1F1F1F"></rect><text x="130" y="8" text-anchor="middle" font-size="6.5" font-weight="700" fill="#fff">Today</text>
+            <path d="M4 15L29 24L55 33L80 42L105 51L130 60L156 69" stroke="#818CF8" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 4"></path>
+            <path d="M4 14 C8.2 16.3 20.5 25.8 29 28 C37.5 30.2 46.5 24.2 55 27 C63.5 29.8 71.7 41.8 80 45 C88.3 48.2 96.7 43.7 105 46 C113.3 48.3 125.8 56.8 130 59" stroke="#059669" stroke-width="2.5" stroke-linecap="round"></path>
+            <circle cx="4" cy="14" r="2.6" fill="#059669" stroke="#fff"></circle><circle cx="29" cy="28" r="2.6" fill="#059669" stroke="#fff"></circle><circle cx="55" cy="27" r="2.6" fill="#059669" stroke="#fff"></circle><circle cx="80" cy="45" r="2.6" fill="#059669" stroke="#fff"></circle><circle cx="105" cy="46" r="2.6" fill="#059669" stroke="#fff"></circle><circle cx="130" cy="59" r="3.6" fill="#059669" stroke="#fff" stroke-width="1.5"></circle><circle cx="156" cy="69" r="3" fill="#fff" stroke="#818CF8" stroke-width="1.5"></circle>
+            <text x="4" y="90" text-anchor="middle" font-size="7" fill="#9CA3AF">S</text><text x="29" y="90" text-anchor="middle" font-size="7" fill="#9CA3AF">M</text><text x="55" y="90" text-anchor="middle" font-size="7" fill="#9CA3AF">T</text><text x="80" y="90" text-anchor="middle" font-size="7" fill="#9CA3AF">W</text><text x="105" y="90" text-anchor="middle" font-size="7" fill="#9CA3AF">T</text><text x="130" y="90" text-anchor="middle" font-size="7" font-weight="800" fill="#1F1F1F">F</text><text x="156" y="90" text-anchor="middle" font-size="7" fill="#9CA3AF">S</text>
+          </svg>
+          <div style="display:flex;justify-content:center;gap:12px;font-size:9.5px;font-weight:600;color:var(--muted)"><span style="display:flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:4px;background:#059669"></span>Actual</span><span style="display:flex;align-items:center;gap:4px"><span style="width:12px;border-top:2px dashed #818CF8"></span>Predicted</span></div>
         </div></div>
       </article>
       <article class="feature">
@@ -392,10 +906,17 @@ h1,h2,h3,p{margin:0}
       </article>
       <article class="feature">
         <h3>Water, steps and streaks</h3><p>Tap in a glass of water, bring in your steps from Apple Health, and keep your logging streak going.</p>
-        <div class="mini" aria-hidden="true"><div class="mini-screen" style="gap:10px">
-          <b>Water</b>
-          <div class="glasses"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span><span></span></div>
-          <div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></div>
+        <div class="mini" aria-hidden="true"><div class="mini-screen" style="gap:8px;padding-top:24px">
+          <b>Hydration</b>
+          <div style="background:linear-gradient(160deg,#EFF6FF,#DBEAFE);border-radius:16px;padding:10px 12px;display:flex;align-items:center;gap:12px">
+            <svg width="40" height="50" viewBox="0 0 96 120"><path d="M14 8h68l-8 102a8 8 0 0 1-8 7H30a8 8 0 0 1-8-7z" fill="#fff" stroke="#2563EB" stroke-width="5" stroke-linejoin="round"></path><path d="M19.5 56c9-5 18-5 28.5 0s19.5 5 28.5 0L74 110a8 8 0 0 1-8 7H30a8 8 0 0 1-8-7z" fill="#93C5FD"></path></svg>
+            <div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9.5px;font-weight:600;color:#1E40AF">Today</span><b style="font-size:20px;letter-spacing:-.5px;color:#0F2F52">1.2 L</b><span style="font-size:9.5px;color:#1E3A8A">of 2.5 L goal</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
+            <span style="border:1px solid #DBEAFE;background:#fff;border-radius:10px;padding:6px 2px;text-align:center;font-size:10px;font-weight:700;color:#1D4ED8">+ Sachet</span>
+            <span style="border:1px solid #DBEAFE;background:#fff;border-radius:10px;padding:6px 2px;text-align:center;font-size:10px;font-weight:700;color:#1D4ED8">+ Cup</span>
+            <span style="border:1px solid #DBEAFE;background:#fff;border-radius:10px;padding:6px 2px;text-align:center;font-size:10px;font-weight:700;color:#1D4ED8">+ Bottle</span>
+          </div>
         </div></div>
       </article>
     </div>
@@ -460,18 +981,18 @@ h1,h2,h3,p{margin:0}
       <p>Open Logga and log your next meal in seconds.</p>
       <div class="btn-row">
         <a class="store store--dark" href="/app">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"></path></svg>
           <span><small>Start now on the</small><strong>Web</strong></span>
         </a>
-        <span class="store store--light store--soon-light" aria-disabled="true">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+        <span class="store store--soon" aria-disabled="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"></rect><path d="M11 18h2"></path></svg>
           <span><small>Coming soon on the</small><strong>App Store</strong></span>
         </span>
       </div>
     </div>
     <div class="cta-phone" aria-hidden="true"><div>
       <span style="font-weight:800;font-size:20px">Goal reached</span>
-      <div class="done-ring"><div><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></div></div>
+      <div class="done-ring"><div><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg></div></div>
       <span style="font-size:13px;color:var(--muted);text-align:center">You hit today's target</span>
     </div></div>
   </div>
@@ -486,7 +1007,7 @@ h1,h2,h3,p{margin:0}
         <span style="font-size:15px;line-height:1.55;color:var(--muted)">The calorie counter built around African food.</span>
       </div>
       <div class="footer-cols">
-        <div class="footer-col"><b>Product</b><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a><a href="/app">Open Logga</a></div>
+        <div class="footer-col"><b>Product</b><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a><a href="/app">Use on web</a></div>
         <div class="footer-col"><b>Company</b><a href="mailto:sounfilteredai@gmail.com">Contact</a></div>
         <div class="footer-col"><b>Legal</b><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
       </div>
@@ -498,18 +1019,15 @@ h1,h2,h3,p{margin:0}
   </div>
 </footer>
 
+
 <script>
-// Today's date on the phone + footer year
-var now = new Date();
-document.getElementById('today-date').textContent =
-  now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-document.getElementById('year').textContent = now.getFullYear();
+document.getElementById('year').textContent = new Date().getFullYear();
 
 // Typewriter headline
 (function () {
   var words = ['waakye', 'eba', 'moi moi', 'jollof', 'banku', 'kenkey', 'fufu', 'red red', 'egusi', 'kelewele', 'ugali', 'pounded yam'];
   var el = document.getElementById('typed');
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; // keep "waakye" static
+  if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; // keep "waakye" static
   var wi = 0, len = words[0].length, deleting = false;
   function tick() {
     var w = words[wi], wait;
