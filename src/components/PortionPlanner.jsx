@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Platform, Image, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
-import Svg, { Circle, Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Path, Defs, LinearGradient as SvgGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
 import * as ImagePicker from 'expo-image-picker';
@@ -12,7 +12,7 @@ import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import { track } from '../lib/analytics';
 import HeaderFade from './HeaderFade';
 import { SourcesLink } from './HealthSourcesPage';
-import { estimateSatiety, satietyCurve, formatFullFor, gramsOf } from '../lib/satiety';
+import { estimateSatiety, satietyProfile, formatHalfHours, gramsOf, PROFILE } from '../lib/satiety';
 import { saveCustomRecipe } from '../lib/savedRecipes';
 import { fillMethodStep } from '../lib/recipeMethod';
 import { uploadMealPhoto } from '../lib/mealPhotoUpload';
@@ -340,9 +340,8 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const sum = (key) => items.reduce((s, i) => s + (i[key] || 0), 0);
   // How long this plate should keep them full: their energy use, the foods' measured Satiety Index, protein,
   // fibre and density, tuned by how long they usually go between logged meals (src/lib/satiety.js).
-  const satEst = useMemo(() => estimateSatiety({ foods: items, tdee }), [items, tdee]);
-  const sat = useMemo(() => satietyCurve(satEst.hours), [satEst.hours]);
-  const LEVEL_COLORS = { 'Very satisfying': ['#D1FAE5', '#047857'], Satisfying: ['#ECFDF5', '#047857'], Light: ['#FEF3C7', '#B45309'] };
+  const satEst = useMemo(() => estimateSatiety({ foods: items }), [items]);
+  const sat = useMemo(() => satietyProfile(satEst.hours), [satEst.hours]);
 
   // Scale a food's calories and nutrients together (the scan screen's −/+ and typed calories).
   const scaleFood = (f, newCal) => {
@@ -730,34 +729,45 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
             )}
 
             <View style={styles.satCard}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.kickerDark}>SATIETY ESTIMATE</Text>
-                  <Text style={styles.satHead}>Full for ~{formatFullFor(satEst.hours)}</Text>
-                  <Text style={styles.satSub}>{satEst.driver ? `Mostly from ${satEst.driver}` : `${Math.round(satEst.protein)}g of protein on this plate`}</Text>
-                </View>
-                <View style={[styles.levelPill, { backgroundColor: LEVEL_COLORS[satEst.level][0] }]}><Text style={[styles.levelText, { color: LEVEL_COLORS[satEst.level][1] }]}>{satEst.level}</Text></View>
-              </View>
-              <View style={{ marginTop: 14 }}>
-                <Svg width="100%" height={128} viewBox="0 0 318 128" preserveAspectRatio="none" accessibilityLabel="Estimated fullness over the next 6 hours">
+              <Text style={styles.satHead}>Full for ~{formatHalfHours(satEst.hours)}</Text>
+              <Text style={styles.satSub}>{satEst.driver ? `Mostly from ${satEst.driver}` : `${Math.round(satEst.protein)}g of protein on this plate`}</Text>
+              {/* How full you'll feel over the next 9 hours, crossing "Hungry" when hunger returns */}
+              <View style={{ width: '100%', aspectRatio: 333 / 194, marginTop: 10 }}>
+                <Svg width="100%" height="100%" viewBox="4 12 333 194" accessibilityLabel={`Fullness over the next 9 hours: hunger returns after about ${formatHalfHours(satEst.hours)}`}>
                   <Defs>
                     <SvgGradient id="satFill" x1="0" y1="0" x2="0" y2="1">
                       <Stop offset="0" stopColor="#34D399" stopOpacity="0.45" />
                       <Stop offset="1" stopColor="#34D399" stopOpacity="0" />
                     </SvgGradient>
                   </Defs>
-                  <Path d={`M0 ${sat.hungerY} H318`} stroke="#F59E0B" strokeWidth={1.5} strokeDasharray="4 4" />
+                  {[20, 60, 100, 140].map((yy) => <Path key={yy} d={`M${PROFILE.x0} ${yy}H${PROFILE.x1}`} stroke="#E5E7EB" strokeWidth={1} strokeDasharray="4 4" />)}
+                  <Path d={`M${PROFILE.x0} 20V180`} stroke="#E5E7EB" strokeWidth={1} />
+                  <SvgText x={38} y={23} textAnchor="end" fontSize={10} fill={MUTED}>Full</SvgText>
+                  <SvgText x={38} y={103} textAnchor="end" fontSize={10} fill={MUTED}>Half</SvgText>
+                  <SvgText x={38} y={143} textAnchor="end" fontSize={10} fill={MUTED}>Hungry</SvgText>
                   <Path d={sat.area} fill="url(#satFill)" />
-                  <Path d={sat.curve} fill="none" stroke={GREEN} strokeWidth={2.5} strokeLinejoin="round" />
-                  <Circle cx={sat.dotX} cy={sat.hungerY} r={6} fill="#fff" stroke="#F59E0B" strokeWidth={3} />
+                  <Path d={sat.curve} fill="none" stroke={GREEN} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d={`M${sat.dotX.toFixed(1)} 22V180`} stroke="#EF4444" strokeWidth={1.5} strokeDasharray="2 3" />
+                  <Circle cx={sat.dotX} cy={sat.dotY} r={4.5} fill="#EF4444" />
+                  <SvgText x={sat.labelX} y={sat.labelY} textAnchor={sat.late ? 'end' : 'start'} fontSize={10.5} fontWeight="600" fill="#EF4444">Hunger returns</SvgText>
+                  {sat.ticks.map((t) => <SvgText key={t.label} x={t.x} y={200} textAnchor="middle" fontSize={10} fill={MUTED}>{t.label}</SvgText>)}
                 </Svg>
-                <Text style={[styles.hungryLabel, { top: sat.hungerY - 22 }]}>Hungry again</Text>
               </View>
-              <View style={styles.axisRow}>{sat.ticks.map((l) => <Text key={l} style={styles.axisText}>{l}</Text>)}</View>
-              <View style={styles.satBasisRow}>
-                <Text style={styles.satBasis}>
-                  Based on how much food this is, its protein and fibre, how filling these foods are, and your body's energy needs.
-                </Text>
+              <View style={styles.satStats}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.satStatLabel}>Satiety Score</Text>
+                  <Text style={styles.satStatLine}><Text style={styles.satStatNum}>{satEst.score}</Text><Text style={styles.satStatUnit}> / 100</Text></Text>
+                </View>
+                <View style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={styles.satStatLabel}>Fullness Window</Text>
+                  <Text style={styles.satStatLine}><Text style={[styles.satStatNum, { color: GREEN }]}>{satEst.hours.toFixed(1)}</Text><Text style={[styles.satStatUnit, { color: GREEN }]}> hrs</Text></Text>
+                </View>
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  <Text style={styles.satStatLabel}>Energy Density</Text>
+                  <Text style={styles.satStatLine}><Text style={styles.satStatNum}>{satEst.density.toFixed(1)}</Text><Text style={styles.satStatUnit}> kcal/g</Text></Text>
+                </View>
+              </View>
+              <View style={{ alignItems: 'flex-end', marginTop: 6 }}>
                 <SourcesLink topic="satiety" only label="Sources" color={MUTED} />
               </View>
               <View style={{ marginTop: 16 }}>
@@ -1015,15 +1025,13 @@ const styles = StyleSheet.create({
   plateSmall: { fontSize: 13, color: '#4B5563' },
   plateBig: { fontSize: 18, fontWeight: '700', letterSpacing: -0.3, color: INK },
   satCard: { marginTop: 16, marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(5,150,105,0.1)', paddingTop: 18, paddingHorizontal: 16, paddingBottom: 16 },
-  satHead: { fontSize: 22, fontWeight: '800', letterSpacing: -0.6, marginTop: 6, color: INK },
+  satHead: { fontSize: 22, fontWeight: '800', letterSpacing: -0.6, color: INK },
+  satStats: { flexDirection: 'row', backgroundColor: '#F9FAFB', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
+  satStatLabel: { fontSize: 11, color: MUTED },
+  satStatLine: { marginTop: 4 },
+  satStatNum: { fontSize: 20, fontWeight: '800', color: INK },
+  satStatUnit: { fontSize: 11, color: MUTED },
   satSub: { fontSize: 13, color: '#4B5563', marginTop: 2 },
-  levelPill: { alignSelf: 'flex-start', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999 },
-  levelText: { fontSize: 12, fontWeight: '700' },
-  hungryLabel: { position: 'absolute', right: 0, fontSize: 11, fontWeight: '600', color: '#B45309', backgroundColor: '#fff', paddingLeft: 6 },
-  axisRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  axisText: { fontSize: 11, color: MUTED },
-  satBasisRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 10 },
-  satBasis: { flex: 1, fontSize: 11.5, lineHeight: 16, color: MUTED },
   budgetText: { fontSize: 13, fontWeight: '600', color: INK },
   budgetTrack: { height: 8, borderRadius: 4, backgroundColor: '#E7F3EC', overflow: 'hidden' },
   budgetFill: { height: 8, borderRadius: 4 },

@@ -1,32 +1,21 @@
-// How satisfying a plate is and how long until hunger returns ("Full for ~X" on Fit it in's Your plate).
-// Two separate questions, worked out from the food and the person's body (never from meal-log times, which
-// don't show when someone actually got hungry):
+// How satisfying a plate is and how long it keeps you full (Fit it in and kitchen recipes, "Your plate").
 //
-//   How satisfying: how much food it is (stomach fill), its protein, its fibre, and how filling the foods are
-//   (the Satiety Index of the closest measured food, Holt 1995; Rolls 2009 on food volume; Weigle 2005 on
-//   protein; Wanders 2011 on fibre).
-//
-//   How long: how long until hunger comes back, which grows with the meal's energy but levels off: a snack
-//   lasts about an hour, an ordinary 500-700 kcal plate about 3 to 4 hours, and even a very large meal not
-//   much past 5 (a heavy meal is out of the stomach within about 4-5 hours, Hunt 1985; Brener 1983, and
-//   hunger signals return before digestion is over). Protein, fat and fibre stretch it a little; bulky,
-//   low-calorie food (vegetables, soup solids) adds some; the Satiety Index nudges it; and a bigger daily
-//   energy burn (weight, height, age, activity) uses the meal up a little sooner. The time of day nudges it:
-//   the body clock makes hunger lowest around 8am and highest around 8pm, about 17% apart, whatever was eaten
-//   (Scheer 2013), and food eaten in the morning is the most satiating (de Castro 2004), so the same plate lasts
-//   up to ~7% longer at breakfast and ~7% shorter in the evening. Never above 6 hours.
+//   Satiety Score (0-100): how much food it is (stomach fill), its protein, its fibre, and how filling the foods
+//   are (the Satiety Index of the closest measured food, Holt 1995; Rolls 2009 on food volume).
+//   Fullness Window (hours) = 1.5 + Score / 25, nudged by the time of day (the body clock makes hunger lowest
+//   around 8am and highest around 8pm, Scheer 2013; morning food is the most satiating, de Castro 2004), and never
+//   more than 5 hours: a single meal is out of the stomach by then.
+//   Energy Density (kcal/g) = calories / grams: watery, fibre-rich food fills more for its calories.
+// Worked out from the food only, never from meal-log times (they don't show when someone actually got hungry).
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-const LAG_MIN = 20;
-const ENERGY_MIN = 330; // the most the meal's energy alone adds, approached slowly
-const ENERGY_KCAL = 600; // how quickly it levels off
-const BULK_MIN_PER_G = 0.1;
-const CAP_MIN = 360; // soft ceiling: 6 hours
+const WINDOW_BASE_H = 1.5;
+const SCORE_PER_HOUR = 25;
+const WINDOW_CAP_H = 5;
 const CLOCK_SWING = 0.075; // half the morning-to-evening difference
 
 // The body-clock nudge for a meal eaten at `hour` (0-24): highest at 8am, lowest at 8pm, smooth in between.
 export const timeOfDayFactor = (hour) => 1 + CLOCK_SWING * Math.cos((2 * Math.PI * (hour - 8)) / 24);
-const REF_TDEE = 2200;
 const TYPICAL_SI = 130; // an ordinary mixed plate
 
 // Satiety Index (white bread = 100) of the closest food Holt et al. 1995 actually tested. Foods with no close
@@ -72,11 +61,11 @@ export const gramsOf = (f) => {
   return (f.cal || 0) / 1.5;
 };
 
-export function estimateSatiety({ foods = [], tdee, at = new Date() } = {}) {
-  const sum = (k) => foods.reduce((s, f) => s + (Number(f[k]) || 0), 0);
-  const kcal = sum('cal'), protein = sum('protein'), fat = sum('fats'), fibre = sum('fiber');
-  const grams = foods.reduce((s, f) => s + gramsOf(f), 0);
-  if (kcal <= 0 && grams <= 0) return { hours: 0, level: 'Light', driver: null, protein: 0 };
+export function estimateSatiety({ foods = [], at = new Date() } = {}) {
+  const sum = (k) => foods.reduce((acc, f) => acc + (Number(f[k]) || 0), 0);
+  const kcal = sum('cal'), protein = sum('protein'), fibre = sum('fiber');
+  const grams = foods.reduce((acc, f) => acc + gramsOf(f), 0);
+  if (kcal <= 0 && grams <= 0) return { hours: 0, score: 0, density: 0, level: 'Light', driver: null, protein: 0, grams: 0 };
 
   // How filling the foods are, weighted by their calories (only the ones the study measured).
   let siKcal = 0, siSum = 0, top = null;
@@ -86,27 +75,19 @@ export function estimateSatiety({ foods = [], tdee, at = new Date() } = {}) {
     siKcal += f.cal; siSum += si * f.cal;
     if (!top || si * f.cal > top.score) top = { name: f.name, si, score: si * f.cal };
   });
-  const coverage = kcal > 0 ? siKcal / kcal : 0;
   const si = siKcal > 0 ? siSum / siKcal : TYPICAL_SI;
 
-  // How long: stomach emptying.
-  const proteinShare = kcal > 0 ? (protein * 4) / kcal : 0;
-  const fatShare = kcal > 0 ? (fat * 9) / kcal : 0;
-  // fat only ever adds (it keeps you full later on); a lean plate isn't marked down for being lean
-  const slow = clamp(1 + 0.4 * (proteinShare - 0.15) + 0.2 * Math.max(0, fatShare - 0.3) + 0.01 * fibre, 0.9, 1.2);
-  const energyMin = ENERGY_MIN * (1 - Math.exp(-kcal / ENERGY_KCAL)) * slow;
-  const bulkMin = Math.min(30, Math.max(0, grams - kcal / 2) * BULK_MIN_PER_G);
-  const fSI = Math.pow(clamp(si, 47, 323) / TYPICAL_SI, 0.3 * coverage);
-  const body = tdee ? clamp(Math.sqrt(REF_TDEE / tdee), 0.9, 1.1) : 1;
-  const clock = timeOfDayFactor(at.getHours() + at.getMinutes() / 60);
-  const raw = (LAG_MIN + energyMin + bulkMin) * fSI * body * clock;
-  // levels off towards the ceiling instead of running past it
-  const minutes = CAP_MIN * Math.tanh(raw / CAP_MIN);
-
-  // How satisfying: stomach fill, protein, fibre, how filling the foods are.
-  const score = 40 * Math.min(1, grams / 500) + 30 * Math.min(1, protein / 30) + 15 * Math.min(1, fibre / 8)
-    + 15 * clamp((si - 47) / (323 - 47), 0, 1);
+  // Satiety Score: stomach fill, protein, fibre, how filling the foods are.
+  const score = Math.round(40 * Math.min(1, grams / 500) + 30 * Math.min(1, protein / 30) + 15 * Math.min(1, fibre / 8)
+    + 15 * clamp((si - 47) / (323 - 47), 0, 1));
   const level = score >= 65 ? 'Very satisfying' : score >= 40 ? 'Satisfying' : 'Light';
+
+  // Fullness Window: 1.5 h + 1 h for every 25 points, nudged by the time of day, at most 5 h.
+  const clock = timeOfDayFactor(at.getHours() + at.getMinutes() / 60);
+  const hours = Math.min(WINDOW_CAP_H, (WINDOW_BASE_H + score / SCORE_PER_HOUR) * clock);
+
+  // Energy Density: calories per gram.
+  const density = grams > 0 ? kcal / grams : 0;
 
   // The main reasons, in plain words.
   const reasons = [];
@@ -118,41 +99,39 @@ export function estimateSatiety({ foods = [], tdee, at = new Date() } = {}) {
   if (!reasons.length && top && top.si <= 100) reasons.push(`${top.name.toLowerCase()} doesn't fill you for long`);
   const driver = reasons.length ? reasons.slice(0, 2).join(' and ') : null;
 
-  return { hours: minutes / 60, level, score, driver, protein, grams };
+  return { hours, score, density, level, driver, protein, grams };
 }
 
-// The estimate as it is, to the minute: "37 mins", "1 hr", "3 hrs 8 mins".
-export function formatFullFor(hours) {
-  const total = Math.max(1, Math.round(hours * 60));
-  const h = Math.floor(total / 60), m = total % 60;
-  const hrs = h === 0 ? '' : h === 1 ? '1 hr' : `${h} hrs`;
-  const mins = m === 0 ? '' : m === 1 ? '1 min' : `${m} mins`;
-  return [hrs, mins].filter(Boolean).join(' ');
+// "Full for ~3½ hrs": to the nearest half hour, as the plate card shows it.
+export function formatHalfHours(hours) {
+  const h = Math.max(0.5, Math.round(hours * 2) / 2);
+  const whole = Math.floor(h), half = h - whole >= 0.5;
+  const txt = (whole === 0 ? '' : String(whole)) + (half ? '½' : '');
+  return `${txt} ${h <= 1 ? 'hr' : 'hrs'}`;
 }
 
-// The fullness curve drawn on the chart, shaped so it drops below the "hungry again" line at `hours`.
-export function satietyCurve(hours, { width = 318, top = 18, bot = 108, hungry = 35 } = {}) {
-  // Short spans (a snack) zoom the chart in to 2 hours; long ones stretch past 6.
-  const span = hours < 1.5 ? 2 : Math.max(6, Math.ceil(hours + 1));
-  const rise = Math.max(0.01, Math.min(0.35, hours / 5));
-  const full = (t, tau) => 100 * (1 - Math.exp(-t / rise)) * Math.exp(-t / tau);
-  let lo = 0.2, hi = 60;
-  for (let k = 0; k < 40; k++) { const mid = (lo + hi) / 2; if (full(hours, mid) < hungry) lo = mid; else hi = mid; }
-  const tau = (lo + hi) / 2;
-  const X = (t) => (t / span) * width, Y = (v) => bot - (v / 100) * (bot - top);
+
+// The fullness profile drawn on the plate card, in its own 0-9 hour frame: a short settle after eating, then a
+// slow fade that crosses the "Hungry" line (25%) exactly at `hours`.
+export const PROFILE = { x0: 48, x1: 330, top: 20, bot: 180, spanH: 9, hungry: 25 };
+export function satietyProfile(hours) {
+  const { x0, x1, top, bot, spanH, hungry } = PROFILE;
+  const X = (t) => x0 + (t / spanH) * (x1 - x0), Y = (v) => bot - (v / 100) * (bot - top);
+  const settle = 0.4, width = 0.9;
+  const sig = (t, mid) => 1 / (1 + Math.exp((t - mid) / width));
+  const full = (t, mid) => (t <= settle ? 100 - (t / settle) * 12 : 4 + (84 * sig(t, mid)) / sig(settle, mid));
+  const cross = Math.max(settle + 0.2, Math.min(spanH, hours));
+  let lo = -5, hi = 20;
+  for (let k = 0; k < 50; k++) { const mid = (lo + hi) / 2; if (full(cross, mid) < hungry) lo = mid; else hi = mid; }
+  const mid = (lo + hi) / 2;
   const pts = [];
-  for (let t = 0; t <= span + 1e-4; t += span / 60) pts.push(`${X(t).toFixed(1)} ${Y(full(t, tau)).toFixed(1)}`);
+  for (let t = 0; t <= spanH + 1e-4; t += 0.1) pts.push(`${X(t).toFixed(1)} ${Y(full(t, mid)).toFixed(1)}`);
   const curve = `M${pts.join(' L')}`;
-  const ticks = span === 2 ? [0, 2 / 3, 4 / 3, 2] : span <= 6 ? [0, 2, 4, 6] : [0, Math.round(span / 3), Math.round((2 * span) / 3), span];
-  const tickLabel = (t) => {
-    if (t === 0) return 'Now';
-    const m = Math.round(t * 60);
-    if (m < 60) return `${m}m`;
-    return m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h`;
-  };
+  const dotX = X(cross), late = dotX > 270;
   return {
-    curve, area: `${curve} L${width} ${bot} L0 ${bot} Z`,
-    hungerY: Y(hungry), dotX: X(Math.min(hours, span)),
-    ticks: ticks.map(tickLabel),
+    curve, area: `${curve} L${x1} ${bot} L${x0} ${bot} Z`,
+    dotX, dotY: Y(hungry), late,
+    labelX: late ? dotX - 6 : dotX + 6, labelY: Y(hungry) - 6,
+    ticks: Array.from({ length: spanH + 1 }, (_, h) => ({ x: X(h), label: `${h}h` })),
   };
 }
