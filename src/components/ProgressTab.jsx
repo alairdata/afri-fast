@@ -1245,6 +1245,8 @@ const ProgressTab = ({
 
   // Trajectory chart: a PREDICTION for every day of the week (dashed, with a band that widens away from
   // today), plus the real weigh-ins this week as dots so the two never look alike.
+  // The chart is drawn at the card's real width so it fills it edge to edge on any screen (web included)
+  const [chartW, setChartW] = useState(326);
   const [savedPredictions, setSavedPredictions] = useState({});
   useEffect(() => {
     let alive = true;
@@ -1319,7 +1321,7 @@ const ProgressTab = ({
     const weekEndDate = new Date(startOfWeek);
     weekEndDate.setDate(startOfWeek.getDate() + 6);
 
-    const x = (i) => 6 + i * (314 / Math.max(n - 1, 1));
+    const x = (i) => 6 + i * ((chartW - 12) / Math.max(n - 1, 1));
     const vals = [];
     data.forEach((p) => { if (p.proj != null) vals.push(p.proj, p.upper, p.lower); if (p.weighIn != null) vals.push(p.weighIn); if (p.then != null) vals.push(p.then); });
     const min = Math.min(...vals) - 0.15, max = Math.max(...vals) + 0.15;
@@ -1350,7 +1352,7 @@ const ProgressTab = ({
       endPt: todayIdx < n - 1 ? { cx: x(n - 1), cy: y(weekEndVal) } : null,
       weekChange, weekEndDate, weekEndVal,
     };
-  }, [today, anchorKg, weeklyPace, now, weightUnit, sortedWeights, weightRange, predictedThenByDay]);
+  }, [today, anchorKg, weeklyPace, now, weightUnit, sortedWeights, weightRange, predictedThenByDay, chartW]);
 
   const predictionSnapshot = useMemo(() => {
     const anchorKg = today.weightEwmaKg != null ? today.weightEwmaKg : currentWeightKg;
@@ -1794,7 +1796,7 @@ const ProgressTab = ({
                 <Text style={styles.statCardTitle}>Weight Trend</Text>
                 <RangeDropdown value={weightRange} onChange={setWeightRange} styles={styles} />
               </View>
-              <View style={styles.chartCardCompact}>
+              <View style={[styles.chartCardCompact, { paddingTop: 6 }]}>
                 {chart ? (
                   <>
                     <View style={styles.rowBetween}>
@@ -1811,13 +1813,13 @@ const ProgressTab = ({
                         </View>
                       )}
                     </View>
-                    <View style={{ position: 'relative', marginTop: 10 }}>
-                      <Svg width="100%" height={156} viewBox="0 0 326 156">
-                        <Path d="M0 26H326M0 64H326M0 102H326M0 140H326" stroke={colors.border} strokeWidth={1} strokeOpacity={0.5} />
+                    <View style={{ position: 'relative', marginTop: 10 }} onLayout={(e) => { const w = Math.round(e.nativeEvent.layout.width); if (w > 0 && w !== chartW) setChartW(w); }}>
+                      <Svg width={chartW} height={156} viewBox={`0 0 ${chartW} 156`}>
+                        <Path d={`M0 26H${chartW}M0 64H${chartW}M0 102H${chartW}M0 140H${chartW}`} stroke={colors.border} strokeWidth={1} strokeOpacity={0.5} />
                         {!!chart.band && <Path d={chart.band} fill="#6366F1" fillOpacity={0.07} />}
                         <Line x1={chart.todayPt.cx} y1={12} x2={chart.todayPt.cx} y2={140} stroke={colors.textMuted} strokeOpacity={0.5} strokeWidth={1} strokeDasharray="3 3" />
-                        <Rect x={Math.min(Math.max(chart.todayPt.cx - 20, 0), 286)} y={0} width={40} height={16} rx={8} fill={colors.text} />
-                        <SvgText x={Math.min(Math.max(chart.todayPt.cx, 20), 306)} y={11.5} textAnchor="middle" fontSize={9.5} fontWeight="700" fill={colors.card}>Today</SvgText>
+                        <Rect x={Math.min(Math.max(chart.todayPt.cx - 20, 0), chartW - 40)} y={0} width={40} height={16} rx={8} fill={colors.text} />
+                        <SvgText x={Math.min(Math.max(chart.todayPt.cx, 20), chartW - 20)} y={11.5} textAnchor="middle" fontSize={9.5} fontWeight="700" fill={colors.card}>Today</SvgText>
                         <Path d={chart.proj} fill="none" stroke={PREDICTED} strokeWidth={2.5} strokeLinecap="round" strokeDasharray="6 6" />
                         {!!chart.thenPath && <Path d={chart.thenPath} fill="none" stroke={PREDICTED} strokeWidth={2.5} strokeLinecap="round" strokeDasharray="6 6" />}
                         {chart.weighIns.length >= 2 && <Path d={smooth(chart.weighIns.map((p) => [p.cx, p.cy]))} fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="round" />}
