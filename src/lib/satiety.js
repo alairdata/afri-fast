@@ -6,15 +6,19 @@
 //   (the Satiety Index of the closest measured food, Holt 1995; Rolls 2009 on food volume; Weigle 2005 on
 //   protein; Wanders 2011 on fibre).
 //
-//   How long: modelled on stomach emptying. Solid food waits about 20 minutes, then a mixed meal leaves the
-//   stomach at roughly 2.5 kcal a minute (Hunt 1985; Brener 1983). Protein, fat and fibre slow it; bulky,
-//   low-calorie food (vegetables, soup solids) takes extra room and time; the Satiety Index scales it; and a
-//   bigger daily energy burn (weight, height, age, activity) uses the meal up a little sooner.
+//   How long: how long until hunger comes back, which grows with the meal's energy but levels off: a snack
+//   lasts about an hour, an ordinary 500-700 kcal plate about 3 to 4 hours, and even a very large meal not
+//   much past 5 (a heavy meal is out of the stomach within about 4-5 hours, Hunt 1985; Brener 1983, and
+//   hunger signals return before digestion is over). Protein, fat and fibre stretch it a little; bulky,
+//   low-calorie food (vegetables, soup solids) adds some; the Satiety Index nudges it; and a bigger daily
+//   energy burn (weight, height, age, activity) uses the meal up a little sooner. Never above 6 hours.
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const LAG_MIN = 20;
-const KCAL_PER_MIN = 2.5;
-const BULK_MIN_PER_G = 0.25;
+const ENERGY_MIN = 330; // the most the meal's energy alone adds, approached slowly
+const ENERGY_KCAL = 600; // how quickly it levels off
+const BULK_MIN_PER_G = 0.1;
+const CAP_MIN = 360; // soft ceiling: 6 hours
 const REF_TDEE = 2200;
 const TYPICAL_SI = 130; // an ordinary mixed plate
 
@@ -81,12 +85,14 @@ export function estimateSatiety({ foods = [], tdee } = {}) {
   // How long: stomach emptying.
   const proteinShare = kcal > 0 ? (protein * 4) / kcal : 0;
   const fatShare = kcal > 0 ? (fat * 9) / kcal : 0;
-  const slow = clamp(1 + 0.5 * (proteinShare - 0.15) + 0.3 * (fatShare - 0.3) + 0.02 * fibre, 0.85, 1.4);
-  const energyMin = (kcal / KCAL_PER_MIN) * slow;
-  const bulkMin = Math.max(0, grams - kcal / 2) * BULK_MIN_PER_G;
-  const fSI = Math.pow(clamp(si, 47, 323) / TYPICAL_SI, 0.5 * coverage);
-  const body = tdee ? clamp(Math.sqrt(REF_TDEE / tdee), 0.8, 1.25) : 1;
-  const minutes = (LAG_MIN + energyMin + bulkMin) * fSI * body;
+  const slow = clamp(1 + 0.4 * (proteinShare - 0.15) + 0.2 * (fatShare - 0.3) + 0.01 * fibre, 0.9, 1.2);
+  const energyMin = ENERGY_MIN * (1 - Math.exp(-kcal / ENERGY_KCAL)) * slow;
+  const bulkMin = Math.min(30, Math.max(0, grams - kcal / 2) * BULK_MIN_PER_G);
+  const fSI = Math.pow(clamp(si, 47, 323) / TYPICAL_SI, 0.3 * coverage);
+  const body = tdee ? clamp(Math.sqrt(REF_TDEE / tdee), 0.9, 1.1) : 1;
+  const raw = (LAG_MIN + energyMin + bulkMin) * fSI * body;
+  // levels off towards the ceiling instead of running past it
+  const minutes = CAP_MIN * Math.tanh(raw / CAP_MIN);
 
   // How satisfying: stomach fill, protein, fibre, how filling the foods are.
   const score = 40 * Math.min(1, grams / 500) + 30 * Math.min(1, protein / 30) + 15 * Math.min(1, fibre / 8)
