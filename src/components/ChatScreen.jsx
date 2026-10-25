@@ -6,6 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import FormattedText from '../lib/FormattedText';
 import { coachGreeting } from '../lib/lumiVoice';
+import HeaderFade from './HeaderFade';
+import { useVoiceInput } from '../lib/useVoiceInput';
+
+const INK = '#1F1F1F';
 
 function TypingDots() {
   const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
@@ -107,6 +111,12 @@ const ChatScreen = ({
   const scrollViewRef = useRef(null);
   const lastOpeningContextRef = useRef(null);
   const isMeals = variant === 'meals';
+  const { voice, voiceNote, startVoice, stopVoice } = useVoiceInput({ text: chatInput, setText: setChatInput, active: show });
+  const caloriesLeft = (() => {
+    const day = new Date().toDateString();
+    const eaten = (recentMeals || []).filter((m) => m.date === day).reduce((sum, m) => sum + (m.calories || 0), 0);
+    return Math.max(0, (dailyCalorieGoal || 0) - eaten);
+  })();
 
   const enrichedMealLogs = (recentMeals || []).map(meal => {
     const ci = (checkInHistory || []).find(c => c.date === meal.date) || null;
@@ -225,88 +235,54 @@ const ChatScreen = ({
   if (!show) return null;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.chatOverlay}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={keyboardOffset}
-    >
-      <View style={styles.chatContainer}>
-        {/* Header */}
-        <View style={styles.chatHeader}>
-          <TouchableOpacity style={styles.chatBackBtn} onPress={onClose}>
-            <Ionicons name="chevron-back" size={22} color="#059669" />
-          </TouchableOpacity>
-          <View style={styles.chatHeaderInfo}>
-            {!isMeals && (
-              <LinearGradient colors={['#10B981', '#059669']} style={styles.chatAvatar}>
-                <Text style={{ fontSize: 20 }}>🤖</Text>
-              </LinearGradient>
-            )}
-            <View>
-              <Text style={styles.chatHeaderTitle}>
-                {isMeals ? 'Know your calories first' : 'Your Weight Loss Coach'}
-              </Text>
-              <View style={styles.chatHeaderStatusRow}>
-                {!isTyping && <View style={styles.chatStatusDot} />}
-                <Text style={styles.chatHeaderStatus}>
-                  {isTyping ? 'Typing…' : isMeals ? "Let's talk about it" : 'Online • Knows your data'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Messages */}
+    <View style={styles.overlay}>
+      <HeaderFade bg="#F9FAFB" />
+      <KeyboardAvoidingView
+        style={styles.chatContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={keyboardOffset}
+      >
         <ScrollView
           ref={scrollViewRef}
-          style={styles.chatMessages}
+          style={{ flex: 1 }}
           contentContainerStyle={styles.chatMessagesContent}
+          keyboardShouldPersistTaps="handled"
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
+          {/* Header: back, and what's left today (Ask Logga) */}
+          <View style={styles.headerRow}>
+            <TouchableOpacity style={styles.roundBtn} onPress={onClose} accessibilityLabel="Back">
+              <Ionicons name="chevron-back" size={22} color={INK} />
+            </TouchableOpacity>
+            <View style={styles.leftChip}>
+              <Ionicons name={isMeals ? 'leaf-outline' : 'sparkles-outline'} size={14} color="#047857" />
+              <Text style={styles.leftChipText}>{isMeals ? `${Math.round(caloriesLeft).toLocaleString()} cal left today` : 'Knows your data'}</Text>
+            </View>
+          </View>
+          <Text style={styles.h1}>{isMeals ? 'Ask Logga' : 'Your coach'}</Text>
           <Text style={styles.chatDisclaimer}>
             {isMeals
-              ? 'Calories here are AI estimates.'
+              ? 'Tell me what you ate and I’ll work out the calories with you. Calories here are AI estimates.'
               : 'AI coach, not a doctor. Check with a doctor before making medical decisions or big changes to your diet.'}
           </Text>
+
           {messages.map((msg, index) => (
             <View key={index} style={{ marginBottom: 16 }}>
-              <View
-                style={[
-                  styles.chatBubbleWrapper,
-                  { marginBottom: 0, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' },
-                ]}
-              >
-                {msg.role === 'assistant' && !isMeals && (
-                  <LinearGradient colors={['#10B981', '#059669']} style={styles.chatBubbleAvatar}>
-                    <Text style={{ fontSize: 14 }}>🤖</Text>
-                  </LinearGradient>
-                )}
+              <View style={[styles.chatBubbleWrapper, { marginBottom: 0, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }]}>
                 {msg.role === 'user' ? (
-                  <LinearGradient
-                    colors={['#10B981', '#047857']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={[styles.chatBubble, styles.chatBubbleUser]}
-                  >
+                  <View style={[styles.chatBubble, styles.chatBubbleUser]}>
                     <Text style={[styles.chatBubbleText, { color: '#fff' }]}>{msg.content}</Text>
-                  </LinearGradient>
+                  </View>
                 ) : (
                   <View style={[styles.chatBubble, styles.chatBubbleAssistant]}>
-                    <FormattedText
-                      text={msg.content}
-                      bodyStyle={[styles.chatBubbleText, { color: '#1F1F1F' }]}
-                      paragraphSpacing={10}
-                    />
+                    <FormattedText text={msg.content} bodyStyle={[styles.chatBubbleText, { color: INK }]} paragraphSpacing={10} />
                   </View>
                 )}
               </View>
               {isMeals && msg.role === 'assistant' && msg.loggableMeal && (
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => onLogMealFromChat && onLogMealFromChat(msg.loggableMeal)}
-                >
-                  <LinearGradient colors={['#10B981', '#059669']} style={styles.logMealPill}>
-                    <Ionicons name="add-circle" size={16} color="#fff" />
+                <TouchableOpacity activeOpacity={0.85} onPress={() => onLogMealFromChat && onLogMealFromChat(msg.loggableMeal)}>
+                  <LinearGradient colors={['#34D399', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.logMealPill}>
+                    <Ionicons name="checkmark" size={16} color="#fff" />
                     <Text style={styles.logMealPillText}>Log this meal</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -315,11 +291,6 @@ const ChatScreen = ({
           ))}
           {isTyping && (
             <View style={styles.chatBubbleWrapper}>
-              {!isMeals && (
-                <LinearGradient colors={['#10B981', '#059669']} style={styles.chatBubbleAvatar}>
-                  <Text style={{ fontSize: 14 }}>🤖</Text>
-                </LinearGradient>
-              )}
               <View style={[styles.chatBubble, styles.chatBubbleAssistant]}>
                 <TypingDots />
               </View>
@@ -327,157 +298,106 @@ const ChatScreen = ({
           )}
         </ScrollView>
 
-        {/* Quick Suggestions */}
-        {!isMeals && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chatSuggestions}
-            contentContainerStyle={styles.chatSuggestionsContent}
-          >
-            {SUGGESTIONS.map((s, i) => (
+        {/* Composer, as on Fit it in: type or say it, then send */}
+        <View style={styles.composerWrap}>
+          {!isMeals && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chatSuggestions} contentContainerStyle={styles.chatSuggestionsContent}>
+              {SUGGESTIONS.map((sug, i) => (
+                <TouchableOpacity key={i} style={styles.chatSuggestionBtn} onPress={() => setChatInput(sug)}>
+                  <Text style={styles.chatSuggestionText}>{sug}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+          <View style={styles.composer}>
+            {voice !== 'idle' && (
+              <View style={styles.listeningRow}>
+                <View style={styles.listeningDot} />
+                <Text style={styles.listeningText}>{voice === 'listening' ? 'Listening… tap stop when you’re done' : 'Writing down what you said…'}</Text>
+              </View>
+            )}
+            {voiceNote && voice === 'idle' && <Text style={styles.voiceNote}>{voiceNote}</Text>}
+            <TextInput
+              placeholder={isMeals ? 'What did you eat?' : 'Ask about your progress…'}
+              placeholderTextColor="#9CA3AF"
+              style={styles.composerInput}
+              value={chatInput}
+              onChangeText={setChatInput}
+              multiline
+              blurOnSubmit={false}
+              onKeyPress={(e) => {
+                // Enter sends on a keyboard; Shift+Enter makes a new line
+                if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) { e.preventDefault?.(); sendMessage(); }
+              }}
+              accessibilityLabel={isMeals ? 'Tell Logga what you ate' : 'Message your coach'}
+            />
+            <View style={styles.composerRow}>
+              <View style={{ flex: 1 }} />
               <TouchableOpacity
-                key={i}
-                style={styles.chatSuggestionBtn}
-                onPress={() => setChatInput(s)}
+                style={[styles.composerBtn, voice === 'listening' && styles.micOn]}
+                onPress={voice === 'listening' ? stopVoice : startVoice}
+                disabled={voice === 'transcribing'}
+                accessibilityLabel={voice === 'listening' ? 'Stop recording' : 'Say it'}
               >
-                <Text style={styles.chatSuggestionText}>{s}</Text>
+                <Ionicons name={voice === 'listening' ? 'stop' : 'mic-outline'} size={voice === 'listening' ? 16 : 20} color={voice === 'listening' ? '#fff' : INK} />
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-
-        {/* Input */}
-        <View style={styles.chatInputContainer}>
-          <TextInput
-            placeholder={isMeals ? 'Type a message...' : 'Ask about your progress...'}
-            placeholderTextColor="#999"
-            style={styles.chatInput}
-            value={chatInput}
-            onChangeText={setChatInput}
-            onSubmitEditing={sendMessage}
-            returnKeyType="send"
-            multiline={false}
-          />
-          <TouchableOpacity
-            style={{ opacity: chatInput.trim() && !isTyping ? 1 : 0.4 }}
-            onPress={sendMessage}
-            disabled={!chatInput.trim() || isTyping}
-          >
-            <LinearGradient colors={['#10B981', '#047857']} style={styles.chatSendBtn}>
-              <Ionicons name="send" size={19} color="#fff" />
-            </LinearGradient>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sendBtn, (!chatInput.trim() || isTyping || voice !== 'idle') && { opacity: 0.35 }]}
+                onPress={sendMessage}
+                disabled={!chatInput.trim() || isTyping || voice !== 'idle'}
+                accessibilityLabel="Send"
+              >
+                <Ionicons name="arrow-up" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  chatOverlay: {
+  overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: '#F5F6F8',
-    zIndex: 10000,
+    backgroundColor: '#F9FAFB', zIndex: 10000,
+    paddingTop: Platform.OS === 'web' ? 12 : 50,
   },
-  chatContainer: {
-    width: '100%',
-    maxWidth: 430,
-    alignSelf: 'center',
-    flex: 1,
-    flexDirection: 'column',
-    backgroundColor: '#F5F6F8',
-  },
-  chatHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04, shadowRadius: 10, elevation: 2,
-    zIndex: 1,
-  },
-  chatBackBtn: {
-    width: 38, height: 38, borderRadius: 13,
-    backgroundColor: 'rgba(5,150,105,0.08)',
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
-  chatHeaderInfo: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 12,
-  },
-  chatAvatar: {
-    width: 42, height: 42, borderRadius: 21,
-    alignItems: 'center', justifyContent: 'center', marginRight: 12,
-  },
-  chatHeaderTitle: { fontSize: 15.5, fontWeight: '700', color: '#15181C', letterSpacing: -0.2 },
-  chatHeaderStatusRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 5 },
-  chatStatusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
-  chatHeaderStatus: { fontSize: 12, color: '#6B7280', fontWeight: '500' },
-  chatMessages: { flex: 1, paddingHorizontal: 18 },
-  chatMessagesContent: { paddingVertical: 18 },
-  chatDisclaimer: { fontSize: 12, lineHeight: 17, color: '#9CA3AF', textAlign: 'center', marginHorizontal: 24, marginBottom: 16 },
-  chatBubbleWrapper: {
-    flexDirection: 'row', alignItems: 'flex-end', marginBottom: 16,
-  },
-  chatBubbleAvatar: {
-    width: 30, height: 30, borderRadius: 15,
-    alignItems: 'center', justifyContent: 'center',
-    marginRight: 8, flexShrink: 0,
-  },
-  chatBubble: {
-    maxWidth: '78%', paddingVertical: 13, paddingHorizontal: 16, borderRadius: 20,
-  },
-  chatBubbleAssistant: {
-    backgroundColor: '#fff', borderBottomLeftRadius: 6,
-    borderWidth: 1, borderColor: 'rgba(15,23,42,0.05)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03, shadowRadius: 4, elevation: 1,
-  },
-  chatBubbleUser: {
-    borderBottomRightRadius: 6,
-    shadowColor: '#059669', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18, shadowRadius: 10, elevation: 3,
-  },
-  chatBubbleText: { fontSize: 14.5, lineHeight: 21.5 },
+  chatContainer: { width: '100%', maxWidth: 430, alignSelf: 'center', flex: 1 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
+  roundBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+  leftChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+  leftChipText: { fontSize: 13, fontWeight: '700', color: '#047857' },
+  h1: { fontSize: 26, fontWeight: '800', letterSpacing: -0.6, lineHeight: 32, color: INK, marginTop: 20 },
+  chatMessagesContent: { paddingHorizontal: 20, paddingBottom: 190 },
+  chatDisclaimer: { fontSize: 13, lineHeight: 19, color: '#6B7280', marginTop: 6, marginBottom: 22 },
+  chatBubbleWrapper: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 16 },
+  chatBubble: { maxWidth: '82%', paddingVertical: 13, paddingHorizontal: 16, borderRadius: 22 },
+  chatBubbleAssistant: { backgroundColor: '#fff', borderBottomLeftRadius: 6, borderWidth: 1, borderColor: '#E5E7EB' },
+  chatBubbleUser: { backgroundColor: INK, borderBottomRightRadius: 6 },
+  chatBubbleText: { fontSize: 15, lineHeight: 22 },
   logMealPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    alignSelf: 'flex-start', marginTop: 8,
-    borderRadius: 20,
-    paddingVertical: 9, paddingHorizontal: 15,
-    shadowColor: '#059669', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2, shadowRadius: 6, elevation: 2,
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 10,
+    borderRadius: 16, paddingVertical: 11, paddingHorizontal: 16,
+    shadowColor: '#059669', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 3,
   },
-  logMealPillText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  chatSuggestions: { maxHeight: 52, paddingHorizontal: 18 },
-  chatSuggestionsContent: { alignItems: 'center', paddingVertical: 10, gap: 8 },
-  chatSuggestionBtn: {
-    paddingVertical: 9, paddingHorizontal: 15, borderRadius: 20,
-    backgroundColor: 'rgba(5,150,105,0.07)',
-  },
-  chatSuggestionText: { fontSize: 13, color: '#059669', fontWeight: '600' },
-  chatInputContainer: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 18, paddingTop: 12, paddingBottom: 30,
-    backgroundColor: '#fff',
-    shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04, shadowRadius: 10, elevation: 4,
-  },
-  chatInput: {
-    flex: 1, paddingVertical: 13, paddingHorizontal: 18,
-    borderRadius: 24, borderWidth: 1, borderColor: 'rgba(15,23,42,0.08)',
-    fontSize: 14.5, backgroundColor: '#F5F6F8',
-    marginRight: 10, color: '#1F1F1F',
-  },
-  chatSendBtn: {
-    width: 46, height: 46, borderRadius: 23,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 10, elevation: 4,
-  },
+  logMealPillText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  chatSuggestions: { maxHeight: 48, marginBottom: 8 },
+  chatSuggestionsContent: { alignItems: 'center', gap: 8 },
+  chatSuggestionBtn: { paddingVertical: 9, paddingHorizontal: 15, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB' },
+  chatSuggestionText: { fontSize: 13, color: '#047857', fontWeight: '600' },
+  composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 30, backgroundColor: 'rgba(249,250,251,0.94)' },
+  composer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 28, paddingTop: 12, paddingRight: 12, paddingBottom: 10, paddingLeft: 18, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  composerInput: { fontSize: 16, lineHeight: 22, color: INK, minHeight: 26, maxHeight: 110, paddingVertical: 2, outlineStyle: 'none' },
+  composerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  composerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' },
+  micOn: { backgroundColor: '#DC2626' },
+  listeningRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  listeningDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#DC2626' },
+  listeningText: { fontSize: 12.5, fontWeight: '600', color: '#B91C1C' },
+  voiceNote: { fontSize: 12.5, color: '#6B7280', marginBottom: 6 },
 });
 
 export default ChatScreen;
