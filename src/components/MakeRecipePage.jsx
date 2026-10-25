@@ -181,7 +181,15 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
         <ScrollView style={detail.scroll} showsVerticalScrollIndicator={false}>
           {/* Image */}
           {recipe.imageUrl ? (
-            <ShimmerImage uri={recipe.imageUrl} style={detail.heroImage} />
+            <View>
+              <ShimmerImage uri={recipe.imageUrl} style={detail.heroImage} />
+              {recipe.aiImage && (
+                <View style={detail.aiBadge}>
+                  <Ionicons name="sparkles-outline" size={11} color="#fff" />
+                  <Text style={detail.aiBadgeText}>AI image · how it could look</Text>
+                </View>
+              )}
+            </View>
           ) : (
             <View style={[detail.heroImage, detail.heroPlaceholder]}>
               <Text style={detail.heroEmoji}>🍽️</Text>
@@ -1162,6 +1170,10 @@ const detail = StyleSheet.create({
   },
   logBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   scroll: { flex: 1 },
+
+  aiBadge: { position: 'absolute', left: 12, bottom: 12, flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: 9, borderRadius: 999, backgroundColor: 'rgba(17,24,39,0.6)' },
+
+  aiBadgeText: { color: '#fff', fontSize: 11, fontWeight: '600' },
 
   heroImage: { width: '100%', height: 220 },
   heroPlaceholder: { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },

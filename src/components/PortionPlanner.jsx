@@ -14,6 +14,21 @@ import HeaderFade from './HeaderFade';
 import { SourcesLink } from './HealthSourcesPage';
 import { estimateSatiety, satietyCurve, formatFullFor, gramsOf } from '../lib/satiety';
 import { saveCustomRecipe } from '../lib/savedRecipes';
+import { fillMethodStep } from '../lib/recipeMethod';
+import { uploadMealPhoto } from '../lib/mealPhotoUpload';
+
+// The recipe's AI photo (a data URI) uploaded to storage, so a saved recipe keeps it. Null if it can't be uploaded.
+async function uploadRecipeImage(dataUri) {
+  if (!dataUri || !String(dataUri).startsWith('data:')) return null;
+  try {
+    if (Platform.OS === 'web') return await uploadMealPhoto(dataUri);
+    const path = `${FileSystem.cacheDirectory}recipe-${Date.now()}.jpg`;
+    await FileSystem.writeAsStringAsync(path, dataUri.split(',')[1], { encoding: FileSystem.EncodingType.Base64 });
+    return await uploadMealPhoto(path);
+  } catch (_) {
+    return null;
+  }
+}
 
 // Two flows share this screen:
 //   "Fit it in" (mode 'fit'): food they already have, portioned to fit the calories they have left.
@@ -360,6 +375,17 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
     setShowAddItem(false);
   };
 
+  const methodSteps = useMemo(() => {
+    if (!plan) return [];
+    if (!plan.methodTemplate?.length) return plan.method || [];
+    const people = plan.servings || servings;
+    const ingredients = (plan.foods || []).map((pf) => {
+      const cur = foods.find((f) => f.name === pf.name);
+      return { name: pf.name, grams: cur ? gramsOf(cur) * people : null, unitGrams: pf.unitGrams, unitOne: pf.unitOne, unitMany: pf.unitMany };
+    });
+    return plan.methodTemplate.map((step) => fillMethodStep(step, ingredients));
+  }, [plan, foods, servings]);
+
   const logPlate = () => {
     const toLog = foods.filter((f) => (f.cal || 0) > 0).map(({ name, qty, cal, protein, carbs, fats, fiber, sugar, sodium }) => ({ name, qty, cal, protein, carbs, fats, fiber, sugar, sodium }));
     if (!toLog.length) return;
@@ -369,7 +395,10 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
 
   const saveRecipe = async () => {
     if (!plan || savedRecipe) return;
+    setSavedRecipe('saving');
     const r1 = (k) => Math.round(foods.reduce((s, f) => s + (f[k] || 0), 0));
+    // keep the photo with the saved recipe (uploaded, so it isn't lost when the app closes)
+    const imageUrl = recipeImage && recipeImage !== 'failed' ? await uploadRecipeImage(recipeImage) : null;
     await saveCustomRecipe(userId, {
       id: `k-${Date.now()}`,
       name: plan.title || 'My recipe',
@@ -379,9 +408,9 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
       prepTime: plan.minutes ? `${plan.minutes} min` : '', cookTime: '',
       servings: 1, yield: '1 serving',
       ingredients: foods.map((f) => ({ name: f.name, amount: f.qty })),
-      instructions: plan.method || [],
+      instructions: methodSteps,
       note: plan.tip || '',
-      imageUrl: null, localNames: {}, countries: [],
+      imageUrl, aiImage: !!imageUrl, localNames: {}, countries: [],
     });
     setSavedRecipe(true);
     track('kitchen_recipe_saved', { calories: total });
@@ -807,10 +836,10 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               </View>
             </View>
 
-            {kitchen && (plan.method || []).length > 0 && (
+            {kitchen && methodSteps.length > 0 && (
               <View style={styles.methodCard}>
                 <Text style={[styles.kickerDark, { marginBottom: 12 }]}>METHOD{(plan.servings || servings) > 1 ? ` · FOR ${plan.servings || servings}` : ''}</Text>
-                {plan.method.map((m, i) => (
+                {methodSteps.map((m, i) => (
                   <View key={i} style={styles.methodRow}>
                     <View style={styles.methodNum}><Text style={styles.methodNumText}>{i + 1}</Text></View>
                     <Text style={styles.methodText}>{m}</Text>
@@ -838,7 +867,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
             {kitchen && (
               <TouchableOpacity style={styles.secondaryBtn} onPress={saveRecipe} disabled={savedRecipe}>
                 <Ionicons name={savedRecipe ? 'bookmark' : 'bookmark-outline'} size={17} color={savedRecipe ? GREEN : INK} />
-                <Text style={[styles.secondaryBtnText, savedRecipe && { color: GREEN }]}>{savedRecipe ? 'Saved to your recipes' : 'Save recipe'}</Text>
+                <Text style={[styles.secondaryBtnText, savedRecipe && { color: GREEN }]}>{savedRecipe === 'saving' ? 'Saving…' : savedRecipe ? 'Saved to your recipes' : 'Save recipe'}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={kitchen ? styles.textBtn : styles.secondaryBtn} onPress={() => setStep('input')}>

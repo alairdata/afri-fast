@@ -1,3 +1,6 @@
+import { PNG } from 'pngjs';
+import jpegJs from 'jpeg-js';
+import { fillMethodStep } from '../src/lib/recipeMethod.js';
 import { MEDICAL_SAFETY } from './_safety.js';
 import { toneInstruction } from './_tone.js';
 
@@ -351,7 +354,7 @@ export default async function handler(req, res) {
           `Create ONE home recipe they can cook mainly from these (salt, pepper, water and a little oil may be assumed), cooking for ${people} ${people === 1 ? 'person' : 'people'}, about ${target} kcal per person.${userCountry ? ` They live in ${userCountry}: prefer a familiar local dish and local names.` : ''}\n` +
           'Prefer lighter cooking (grilling, boiling, roasting, less oil) when it still tastes right.\n' +
           'foods: every ingredient with nutrition per 100 g as prepared in this recipe, a household measure (unitOne/unitMany and unitGrams for one of them) and grams PER PERSON.\n' +
-          'method: 4 to 7 short, clear steps for the whole pot (all servings). minutes: total time. usedCount: how many of the ingredients they listed the recipe uses; totalCount: how many they listed.\n' +
+          'method: 4 to 7 short, clear steps for the whole pot (all servings). Never write an amount or weight yourself: where a step needs one, write {n}, n being that ingredient\'s number in foods (1 = the first), e.g. "Heat {3} in a pan, then add {1}." The app fills in the exact amount for the whole pot. minutes: total time. usedCount: how many of the ingredients they listed the recipe uses; totalCount: how many they listed.\n' +
           'description: one appetising sentence. tip: one practical sentence about this recipe (a swap or cooking choice and what it saves or adds), no medical claims.\n' +
           'If there are no usable ingredients, set isFood to false and say what you see in whatIsItIfNotFood.',
       }];
@@ -373,11 +376,15 @@ export default async function handler(req, res) {
       const factor = total > 0 ? target / total : 1;
       if (total > 0 && Math.abs(factor - 1) > 0.05) foods = foods.map((f) => ({ ...f, grams: f.grams * factor }));
       foods = foods.map((f) => ({ ...f, grams: Math.max(1, Math.round(f.grams)) }));
+      // the method names its amounts as {n}; fill them from the final grams for the whole pot, so the method always
+      // matches the ingredient list (the app refills them when a portion is edited)
+      const methodTemplate = (parsed.method || []).map(String).filter(Boolean).slice(0, 8);
+      const method = methodTemplate.map((step) => fillMethodStep(step, foods.map((f) => ({ name: f.name, grams: f.grams * people, unitGrams: f.unitGrams, unitOne: f.unitOne, unitMany: f.unitMany }))));
       return res.json({
         title: parsed.title || 'Your recipe', description: parsed.description || '', tip: parsed.tip || '',
         minutes: Math.round(num(parsed.minutes)) || null, servings: people,
         usedCount: Math.round(num(parsed.usedCount)) || null, totalCount: Math.round(num(parsed.totalCount)) || null,
-        method: (parsed.method || []).map(String).filter(Boolean).slice(0, 8), foods,
+        method, methodTemplate, foods,
       });
     }
 
@@ -398,7 +405,16 @@ export default async function handler(req, res) {
       const img = (out?.candidates?.[0]?.content?.parts || []).find((p) => p.inlineData || p.inline_data);
       const inline = img?.inlineData || img?.inline_data;
       if (!inline?.data) return res.status(502).json({ error: 'No image returned' });
-      return res.json({ mimeType: inline.mimeType || inline.mime_type || 'image/png', data: inline.data });
+      const mime = inline.mimeType || inline.mime_type || 'image/png';
+      // The model sends a ~2 MB PNG; a quality-88 JPEG of it looks the same at about a seventh of the size.
+      if (/png/i.test(mime)) {
+        try {
+          const png = PNG.sync.read(Buffer.from(inline.data, 'base64'));
+          const jpg = jpegJs.encode({ data: png.data, width: png.width, height: png.height }, 88);
+          return res.json({ mimeType: 'image/jpeg', data: Buffer.from(jpg.data).toString('base64') });
+        } catch (e) { console.error('[recipe_image jpeg]', e.message); }
+      }
+      return res.json({ mimeType: mime, data: inline.data });
     }
 
     // ── Fit it in: plan portions of food they already have to a calorie amount ──
