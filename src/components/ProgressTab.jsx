@@ -33,27 +33,13 @@ const WARN_BG = '#FFF7ED';
 const WEEK_AHEAD_LEVELS = {
   low: { label: 'Low risk', bg: '#D1FAE5', color: '#047857' },
   watch: { label: 'Worth watching', bg: '#FEF3C7', color: '#B45309' },
-  high: { label: 'Higher risk', bg: '#FFEDD5', color: '#C2410C' },
+  high: { label: 'Plan ahead', bg: '#FEE2E2', color: '#B91C1C' },
   none: { label: 'No pattern yet', bg: '#F3F4F6', color: '#6B7280' },
 };
 
 // Seven rounded bars on a grey track (Calories, Hydration, Steps on Insights), oldest day first.
-const PillBars = ({ values, max, letters, color, styles, label }) => (
-  <View style={{ flex: 1, gap: 6 }} accessible accessibilityLabel={label}>
-    <View style={{ height: 160, flexDirection: 'row', gap: 8 }}>
-      {values.map((v, i) => (
-        <View key={i} style={styles.pillTrack}>
-          <View style={{ width: '100%', height: `${Math.round(Math.min(1, (v || 0) / (max || 1)) * 100)}%`, borderRadius: 999, backgroundColor: color }} />
-        </View>
-      ))}
-    </View>
-    <View style={{ flexDirection: 'row', gap: 8 }}>
-      {letters.map((l, i) => <Text key={i} style={styles.pillLetter}>{l}</Text>)}
-    </View>
-  </View>
-);
-// Calories for the last 7 days: square bars, a dashed line at the goal, red on days over it, today's letter bold.
-const GoalBars = ({ values, goals, goal, letters, todayIdx, styles, label }) => {
+// The last 7 days as square bars against a dashed goal line (Calories, Hydration, Steps), today's letter bold.
+const GoalBars = ({ values, goal, goalLabel, colorOf, letters, todayIdx, styles, label }) => {
   const max = Math.max(...values, goal || 0, 1) * 1.1;
   const goalPct = goal > 0 ? (goal / max) * 100 : null;
   return (
@@ -62,10 +48,10 @@ const GoalBars = ({ values, goals, goal, letters, todayIdx, styles, label }) => 
         <View style={[styles.goalBarsGrid, { top: 0 }]} />
         <View style={[styles.goalBarsGrid, { top: '50%' }]} />
         {goalPct != null && <View style={[styles.goalBarsGoalLine, { bottom: `${goalPct}%` }]} />}
-        {goalPct != null && <Text style={[styles.goalBarsGoalText, { bottom: `${goalPct}%` }]}>{`Goal ${Math.round(goal)}`}</Text>}
+        {goalPct != null && <Text style={[styles.goalBarsGoalText, { bottom: `${goalPct}%` }]}>{goalLabel}</Text>}
         <View style={styles.goalBarsRow}>
           {values.map((v, i) => (
-            <View key={i} style={{ flex: 1, height: `${Math.min(100, ((v || 0) / max) * 100)}%`, backgroundColor: goals[i] > 0 && v > goals[i] ? '#F87171' : '#34D399' }} />
+            <View key={i} style={{ flex: 1, height: `${Math.min(100, ((v || 0) / max) * 100)}%`, backgroundColor: colorOf(v, i) }} />
           ))}
         </View>
       </View>
@@ -79,7 +65,7 @@ const DANGER_BG = '#FEF2F2';
 const PREDICTED = '#818CF8';
 const ACTIVITY_MULTIPLIERS = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 };
 const RANGE_OPTIONS = ['7 days', '14 days', '30 days', '90 days', 'All time'];
-const RANGE_SHORT = { '7 days': '7D', '14 days': '14D', '30 days': '30D', '90 days': '90D', 'All time': 'All' };
+const RANGE_LABEL = { '7 days': 'This week', '14 days': 'Last 14 days', '30 days': 'Last 30 days', '90 days': '3 months', 'All time': 'All time' };
 const RANGE_DAYS = { '7 days': 7, '14 days': 14, '30 days': 30, '90 days': 90 };
 
 // "All time" doesn't have a fixed day count -- it spans from today back to that data source's
@@ -156,7 +142,7 @@ const RangeDropdown = ({ value, onChange, styles }) => {
   return (
     <>
       <TouchableOpacity ref={btnRef} style={styles.rangeDropdownBtn} onPress={openMenu} activeOpacity={0.7}>
-        <Text style={styles.rangeDropdownBtnText}>{RANGE_SHORT[value]}</Text>
+        <Text style={styles.rangeDropdownBtnText}>{RANGE_LABEL[value]}</Text>
         <Ionicons name="chevron-down" size={10} color="#059669" />
       </TouchableOpacity>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -176,7 +162,7 @@ const RangeDropdown = ({ value, onChange, styles }) => {
                   style={[styles.rangeDropdownItem, value === opt && styles.rangeDropdownItemActive]}
                   onPress={() => { onChange(opt); setOpen(false); }}
                 >
-                  <Text style={[styles.rangeDropdownItemText, value === opt && styles.rangeDropdownItemTextActive]}>{opt}</Text>
+                  <Text style={[styles.rangeDropdownItemText, value === opt && styles.rangeDropdownItemTextActive]}>{RANGE_LABEL[opt]}</Text>
                 </TouchableOpacity>
               ))}
             </TouchableOpacity>
@@ -802,11 +788,9 @@ const ProgressTab = ({
     const kg = (weeklyPace.dailyRateKg || 0) * days;
     return `${kg <= 0 ? '-' : '+'}${Math.abs(fromKg(kg, weightUnit)).toFixed(2)} ${weightUnit}`;
   };
-  const forecastAnchorNote = staleWeighInNote;
-  // Forecast lands on the three Saturdays AFTER this week's: this Saturday is the Prediction card's job, so the
-  // two cards never repeat a number, and both use the same Saturday week end.
-  const toSat = 6 - new Date(now).getDay();
-  const FORECAST_DAYS = [toSat + 7, toSat + 14, toSat + 21];
+  // Forecast lands on this Saturday (next Saturday when today is Saturday) and the two after it.
+  const toSat = 6 - new Date(now).getDay() || 7;
+  const FORECAST_DAYS = [toSat, toSat + 7, toSat + 14];
   const projected3Kg = weeklyPace.projectDay(FORECAST_DAYS[0])?.projectedKg ?? null;
   const projected7Kg = weeklyPace.projectDay(FORECAST_DAYS[1])?.projectedKg ?? null;
   const projected14Kg = weeklyPace.projectDay(FORECAST_DAYS[2])?.projectedKg ?? null;
@@ -1307,7 +1291,7 @@ const ProgressTab = ({
     const weekEndDate = new Date(startOfWeek);
     weekEndDate.setDate(startOfWeek.getDate() + 6);
 
-    const x = (i) => 16 + i * (294 / Math.max(n - 1, 1));
+    const x = (i) => 6 + i * (314 / Math.max(n - 1, 1));
     const vals = [];
     data.forEach((p) => { if (p.proj != null) vals.push(p.proj, p.upper, p.lower); if (p.weighIn != null) vals.push(p.weighIn); });
     const min = Math.min(...vals) - 0.15, max = Math.max(...vals) + 0.15;
@@ -1622,7 +1606,7 @@ const ProgressTab = ({
     });
     return { days, toWatch: days.filter((d) => d.level === 'high').length };
   }, [recentMeals, ledgerMap, goalHistory, dailyCalorieGoal, now]);
-  const [weekAheadPick, setWeekAheadPick] = useState(0);
+  const [weekAheadPick, setWeekAheadPick] = useState(() => Math.max(0, weekAhead.days.findIndex((d) => d.level === 'high')));
   const [riveMomentumFailed, setRiveMomentumFailed] = useState(false);
 
   // ── Your movement: the last 4 weeks (Mon-Sun rows), full workout vs lighter activity ──
@@ -1640,7 +1624,17 @@ const ProgressTab = ({
       if (level === 'light') light += 1;
       return { ds, level };
     }));
-    return { weeks, full, light };
+    const past = weeks.flat().filter((c) => c.level !== 'future');
+    const rest = past.filter((c) => c.level === 'none').length;
+    // "Your pattern": how many 30+ minute days a week, and whether they tend to follow a rest day
+    const flat = weeks.flat();
+    let afterRest = 0;
+    flat.forEach((c, i) => { if (c.level === 'full' && i > 0 && flat[i - 1].level === 'none') afterRest += 1; });
+    const perWeek = Math.round(full / 4);
+    const pattern = full === 0
+      ? "you haven't had a 30+ minute day in the last 4 weeks yet. One a week is a good place to start."
+      : `you're active about ${perWeek || 1} ${(perWeek || 1) === 1 ? 'day' : 'days'} a week${afterRest / full > 0.5 ? ', usually after a rest day' : ''}. ${perWeek >= 5 ? 'Keep it going.' : 'Adding one more active day would help.'}`;
+    return { weeks, full, light, rest, pattern };
   }, [activities, stepLogs, now]);
 
   return (
@@ -1755,15 +1749,15 @@ const ProgressTab = ({
                   <Text style={[styles.statFactLabel, { marginTop: 18 }]}>{week7.gapPct == null ? 'Avg goal gap' : week7.gapPct > 0 ? 'Avg over goal' : week7.gapPct < 0 ? 'Avg under goal' : 'Avg on goal'}</Text>
                   <Text style={styles.statFactValue}>{week7.gapPct == null ? '--' : week7.gapPct > 0 ? `+${week7.gapPct}%` : week7.gapPct < 0 ? `−${Math.abs(week7.gapPct)}%` : '0%'}</Text>
                 </View>
-                <GoalBars values={week7.days.map((d) => d.cal)} goals={week7.days.map((d) => d.calGoal)} goal={week7.days[week7.days.length - 1].calGoal} letters={week7.days.map((d) => d.letter)} todayIdx={week7.days.length - 1} styles={styles} label="Calories for the last 7 days against your goal" />
+                <GoalBars values={week7.days.map((d) => d.cal)} goal={week7.days[week7.days.length - 1].calGoal} goalLabel={`Goal ${Math.round(week7.days[week7.days.length - 1].calGoal).toLocaleString()}`} colorOf={(v, i) => (week7.days[i].calGoal > 0 && v > week7.days[i].calGoal ? '#F87171' : '#34D399')} letters={week7.days.map((d) => d.letter)} todayIdx={week7.days.length - 1} styles={styles} label="Calories for the last 7 days against your goal" />
               </View>
             </View>
 
             {/* Weight trend: this week's actual vs predicted weight, today's predicted weight (it moves every day with
                 new weigh-ins and logged meals), the change over the chosen range and this month */}
             <View style={styles.progressSectionCompact}>
-              <View style={styles.progressSectionHeader}>
-                <View style={styles.titleTipRow}><Text style={styles.progressSectionTitleCompact}>Weight trend</Text><InfoTip id="weight" /></View>
+              <View style={[styles.progressSectionHeader, { paddingHorizontal: 13, marginBottom: 2 }]}>
+                <Text style={styles.statCardTitle}>Weight Trend</Text>
                 <RangeDropdown value={weightRange} onChange={setWeightRange} styles={styles} />
               </View>
               <View style={styles.chartCardCompact}>
@@ -1771,7 +1765,6 @@ const ProgressTab = ({
                   <>
                     <View style={styles.rowBetween}>
                       <View>
-                        <View style={styles.titleTipRow}><Text style={styles.kicker}>ACTUAL VS PREDICTED WEIGHT</Text><InfoTip id="prediction" /></View>
                         {/* The week's predicted change, Sunday to Saturday */}
                         <Text style={styles.bigStat}>
                           {`${Math.abs(chart.weekChange).toFixed(2)} ${weightUnit} ${chart.weekChange < 0 ? 'loss' : chart.weekChange > 0 ? 'gain' : 'change'}`}
@@ -1784,8 +1777,8 @@ const ProgressTab = ({
                         </View>
                       )}
                     </View>
-                    <View style={{ position: 'relative', marginTop: 12 }}>
-                      <Svg width="100%" height={164} viewBox="0 0 326 164">
+                    <View style={{ position: 'relative', marginTop: 10 }}>
+                      <Svg width="100%" height={156} viewBox="0 0 326 156">
                         <Path d="M0 26H326M0 64H326M0 102H326M0 140H326" stroke={colors.border} strokeWidth={1} strokeOpacity={0.5} />
                         {!!chart.band && <Path d={chart.band} fill="#6366F1" fillOpacity={0.07} />}
                         <Line x1={chart.todayPt.cx} y1={12} x2={chart.todayPt.cx} y2={140} stroke={colors.textMuted} strokeOpacity={0.5} strokeWidth={1} strokeDasharray="3 3" />
@@ -1798,7 +1791,7 @@ const ProgressTab = ({
                         <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={5.5} fill={accent} stroke={colors.card} strokeWidth={2} />
                         {chart.endPt && <Circle cx={chart.endPt.cx} cy={chart.endPt.cy} r={5} fill={colors.card} stroke={PREDICTED} strokeWidth={2} />}
                         {chart.labels.map((l, i) => (
-                          <SvgText key={i} x={l.x} y={158} textAnchor="middle" fontSize={10} fontWeight={l.bold ? '800' : '600'} fill={l.bold ? colors.text : colors.textMuted}>{l.text}</SvgText>
+                          <SvgText key={i} x={l.x} y={152} textAnchor="middle" fontSize={10} fontWeight={l.bold ? '800' : '600'} fill={l.bold ? colors.text : colors.textMuted}>{l.text}</SvgText>
                         ))}
                       </Svg>
                       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -1814,7 +1807,7 @@ const ProgressTab = ({
                         </View>
                       </View>
                     </View>
-                    <View style={styles.chartKeyRow}>
+                    <View style={[styles.chartKeyRow, { justifyContent: 'center', gap: 18, marginTop: 14 }]}>
                       <View style={styles.chartKeyItem}>
                         <Svg width={14} height={4}><Line x1={0} y1={2} x2={14} y2={2} stroke={PREDICTED} strokeWidth={3} strokeDasharray="4 3" /></Svg>
                         <Text style={styles.chartKeyText}>Predicted</Text>
@@ -1825,20 +1818,11 @@ const ProgressTab = ({
                           <Text style={styles.chartKeyText}>Your weigh-ins</Text>
                         </View>
                       )}
-                      {!chartTooltip && <Text style={[styles.chartInfoText, { marginLeft: 'auto' }]}>Tap a point</Text>}
                     </View>
                     {chartTooltip && (
                       <Text style={[styles.chartInfoText, { marginTop: 6 }]}>
                         {`${chartTooltip.label}: ${chartTooltip.value.toFixed(1)} ${weightUnit}${chartTooltip.weighed ? ' (your weigh-in)' : ' (predicted)'}${chartTooltip.changeFromStart != null ? `  ·  ${Math.abs(chartTooltip.changeFromStart).toFixed(2)} ${weightUnit} ${chartTooltip.changeFromStart > 0 ? 'gain' : chartTooltip.changeFromStart < 0 ? 'loss' : 'change'} vs Sun` : ''}`}
                       </Text>
-                    )}
-                    {staleWeighInNote ? <Text style={[styles.mutedSmall, { marginTop: 8 }]}>{staleWeighInNote}</Text> : null}
-                    {trendNote && (
-                      <View style={[styles.nudgeBox, (trendBadge?.label === 'Too Aggressive' || trendBadge?.label === 'Stalled') && styles.nudgeBoxUrgent]}>
-                        <Text style={[styles.nudgeText, (trendBadge?.label === 'Too Aggressive' || trendBadge?.label === 'Stalled') && styles.nudgeTextUrgent]}>
-                          {trendNote}
-                        </Text>
-                      </View>
                     )}
                   </>
                 ) : (
@@ -1878,15 +1862,6 @@ const ProgressTab = ({
                     <Text style={styles.weightActionLinkText}>View all logs</Text>
                   </TouchableOpacity>
                 </View>
-                {chart && (
-                  <>
-                    <TouchableOpacity style={styles.detailsBtn} onPress={() => (isPro ? setView('details') : unlock('forecast'))}>
-                      <Text style={styles.detailsBtnText}>See details</Text>
-                      {!isPro && <Ionicons name="sparkles" size={13} color="#F5A524" style={{ marginLeft: 5 }} />}
-                      <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
-                    </TouchableOpacity>
-                  </>
-                )}
               </View>
             </View>
 
@@ -1896,7 +1871,7 @@ const ProgressTab = ({
                 <View style={styles.rowBetween}>
                   <View style={styles.titleTipRow}><Text style={styles.kicker}>FORECAST</Text><InfoTip id="forecast" /></View>
                   <View style={[styles.pill, { backgroundColor: confidenceBg }]}>
-                    <Text style={[styles.pillText, { color: confidenceColor }]}>{confidence} confidence</Text>
+                    <Text style={[styles.pillText, { color: confidenceColor }]}>{Math.round(today.confidence * 100)}% accurate</Text>
                   </View>
                 </View>
                 {!isPro ? (
@@ -1904,7 +1879,7 @@ const ProgressTab = ({
                 ) : (<>
                 <View style={[styles.statsRow, { marginTop: 10 }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statLabel}>{fmtDayMonth(new Date(now + FORECAST_DAYS[0] * DAY_MS)).toUpperCase()}</Text>
+                    <Text style={styles.statLabel}>{`${fmtDayMonth(new Date(now + FORECAST_DAYS[0] * DAY_MS)).toUpperCase()} (IN ${FORECAST_DAYS[0]}D)`}</Text>
                     <Text style={styles.statValue}>{projected3Kg != null ? `${fromKg(projected3Kg, weightUnit).toFixed(1)} ${weightUnit}` : '--'}</Text>
                     {weeklyPace.dailyRateKg != null && (
                       <Text style={styles.mutedSmall}>{forecastDelta(FORECAST_DAYS[0])}</Text>
@@ -1925,8 +1900,7 @@ const ProgressTab = ({
                     )}
                   </View>
                 </View>
-                {forecastAnchorNote ? <Text style={[styles.mutedSmall, { marginTop: 10 }]}>{forecastAnchorNote}</Text> : null}
-                <Text style={[styles.mutedSmall, { marginTop: 10 }]}>Confidence grows as you log and weigh in regularly — {Math.round(today.confidence * 100)}% right now.</Text>
+                <Text style={[styles.mutedSmall, { marginTop: 10 }]}>This gets more accurate the more regularly you log and weigh in.</Text>
                 </>)}
               </View>
             )}
@@ -2000,14 +1974,14 @@ const ProgressTab = ({
 
             {/* Guardrail */}
             {patternInsight && !patternDismissed && (
-              <View style={[styles.card, { backgroundColor: WARN_BG, borderColor: '#FCE3CB' }]}>
+              <View style={[styles.card, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
                 <View style={styles.rowStart}>
-                  <View style={styles.warnDot}><Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>!</Text></View>
-                  <Text style={[styles.cardTitleSmall, { color: '#C25A11' }]}>{patternAi?.title || patternInsight.fallback.title}</Text>
+                  <View style={[styles.warnDot, { width: 20, height: 20, borderRadius: 10, backgroundColor: '#DC2626' }]}><Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>!</Text></View>
+                  <Text style={[styles.cardTitleSmall, { color: '#B91C1C' }]}>{patternAi?.title || patternInsight.fallback.title}</Text>
                 </View>
-                <Text style={[styles.mutedBody, { color: '#8A7663', marginTop: 8 }]}>{patternAi?.body || patternInsight.fallback.body}</Text>
+                <Text style={[styles.mutedBody, { color: '#7F5A5A', marginTop: 8 }]}>{patternAi?.body || patternInsight.fallback.body}</Text>
                 <TouchableOpacity style={styles.dismissBtn} onPress={dismissPattern}>
-                  <Text style={{ color: '#C25A11', fontSize: 12.5, fontWeight: '700' }}>Got it</Text>
+                  <Text style={{ color: '#B91C1C', fontSize: 12.5, fontWeight: '700' }}>Got it</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -2021,20 +1995,20 @@ const ProgressTab = ({
               <View style={[styles.rowBetween, { alignItems: 'center' }]}>
                 <Text style={styles.cardTitle15}>Your week ahead</Text>
                 {weekAhead.toWatch > 0 && (
-                  <View style={[styles.greyPill, { backgroundColor: '#FFEDD5' }]}><Text style={[styles.greyPillText, { color: '#C2410C' }]}>{weekAhead.toWatch} {weekAhead.toWatch === 1 ? 'day' : 'days'} to watch</Text></View>
+                  <View style={[styles.greyPill, { backgroundColor: '#FEE2E2' }]}><Text style={[styles.greyPillText, { color: '#B91C1C' }]}>{weekAhead.toWatch} {weekAhead.toWatch === 1 ? 'day' : 'days'} to watch</Text></View>
                 )}
               </View>
               <Text style={[styles.mutedBody, { marginTop: 6 }]}>Based on your past patterns, some days may need a little more planning.</Text>
               <View style={{ flexDirection: 'row', gap: 2, marginTop: 12 }}>
                 {weekAhead.days.map((d, i) => {
                   const on = i === weekAheadPick;
-                  const color = d.level === 'high' ? '#F97316' : d.level === 'watch' ? '#FBBF24' : d.level === 'low' ? '#34D399' : colors.border;
+                  const color = d.level === 'high' ? '#DC2626' : d.level === 'watch' ? '#FBBF24' : d.level === 'low' ? '#34D399' : colors.border;
                   return (
                     <TouchableOpacity key={i} onPress={() => setWeekAheadPick(i)} style={[styles.aheadDay, on && styles.aheadDayOn]} accessibilityState={{ selected: on }} accessibilityLabel={`${d.title}, ${WEEK_AHEAD_LEVELS[d.level].label}`}>
                       <Text style={[styles.aheadDayName, on && { fontWeight: '700', color: colors.text }]}>{d.name}</Text>
                       <Text style={styles.aheadDayNum}>{d.num}</Text>
                       <View style={styles.aheadBarBox}><View style={{ width: '70%', height: `${Math.round(d.height * 100)}%`, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: color }} /></View>
-                      <View style={{ height: 14, justifyContent: 'center' }}>{d.level === 'high' ? <Ionicons name="alert-circle-outline" size={12} color="#EA580C" /> : null}</View>
+                      <View style={{ height: 14, justifyContent: 'center' }}>{d.level === 'high' ? <Text style={{ fontSize: 11, fontWeight: '800', color: '#DC2626' }}>!</Text> : null}</View>
                     </TouchableOpacity>
                   );
                 })}
@@ -2069,7 +2043,7 @@ const ProgressTab = ({
                   <Text style={[styles.statFactLabel, { marginTop: 18 }]}>Goal met</Text>
                   <Text style={styles.statFactValue}>{week7.hasWater ? `${week7.waterGoalDays} of 7 days` : '--'}</Text>
                 </View>
-                <PillBars values={week7.days.map((d) => d.waterL)} max={Math.max(...week7.days.map((d) => d.waterL), week7.goalMl / 1000, 0.1)} letters={week7.days.map((d) => d.letter)} color="#0EA5E9" styles={styles} label="Water for the last 7 days" />
+                <GoalBars values={week7.days.map((d) => d.waterL)} goal={week7.goalMl / 1000} goalLabel={`Goal ${+(week7.goalMl / 1000).toFixed(1)} L`} colorOf={(v) => (v * 1000 >= week7.goalMl ? '#38BDF8' : '#BAE6FD')} letters={week7.days.map((d) => d.letter)} todayIdx={week7.days.length - 1} styles={styles} label="Water for the last 7 days against your goal" />
               </View>
             </View>
 
@@ -2086,7 +2060,7 @@ const ProgressTab = ({
                   <Text style={[styles.statFactLabel, { marginTop: 18 }]}>Goal met</Text>
                   <Text style={styles.statFactValue}>{week7.hasSteps ? `${week7.stepGoalDays} of 7 days` : '--'}</Text>
                 </View>
-                <PillBars values={week7.days.map((d) => d.steps)} max={Math.max(...week7.days.map((d) => d.steps), stepGoal || 0, 1)} letters={week7.days.map((d) => d.letter)} color="#F97316" styles={styles} label="Steps for the last 7 days" />
+                <GoalBars values={week7.days.map((d) => d.steps)} goal={stepGoal || 0} goalLabel={`Goal ${(stepGoal || 0).toLocaleString()}`} colorOf={(v) => (stepGoal > 0 && v >= stepGoal ? '#FB923C' : '#FED7AA')} letters={week7.days.map((d) => d.letter)} todayIdx={week7.days.length - 1} styles={styles} label="Steps for the last 7 days against your goal" />
                 {needsHealth && (
                   <>
                     <BlurView intensity={Platform.OS === 'android' ? 30 : 16} tint="light" style={StyleSheet.absoluteFill} />
@@ -2120,12 +2094,20 @@ const ProgressTab = ({
                   </TouchableOpacity>
                 </View>
               </View>
-              <View accessible accessibilityLabel={`Activity over the last 4 weeks: ${movement.full} full workout days and ${movement.light} lighter active days`} style={{ gap: 6 }}>
+              <Text style={styles.moveExplain}>Each square is one day. A tick means you moved for 30+ minutes.</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                <View style={[styles.moveStat, { backgroundColor: '#FFF7ED' }]}><Text style={[styles.moveStatNum, { color: '#EA580C' }]}>{movement.full}</Text><Text style={styles.moveStatLabel}>Active days</Text></View>
+                <View style={[styles.moveStat, { backgroundColor: '#FFF7ED' }]}><Text style={[styles.moveStatNum, { color: '#F97316' }]}>{movement.light}</Text><Text style={styles.moveStatLabel}>Light days</Text></View>
+                <View style={[styles.moveStat, { backgroundColor: colors.cardAlt }]}><Text style={[styles.moveStatNum, { color: '#6B7280' }]}>{movement.rest}</Text><Text style={styles.moveStatLabel}>Rest days</Text></View>
+              </View>
+              <View accessible accessibilityLabel={`Activity over the last 4 weeks: ${movement.full} active days, ${movement.light} light days and ${movement.rest} rest days`} style={{ gap: 6 }}>
                 <View style={{ flexDirection: 'row', gap: 6, marginBottom: 2 }}>
+                  <View style={{ width: 44 }} />
                   {WEEK_DAY_LABELS.map((l, i) => <Text key={i} style={styles.moveDayLabel}>{l}</Text>)}
                 </View>
                 {movement.weeks.map((week, w) => (
-                  <View key={w} style={{ flexDirection: 'row', gap: 6 }}>
+                  <View key={w} style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                    <Text style={[styles.moveWeekLabel, w === 3 && { fontWeight: '700', color: colors.text }]}>{['3 wks ago', '2 wks ago', 'Last wk', 'This wk'][w]}</Text>
                     {week.map((c) => (
                       <View key={c.ds} style={[styles.moveCell, { backgroundColor: c.level === 'full' ? '#F97316' : c.level === 'light' ? '#FDBA74' : colors.cardAlt, opacity: c.level === 'future' ? 0.45 : 1 }]}>
                         {c.level === 'full' && <Ionicons name="checkmark" size={12} color="#fff" />}
@@ -2134,11 +2116,13 @@ const ProgressTab = ({
                   </View>
                 ))}
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 }}>
-                <Text style={styles.moveLegend}>Less activity</Text>
-                <View style={[styles.moveSwatch, { backgroundColor: '#FDBA74' }]} />
-                <View style={[styles.moveSwatch, { backgroundColor: '#F97316' }]} />
-                <Text style={styles.moveLegend}>More activity</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 14, rowGap: 6, marginTop: 14 }}>
+                <View style={styles.moveLegendItem}><View style={[styles.moveSwatch, { backgroundColor: colors.cardAlt }]} /><Text style={styles.moveLegend}>Rest</Text></View>
+                <View style={styles.moveLegendItem}><View style={[styles.moveSwatch, { backgroundColor: '#FDBA74' }]} /><Text style={styles.moveLegend}>Light (under 30 min)</Text></View>
+                <View style={styles.moveLegendItem}><View style={[styles.moveSwatch, { backgroundColor: '#F97316' }]} /><Text style={styles.moveLegend}>Active (30+ min)</Text></View>
+              </View>
+              <View style={styles.movePattern}>
+                <Text style={styles.movePatternText}><Text style={{ fontWeight: '700' }}>Your pattern: </Text>{movement.pattern}</Text>
               </View>
             </View>
 
@@ -2397,13 +2381,21 @@ const makeStyles = (c) => StyleSheet.create({
   goalBarsRow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
   aheadDay: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 6, borderRadius: 10, borderWidth: 1.5, borderColor: 'transparent' },
   aheadDayOn: { borderColor: '#D1D5DB', backgroundColor: c.card },
-  aheadDayName: { fontSize: 10, color: c.textSecondary },
+  aheadDayName: { fontSize: 11, color: c.textSecondary },
   aheadDayNum: { fontSize: 13, fontWeight: '600', color: c.text },
   aheadBarBox: { width: '100%', height: 90, alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 },
   moveDayLabel: { flex: 1, textAlign: 'center', fontSize: 11, color: c.textSecondary },
   moveCell: { flex: 1, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  moveLegend: { fontSize: 12, color: c.textSecondary },
-  moveSwatch: { width: 12, height: 12, borderRadius: 3 },
+  moveLegend: { fontSize: 11, color: c.textSecondary },
+  moveSwatch: { width: 14, height: 14, borderRadius: 4 },
+  moveLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  moveExplain: { fontSize: 13, color: c.textSecondary, lineHeight: 18, marginTop: -4, marginBottom: 12 },
+  moveStat: { flex: 1, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 10 },
+  moveStatNum: { fontSize: 17, fontWeight: '800' },
+  moveStatLabel: { fontSize: 11, color: c.textSecondary },
+  moveWeekLabel: { width: 44, fontSize: 10, lineHeight: 12, color: c.textSecondary },
+  movePattern: { marginTop: 12, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: c.cardAlt, borderRadius: 12 },
+  movePatternText: { fontSize: 12.5, lineHeight: 18, color: c.text },
   healthIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   healthTitle: { fontSize: 15, fontWeight: '800', color: '#16201b' },
   healthSub: { fontSize: 12.5, lineHeight: 17, color: '#4b5563', textAlign: 'center', marginTop: 4 },
