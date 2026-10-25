@@ -15,6 +15,11 @@ export function amountText({ grams, unitGrams, unitOne, unitMany }) {
   // only real kitchen measures (tbsp, cup, clove, slice, medium onion...), never "half ...", "several ...", "bowl"
   const realMeasure = !!unitOne && /^(tbsp|tsp|tablespoons?|teaspoons?|cups?|cloves?|slices?|pieces?|eggs?|fillets?|(small|medium|large)\b)/i.test(unitOne)
     && !/half|several|bowl|portion|serving|handful|plate/i.test(`${unitOne} ${unitMany || ''}`);
+  // eggs, pieces, slices and fillets are counted whole: "3 eggs", never "2¾ eggs"
+  if (realMeasure && /eggs?|pieces?|slices?|fillets?/i.test(unitOne)) {
+    const c = Math.max(1, Math.round(n));
+    return `${c} ${c === 1 ? unitOne : unitMany || unitOne}`;
+  }
   const clean = realMeasure && n >= 0.25 && n <= 12 && Math.abs(Math.round(n * 4) / 4 - n) / n < 0.15;
   return clean ? `${quarter(n)} ${n > 1.125 ? unitMany || unitOne : unitOne} (${g} g)` : `${g} g`;
 }
