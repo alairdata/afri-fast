@@ -1,7 +1,10 @@
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, ActivityIndicator, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, ActivityIndicator, KeyboardAvoidingView, Platform, Animated, Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import FormattedText from '../lib/FormattedText';
@@ -10,6 +13,30 @@ import HeaderFade from './HeaderFade';
 import { useVoiceInput } from '../lib/useVoiceInput';
 
 const INK = '#1F1F1F';
+const MUTED = '#6B7280';
+
+// Ask Logga's start screen, as on Fit it in: when it's the right tool
+const ASK_WHEN = [
+  ['restaurant-outline', 'You ate out', 'A chop bar, a party, a friend\u2019s cooking'],
+  ['chatbubbles-outline', 'It\u2019s hard to describe', '\u201cRice with a bit of stew and two pieces of chicken\u201d'],
+  ['help-circle-outline', 'You want it exact', 'Fried or grilled, bone in, weighed raw: Logga asks'],
+];
+
+// A photo as base64 JPEG, made smaller first on phones so it sends quickly
+async function photoBase64(uri) {
+  if (Platform.OS === 'web') {
+    if (uri.startsWith('data:')) return uri.split(',')[1];
+    const blob = await (await fetch(uri)).blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result).split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+  const small = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 900 } }], { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG });
+  return FileSystem.readAsStringAsync(small.uri, { encoding: 'base64' });
+}
 
 function TypingDots() {
   const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
@@ -107,6 +134,7 @@ const ChatScreen = ({
   const keyboardOffset = Platform.OS === 'ios' ? safeInsets.top : 0;
 
   const [chatInput, setChatInput] = useState('');
+  const [photo, setPhoto] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef(null);
   const lastOpeningContextRef = useRef(null);
@@ -202,20 +230,38 @@ const ChatScreen = ({
     }
   }, [show, openingContext]);
 
-  const sendMessage = async () => {
-    if (!chatInput.trim() || isTyping) return;
+  const pickPhoto = async (fromCamera) => {
+    try {
+      if (fromCamera && Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') return;
+      }
+      const res = fromCamera && Platform.OS !== 'web'
+        ? await ImagePicker.launchCameraAsync({ quality: 0.5 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.5 });
+      if (!res.canceled && res.assets?.[0]?.uri) setPhoto(res.assets[0].uri);
+    } catch (_) {}
+  };
 
-    const userMsg = { role: 'user', content: chatInput.trim() };
+  const sendMessage = async () => {
+    if ((!chatInput.trim() && !photo) || isTyping) return;
+
+    const sentPhoto = photo;
+    const userMsg = { role: 'user', content: chatInput.trim() || 'Here\u2019s my food.', ...(sentPhoto ? { photo: sentPhoto } : {}) };
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setChatInput('');
+    setPhoto(null);
     setIsTyping(true);
 
     try {
+      const image = sentPhoto ? await photoBase64(sentPhoto).catch(() => null) : null;
       const res = await callChat({
         action: 'message',
         variant,
-        messages: updatedMessages,
+        // the photo itself goes once, with this message; earlier ones aren't resent
+        messages: updatedMessages.map(({ photo: _p, ...m }) => m),
+        image,
         personality,
         data: userData,
         userId,
@@ -259,18 +305,33 @@ const ChatScreen = ({
               <Text style={styles.leftChipText}>{isMeals ? `${Math.round(caloriesLeft).toLocaleString()} cal left today` : 'Knows your data'}</Text>
             </View>
           </View>
-          <Text style={styles.h1}>{isMeals ? 'Ask Logga' : 'Your coach'}</Text>
-          <Text style={styles.chatDisclaimer}>
-            {isMeals
-              ? 'Tell me what you ate and I’ll work out the calories with you. Calories here are AI estimates.'
-              : 'AI coach, not a doctor. Check with a doctor before making medical decisions or big changes to your diet.'}
-          </Text>
+          <Text style={styles.h1}>{isMeals ? 'Not sure what you ate?\nLet\u2019s work it out.' : 'Your coach'}</Text>
+          {isMeals ? (
+            <>
+              <Text style={styles.kicker}>PERFECT FOR WHEN</Text>
+              <View style={styles.whenCard}>
+                {ASK_WHEN.map(([icon, title, sub], i) => (
+                  <View key={title} style={[styles.whenRow, i < ASK_WHEN.length - 1 && styles.rowDivider]}>
+                    <View style={styles.whenIcon}><Ionicons name={icon} size={16} color={INK} /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.whenTitle}>{title}</Text>
+                      <Text style={styles.whenSub}>{sub}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+              <Text style={styles.chatDisclaimer}>Calories here are AI estimates.</Text>
+            </>
+          ) : (
+            <Text style={styles.chatDisclaimer}>AI coach, not a doctor. Check with a doctor before making medical decisions or big changes to your diet.</Text>
+          )}
 
           {messages.map((msg, index) => (
             <View key={index} style={{ marginBottom: 16 }}>
               <View style={[styles.chatBubbleWrapper, { marginBottom: 0, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }]}>
                 {msg.role === 'user' ? (
                   <View style={[styles.chatBubble, styles.chatBubbleUser]}>
+                    {msg.photo ? <Image source={{ uri: msg.photo }} style={styles.bubblePhoto} /> : null}
                     <Text style={[styles.chatBubbleText, { color: '#fff' }]}>{msg.content}</Text>
                   </View>
                 ) : (
@@ -310,6 +371,14 @@ const ChatScreen = ({
             </ScrollView>
           )}
           <View style={styles.composer}>
+            {photo && (
+              <View style={styles.photoChip}>
+                <Image source={{ uri: photo }} style={styles.photoThumb} />
+                <TouchableOpacity onPress={() => setPhoto(null)} style={styles.photoRemove} accessibilityLabel="Remove photo">
+                  <Ionicons name="close" size={12} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            )}
             {voice !== 'idle' && (
               <View style={styles.listeningRow}>
                 <View style={styles.listeningDot} />
@@ -332,6 +401,16 @@ const ChatScreen = ({
               accessibilityLabel={isMeals ? 'Tell Logga what you ate' : 'Message your coach'}
             />
             <View style={styles.composerRow}>
+              {isMeals && (
+                <TouchableOpacity style={styles.composerBtnOutline} onPress={() => pickPhoto(false)} accessibilityLabel="Add a photo">
+                  <Ionicons name="add" size={20} color={INK} />
+                </TouchableOpacity>
+              )}
+              {isMeals && Platform.OS !== 'web' && (
+                <TouchableOpacity style={styles.composerBtn} onPress={() => pickPhoto(true)} accessibilityLabel="Take a photo">
+                  <Ionicons name="camera-outline" size={20} color={INK} />
+                </TouchableOpacity>
+              )}
               <View style={{ flex: 1 }} />
               <TouchableOpacity
                 style={[styles.composerBtn, voice === 'listening' && styles.micOn]}
@@ -342,9 +421,9 @@ const ChatScreen = ({
                 <Ionicons name={voice === 'listening' ? 'stop' : 'mic-outline'} size={voice === 'listening' ? 16 : 20} color={voice === 'listening' ? '#fff' : INK} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.sendBtn, (!chatInput.trim() || isTyping || voice !== 'idle') && { opacity: 0.35 }]}
+                style={[styles.sendBtn, ((!chatInput.trim() && !photo) || isTyping || voice !== 'idle') && { opacity: 0.35 }]}
                 onPress={sendMessage}
-                disabled={!chatInput.trim() || isTyping || voice !== 'idle'}
+                disabled={(!chatInput.trim() && !photo) || isTyping || voice !== 'idle'}
                 accessibilityLabel="Send"
               >
                 <Ionicons name="arrow-up" size={18} color="#fff" />
@@ -371,7 +450,19 @@ const styles = StyleSheet.create({
   leftChipText: { fontSize: 13, fontWeight: '700', color: '#047857' },
   h1: { fontSize: 26, fontWeight: '800', letterSpacing: -0.6, lineHeight: 32, color: INK, marginTop: 20 },
   chatMessagesContent: { paddingHorizontal: 20, paddingBottom: 190 },
-  chatDisclaimer: { fontSize: 13, lineHeight: 19, color: '#6B7280', marginTop: 6, marginBottom: 22 },
+  chatDisclaimer: { fontSize: 12.5, lineHeight: 18, color: MUTED, marginTop: 12, marginBottom: 22 },
+  kicker: { fontSize: 12, fontWeight: '700', letterSpacing: 2, color: '#4B5563', marginTop: 28, marginBottom: 10 },
+  whenCard: { backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' },
+  whenRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16 },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: '#F0F1F3' },
+  whenIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  whenTitle: { fontSize: 15, fontWeight: '600', color: INK },
+  whenSub: { fontSize: 13, color: MUTED, marginTop: 2 },
+  composerBtnOutline: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
+  photoChip: { alignSelf: 'flex-start', marginBottom: 8 },
+  photoThumb: { width: 56, height: 56, borderRadius: 12 },
+  photoRemove: { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' },
+  bubblePhoto: { width: 180, height: 180, borderRadius: 14, marginBottom: 8 },
   chatBubbleWrapper: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 16 },
   chatBubble: { maxWidth: '82%', paddingVertical: 13, paddingHorizontal: 16, borderRadius: 22 },
   chatBubbleAssistant: { backgroundColor: '#fff', borderBottomLeftRadius: 6, borderWidth: 1, borderColor: '#E5E7EB' },

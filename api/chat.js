@@ -235,8 +235,12 @@ const MEALS_CHAT_FOOD_ITEM = {
     sugar:   { type: 'NUMBER', description: 'Grams of total sugars (natural and added).' },
     sodium:  { type: 'NUMBER', description: 'Milligrams of sodium, including salt and seasoning cubes used in cooking.' },
     cal:     { type: 'NUMBER', description: 'Calories for this portion, estimated directly from what this food typically contains as prepared (like a food composition table), not added up from the macros.' },
+    grams:   { type: 'NUMBER', description: 'Weight of this portion in grams, as it is eaten (edible part).' },
+    unitOne: { type: 'STRING', description: 'A simple household measure for this food, singular (e.g. "cup", "piece", "ladle", "egg", "slice").' },
+    unitMany: { type: 'STRING', description: 'The same measure, plural (e.g. "cups", "pieces", "ladles", "eggs").' },
+    unitGrams: { type: 'NUMBER', description: 'Grams in ONE of that measure.' },
   },
-  required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'sugar', 'sodium', 'cal'],
+  required: ['name', 'qty', 'protein', 'carbs', 'fats', 'fiber', 'sugar', 'sodium', 'cal', 'grams', 'unitOne', 'unitMany', 'unitGrams'],
 };
 
 const MEALS_CHAT_SCHEMA = {
@@ -269,7 +273,10 @@ function normalizeFood(f, fallback = 'Unknown food') {
   // Calories come first: the model's own estimate for that food and portion. Macros only fill in when it gave none.
   const macroCal = Math.round(protein * 4 + carbs * 4 + fats * 9);
   const cal = Number(f.cal) > 0 ? Math.round(Number(f.cal)) : macroCal;
-  return { name: f.name || fallback, qty: f.qty || '1 serving', cal, protein, carbs, fats, fiber, sugar, sodium };
+  const out = { name: f.name || fallback, qty: f.qty || '1 serving', cal, protein, carbs, fats, fiber, sugar, sodium };
+  if (Number(f.grams) > 0) out.grams = Math.round(Number(f.grams));
+  if (Number(f.unitGrams) > 0 && f.unitOne) Object.assign(out, { unitGrams: Number(f.unitGrams), unitOne: String(f.unitOne), unitMany: String(f.unitMany || f.unitOne) });
+  return out;
 }
 
 async function logToSupabase(supabaseUrl, supabaseKey, rows) {
@@ -301,7 +308,7 @@ export default async function handler(req, res) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-  const { action, messages, data, personality, openingContext, userId, variant } = req.body || {};
+  const { action, messages, data, personality, openingContext, userId, variant, image } = req.body || {};
 
   const callClaude = async (systemPrompt, userMessages, maxTokens = 1024) => {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -331,7 +338,7 @@ export default async function handler(req, res) {
     if (!GEMINI_KEY) throw new Error('AI service not configured');
     const contents = userMessages.map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
+      parts: [{ text: m.content }, ...(m.image ? [{ inline_data: { mime_type: 'image/jpeg', data: m.image } }] : [])],
     }));
     for (const model of GEMINI_MODELS) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
@@ -387,6 +394,13 @@ export default async function handler(req, res) {
         // The chat opens with a greeting from Logga; the models expect the conversation to start with the user.
         if (conversation.length && conversation[0].role === 'assistant') {
           conversation.unshift({ role: 'user', content: '(I opened the chat.)' });
+        }
+        // A photo sent with the latest message: the meal chat looks at it (first identify the foods and portions you
+        // can see, then ask only what the photo can't tell you, e.g. how it was cooked).
+        const last = conversation[conversation.length - 1];
+        if (variant === 'meals' && image && last?.role === 'user') {
+          last.image = String(image);
+          last.content = `${last.content}\n\n(Photo of the food attached. Identify each food and estimate its portion from the photo first, then ask only what the photo can't show.)`;
         }
       }
 
