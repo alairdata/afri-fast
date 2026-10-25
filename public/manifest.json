@@ -1,8 +1,8 @@
 {
   "name": "Logga",
   "short_name": "Logga",
-  "description": "African meal fasting and calorie tracker",
-  "start_url": "/",
+  "description": "The calorie counter built around African food",
+  "start_url": "/app",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#000000",

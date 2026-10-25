@@ -10,6 +10,8 @@
     { "source": "/auth-callback", "destination": "/auth-callback.html" },
     { "source": "/confirm-email", "destination": "/confirm-email.html" },
     { "source": "/reset-password", "destination": "/reset-password.html" },
+    { "source": "/app", "destination": "/app.html" },
+    { "source": "/app/(.*)", "destination": "/app.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -17,6 +19,22 @@
       "source": "/apple-touch-icon.png",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/app",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Pragma", "value": "no-cache" },
+        { "key": "Expires", "value": "0" }
+      ]
+    },
+    {
+      "source": "/app.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Pragma", "value": "no-cache" },
+        { "key": "Expires", "value": "0" }
       ]
     },
     {

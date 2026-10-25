@@ -203,9 +203,10 @@ const ca = StyleSheet.create({
 // itself (logga://auth-callback, the same link Google sign-in already returns through); without
 // this Supabase falls back to the dashboard's Site URL, which is the website.
 const NATIVE_REDIRECT = 'logga://auth-callback';
-const webOrigin = () => (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+// Where web sign-in and email links come back to: the app lives at /app (logga.space itself is the website).
+const webOrigin = () => `${typeof window !== 'undefined' && window.location.hostname !== 'localhost'
   ? window.location.origin
-  : 'https://afri-fast.vercel.app');
+  : 'https://afri-fast.vercel.app'}/app`;
 const emailRedirectTo = () => (Platform.OS === 'web' ? webOrigin() : NATIVE_REDIRECT);
 
 const isNotConfirmed = (e) => e?.code === 'email_not_confirmed' || /not confirmed/i.test(e?.message || '');
