@@ -215,6 +215,44 @@ const recalculateFoodPortionWithGemini = async (foodName, oldQty, newQty, curren
   }
 };
 
+// A detected food's name you can tap to rename (Scan, Say it, Write). The new name is kept exactly as typed
+// and the calories are looked up again for it at the same amount.
+const FoodNameField = ({ name, busy, onRename, textStyle }) => {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name);
+  const commit = () => {
+    const v = value.trim();
+    setEditing(false);
+    if (v && v !== name) onRename(v); else setValue(name);
+  };
+  if (editing) {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'stretch' }}>
+        <TextInput
+          value={value}
+          onChangeText={setValue}
+          autoFocus
+          selectTextOnFocus
+          returnKeyType="done"
+          onSubmitEditing={commit}
+          onBlur={commit}
+          style={[textStyle, { flex: 1, borderBottomWidth: 1.5, borderBottomColor: '#059669', paddingVertical: 2 }]}
+          accessibilityLabel="Food name"
+        />
+        <TouchableOpacity onPress={commit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Save name">
+          <Text style={{ color: '#059669', fontWeight: '700', fontSize: 14 }}>Done</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  return (
+    <TouchableOpacity disabled={busy} onPress={() => { setValue(name); setEditing(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityLabel={`Rename ${name}`}>
+      <Text style={textStyle}>{name}</Text>
+      <Ionicons name="pencil" size={13} color="#9CA3AF" />
+    </TouchableOpacity>
+  );
+};
+
 const ShareCardImage = ({ uri, height, style }) => {
   const [loaded, setLoaded] = useState(false);
   return (
@@ -354,6 +392,20 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const [editingQtyIdx, setEditingQtyIdx] = useState(null);
   const [editQtyValue, setEditQtyValue] = useState('');
   const [updatingQtyIdx, setUpdatingQtyIdx] = useState(null);
+  const renameFood = async (i, newName) => {
+    const food = detectedFoods[i];
+    if (!food) return;
+    setDetectedFoods((prev) => prev.map((f, idx) => (idx === i ? { ...f, name: newName } : f)));
+    setUpdatingQtyIdx(i);
+    const found = await lookupItemNutrition(food.qty ? `${food.qty} ${newName}` : newName);
+    setDetectedFoods((prev) => prev.map((f, idx) => (idx !== i || f.name !== newName ? f : {
+      ...f,
+      cal: found?.cal > 0 ? found.cal : f.cal,
+      protein: found?.protein ?? f.protein ?? 0, carbs: found?.carbs ?? f.carbs ?? 0, fats: found?.fats ?? f.fats ?? 0,
+      fiber: found?.fiber ?? f.fiber ?? 0, sugar: found?.sugar ?? f.sugar ?? 0, sodium: found?.sodium ?? f.sodium ?? 0,
+    })));
+    setUpdatingQtyIdx(null);
+  };
   const [editingCalIdx, setEditingCalIdx] = useState(null);
   const [editCalInputValue, setEditCalInputValue] = useState('');
   const editCalInputRef = useRef('');
@@ -1214,7 +1266,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         )}
                         <View style={{ flex: 1, marginRight: 12 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                            <Text style={styles.foodName}>{food.name}</Text>
+                            <FoodNameField name={food.name} busy={updatingQtyIdx === i} onRename={(n) => renameFood(i, n)} textStyle={styles.foodName} />
                           </View>
                           {editingQtyIdx === i ? (
                             <View style={styles.editQtyRow}>
@@ -1528,7 +1580,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         )}
                         <View style={{ flex: 1, marginRight: 12 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                            <Text style={styles.foodName}>{food.name}</Text>
+                            <FoodNameField name={food.name} busy={updatingQtyIdx === i} onRename={(n) => renameFood(i, n)} textStyle={styles.foodName} />
                           </View>
                           {editingQtyIdx === i ? (
                             <View style={styles.editQtyRow}>
@@ -2032,7 +2084,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         )}
                         <View style={{ flex: 1, marginRight: 12 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                            <Text style={styles.foodName}>{food.name}</Text>
+                            <FoodNameField name={food.name} busy={updatingQtyIdx === i} onRename={(n) => renameFood(i, n)} textStyle={styles.foodName} />
                           </View>
                           {editingQtyIdx === i ? (
                             <View style={styles.editQtyRow}>
