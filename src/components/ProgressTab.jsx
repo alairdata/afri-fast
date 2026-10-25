@@ -1754,16 +1754,11 @@ const ProgressTab = ({
                     <View style={styles.rowBetween}>
                       <View>
                         <View style={styles.titleTipRow}><Text style={styles.kicker}>ACTUAL VS PREDICTED WEIGHT</Text><InfoTip id="prediction" /></View>
-                        {/* The predicted weight on Saturday, from the latest (or carried-forward) weight plus the days left */}
+                        {/* The week's predicted change, Sunday to Saturday */}
                         <Text style={styles.bigStat}>
-                          {chart.weekEndVal != null ? `About ${chart.weekEndVal.toFixed(1)} ${weightUnit}` : '--'}
-                          <Text style={styles.bigStatSub}> by {fmtDayMonth(chart.weekEndDate)}</Text>
+                          {`${Math.abs(chart.weekChange).toFixed(2)} ${weightUnit} ${chart.weekChange < 0 ? 'loss' : chart.weekChange > 0 ? 'gain' : 'change'}`}
+                          <Text style={styles.bigStatSub}> by {chart.weekEndDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
                         </Text>
-                        {lastWeighIn && chart.weekEndVal != null && (() => {
-                          const diff = chart.weekEndVal - fromKg(lastWeighIn.weightKg, weightUnit);
-                          const when = daysSinceWeighIn != null && daysSinceWeighIn < 1 ? 'your weigh-in today' : `your last weigh-in (${lastWeighInLabel})`;
-                          return <Text style={styles.mutedSmall}>{`${diff <= 0 ? '−' : '+'}${Math.abs(diff).toFixed(1)} ${weightUnit} since ${when}`}</Text>;
-                        })()}
                       </View>
                       {trendBadge && (
                         <View style={[styles.pill, { backgroundColor: trendBadge.bg }]}>
@@ -1779,6 +1774,7 @@ const ProgressTab = ({
                         <Rect x={Math.min(Math.max(chart.todayPt.cx - 20, 0), 286)} y={0} width={40} height={16} rx={8} fill={colors.text} />
                         <SvgText x={Math.min(Math.max(chart.todayPt.cx, 20), 306)} y={11.5} textAnchor="middle" fontSize={9.5} fontWeight="700" fill={colors.card}>Today</SvgText>
                         <Path d={chart.proj} fill="none" stroke={PREDICTED} strokeWidth={2.5} strokeLinecap="round" strokeDasharray="6 6" />
+                        {chart.weighIns.length >= 2 && <Path d={smooth(chart.weighIns.map((p) => [p.cx, p.cy]))} fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="round" />}
                         {chart.weighIns.map((p, i) => <Circle key={i} cx={p.cx} cy={p.cy} r={4} fill={accent} stroke={colors.card} strokeWidth={2} />)}
                         <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={10} fill={accent} fillOpacity={0.15} />
                         <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={5.5} fill={accent} stroke={colors.card} strokeWidth={2} />
@@ -1835,8 +1831,8 @@ const ProgressTab = ({
                     <Text style={[styles.weightStatValueCompact, { color: '#4F46E5' }]}>{chart ? `${chart.todayVal.toFixed(1)} ${weightUnit}` : '--'}</Text>
                     <Text style={styles.weightStatLabelCompact}>Today's prediction</Text>
                   </View>
-                  <View style={styles.weightStatCompact}>
-                    <Text style={styles.weightStatValueCompact}>{weightData.hasLoggedWeight && weightData.uniqueWeights.length >= 2 ? weightData.weightChange : '--'}</Text>
+                  <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(16, 185, 129, 0.08)' }]}>
+                    <Text style={[styles.weightStatValueCompact, { color: '#10B981' }]}>{weightData.hasLoggedWeight && weightData.uniqueWeights.length >= 2 ? weightData.weightChange : '--'}</Text>
                     <Text style={styles.weightStatLabelCompact}>This period</Text>
                   </View>
                   <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(5, 150, 105, 0.08)' }]}>
