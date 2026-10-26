@@ -338,7 +338,7 @@ const MealPages = ({
                 <Text style={[styles.heroTileDesc, { color: 'rgba(255,255,255,0.85)' }]}>Get portions that fit your calories</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.optionCard} onPress={() => { onShowChat && onShowChat(); }} activeOpacity={0.85} accessibilityLabel="Ask Logga">
-                <Ionicons name="chatbubble-outline" size={22} color="#9333EA" />
+                <View style={[styles.heroTileIcon, { backgroundColor: "#F3E8FF" }]}><Ionicons name="chatbubble-outline" size={20} color="#9333EA" /></View>
                 <Text style={styles.optionTitle}>Ask Logga</Text>
                 <Text style={styles.optionDesc}>Not sure what you ate? Talk it through</Text>
               </TouchableOpacity>

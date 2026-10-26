@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   leftChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   leftChipText: { fontSize: 13, fontWeight: '700', color: '#047857' },
   h1: { fontSize: 26, fontWeight: '800', letterSpacing: -0.6, lineHeight: 32, color: INK, marginTop: 20 },
-  chatMessagesContent: { paddingHorizontal: 20, paddingBottom: 190 },
+  chatMessagesContent: { paddingHorizontal: 20, paddingBottom: 260 },
   chatDisclaimer: { fontSize: 12.5, lineHeight: 18, color: MUTED, marginTop: 12, marginBottom: 22 },
   kicker: { fontSize: 12, fontWeight: '700', letterSpacing: 2, color: '#4B5563', marginTop: 28, marginBottom: 10 },
   whenCard: { backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' },
