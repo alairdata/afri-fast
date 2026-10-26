@@ -70,7 +70,12 @@ export const resolveCalorieGoal = (ledgerMap, goalHistory, dateStr, currentValue
 // Ledger's actual eaten total for this date if present, else whatever the caller computed live
 // (the caller sums recentMeals for that date the same way it always has — this only decides
 // which number wins).
+// The meals the app holds win whenever that day has any: the ledger refreshes only hourly, so a meal
+// logged for a past day (or edited) after its snapshot was taken would otherwise be listed but not
+// counted (two meals showing 900 + 1,315 cal and a total of 1,315). The ledger fills in only for a day
+// with no meals loaded.
 export const resolveCaloriesEaten = (ledgerMap, dateStr, liveFallback) => {
+  if (Number(liveFallback) > 0) return liveFallback;
   const row = ledgerMap?.get(dateStr);
   return row?.caloriesEaten != null ? row.caloriesEaten : liveFallback;
 };
