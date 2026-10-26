@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Platform, Image, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
 import Svg, { Circle, Path, Defs, LinearGradient as SvgGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -170,6 +171,8 @@ const measureOf = (f, g) => {
 
 const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', onLogPlate, tdee = null, mode = 'fit', userId = null }) => {
   const kitchen = mode === 'kitchen';
+  // the screen sits below the status bar, so the keyboard lift has to count that gap
+  const safeTop = useSafeAreaInsets().top;
   const copy = COPY[kitchen ? 'kitchen' : 'fit'];
   const [step, setStep] = useState('input'); // input | budget | loading | plate
   const [servings, setServings] = useState(1);
@@ -468,12 +471,10 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
 
       {/* 1. What you have (also sits behind the "how much" sheet) */}
       {(step === 'input' || step === 'budget') && (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={{ paddingBottom: 200 }} keyboardShouldPersistTaps="handled">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? safeTop : 0}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
             <View style={styles.headerRow}>
-              <TouchableOpacity style={styles.roundBtn} onPress={() => onClose && onClose(true)} accessibilityLabel="Back">
-                <Ionicons name="chevron-back" size={22} color={INK} />
-              </TouchableOpacity>
+              <View style={styles.roundBtnSpace} />
               <View style={styles.leftChip}>
                 <Ionicons name="leaf-outline" size={14} color="#047857" />
                 <Text style={styles.leftChipText}>{lowBudget ? 'At your goal today' : `${Math.round(caloriesLeft).toLocaleString()} cal left today`}</Text>
@@ -550,6 +551,13 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
             </View>
           </View>
         </KeyboardAvoidingView>
+      )}
+
+      {/* Floating back button: stays at the top while the page scrolls */}
+      {(step === 'input' || step === 'plate') && (
+        <TouchableOpacity style={[styles.roundBtn, styles.floatingBack]} onPress={() => (step === 'plate' ? setStep('input') : onClose && onClose(true))} accessibilityLabel="Back">
+          <Ionicons name="chevron-back" size={22} color={INK} />
+        </TouchableOpacity>
       )}
 
       {/* 2. How much should this meal use? */}
@@ -690,9 +698,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
         <View style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ paddingBottom: kitchen ? 230 : 170 }}>
             <View style={[styles.headerRow, { justifyContent: 'flex-start', gap: 12 }]}>
-              <TouchableOpacity style={styles.roundBtn} onPress={() => setStep('input')} accessibilityLabel="Back">
-                <Ionicons name="chevron-back" size={22} color={INK} />
-              </TouchableOpacity>
+              <View style={styles.roundBtnSpace} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.plateSmall}>{kitchen ? 'Built from your kitchen' : (plan.title || 'Your plate')}</Text>
                 <Text style={styles.plateBig}>{kitchen ? 'Your recipe' : 'Planned by Logga'}</Text>
@@ -928,6 +934,8 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'web' ? 12 : 50,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8 },
+  roundBtnSpace: { width: 44, height: 44 },
+  floatingBack: { position: 'absolute', top: Platform.OS === 'web' ? 20 : 58, left: 20, zIndex: 20 },
   roundBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   leftChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   leftChipText: { fontSize: 13, fontWeight: '700', color: '#047857' },
@@ -940,7 +948,7 @@ const styles = StyleSheet.create({
   whenIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
   whenTitle: { fontSize: 15, fontWeight: '600', color: INK },
   whenSub: { fontSize: 13, color: MUTED, marginTop: 2 },
-  composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 30 },
+  composerWrap: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: Platform.OS === 'web' ? 16 : 30 },
   composer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 28, paddingTop: 12, paddingRight: 12, paddingBottom: 10, paddingLeft: 18, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   composerInput: { fontSize: 16, lineHeight: 22, color: INK, minHeight: 26, maxHeight: 110, paddingVertical: 2, outlineStyle: 'none' },
   composerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },

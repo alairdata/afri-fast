@@ -1,7 +1,7 @@
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, KeyboardAvoidingView, Platform, Animated, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, KeyboardAvoidingView, Platform, Animated, Image, Keyboard } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -134,6 +134,12 @@ const ChatScreen = ({
 
   const [chatInput, setChatInput] = useState('');
   const [photo, setPhoto] = useState(null);
+  // When the keyboard opens, jump to the latest message so it stays in view above the keyboard.
+  useEffect(() => {
+    if (!show) return undefined;
+    const sub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 80));
+    return () => sub.remove();
+  }, [show]);
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef(null);
   const lastOpeningContextRef = useRef(null);
@@ -294,16 +300,8 @@ const ChatScreen = ({
           keyboardShouldPersistTaps="handled"
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
-          {/* Header: back, and what's left today (Ask Logga) */}
-          <View style={styles.headerRow}>
-            <TouchableOpacity style={styles.roundBtn} onPress={onClose} accessibilityLabel="Back">
-              <Ionicons name="chevron-back" size={22} color={INK} />
-            </TouchableOpacity>
-            <View style={styles.leftChip}>
-              <Ionicons name={isMeals ? 'leaf-outline' : 'sparkles-outline'} size={14} color="#047857" />
-              <Text style={styles.leftChipText}>{isMeals ? `${Math.round(caloriesLeft).toLocaleString()} cal left today` : 'Knows your data'}</Text>
-            </View>
-          </View>
+          {/* room for the floating header */}
+          <View style={{ height: 52 }} />
           <Text style={styles.h1}>{isMeals ? 'Not sure what you ate?\nLet\u2019s work it out.' : 'Your coach'}</Text>
           {isMeals ? (
             <>
@@ -357,6 +355,19 @@ const ChatScreen = ({
             </View>
           )}
         </ScrollView>
+
+        {/* Floating header: stays put while the chat scrolls */}
+        <View style={styles.floatingHeader} pointerEvents="box-none">
+  <View style={styles.headerRow} pointerEvents="box-none">
+              <TouchableOpacity style={styles.roundBtn} onPress={onClose} accessibilityLabel="Back">
+                <Ionicons name="chevron-back" size={22} color={INK} />
+              </TouchableOpacity>
+              <View style={styles.leftChip}>
+                <Ionicons name={isMeals ? 'leaf-outline' : 'sparkles-outline'} size={14} color="#047857" />
+                <Text style={styles.leftChipText}>{isMeals ? `${Math.round(caloriesLeft).toLocaleString()} cal left today` : 'Knows your data'}</Text>
+              </View>
+          </View>
+        </View>
 
         {/* Composer, as on Fit it in: type or say it, then send */}
         <View style={styles.composerWrap}>
@@ -444,11 +455,12 @@ const styles = StyleSheet.create({
   },
   chatContainer: { width: '100%', maxWidth: 430, alignSelf: 'center', flex: 1 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
+  floatingHeader: { position: 'absolute', top: 0, left: 20, right: 20, zIndex: 5 },
   roundBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   leftChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   leftChipText: { fontSize: 13, fontWeight: '700', color: '#047857' },
   h1: { fontSize: 26, fontWeight: '800', letterSpacing: -0.6, lineHeight: 32, color: INK, marginTop: 20 },
-  chatMessagesContent: { paddingHorizontal: 20, paddingBottom: 260 },
+  chatMessagesContent: { paddingHorizontal: 20, paddingBottom: 24 },
   chatDisclaimer: { fontSize: 12.5, lineHeight: 18, color: MUTED, marginTop: 12, marginBottom: 22 },
   kicker: { fontSize: 12, fontWeight: '700', letterSpacing: 2, color: '#4B5563', marginTop: 28, marginBottom: 10 },
   whenCard: { backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' },
@@ -477,7 +489,7 @@ const styles = StyleSheet.create({
   chatSuggestionsContent: { alignItems: 'center', gap: 8 },
   chatSuggestionBtn: { paddingVertical: 9, paddingHorizontal: 15, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB' },
   chatSuggestionText: { fontSize: 13, color: '#047857', fontWeight: '600' },
-  composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 30, backgroundColor: 'rgba(249,250,251,0.94)' },
+  composerWrap: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: Platform.OS === 'web' ? 16 : 30, backgroundColor: '#F9FAFB' },
   composer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 28, paddingTop: 12, paddingRight: 12, paddingBottom: 10, paddingLeft: 18, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   composerInput: { fontSize: 16, lineHeight: 22, color: INK, minHeight: 26, maxHeight: 110, paddingVertical: 2, outlineStyle: 'none' },
   composerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },

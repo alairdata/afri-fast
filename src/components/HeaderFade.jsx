@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/theme';
 
 // Blend two #RRGGBB colours: t = 0 gives a, t = 1 gives b.
@@ -12,9 +13,11 @@ const mix = (a, b, t) => {
 
 // The soft mint fade at the top of a screen. It sits behind the content and melts into the page's own
 // background over about 360px, so there's no visible edge. Light theme only. variant="sheet" is the
-// lighter, shorter version for pop-up sheets.
+// lighter, shorter version for pop-up sheets. The app sits inside the safe area, so the fade starts above it
+// (under the time and battery) and the green runs to the top of the screen instead of leaving a plain strip.
 const HeaderFade = ({ bg, height, style, variant }) => {
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   if (isDark) return null;
   const hex = (c) => {
     if (/^#[0-9a-f]{6}$/i.test(c || '')) return c;
@@ -28,7 +31,7 @@ const HeaderFade = ({ bg, height, style, variant }) => {
       pointerEvents="none"
       colors={sheet ? ['#DDF6E7', '#E9F8EF', mix('#E9F8EF', base, 0.55), base] : ['#CFF3DE', '#D9F5E4', '#E9F8EF', mix('#E9F8EF', base, 0.5), base]}
       locations={sheet ? [0, 0.23, 0.58, 1] : [0, 0.19, 0.42, 0.67, 1]}
-      style={[styles.fade, { height: height || (sheet ? 260 : 360) }, style]}
+      style={[styles.fade, { top: -insets.top, height: (height || (sheet ? 260 : 360)) + insets.top }, style]}
     />
   );
 };
