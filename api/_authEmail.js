@@ -152,6 +152,16 @@ export const sendPasswordResetEmail = (to, name, link) => sendEmail(
   "Didn't ask for this? Just ignore this email. Your password won't change."),
 );
 
+export const sendLoginCodeEmail = (to, name, code) => sendEmail(
+  to, `${code} is your Logga login code`,
+  shell('Your login code.', `
+    <div style="font-size:15px;font-weight:600;margin-bottom:8px;">${name ? `Hey ${escapeHtml(name)},` : 'Hey,'}</div>
+    <div style="font-size:14px;color:#5b6b64;margin-bottom:24px;">Type this code in the Logga app to log in.</div>
+    <div style="text-align:center;margin:8px 0 24px;font-size:36px;font-weight:800;letter-spacing:10px;color:#10201a;">${escapeHtml(code)}</div>
+    <div style="font-size:12px;color:#8a978f;text-align:center;">This code expires in 1 hour. Can't find our emails? Check your spam folder.</div>`,
+  "Didn't try to log in? Just ignore this email. Nobody can get in without this code."),
+);
+
 export async function sendDripEmail(to, subject, headline, bodyHtml, ctaLabel, ctaLink) {
   return sendEmail(to, subject, shell(headline, `
     <div style="font-size:14px;color:#5b6b64;margin-bottom:8px;">${bodyHtml}</div>

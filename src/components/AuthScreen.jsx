@@ -109,6 +109,34 @@ function DoodleAuth() {
 }
 
 // ── Shared auth-screen styles (create account, confirm email, log in) ─────────
+const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+// The log-in sheet over the welcome screen, and the email and code screens after it.
+const lg = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 10, paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 28 },
+  grabber: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#D1D5DB', alignSelf: 'center', marginBottom: 16 },
+  sheetTitle: { fontSize: 22, lineHeight: 28, fontWeight: '800', letterSpacing: -0.4, textAlign: 'center', color: '#16201b' },
+  sheetSub: { marginTop: 4, fontSize: 14, lineHeight: 20, color: '#4b5a52', textAlign: 'center' },
+  authBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, height: 52, borderRadius: 999 },
+  authBtnLight: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E6E8E3' },
+  authTxt: { fontSize: 15.5, fontWeight: '700', color: '#16201b' },
+  page: { flex: 1, backgroundColor: '#fff' },
+  navBar: { marginTop: Platform.OS === 'ios' ? 50 : 28, height: 44, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center' },
+  navBack: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  body: { paddingHorizontal: 28, paddingTop: 28, paddingBottom: 24 },
+  h1: { fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.8, color: '#16201b' },
+  sub: { marginTop: 10, fontSize: 15, lineHeight: 22, color: '#8A938E' },
+  field: { marginTop: 40, flexDirection: 'row', alignItems: 'center', gap: 10, height: 58, paddingHorizontal: 18, borderRadius: 16, backgroundColor: '#F3F4F2' },
+  fieldInput: { flex: 1, minWidth: 0, fontSize: 18, fontWeight: '600', color: '#16201b', paddingVertical: 0, outlineStyle: 'none' },
+  codeInput: { fontSize: 26, letterSpacing: 10, fontWeight: '800', textAlign: 'center' },
+  resend: { fontSize: 14, fontWeight: '700', color: '#059669', textAlign: 'center' },
+  foot: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 34 : 20 },
+  primary: { height: 56, borderRadius: 999, backgroundColor: '#16201b', alignItems: 'center', justifyContent: 'center' },
+  primaryOff: { backgroundColor: '#F1F2F0' },
+  primaryTxt: { fontSize: 16, fontWeight: '800', color: '#fff' },
+});
+
 const ca = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbfbf7' },
   hero: { position: 'absolute', top: 0, left: 0, right: 0, height: 260 },
@@ -292,6 +320,18 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [pendingModal, setPendingModal] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
   const [notFoundEmail, setNotFoundEmail] = useState(''); // set when a log-in email has no account
+  // Log in: a sheet over the welcome screen (Apple, Google, email), then email, then the emailed 6-digit code.
+  const [showLoginSheet, setShowLoginSheet] = useState(false);
+  const [loginStep, setLoginStep] = useState('email'); // 'email' | 'code'
+  const [code, setCode] = useState('');
+  const [codeResendIn, setCodeResendIn] = useState(0);
+
+  // Resend-code cooldown.
+  useEffect(() => {
+    if (codeResendIn <= 0) return undefined;
+    const t = setTimeout(() => setCodeResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [codeResendIn]);
 
   // Resend-email cooldown.
   useEffect(() => {
@@ -387,6 +427,38 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     setError(loginError.message);
   };
 
+  // Email log-in step 1: email a 6-digit code to an existing account (an unknown email offers sign-up).
+  const handleSendCode = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!EMAIL_OK.test(cleanEmail)) { setError('Please enter a valid email.'); return; }
+    setAuthIntent(null); // the Apple/Google "no account" check never applies to email log-ins
+    setLoading(true); setError(''); setMessage('');
+    const result = await postJson('/api/account-exists', { email: cleanEmail, sendLoginCode: true });
+    setLoading(false);
+    if (!result.ok) { setError(result.error); return; }
+    if (result.data?.exists === false) { setNotFoundEmail(cleanEmail); return; }
+    setCode(''); setCodeResendIn(30); setLoginStep('code');
+  };
+
+  // Step 2: the code from the email logs them in; the app moves on by itself once there's a session.
+  const handleVerifyCode = async (entered) => {
+    const token = String(entered || '').replace(/\D/g, '');
+    if (token.length !== 6 || loading) return;
+    setLoading(true); setError(''); setMessage('');
+    const { error: otpError } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token, type: 'email' });
+    setLoading(false);
+    if (!otpError) { track(EVENTS.USER_LOGGED_IN, { method: 'email_code' }); return; }
+    track(EVENTS.LOGIN_FAILED, { method: 'email_code', error_type: otpError.code || 'unknown' });
+    setError(otpError.status === 429 ? 'Too many tries. Please wait a few minutes and try again.' : "That code isn't right or has expired. Check the email, or send a new code.");
+  };
+
+  const openEmailLogin = () => {
+    setShowLoginSheet(false);
+    setError(''); setMessage('');
+    setLoginStep('email');
+    setMode('login'); setScreen('auth');
+  };
+
   const handleSignUp = async () => {
     setTouched({ name: true, email: true, password: true });
     if (!name.trim() || !email.trim() || !password) {
@@ -445,9 +517,9 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     setMessage('Sent! It can take a minute to arrive. Check your spam folder too.');
   };
 
-  const handleOAuth = async (provider) => {
+  const handleOAuth = async (provider, intent) => {
     setError('');
-    setAuthIntent(mode === 'login' ? 'login' : 'signup');
+    setAuthIntent(intent || (mode === 'login' ? 'login' : 'signup'));
     if (Platform.OS !== 'web') {
       const r = await signInNative(provider);
       if (r.error || r.cancelled) setAuthIntent(null); // nothing signed in: don't let the intent leak into a later login
@@ -552,7 +624,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         <PreAuthOnboarding
           initialData={rawOnboarding || preAuthData}
           initialStep={rawOnboarding ? 'done' : undefined}
-          onLogin={() => { setMode('login'); setScreen('auth'); }}
+          onLogin={() => { setError(''); setShowLoginSheet(true); }}
           onComplete={async (answers, raw) => {
             setRawOnboarding(raw);
             await onSavePreAuthData?.(answers);
@@ -561,6 +633,33 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             setScreen('auth');
           }}
         />
+
+        {/* Log in: rises over the welcome screen */}
+        <Modal visible={showLoginSheet} transparent animationType="slide" onRequestClose={() => setShowLoginSheet(false)}>
+          <View style={lg.backdrop}>
+            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowLoginSheet(false)} accessibilityLabel="Close" />
+            <LinearGradient colors={['#DDF6E7', '#E9F8EF', '#F4FBF7', '#FFFFFF']} locations={[0, 0.18, 0.45, 0.8]} style={lg.sheet}>
+              <View style={lg.grabber} />
+              <Text style={lg.sheetTitle}>Welcome back</Text>
+              <Text style={lg.sheetSub}>Log in to pick up right where you left off.</Text>
+              <View style={{ gap: 10, marginTop: 18 }}>
+                <TouchableOpacity style={[lg.authBtn, { backgroundColor: '#16201b' }]} activeOpacity={0.85} onPress={() => handleOAuth('apple', 'login')}>
+                  <Ionicons name="logo-apple" size={19} color="#fff" />
+                  <Text style={[lg.authTxt, { color: '#fff' }]}>Continue with Apple</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[lg.authBtn, lg.authBtnLight]} activeOpacity={0.85} onPress={() => handleOAuth('google', 'login')}>
+                  <Ionicons name="logo-google" size={17} color="#444" />
+                  <Text style={lg.authTxt}>Continue with Google</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[lg.authBtn, lg.authBtnLight]} activeOpacity={0.85} onPress={openEmailLogin}>
+                  <Ionicons name="mail-outline" size={19} color="#16201b" />
+                  <Text style={lg.authTxt}>Continue with email</Text>
+                </TouchableOpacity>
+              </View>
+              {error ? <Text style={ca.error}>{error}</Text> : null}
+            </LinearGradient>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     );
   }
@@ -718,48 +817,91 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
     );
   }
 
-  // ── Log in screen ───────────────────────────────────────────────────────────
+  // ── Log in: email, then the 6-digit code we email them ─────────────────────
+  const emailValid = EMAIL_OK.test(email.trim());
+  const codeDigits = code.replace(/\D/g, '');
   return (
-    <KeyboardAvoidingView style={ca.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={ca.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <AuthTop onBack={() => setScreen('onboarding')} />
-
-        {/* Sits a little lower than the other auth screens, so it isn't crowded at the top */}
-        <View style={{ height: 40 }} />
-        <Text style={ca.eyebrow}>WELCOME BACK</Text>
-        <Text style={ca.headline}>Log back in.</Text>
-        <Text style={ca.subtitle}>Pick up right where you left off.</Text>
-
-        {socialButtons}
-
-        <View style={ca.divider}>
-          <View style={ca.divLine} />
-          <Text style={ca.divTxt}>OR USE EMAIL</Text>
-          <View style={ca.divLine} />
-        </View>
-
-        {emailField}
-        {passwordField('Your password', false)}
-
-        <Text
-          style={[ca.link, { textAlign: 'right', marginTop: 12 }]}
-          onPress={() => { setError(''); setMessage(''); setForgotSent(false); setMode('forgot'); }}
+    <KeyboardAvoidingView style={lg.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={lg.navBar}>
+        <TouchableOpacity
+          style={lg.navBack}
+          onPress={() => {
+            setError(''); setMessage('');
+            if (loginStep === 'code') { setLoginStep('email'); return; }
+            setScreen('onboarding'); setShowLoginSheet(true);
+          }}
+          accessibilityLabel="Back"
         >
-          Forgot password?
-        </Text>
-
+          <Ionicons name="chevron-back" size={26} color="#16201b" />
+        </TouchableOpacity>
+      </View>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={lg.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {loginStep === 'email' ? (
+          <>
+            <Text style={lg.h1}>What's your email?</Text>
+            <Text style={lg.sub}>We'll send you a login code.</Text>
+            <View style={lg.field}>
+              <TextInput
+                style={lg.fieldInput}
+                placeholder="you@example.com"
+                placeholderTextColor="#A3ACA7"
+                value={email}
+                onChangeText={(v) => { setEmail(v); setError(''); }}
+                onSubmitEditing={() => emailValid && handleSendCode()}
+                autoFocus
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                autoComplete="email"
+                returnKeyType="send"
+                accessibilityLabel="Email"
+              />
+              {emailValid ? <Ionicons name="checkmark" size={20} color="#059669" /> : null}
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={lg.h1}>Check your email</Text>
+            <Text style={lg.sub}>Enter the 6-digit code we sent to <Text style={{ color: '#16201b', fontWeight: '700' }}>{email.trim().toLowerCase()}</Text>. Can't find it? Check your spam folder.</Text>
+            <View style={lg.field}>
+              <TextInput
+                style={[lg.fieldInput, lg.codeInput]}
+                placeholder="000000"
+                placeholderTextColor="#C9D0CC"
+                value={code}
+                onChangeText={(v) => {
+                  const digits = v.replace(/\D/g, '').slice(0, 6);
+                  setCode(digits); setError('');
+                  if (digits.length === 6) handleVerifyCode(digits);
+                }}
+                autoFocus
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="one-time-code"
+                maxLength={6}
+                accessibilityLabel="Login code"
+              />
+            </View>
+            <TouchableOpacity onPress={handleSendCode} disabled={codeResendIn > 0 || loading} style={{ paddingVertical: 14 }} accessibilityRole="button">
+              <Text style={[lg.resend, (codeResendIn > 0 || loading) && { color: '#A3ACA7' }]}>{codeResendIn > 0 ? `Send a new code in ${codeResendIn}s` : 'Send a new code'}</Text>
+            </TouchableOpacity>
+          </>
+        )}
         {error ? <Text style={ca.error}>{error}</Text> : null}
         {message ? <Text style={ca.success}>{message}</Text> : null}
-
-        <TouchableOpacity style={[ca.createBtn, loading && { opacity: 0.6 }]} onPress={handleLogin} disabled={loading} activeOpacity={0.85}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={ca.createTxt}>Log in</Text>}
-        </TouchableOpacity>
-
-        <Text style={ca.terms}>
-          Don't have an account?{' '}
-          <Text style={ca.link} onPress={() => setScreen('onboarding')}>Start here</Text>
-        </Text>
       </ScrollView>
+      <View style={lg.foot}>
+        {loginStep === 'email' ? (
+          <TouchableOpacity style={[lg.primary, !emailValid && lg.primaryOff]} onPress={handleSendCode} disabled={!emailValid || loading} activeOpacity={0.85}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={[lg.primaryTxt, !emailValid && { color: '#A3ACA7' }]}>Send my code</Text>}
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={[lg.primary, codeDigits.length !== 6 && lg.primaryOff]} onPress={() => handleVerifyCode(codeDigits)} disabled={codeDigits.length !== 6 || loading} activeOpacity={0.85}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={[lg.primaryTxt, codeDigits.length !== 6 && { color: '#A3ACA7' }]}>Log in</Text>}
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Shown when they try to log in before tapping the confirmation link in their email. */}
       <Modal visible={pendingModal} transparent animationType="fade" onRequestClose={() => setPendingModal(false)}>

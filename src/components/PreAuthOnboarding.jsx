@@ -394,16 +394,40 @@ function ScreenShell({ children, footer, chapter, onBack, showBack, hideProgress
 // SCREENS
 // ─────────────────────────────────────────────────────────────────────────────
 
+// The welcome screen's real plates, each tagged with its calories (the owner's photos).
+const HOOK_PLATES = [
+  { img: require('../../assets/welcome/jollof-plantain-chicken.jpg'), left: 4, top: 22, size: 168 },
+  { img: require('../../assets/welcome/pepper-soup.jpg'), left: 200, top: 4, size: 120 },
+  { img: require('../../assets/welcome/ampesi-egg-stew.jpg'), left: 186, top: 160, size: 132 },
+  { img: require('../../assets/welcome/koose.jpg'), left: 62, top: 206, size: 108 },
+];
+const HOOK_TAGS = [
+  { label: 'Jollof, plantain & chicken', kcal: 1010, style: { left: 0, top: 166 } },
+  { label: 'Pepper soup', kcal: 250, style: { right: 14, top: 110 } },
+  { label: 'Ampesi & egg stew', kcal: 450, style: { right: -4, top: 280 } },
+  { label: 'Koose', kcal: 410, style: { left: 40, top: 302 } },
+];
+
 function HookScreen({ next, onLogin }) {
   return (
     <LinearGradient colors={['#E6F8EF', C.bg]} locations={[0, 0.6]} style={[s.shell, s.hook]}>
       <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 92, height: 34 }} resizeMode="contain" accessibilityLabel="Logga" />
       <View style={s.hookHero}>
         <Sparkles />
-        <Image source={LUMI.welcome} style={s.hookLumi} resizeMode="contain" accessibilityLabel="Lumi giving a thumbs up" />
+        <View style={s.hookPlates} accessible accessibilityRole="image" accessibilityLabel="Real plates of jollof with plantain and chicken, pepper soup, ampesi with egg stew and koose, each tagged with its calories">
+          {HOOK_PLATES.map((p, i) => (
+            <Image key={i} source={p.img} style={[s.hookPlate, { left: p.left, top: p.top, width: p.size, height: p.size, borderRadius: p.size / 2 }]} />
+          ))}
+          {HOOK_TAGS.map((t) => (
+            <View key={t.label} style={[s.hookTag, t.style]}>
+              <View style={s.hookTagDot} />
+              <Text style={s.hookTagTxt} numberOfLines={1}>{t.label} <Text style={{ color: C.primary, fontWeight: '800' }}>{t.kcal}</Text></Text>
+            </View>
+          ))}
+        </View>
       </View>
       <Text style={s.hookHeadline}>
-        Eat the food you <Text style={{ color: C.primary }}>love</Text>. Reach the body you want.
+        Eat the food you <Text style={{ color: C.primary }}>love</Text>.{'\n'}Reach your body goals.
       </Text>
       <Text style={s.hookSubline}>The best nutrition app that truly knows jollof, fufu and suya – counted the way you actually eat.</Text>
       <View style={s.hookCta}>
@@ -1859,8 +1883,12 @@ const s = StyleSheet.create({
   // Hook
   hook: { alignItems: 'center', paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24 },
   hookHero: { flex: 1, width: 340, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  hookLumi: { width: 300, height: '100%', maxHeight: 320 },
-  hookHeadline: { marginTop: 12, fontSize: 32, lineHeight: 38, fontWeight: '800', textAlign: 'center', letterSpacing: -0.8, color: C.ink },
+  hookPlates: { width: 340, height: 330 },
+  hookPlate: { position: 'absolute', borderWidth: 4, borderColor: '#fff', backgroundColor: '#E5E7EB', shadowColor: '#0B3D2E', shadowOpacity: 0.16, shadowRadius: 12, shadowOffset: { width: 0, height: 10 }, elevation: 4 },
+  hookTag: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, backgroundColor: '#fff', shadowColor: '#0B3D2E', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  hookTagDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.primary },
+  hookTagTxt: { fontSize: 11.5, fontWeight: '700', color: C.ink },
+  hookHeadline: { marginTop: 12, marginHorizontal: -8, fontSize: 28, lineHeight: 34, fontWeight: '800', textAlign: 'center', letterSpacing: -0.8, color: C.ink },
   hookSubline: { marginTop: 14, fontSize: 15, lineHeight: 22, color: C.ink600, textAlign: 'center' },
   hookCta: { alignSelf: 'stretch', paddingTop: 22, paddingBottom: Platform.OS === 'ios' ? 34 : 22 },
   hookLoginBtn: { height: 46, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
