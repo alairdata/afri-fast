@@ -16,11 +16,10 @@ const Sparkle = ({ size, style }) => (
 
 const WAYS = [
   { method: 'scan',  label: 'Snap', icon: 'camera-outline' },
-  { method: 'say',   label: 'Say',  icon: 'mic-outline' },
   { method: 'write', label: 'Type', icon: 'create-outline' },
 ];
 
-// Right after sign-up: Lumi asks for the first meal, with the three ways to log it.
+// Right after sign-up: Lumi asks for the first meal, with the ways to log it.
 export default function FirstMealPrompt({ visible, name, onPick, onLater }) {
   const first = name ? String(name).trim().split(' ')[0] : '';
   return (

@@ -3001,7 +3001,6 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             setSavedRecipes(prev => [meal, ...prev]);
           }
         }}
-        onSayMeal={() => { setShowFindRecipePage(false); setLogMealMethod('say'); }}
         onWriteMeal={() => { setShowFindRecipePage(false); setLogMealMethod('write'); }}
       />
 

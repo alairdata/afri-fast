@@ -6,7 +6,7 @@ import Slider from '@react-native-community/slider';
 import { useSubscription } from '../lib/subscription';
 import { unlock } from './ProLock';
 
-const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, onWriteMeal }) => {
+const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }) => {
   const { isPro } = useSubscription();
   // Free plan: the first recipe in each section is open; the rest are blurred with a lock.
   const lockedAt = (i) => !isPro && i > 0;
@@ -632,12 +632,8 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onSayMeal, on
           {/* Didn't find your meal? */}
           <View style={styles.customMealSection}>
             <Text style={styles.customMealTitle}>Didn't find your meal?</Text>
-            <Text style={styles.customMealDesc}>You can log it by telling us or typing it in</Text>
+            <Text style={styles.customMealDesc}>You can log it by typing it in</Text>
             <View style={styles.customMealActions}>
-              <TouchableOpacity style={styles.customMealBtn} onPress={onSayMeal}>
-                <Text style={styles.customMealBtnIcon}>🎤</Text>
-                <Text style={styles.customMealBtnText}>Say it</Text>
-              </TouchableOpacity>
               <TouchableOpacity style={styles.customMealBtn} onPress={onWriteMeal}>
                 <Text style={styles.customMealBtnIcon}>✍️</Text>
                 <Text style={styles.customMealBtnText}>Write it</Text>

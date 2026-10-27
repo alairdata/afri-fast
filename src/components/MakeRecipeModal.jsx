@@ -54,11 +54,6 @@ const MakeRecipeModal = ({ show, onClose, method }) => {
                   value={ingredientInput}
                   onChangeText={setIngredientInput}
                 />
-                <View style={styles.voiceInputRow}>
-                  <TouchableOpacity style={styles.voiceMiniBtn}>
-                    <Text style={styles.voiceMiniBtnText}>🎤 Say it</Text>
-                  </TouchableOpacity>
-                </View>
                 <TouchableOpacity style={styles.analyzeMealBtn}>
                   <Text style={styles.analyzeMealBtnText}>Generate Recipes</Text>
                 </TouchableOpacity>
