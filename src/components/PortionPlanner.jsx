@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Platform, Image, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Platform, Image, KeyboardAvoidingView, ActivityIndicator, Keyboard } from 'react-native';
 import Svg, { Circle, Path, Defs, LinearGradient as SvgGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
@@ -474,14 +474,17 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
       {/* 1. What you have (also sits behind the "how much" sheet) */}
       {(step === 'input' || step === 'budget') && (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? safeTop : 0}>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} keyboardShouldPersistTaps="handled" {...pageFade.scrollProps}>
-            <View style={styles.headerRow}>
-              <View style={styles.roundBtnSpace} />
-              <View style={styles.leftChip}>
-                <Ionicons name="leaf-outline" size={14} color="#047857" />
-                <Text style={styles.leftChipText}>{lowBudget ? 'At your goal today' : `${Math.round(caloriesLeft).toLocaleString()} cal left today`}</Text>
-              </View>
+          {/* Header: its own row above the page, so the page scrolls beneath it instead of under the buttons */}
+          <View style={styles.headerRow}>
+            <TouchableOpacity style={styles.roundBtn} onPress={() => onClose && onClose(true)} accessibilityLabel="Back">
+              <Ionicons name="chevron-back" size={22} color={INK} />
+            </TouchableOpacity>
+            <View style={styles.leftChip}>
+              <Ionicons name="leaf-outline" size={14} color="#047857" />
+              <Text style={styles.leftChipText}>{lowBudget ? 'At your goal today' : `${Math.round(caloriesLeft).toLocaleString()} cal left today`}</Text>
             </View>
+          </View>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} keyboardShouldPersistTaps="handled" {...pageFade.scrollProps}>
             <Text style={styles.h1}>{copy.h1}</Text>
             <Text style={styles.kicker}>PERFECT FOR WHEN</Text>
             <View style={styles.whenCard}>
@@ -544,7 +547,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 <TouchableOpacity
                   style={[styles.sendBtn, (!canSend || voice !== 'idle') && { opacity: 0.35 }]}
                   disabled={!canSend || voice !== 'idle'}
-                  onPress={() => setStep('budget')}
+                  onPress={() => { Keyboard.dismiss(); setStep('budget'); }}
                   accessibilityLabel="Send"
                 >
                   <Ionicons name="arrow-up" size={18} color="#fff" />
@@ -553,13 +556,6 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
             </View>
           </View>
         </KeyboardAvoidingView>
-      )}
-
-      {/* Floating back button: stays at the top while the page scrolls */}
-      {(step === 'input' || step === 'plate') && (
-        <TouchableOpacity style={[styles.roundBtn, styles.floatingBack]} onPress={() => (step === 'plate' ? setStep('input') : onClose && onClose(true))} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={22} color={INK} />
-        </TouchableOpacity>
       )}
 
       {/* 2. How much should this meal use? */}
@@ -698,14 +694,16 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
       {/* 4. Your plate */}
       {step === 'plate' && plan && (
         <View style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ paddingBottom: kitchen ? 230 : 170 }} {...pageFade.scrollProps}>
-            <View style={[styles.headerRow, { justifyContent: 'flex-start', gap: 12 }]}>
-              <View style={styles.roundBtnSpace} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.plateSmall}>{kitchen ? 'Built from your kitchen' : (plan.title || 'Your plate')}</Text>
-                <Text style={styles.plateBig}>{kitchen ? 'Your recipe' : 'Planned by Logga'}</Text>
-              </View>
+          <View style={[styles.headerRow, { justifyContent: 'flex-start', gap: 12 }]}>
+            <TouchableOpacity style={styles.roundBtn} onPress={() => setStep('input')} accessibilityLabel="Back">
+              <Ionicons name="chevron-back" size={22} color={INK} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.plateSmall}>{kitchen ? 'Built from your kitchen' : (plan.title || 'Your plate')}</Text>
+              <Text style={styles.plateBig}>{kitchen ? 'Your recipe' : 'Planned by Logga'}</Text>
             </View>
+          </View>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: kitchen ? 230 : 170 }} {...pageFade.scrollProps}>
 
             {kitchen && (
               <View style={styles.heroCard}>
@@ -933,11 +931,10 @@ const styles = StyleSheet.create({
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#F9FAFB', zIndex: 10000,
-    paddingTop: Platform.OS === 'web' ? 12 : 50,
+    // the app already sits below the status bar on iOS, so only a small gap there
+    paddingTop: Platform.OS === 'web' ? 12 : Platform.OS === 'ios' ? 8 : 50,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8 },
-  roundBtnSpace: { width: 44, height: 44 },
-  floatingBack: { position: 'absolute', top: Platform.OS === 'web' ? 20 : 58, left: 20, zIndex: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6 },
   roundBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   leftChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   leftChipText: { fontSize: 13, fontWeight: '700', color: '#047857' },

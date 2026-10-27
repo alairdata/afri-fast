@@ -294,6 +294,16 @@ const ChatScreen = ({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={keyboardOffset}
       >
+        {/* Header: its own row above the chat, so the chat scrolls beneath it instead of under the buttons */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity style={styles.roundBtn} onPress={onClose} accessibilityLabel="Back">
+            <Ionicons name="chevron-back" size={22} color={INK} />
+          </TouchableOpacity>
+          <View style={styles.leftChip}>
+            <Ionicons name={isMeals ? 'leaf-outline' : 'sparkles-outline'} size={14} color="#047857" />
+            <Text style={styles.leftChipText}>{isMeals ? `${Math.round(caloriesLeft).toLocaleString()} cal left today` : 'Knows your data'}</Text>
+          </View>
+        </View>
         <ScrollView
           ref={scrollViewRef}
           {...pageFade.scrollProps}
@@ -302,8 +312,6 @@ const ChatScreen = ({
           keyboardShouldPersistTaps="handled"
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
-          {/* room for the floating header */}
-          <View style={{ height: 52 }} />
           <Text style={styles.h1}>{isMeals ? 'Not sure what you ate?\nLet\u2019s work it out.' : 'Your coach'}</Text>
           {isMeals ? (
             <>
@@ -357,19 +365,6 @@ const ChatScreen = ({
             </View>
           )}
         </ScrollView>
-
-        {/* Floating header: stays put while the chat scrolls */}
-        <View style={styles.floatingHeader} pointerEvents="box-none">
-  <View style={styles.headerRow} pointerEvents="box-none">
-              <TouchableOpacity style={styles.roundBtn} onPress={onClose} accessibilityLabel="Back">
-                <Ionicons name="chevron-back" size={22} color={INK} />
-              </TouchableOpacity>
-              <View style={styles.leftChip}>
-                <Ionicons name={isMeals ? 'leaf-outline' : 'sparkles-outline'} size={14} color="#047857" />
-                <Text style={styles.leftChipText}>{isMeals ? `${Math.round(caloriesLeft).toLocaleString()} cal left today` : 'Knows your data'}</Text>
-              </View>
-          </View>
-        </View>
 
         {/* Composer, as on Fit it in: type or say it, then send */}
         <View style={styles.composerWrap}>
@@ -453,11 +448,11 @@ const styles = StyleSheet.create({
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#F9FAFB', zIndex: 10000,
-    paddingTop: Platform.OS === 'web' ? 12 : 50,
+    // the app already sits below the status bar, so only a small gap here
+    paddingTop: Platform.OS === 'web' ? 12 : Platform.OS === 'ios' ? 8 : 50,
   },
   chatContainer: { width: '100%', maxWidth: 430, alignSelf: 'center', flex: 1 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
-  floatingHeader: { position: 'absolute', top: 0, left: 20, right: 20, zIndex: 5 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 6, paddingHorizontal: 20 },
   roundBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   leftChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   leftChipText: { fontSize: 13, fontWeight: '700', color: '#047857' },
