@@ -22,7 +22,7 @@ import RiveMomentum from './RiveMomentum';
 import { useSubscription } from '../lib/subscription';
 import { LockedChartPreview } from './ProLock';
 import { BlurView } from 'expo-blur';
-import HeaderFade from './HeaderFade';
+import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -242,6 +242,7 @@ const ProgressTab = ({
 }) => {
   const { isPro } = useSubscription();
   const [healthConnecting, setHealthConnecting] = useState(false);
+  const pageFade = useHeaderFadeScroll();
   const needsHealth = appleHealthAvailable && !appleHealthOn;
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -1652,7 +1653,7 @@ const ProgressTab = ({
 
   return (
     <View style={styles.wrapper}>
-      <HeaderFade bg={colors.bg} />
+      <HeaderFade bg={colors.bg} scrollY={view === 'main' ? pageFade.scrollY : undefined} />
       {view === 'main' && (
         <>
           <View style={styles.headerCompact}>
@@ -1661,7 +1662,7 @@ const ProgressTab = ({
 
           {Platform.OS === 'web' && <View style={{ height: 12 }} />}
 
-          <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+          <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }} {...pageFade.scrollProps}>
 
             {/* Streaks */}
             <View style={styles.progressSectionCompact}>

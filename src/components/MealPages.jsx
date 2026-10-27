@@ -6,7 +6,7 @@ import { useTheme } from '../lib/theme';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
 import { getConsent, loadConsent, onConsentChange } from '../lib/consent';
 import { LinearGradient } from 'expo-linear-gradient';
-import HeaderFade from './HeaderFade';
+import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 
 // The Meals tab is gone: its pieces live here. The meal list sits on Today, and the
 // Log your meal page, Meal history and the delete prompt open over any tab.
@@ -276,6 +276,8 @@ const MealPages = ({
 }) => {
   // 'Enter it yourself' is only for people who turned AI off; everyone else logs with AI.
   const [aiOff, setAiOff] = useState(getConsent().ai === false);
+  const logFade = useHeaderFadeScroll();
+  useEffect(() => { if (showLogMealOptions) logFade.scrollY.setValue(0); }, [showLogMealOptions]);
   useEffect(() => {
     loadConsent().then((c) => setAiOff(c.ai === false));
     return onConsentChange((c) => setAiOff(c.ai === false));
@@ -296,8 +298,8 @@ const MealPages = ({
       {/* Log your meal */}
       {showLogMealOptions && (
         <View style={[styles.logMealPage, Platform.OS === 'web' && { position: 'fixed', bottom: 0, overflowY: 'auto' }]}>
-          <HeaderFade bg="#F2F2F2" />
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
+          <HeaderFade bg="#F2F2F2" scrollY={logFade.scrollY} />
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }} {...logFade.scrollProps}>
             <View style={styles.logMealPageHeader}>
               <TouchableOpacity onPress={() => setShowLogMealOptions(false)} accessibilityLabel="Back" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="chevron-back" size={24} color="#1F1F1F" />

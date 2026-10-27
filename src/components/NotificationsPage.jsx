@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, SafeAreaView } from 'react-native';
 import { useTheme } from '../lib/theme';
 import { getInbox, onInboxChange, markAllSeen } from '../lib/notificationInbox';
-import HeaderFade from './HeaderFade';
+import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 
 const ICONS = {
   meal: { name: 'restaurant-outline', color: '#059669', bg: '#ECFDF5' },
@@ -36,8 +36,10 @@ const NotificationsPage = ({ visible, onClose, onOpenItem }) => {
   useEffect(() => onInboxChange(setInbox), []);
   // Remember what was new when the page opened, so those keep their dot until it closes.
   const [newSince, setNewSince] = useState(0);
+  const pageFade = useHeaderFadeScroll();
   useEffect(() => {
     if (!visible) return;
+    pageFade.scrollY.setValue(0);
     setNewSince(getInbox().seenAt);
     markAllSeen();
   }, [visible]);
@@ -45,7 +47,7 @@ const NotificationsPage = ({ visible, onClose, onOpenItem }) => {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={[styles.page, { backgroundColor: colors.bg }]}>
-        <HeaderFade bg={colors.bg} />
+        <HeaderFade bg={colors.bg} scrollY={pageFade.scrollY} />
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.headerBtn} accessibilityLabel="Close" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="chevron-down" size={24} color={colors.text} />
@@ -53,7 +55,7 @@ const NotificationsPage = ({ visible, onClose, onOpenItem }) => {
           <Text style={[styles.title, { color: colors.text }]}>Notifications</Text>
           <View style={styles.headerBtn} />
         </View>
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60, gap: 10 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60, gap: 10 }} showsVerticalScrollIndicator={false} {...pageFade.scrollProps}>
           {inbox.items.length === 0 ? (
             <View style={{ alignItems: 'center', paddingVertical: 80 }}>
               <Ionicons name="notifications-outline" size={34} color={colors.textMuted} />

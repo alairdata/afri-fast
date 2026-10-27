@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import HeaderFade from './HeaderFade';
+import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 import {
   View,
   Text,
@@ -401,11 +401,17 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
     </ScrollView>
   );
 
+  const pageFade = useHeaderFadeScroll((e) => {
+    const scrollY = e.nativeEvent.contentOffset.y;
+    const viewHeight = e.nativeEvent.layoutMeasurement.height;
+    const todayY = todayMonthY.current;
+    setShowBackToToday(!(scrollY >= todayY - viewHeight * 0.5 && scrollY <= todayY + viewHeight * 0.5));
+  });
   if (!show) return null;
 
   return (
     <View style={styles.overlay}>
-      <HeaderFade bg="#FAFBFF" />
+      <HeaderFade bg="#FAFBFF" scrollY={viewMode === 'month' ? pageFade.scrollY : undefined} />
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.headerBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="close" size={24} color="#374151" />
@@ -464,13 +470,7 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
                 calendarScrollRef.current?.scrollTo({ y: todayMonthY.current, animated: false });
               }
             }}
-            onScroll={(e) => {
-              const scrollY = e.nativeEvent.contentOffset.y;
-              const viewHeight = e.nativeEvent.layoutMeasurement.height;
-              const todayY = todayMonthY.current;
-              setShowBackToToday(!(scrollY >= todayY - viewHeight * 0.5 && scrollY <= todayY + viewHeight * 0.5));
-            }}
-            scrollEventThrottle={100}
+            {...pageFade.scrollProps}
           >
             {(() => {
               const months = [];

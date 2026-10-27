@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import FormattedText from '../lib/FormattedText';
 import { coachGreeting } from '../lib/lumiVoice';
-import HeaderFade from './HeaderFade';
+import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 import { useVoiceInput } from '../lib/useVoiceInput';
 
 const INK = '#1F1F1F';
@@ -142,6 +142,7 @@ const ChatScreen = ({
   }, [show]);
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef(null);
+  const pageFade = useHeaderFadeScroll();
   const lastOpeningContextRef = useRef(null);
   const isMeals = variant === 'meals';
   const { voice, voiceNote, startVoice, stopVoice } = useVoiceInput({ text: chatInput, setText: setChatInput, active: show });
@@ -287,7 +288,7 @@ const ChatScreen = ({
 
   return (
     <View style={styles.overlay}>
-      <HeaderFade bg="#F9FAFB" />
+      <HeaderFade bg="#F9FAFB" scrollY={pageFade.scrollY} />
       <KeyboardAvoidingView
         style={styles.chatContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -295,6 +296,7 @@ const ChatScreen = ({
       >
         <ScrollView
           ref={scrollViewRef}
+          {...pageFade.scrollProps}
           style={{ flex: 1 }}
           contentContainerStyle={styles.chatMessagesContent}
           keyboardShouldPersistTaps="handled"

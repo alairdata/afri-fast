@@ -11,7 +11,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Audio } from 'expo-av';
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import { track } from '../lib/analytics';
-import HeaderFade from './HeaderFade';
+import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 import { SourcesLink } from './HealthSourcesPage';
 import { estimateSatiety, satietyProfile, formatHalfHours, gramsOf, PROFILE } from '../lib/satiety';
 import { saveCustomRecipe } from '../lib/savedRecipes';
@@ -175,6 +175,8 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const safeTop = useSafeAreaInsets().top;
   const copy = COPY[kitchen ? 'kitchen' : 'fit'];
   const [step, setStep] = useState('input'); // input | budget | loading | plate
+  const pageFade = useHeaderFadeScroll();
+  useEffect(() => { if (step === 'input' || step === 'plate') pageFade.scrollY.setValue(0); }, [step === 'plate', visible]);
   const [servings, setServings] = useState(1);
   const [recipeImage, setRecipeImage] = useState(null); // data URI, or 'failed'
   const [savedRecipe, setSavedRecipe] = useState(false);
@@ -467,12 +469,12 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
 
   return (
     <View style={styles.overlay}>
-      <HeaderFade bg="#F9FAFB" />
+      <HeaderFade bg="#F9FAFB" scrollY={pageFade.scrollY} />
 
       {/* 1. What you have (also sits behind the "how much" sheet) */}
       {(step === 'input' || step === 'budget') && (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? safeTop : 0}>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} keyboardShouldPersistTaps="handled" {...pageFade.scrollProps}>
             <View style={styles.headerRow}>
               <View style={styles.roundBtnSpace} />
               <View style={styles.leftChip}>
@@ -696,7 +698,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
       {/* 4. Your plate */}
       {step === 'plate' && plan && (
         <View style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ paddingBottom: kitchen ? 230 : 170 }}>
+          <ScrollView contentContainerStyle={{ paddingBottom: kitchen ? 230 : 170 }} {...pageFade.scrollProps}>
             <View style={[styles.headerRow, { justifyContent: 'flex-start', gap: 12 }]}>
               <View style={styles.roundBtnSpace} />
               <View style={{ flex: 1 }}>

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
 import { computeTdeeSummary, projectGoal, fromKg, MIN_CALORIES, MAX_SURPLUS, MAX_TARGET_NO_TDEE } from '../lib/tdeeSummary';
 import { SourcesLink } from './HealthSourcesPage';
-import HeaderFade from './HeaderFade';
+import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -52,6 +52,7 @@ const CalorieTargetPage = ({
     weightLogs, recentMeals, weightUnit, startingWeight, targetWeight, age, sex, height, heightUnit, activityLevel: activity,
   }), [weightLogs, recentMeals, weightUnit, startingWeight, targetWeight, age, sex, height, heightUnit, activity]);
 
+  const pageFade = useHeaderFadeScroll();
   if (!show) return null;
 
   const { tdee, currentWeightKg, targetWeightKg, usesLogs } = summary;
@@ -123,7 +124,7 @@ const CalorieTargetPage = ({
 
   return (
     <View style={styles.overlay}>
-      <HeaderFade bg="#F8FAFC" />
+      <HeaderFade bg="#F8FAFC" scrollY={pageFade.scrollY} />
       <View style={styles.page}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={onClose} accessibilityLabel="Close">
@@ -133,7 +134,7 @@ const CalorieTargetPage = ({
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView automaticallyAdjustKeyboardInsets style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView automaticallyAdjustKeyboardInsets {...pageFade.scrollProps} style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* The target: type it */}
           <Text style={styles.kicker}>YOUR TARGET</Text>
           <View style={styles.numberRow}>

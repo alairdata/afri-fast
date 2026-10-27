@@ -13,7 +13,7 @@ import LumiRive from './LumiRive';
 import { useSavedRecipes, toggleSavedRecipe, useCustomRecipes, removeCustomRecipe } from '../lib/savedRecipes';
 import { showAlert } from '../lib/alert';
 import ShimmerImage from './ShimmerImage';
-import HeaderFade from './HeaderFade';
+import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 
 // ── Ingredient amount scaler ─────────────────────────────────────────────────
 
@@ -94,6 +94,8 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
   const [servings, setServings] = useState(1);
   const [communityPhotos, setCommunityPhotos] = useState([]);
   const [communityCard, setCommunityCard] = useState(null);
+  const detailFade = useHeaderFadeScroll();
+  useEffect(() => { detailFade.scrollY.setValue(0); }, [recipe?.id]);
 
   // Reset servings + fetch community photos when recipe changes
   useEffect(() => { setServings(1); }, [recipe?.id]);
@@ -153,7 +155,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={detail.container}>
-        <HeaderFade bg="#FFFFFF" />
+        <HeaderFade bg="#FFFFFF" scrollY={detailFade.scrollY} />
         {/* Header */}
         <View style={detail.header}>
           <TouchableOpacity style={detail.closeBtn} onPress={onClose}>
@@ -176,7 +178,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
           )}
         </View>
 
-        <ScrollView style={detail.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView style={detail.scroll} showsVerticalScrollIndicator={false} {...detailFade.scrollProps}>
           {/* Image */}
           {recipe.imageUrl ? (
             <View>
@@ -714,6 +716,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
     );
   };
 
+  const pageFade = useHeaderFadeScroll();
   if (!show) return null;
 
   return (
@@ -721,7 +724,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
     // 20) like a true full-screen capture UI; otherwise this sits below it so
     // the tab bar stays visible, since this now only renders as the Ideas tab.
     <View style={[styles.overlay, showCamera && { zIndex: 9999 }]}>
-      <HeaderFade bg="#F2F2F2" />
+      <HeaderFade bg="#F2F2F2" scrollY={pageFade.scrollY} />
       <View style={styles.page}>
         {/* Header: Recipes is a tab now, so no back arrow; the bookmark opens saved recipes */}
         <View style={styles.header}>
@@ -733,6 +736,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
 
         <ScrollView
           ref={pageScrollRef}
+          {...pageFade.scrollProps}
           style={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"

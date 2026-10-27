@@ -13,7 +13,7 @@ import { SourceList, SourcesLink } from './HealthSourcesPage';
 import { DayMealsCard, ShimmerLogButton } from './MealPages';
 import Svg, { Path } from 'react-native-svg';
 import RiveCalorieGauge from './RiveCalorieGauge';
-import HeaderFade from './HeaderFade';
+import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -974,13 +974,19 @@ const TodayTab = ({
   const patternCards = getDailyArticles(5);
 
   const [selectedArticle, setSelectedArticle] = useState(null);
+  // the mint top fades scroll away with the page and with each reading sheet
+  const pageFade = useHeaderFadeScroll();
+  const jfyFade = useHeaderFadeScroll();
+  const articleFade = useHeaderFadeScroll();
+  useEffect(() => { if (jfyExpanded) jfyFade.scrollY.setValue(0); }, [jfyExpanded]);
+  useEffect(() => { if (selectedArticle) articleFade.scrollY.setValue(0); }, [selectedArticle]);
 
   return (
     <View style={styles.wrapper}>
-      <HeaderFade />
+      <HeaderFade scrollY={pageFade.scrollY} />
       {Platform.OS === 'web' && <View style={{ height: 44 }} />}
 
-      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}>
+      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} {...pageFade.scrollProps} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}>
         {/* Header: greeting, calendar, notifications, and the week strip that picks the day shown below */}
         <View style={styles.greetHeader}>
           <View style={styles.greetRow}>
@@ -1275,7 +1281,7 @@ const TodayTab = ({
         onRequestClose={() => setJfyExpanded(false)}
       >
         <View style={[styles.articleModal, Platform.OS === 'android' && { paddingTop: 44 }]}>
-          <HeaderFade bg={colors.card} variant="sheet" />
+          <HeaderFade bg={colors.card} variant="sheet" scrollY={jfyFade.scrollY} />
           <View style={styles.articleHeader}>
             <TouchableOpacity onPress={() => setJfyExpanded(false)} style={styles.articleCloseBtn}>
               <Text style={styles.articleCloseText}>✕</Text>
@@ -1283,7 +1289,7 @@ const TodayTab = ({
             <Text style={styles.articleHeaderTitle}>{jfyOpen?.title || "Today's Insight"}</Text>
             <View style={{ width: 40 }} />
           </View>
-          <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20 }}>
+          <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20 }} {...jfyFade.scrollProps}>
             <FormattedText text={jfyOpen?.text || justForYouInsight || ''} bodyStyle={[styles.insightDetailBody, { fontSize: 15.5, lineHeight: 24 }]} />
             <Text style={styles.articleNote}>Written by AI from your logs. General information, not medical advice. Check with a doctor before making medical decisions.</Text>
             <SourcesLink topic="food" only style={{ marginTop: 10 }} />
@@ -1300,7 +1306,7 @@ const TodayTab = ({
         onRequestClose={() => setSelectedArticle(null)}
       >
         <View style={[styles.articleModal, Platform.OS === 'android' && { paddingTop: 44 }]}>
-          <HeaderFade bg={colors.card} variant="sheet" />
+          <HeaderFade bg={colors.card} variant="sheet" scrollY={articleFade.scrollY} />
           <View style={styles.articleHeader}>
             <TouchableOpacity onPress={() => setSelectedArticle(null)} style={styles.articleCloseBtn}>
               <Text style={styles.articleCloseText}>✕</Text>
@@ -1309,7 +1315,7 @@ const TodayTab = ({
             <View style={{ width: 40 }} />
           </View>
           {selectedArticle && (
-            <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.articleScroll} showsVerticalScrollIndicator={false} {...articleFade.scrollProps}>
               <Text style={styles.articleTitle}>{selectedArticle.title}</Text>
               {selectedArticle.image && (
                 <Image source={selectedArticle.image} style={styles.articleImage} resizeMode="cover" />

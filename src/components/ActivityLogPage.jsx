@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
-import HeaderFade from './HeaderFade';
+import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const ACCENT = '#F97316';
@@ -14,6 +14,7 @@ const ICON_BY_TYPE = {
 };
 
 const ActivityLogPage = ({ show, onClose, activities, setActivities, onActivityDeleted }) => {
+  const pageFade = useHeaderFadeScroll();
   if (!show) return null;
 
   const sorted = [...(activities || [])].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -26,7 +27,7 @@ const ActivityLogPage = ({ show, onClose, activities, setActivities, onActivityD
 
   return (
     <View style={styles.overlay}>
-      <HeaderFade bg="#F8FAFC" />
+      <HeaderFade bg="#F8FAFC" scrollY={pageFade.scrollY} />
       <View style={styles.page}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={onClose}>
@@ -36,7 +37,7 @@ const ActivityLogPage = ({ show, onClose, activities, setActivities, onActivityD
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false} {...pageFade.scrollProps}>
           {sorted.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="barbell-outline" size={28} color="#ccc" />

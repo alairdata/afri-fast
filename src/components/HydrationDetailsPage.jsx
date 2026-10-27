@@ -4,7 +4,7 @@ import { SourcesLink } from './HealthSourcesPage';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform, Alert, Keyboard } from 'react-native';
 import Svg, { Path, Rect, Ellipse, Defs, LinearGradient, Stop, ClipPath, G } from 'react-native-svg';
 import { showAlert } from '../lib/alert';
-import HeaderFade from './HeaderFade';
+import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -69,6 +69,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
   const [rangeIdx, setRangeIdx] = useState(0);
   const [showAll, setShowAll] = useState(false);
 
+  const pageFade = useHeaderFadeScroll();
   if (!show) return null;
 
   const today = new Date();
@@ -151,7 +152,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
 
   return (
     <View style={styles.overlay}>
-      <HeaderFade bg="#F2F2F2" />
+      <HeaderFade bg="#F2F2F2" scrollY={pageFade.scrollY} />
       <View style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
@@ -202,7 +203,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
           </View>
         </>}
 
-        <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <ScrollView automaticallyAdjustKeyboardInsets {...pageFade.scrollProps} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
           {/* The day's water */}
           <View style={styles.dayRow}>
             <View>
