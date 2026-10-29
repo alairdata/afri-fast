@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Platform, Image, KeyboardAvoidingView, ActivityIndicator, Keyboard } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Platform, Image, KeyboardAvoidingView, ActivityIndicator, Keyboard, Animated, Easing } from 'react-native';
 import Svg, { Circle, Path, Defs, LinearGradient as SvgGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
@@ -82,6 +82,47 @@ const COPY = {
     loadingSub: (cal) => `Creating a recipe that fits your ${cal} cal`,
     seeBtn: 'See your recipe',
   },
+};
+
+// The kitchen recipe's fullness chart, as on the canvas: 6 hours, fullness rising then easing off, crossing the
+// "Hungry again" line when hunger returns (`hours`, from estimateSatiety; past 6 h it stays above the line).
+const KSAT = { W: 318, top: 18, bot: 108, hungry: 35 };
+const kitchenSatiety = (hours) => {
+  const full = (t, tau) => 100 * (1 - Math.exp(-t / 0.35)) * Math.exp(-t / tau);
+  const crossAt = (tau) => { for (let t = 0.6; t <= 6; t += 0.05) if (full(t, tau) < KSAT.hungry) return t; return 6; };
+  const target = Math.min(6, Math.max(1, hours || 0));
+  let lo = 0.3, hi = 30;
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (crossAt(mid) < target) lo = mid; else hi = mid; }
+  const tau = (lo + hi) / 2;
+  const X = (t) => (t / 6) * KSAT.W;
+  const Y = (v) => KSAT.bot - (v / 100) * (KSAT.bot - KSAT.top);
+  const pts = [];
+  for (let t = 0; t <= 6.0001; t += 0.1) pts.push(`${X(t).toFixed(1)} ${Y(full(t, tau)).toFixed(1)}`);
+  const curve = 'M' + pts.join(' L');
+  const cross = Math.min(6, hours || 0);
+  const level = cross >= 4 ? ['High', '#D1FAE5', '#047857'] : cross >= 2.5 ? ['Medium', '#FEF3C7', '#B45309'] : ['Low', '#FEE2E2', '#B91C1C'];
+  return { curve, area: `${curve} L${KSAT.W} ${KSAT.bot} L0 ${KSAT.bot} Z`, hungerY: Y(KSAT.hungry), dotX: X(cross), level };
+};
+// "1½ cups (230 g)" as the canvas label: "1½ cups · 230 g".
+const kitchenQty = (qty) => String(qty || '').replace(/\s*\((\d+(?:\.\d+)?)\s*g\)\s*$/, ' · $1 g');
+
+// The current step's spinner on "Building your recipe" (canvas): a pale ring with a turning green arc.
+const SpinRing = () => {
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' }));
+    loop.start();
+    return () => loop.stop();
+  }, [spin]);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  return (
+    <Animated.View style={{ width: 20, height: 20, transform: [{ rotate }] }}>
+      <Svg width={20} height={20} viewBox="0 0 24 24">
+        <Circle cx={12} cy={12} r={9} stroke="#D1FAE5" strokeWidth={3} fill="none" />
+        <Path d="M12 3a9 9 0 0 1 9 9" stroke={GREEN} strokeWidth={3} strokeLinecap="round" fill="none" />
+      </Svg>
+    </Animated.View>
+  );
 };
 
 // Generated recipe photos, kept for the session so reopening a recipe never pays for a second picture.
@@ -206,6 +247,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const [recipeImage, setRecipeImage] = useState(null); // data URI, or 'failed'
   const [savedRecipe, setSavedRecipe] = useState(false);
   const [text, setText] = useState('');
+  const [inputH, setInputH] = useState(36); // the kitchen text box: one line (36) up to about four (112)
   const [photo, setPhoto] = useState(null);
   const lowBudget = caloriesLeft < 150;
   const [useAll, setUseAll] = useState(false);
@@ -506,6 +548,9 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
 
   return (
     <View style={[styles.overlay, kitchenLoadingWhite && { backgroundColor: '#fff' }]}>
+      {kitchen && (step === 'input' || step === 'budget' || step === 'plate') && (
+        <LinearGradient colors={['#CFF3DE', '#E9F8EF', '#F9FAFB']} locations={[0, 0.6, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: step === 'plate' ? safeTop + 140 : safeTop + 210 }} pointerEvents="none" />
+      )}
       <HeaderFade bg={kitchenLoadingWhite ? '#fff' : '#F9FAFB'} scrollY={pageFade.scrollY} />
 
       {/* 1. What you have (also sits behind the "how much" sheet) */}
@@ -517,7 +562,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               <Ionicons name="chevron-back" size={22} color={INK} />
             </TouchableOpacity>
             <View style={styles.leftChip}>
-              <Ionicons name="leaf-outline" size={14} color="#047857" />
+              <Ionicons name={kitchen ? 'flame' : 'leaf-outline'} size={14} color={kitchen ? '#FB923C' : '#047857'} />
               <Text style={styles.leftChipText}>{lowBudget ? 'At your goal today' : `${Math.round(caloriesLeft).toLocaleString()} cal left today`}</Text>
             </View>
           </View>
@@ -588,13 +633,10 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                   <TouchableOpacity style={styles.composerBtnOutline} onPress={() => pickPhoto(false)} accessibilityLabel="Add a photo">
                     <Ionicons name="add" size={20} color={INK} />
                   </TouchableOpacity>
-                  {Platform.OS !== 'web' && (
-                    <TouchableOpacity style={styles.composerBtn} onPress={() => pickPhoto(true)} accessibilityLabel="Take a photo">
-                      <Ionicons name="camera-outline" size={20} color={INK} />
-                    </TouchableOpacity>
-                  )}
                   <TextInput
-                    style={styles.slimInput}
+                    style={[styles.slimInput, { height: text ? inputH : 36 }]}
+                    onContentSizeChange={(e) => setInputH(Math.min(112, Math.max(36, Math.ceil(e.nativeEvent.contentSize.height))))}
+                    scrollEnabled={inputH >= 112}
                     placeholder="What do you have?"
                     placeholderTextColor="#9CA3AF"
                     value={text}
@@ -688,7 +730,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 <View style={[styles.radio, !useAll && styles.radioOn]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.optionTitle}>{lowBudget ? 'Choose an amount' : 'Just part of it'}</Text>
-                  <Text style={styles.optionSub}>{lowBudget ? 'This meal will go over today’s goal' : 'Save some for later today'}</Text>
+                  <Text style={styles.optionSub}>{lowBudget ? 'This meal will go over today’s goal' : kitchen ? 'Keep some for later today' : 'Save some for later today'}</Text>
                 </View>
               </TouchableOpacity>
               {!useAll && (
@@ -780,7 +822,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                     <View style={{ width: 24, alignItems: 'center' }}>
                       {done
                         ? <View style={styles.stepDone}><Ionicons name="checkmark" size={13} color="#fff" /></View>
-                        : <Ionicons name="sync" size={16} color={GREEN} />}
+                        : kitchen ? <SpinRing /> : <Ionicons name="sync" size={16} color={GREEN} />}
                     </View>
                     <Text style={styles.stepText}>{label}</Text>
                   </View>
@@ -846,6 +888,53 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               </View>
             )}
 
+            {kitchen ? (() => {
+              const ks = kitchenSatiety(satEst.hours);
+              return (
+                <View style={styles.satCard}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.kickerDark}>SATIETY ESTIMATE</Text>
+                      <Text style={[styles.satHead, { marginTop: 6 }]}>Full for ~{formatHalfHours(satEst.hours)}</Text>
+                      <Text style={styles.satSub}>Mostly from {Math.round(satEst.protein)}g of protein</Text>
+                    </View>
+                    <Text style={[styles.levelPill, { backgroundColor: ks.level[1], color: ks.level[2] }]}>{ks.level[0]}</Text>
+                  </View>
+                  <View style={{ marginTop: 14 }}>
+                    <Svg width="100%" height={128} viewBox={`0 0 ${KSAT.W} 128`} preserveAspectRatio="none" accessibilityLabel={`Estimated fullness over the next 6 hours: hungry again after about ${formatHalfHours(satEst.hours)}`}>
+                      <Defs>
+                        <SvgGradient id="kSatFill" x1="0" y1="0" x2="0" y2="1">
+                          <Stop offset="0" stopColor="#34D399" stopOpacity="0.45" />
+                          <Stop offset="1" stopColor="#34D399" stopOpacity="0" />
+                        </SvgGradient>
+                      </Defs>
+                      <Path d={`M0 18H${KSAT.W}M0 63H${KSAT.W}M0 108H${KSAT.W}`} stroke="#F0F1F3" strokeWidth={1} />
+                      <Path d={`M0 ${ks.hungerY}H${KSAT.W}`} stroke="#F59E0B" strokeWidth={1.5} strokeDasharray="4 4" />
+                      <Path d={ks.area} fill="url(#kSatFill)" />
+                      <Path d={ks.curve} fill="none" stroke={GREEN} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+                      <Circle cx={ks.dotX} cy={ks.hungerY} r={6} fill="#fff" stroke="#F59E0B" strokeWidth={3} />
+                    </Svg>
+                    <Text style={[styles.hungryTag, { top: ks.hungerY - 22 }]}>Hungry again</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                    {['Now', '2h', '4h', '6h'].map((l) => <Text key={l} style={{ fontSize: 11, color: MUTED }}>{l}</Text>)}
+                  </View>
+                  <View style={{ marginTop: 16 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <Text style={styles.budgetText}>{total} of {chosen} cal</Text>
+                      <Text style={[styles.budgetText, { fontWeight: '700', color: total > chosen ? '#B91C1C' : '#047857' }]}>
+                        {total > chosen ? `${total - chosen} cal over` : `${chosen - total} to spare`}
+                      </Text>
+                    </View>
+                    <View style={styles.budgetTrack}>
+                      {total > chosen
+                        ? <View style={[styles.budgetFill, { width: '100%', backgroundColor: '#DC2626' }]} />
+                        : <LinearGradient colors={['#6EE7B7', GREEN]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.budgetFill, { width: `${Math.min(100, Math.round((total / chosen) * 100))}%` }]} />}
+                    </View>
+                  </View>
+                </View>
+              );
+            })() : (
             <View style={styles.satCard}>
               <Text style={styles.satHead}>Full for ~{formatHalfHours(satEst.hours)}</Text>
               <Text style={styles.satSub}>{satEst.driver ? `Mostly from ${satEst.driver}` : `${Math.round(satEst.protein)}g of protein on this plate`}</Text>
@@ -902,11 +991,12 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 </View>
               </View>
             </View>
+            )}
 
-            <Text style={styles.portionNote}>Change any amount (tap the green label or use − / +) and Logga re-fits the others to your {Math.round(chosen).toLocaleString()} cal. Foods you change stay as you set them. Calories are AI estimates.</Text>
+            <Text style={styles.portionNote}>{kitchen ? 'Want more or less of something? Use − / + and the recipe rebalances.' : <>Change any amount (tap the green label or use − / +) and Logga re-fits the others to your {Math.round(chosen).toLocaleString()} cal. Foods you change stay as you set them. Calories are AI estimates.</>}</Text>
             <View style={styles.foodCard}>
               <View style={styles.foodCardHead}>
-                <Text style={styles.foodCardTitle}>{kitchen ? 'INGREDIENTS (PER PERSON)' : 'YOUR PORTIONS'}</Text>
+                <Text style={styles.foodCardTitle}>{kitchen ? 'INGREDIENTS' : 'YOUR PORTIONS'}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <Text style={styles.foodCardCount}>{foods.length} items</Text>
                   <TouchableOpacity onPress={() => { setIsFoodEditMode((v) => !v); setShowAddItem(false); }}>
@@ -935,7 +1025,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                       </View>
                     ) : (
                       <TouchableOpacity style={styles.foodQtyEditable} onPress={() => { setEditingQtyIdx(i); setEditQtyValue(food.qty); }}>
-                        <Text style={styles.foodQtyEditableText}>{food.qty}</Text>
+                        <Text style={styles.foodQtyEditableText}>{kitchen ? kitchenQty(food.qty) : food.qty}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -1012,13 +1102,13 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 <Text style={styles.tipText}>{plan.tip}</Text>
               </LinearGradient>
             )}
-            <Text style={styles.disclaimer}>Calories and fullness are estimates.</Text>
+            {!kitchen && <Text style={styles.disclaimer}>Calories and fullness are estimates.</Text>}
           </ScrollView>
 
           <View style={styles.bottomCta}>
             <TouchableOpacity onPress={logPlate} activeOpacity={0.85} disabled={total <= 0}>
               <LinearGradient colors={['#34D399', GREEN]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.primaryBtn, styles.logBtn, total <= 0 && { opacity: 0.5 }]}>
-                <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+                <Ionicons name={kitchen ? 'checkmark' : 'checkmark-circle-outline'} size={20} color="#fff" />
                 <Text style={styles.primaryBtnText}>{kitchen ? 'Log this meal' : 'Log this plate'}</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -1066,7 +1156,7 @@ const styles = StyleSheet.create({
   composerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   composerSlim: { borderRadius: 26, paddingTop: 8, paddingRight: 8, paddingBottom: 8, paddingLeft: 8 },
   slimRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  slimInput: { flex: 1, minWidth: 0, fontSize: 16, lineHeight: 24, color: INK, minHeight: 36, maxHeight: 112, paddingTop: 6, paddingBottom: 6, paddingHorizontal: 4, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) },
+  slimInput: { flex: 1, minWidth: 0, fontSize: 16, color: INK, paddingTop: 8, paddingBottom: 8, paddingHorizontal: 4, textAlignVertical: 'top', ...(Platform.OS === 'web' ? { lineHeight: 20, outlineStyle: 'none', resize: 'none' } : {}) },
   composerBtnOutline: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
   composerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   sendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' },
@@ -1159,6 +1249,8 @@ const styles = StyleSheet.create({
   satStatNum: { fontSize: 20, fontWeight: '800', color: INK },
   satStatUnit: { fontSize: 11, color: MUTED },
   satSub: { fontSize: 13, color: '#4B5563', marginTop: 2 },
+  levelPill: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, overflow: 'hidden', fontSize: 12, fontWeight: '700' },
+  hungryTag: { position: 'absolute', right: 0, fontSize: 11, fontWeight: '600', color: '#B45309', backgroundColor: '#fff', paddingLeft: 6 },
   budgetText: { fontSize: 13, fontWeight: '600', color: INK },
   budgetTrack: { height: 8, borderRadius: 4, backgroundColor: '#E7F3EC', overflow: 'hidden' },
   budgetFill: { height: 8, borderRadius: 4 },
