@@ -1324,23 +1324,25 @@ function DoneScreen({ d, onNext, onStartOver }) {
           <Text style={s.planNumberUnit}>calories a day</Text>
         </View>
         <View style={[s.planBox, s.planMacros]}>
-          {[['Protein', plan.macros.protein, 30, C.primary], ['Carbs', plan.macros.carbs, 40, '#34D399'], ['Fat', plan.macros.fats, 30, '#A7F3D0']].map(([label, g, pct, color]) => (
-            <View key={label} style={{ flex: 1 }}>
-              <Text style={s.planMacroLabel}>{label}</Text>
+          {[['Protein', plan.macros.protein, C.primary], ['Carbs', plan.macros.carbs, '#34D399'], ['Fat', plan.macros.fats, C.ink]].map(([label, g, color], i) => (
+            <View key={label} style={[s.planMacroCol, i < 2 && s.planMacroDivider]}>
               <Text style={s.planMacroNum}>{g}<Text style={s.planMacroUnit}> g</Text></Text>
-              <View style={s.planMacroTrack}><View style={[s.planMacroFill, { width: `${pct}%`, backgroundColor: color }]} /></View>
+              <View style={s.planMacroLabelRow}>
+                <View style={[s.planMacroDot, { backgroundColor: color }]} />
+                <Text style={s.planMacroLabel}>{label}</Text>
+              </View>
             </View>
           ))}
         </View>
         <View style={[s.planBox, s.planList]}>
           {[
-            ['flag-outline', 'Goal', win ? `${weightText(d.targetKg, d.unitW)} by ${win.end}` : weightText(d.targetKg, d.unitW)],
+            ['trending-up-outline', 'Goal', win ? `${weightText(d.targetKg, d.unitW)} by ${win.end}` : weightText(d.targetKg, d.unitW)],
             ['water-outline', 'Water', `${plan.waterL} L a day`],
             ['footsteps-outline', 'Steps', `${plan.steps.toLocaleString()} a day`],
-            ['speedometer-outline', 'Pace', `${d.unitW === 'lb' ? `${Math.round(plan.rate * 2.2046 * 10) / 10} lb` : `${plan.rate} kg`} a week`],
-          ].filter((row) => row[0] !== 'speedometer-outline' || d.targetKg < d.weightKg).map(([icon, label, value], i, rows) => (
+            ['time-outline', 'Pace', `${d.unitW === 'lb' ? `${Math.round(plan.rate * 2.2046 * 10) / 10} lb` : `${plan.rate} kg`} a week`],
+          ].filter((row) => row[0] !== 'time-outline' || d.targetKg < d.weightKg).map(([icon, label, value], i, rows) => (
             <View key={label} style={[s.planRow2, i < rows.length - 1 && s.planRowLine]}>
-              <View style={s.planRowIcon}><Ionicons name={icon} size={16} color={C.ink500} /></View>
+              <View style={s.planRowIcon}><Ionicons name={icon} size={16} color={C.ink} /></View>
               <Text style={s.planRowLabel}>{label}</Text>
               <Text style={s.planRowValue}>{value}</Text>
             </View>
@@ -2200,12 +2202,14 @@ const s = StyleSheet.create({
 
   // Plan
   planBox: { backgroundColor: '#fff', borderRadius: 18, shadowColor: '#0B3D2E', shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
-  planMacros: { marginTop: 22, flexDirection: 'row', gap: 18, padding: 16 },
-  planMacroLabel: { fontSize: 12.5, fontWeight: '700', color: '#6c7872' },
-  planMacroNum: { marginTop: 4, fontSize: 20, fontWeight: '800', letterSpacing: -0.4, color: C.ink },
-  planMacroUnit: { fontSize: 13, fontWeight: '700', color: '#97a19b' },
-  planMacroTrack: { marginTop: 8, height: 4, borderRadius: 2, backgroundColor: '#EEF0EC', overflow: 'hidden' },
-  planMacroFill: { height: 4, borderRadius: 2 },
+  planMacros: { marginTop: 22, flexDirection: 'row', paddingVertical: 16, paddingHorizontal: 4 },
+  planMacroCol: { flex: 1, alignItems: 'center' },
+  planMacroDivider: { borderRightWidth: 1, borderRightColor: '#EEF0EC' },
+  planMacroLabelRow: { marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  planMacroDot: { width: 7, height: 7, borderRadius: 4 },
+  planMacroLabel: { fontSize: 12.5, lineHeight: 16, fontWeight: '600', color: '#6c7872' },
+  planMacroNum: { fontSize: 22, lineHeight: 26, fontWeight: '800', letterSpacing: -0.5, color: C.ink },
+  planMacroUnit: { fontSize: 13, fontWeight: '600', color: '#97a19b' },
   planList: { marginTop: 14, paddingVertical: 2, paddingHorizontal: 16 },
   planRow2: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 50 },
   planRowLine: { borderBottomWidth: 1, borderBottomColor: '#EEF0EC' },
@@ -2230,10 +2234,10 @@ const s = StyleSheet.create({
   proFeatureIcon: { width: 22, alignItems: 'center', paddingTop: 1 },
   proFeatureTxt: { flex: 1, fontSize: 14.5, lineHeight: 21, fontWeight: '600', letterSpacing: -0.15, color: C.ink },
   commitBar: { flex: 1, height: 5, borderRadius: 3, backgroundColor: C.primary },
-  commitBody: { flex: 1, paddingHorizontal: 28, paddingTop: 52 },
+  commitBody: { flex: 1, paddingHorizontal: 28, paddingTop: 14 },
   commitH1: { fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.8, color: C.ink },
   commitSub: { marginTop: 14, fontSize: 15, lineHeight: 22, color: '#6c7872' },
-  commitMid: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 20 },
+  commitMid: { marginTop: 64, alignItems: 'center' },
   commitPledge: { marginBottom: 30, maxWidth: 260, textAlign: 'center', fontSize: 15, lineHeight: 22, fontWeight: '600', color: '#374151' },
   commitRing: { width: 148, height: 148, alignItems: 'center', justifyContent: 'center' },
   commitCore: { position: 'absolute', top: 12, left: 12, right: 12, bottom: 12, borderRadius: 62, alignItems: 'center', justifyContent: 'center', shadowColor: '#16201b', shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 10 }, elevation: 6 },
