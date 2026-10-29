@@ -146,6 +146,24 @@ const ChatScreen = ({
   const pageFade = useHeaderFadeScroll();
   const lastOpeningContextRef = useRef(null);
   const isMeals = variant === 'meals';
+  // Ask Logga opens on its start screen (Perfect for when, Recents, New chat); the conversation shows once started.
+  const [started, setStarted] = useState(!isMeals);
+  useEffect(() => { if (show && isMeals) setStarted(false); }, [show, isMeals]);
+  const hasConversation = messages.some((m) => m.role === 'user');
+  const askRecents = isMeals
+    ? (recentMeals || []).filter((m) => m.method === 'chat').sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at)).slice(0, 3)
+    : [];
+  const whenLabel = (iso) => {
+    const d = new Date(iso), today = new Date();
+    const days = Math.round((new Date(today.toDateString()) - new Date(d.toDateString())) / 86400000);
+    return days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? d.toLocaleDateString('en-US', { weekday: 'short' }) : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  const startChat = (prefill = '') => {
+    setMessages([{ role: 'assistant', content: 'What are you thinking about your meal today?' }]);
+    setChatInput(prefill);
+    setPhoto(null);
+    setStarted(true);
+  };
   const { voice, voiceNote, startVoice, stopVoice } = useVoiceInput({ text: chatInput, setText: setChatInput, active: show });
   const caloriesLeft = (() => {
     const day = new Date().toDateString();
@@ -313,8 +331,8 @@ const ChatScreen = ({
           keyboardShouldPersistTaps="handled"
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
-          <Text style={styles.h1}>{isMeals ? 'Not sure what you ate?\nLet\u2019s work it out.' : 'Your coach'}</Text>
-          {isMeals ? (
+          {(!isMeals || !started) && <Text style={styles.h1}>{isMeals ? 'Not sure what you ate?\nLet\u2019s work it out.' : 'Your coach'}</Text>}
+          {isMeals && started ? null : isMeals ? (
             <>
               <Text style={styles.kicker}>PERFECT FOR WHEN</Text>
               <View style={styles.whenCard}>
@@ -329,12 +347,39 @@ const ChatScreen = ({
                 ))}
               </View>
               <Text style={styles.chatDisclaimer}>Calories here are AI estimates.</Text>
+              {hasConversation && (
+                <TouchableOpacity onPress={() => setStarted(true)} style={{ marginTop: -10, marginBottom: 18 }} accessibilityRole="button">
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#047857' }}>Continue your chat ›</Text>
+                </TouchableOpacity>
+              )}
+              {askRecents.length > 0 && (
+                <>
+                  <Text style={[styles.kicker, { marginTop: 0 }]}>RECENTS</Text>
+                  <View style={styles.whenCard}>
+                    {askRecents.map((m, i) => (
+                      <TouchableOpacity
+                        key={m.id}
+                        style={[styles.whenRow, i < askRecents.length - 1 && styles.rowDivider]}
+                        onPress={() => startChat(`I had ${m.name} again`)}
+                        accessibilityLabel={`Log ${m.name} again`}
+                      >
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={styles.whenTitle} numberOfLines={1}>{m.name}</Text>
+                          <Text style={styles.whenSub}>{Math.round(m.calories || 0).toLocaleString()} cal</Text>
+                        </View>
+                        <Text style={{ fontSize: 12.5, color: MUTED }}>{whenLabel(m.logged_at)}</Text>
+                        <Ionicons name="chevron-forward" size={16} color="#C4C8CE" />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
             </>
           ) : (
             <Text style={styles.chatDisclaimer}>AI coach, not a doctor. Check with a doctor before making medical decisions or big changes to your diet.</Text>
           )}
 
-          {messages.map((msg, index) => (
+          {started && messages.map((msg, index) => (
             <View key={index} style={{ marginBottom: 16 }}>
               <View style={[styles.chatBubbleWrapper, { marginBottom: 0, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }]}>
                 {msg.role === 'user' ? (
@@ -367,7 +412,15 @@ const ChatScreen = ({
           )}
         </ScrollView>
 
-        {/* Composer, as on Fit it in: type or say it, then send */}
+        {/* Ask Logga's start screen ends in New chat; the composer only shows once a chat has started */}
+        {!started ? (
+          <View style={styles.composerWrap}>
+            <TouchableOpacity style={styles.newChatBtn} onPress={() => startChat()} activeOpacity={0.85} accessibilityRole="button">
+              <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
+              <Text style={styles.newChatText}>New chat</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
         <View style={styles.composerWrap}>
           {!isMeals && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chatSuggestions} contentContainerStyle={styles.chatSuggestionsContent}>
@@ -439,6 +492,7 @@ const ChatScreen = ({
             </View>
           </View>
         </View>
+        )}
       </KeyboardAvoidingView>
     </View>
   );
@@ -494,6 +548,8 @@ const styles = StyleSheet.create({
   composerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   sendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' },
   micOn: { backgroundColor: '#DC2626' },
+  newChatBtn: { height: 54, borderRadius: 16, backgroundColor: INK, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  newChatText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   listeningRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   listeningDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#DC2626' },
   listeningText: { fontSize: 12.5, fontWeight: '600', color: '#B91C1C' },
