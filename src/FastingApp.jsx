@@ -3128,6 +3128,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
               setLoggingOut(true);
               const startedAt = Date.now();
               track(EVENTS.USER_LOGGED_OUT);
+              // Save when they logged out on their profile, while still signed in. Never holds up logging
+              // out: offline or slow, it gives up after 3 seconds.
+              if (session?.user?.id) await Promise.race([
+                supabase.from('profiles').update({ last_logged_out_at: new Date().toISOString() }).eq('id', session.user.id)
+                  .then(({ error }) => { if (error) console.warn('[Logout] last_logged_out_at', error.message); }),
+                new Promise((r) => setTimeout(r, 3000)),
+              ]).catch(() => {});
               resetAnalytics();
               signOutSubscriptions();
               // The home-screen widget is left as it is: logging back in to the same account carries on from it
