@@ -318,7 +318,14 @@ const CheckInPage = ({
       <SafeAreaView style={ss.overlay}>
         <View style={ss.page}>
 
-          {/* Header */}
+          {/* Header. After a meal it is just a close button: that check-in belongs to the meal, so no day to page through. */}
+          {source === 'meal' ? (
+          <View style={[ss.header, { justifyContent: 'flex-start' }]}>
+            <TouchableOpacity style={ss.navBtn} onPress={onClose} accessibilityLabel="Close">
+              <Ionicons name="close" size={22} color="#059669" />
+            </TouchableOpacity>
+          </View>
+          ) : (
           <View style={ss.header}>
             <TouchableOpacity style={ss.navBtn} onPress={() => {
               const prev = new Date(checkInDate); prev.setDate(prev.getDate() - 1); setCheckInDate(prev);
@@ -341,6 +348,7 @@ const CheckInPage = ({
               <Ionicons name="chevron-forward" size={22} color="#059669" />
             </TouchableOpacity>
           </View>
+          )}
 
           <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" style={ss.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={ss.scrollContent}>
 
