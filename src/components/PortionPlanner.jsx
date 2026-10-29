@@ -545,6 +545,27 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const C = 2 * Math.PI * 60;
   const C62 = 2 * Math.PI * 62;
   const kitchenLoadingWhite = kitchen && step === 'loading';
+  // Log / Save / Try another: pinned to the bottom on Fit it in; at the end of the page on the kitchen recipe (canvas).
+  const plateButtons = (
+    <>
+      <TouchableOpacity onPress={logPlate} activeOpacity={0.85} disabled={total <= 0}>
+        <LinearGradient colors={['#34D399', GREEN]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.primaryBtn, styles.logBtn, total <= 0 && { opacity: 0.5 }]}>
+          <Ionicons name={kitchen ? 'checkmark' : 'checkmark-circle-outline'} size={20} color="#fff" />
+          <Text style={styles.primaryBtnText}>{kitchen ? 'Log this meal' : 'Log this plate'}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+      {kitchen && (
+        <TouchableOpacity style={styles.secondaryBtn} onPress={saveRecipe} disabled={savedRecipe}>
+          <Ionicons name={savedRecipe ? 'bookmark' : 'bookmark-outline'} size={17} color={savedRecipe ? GREEN : INK} />
+          <Text style={[styles.secondaryBtnText, savedRecipe && { color: GREEN }]}>{savedRecipe === 'saving' ? 'Saving…' : savedRecipe ? 'Saved to your recipes' : 'Save recipe'}</Text>
+        </TouchableOpacity>
+      )}
+      <TouchableOpacity style={kitchen ? styles.textBtn : styles.secondaryBtn} onPress={() => setStep('input')}>
+        <Ionicons name="refresh" size={17} color={INK} />
+        <Text style={styles.secondaryBtnText}>{kitchen ? 'Try another recipe' : 'Try another combo'}</Text>
+      </TouchableOpacity>
+    </>
+  );
 
   return (
     <View style={[styles.overlay, kitchenLoadingWhite && { backgroundColor: '#fff' }]}>
@@ -858,7 +879,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               <Text style={styles.plateBig}>{kitchen ? 'Your recipe' : 'Planned by Logga'}</Text>
             </View>
           </View>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: kitchen ? 230 : 170 }} {...pageFade.scrollProps}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: kitchen ? 34 : 170 }} {...pageFade.scrollProps}>
 
             {kitchen && (
               <View style={styles.heroCard}>
@@ -1103,26 +1124,10 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               </LinearGradient>
             )}
             {!kitchen && <Text style={styles.disclaimer}>Calories and fullness are estimates.</Text>}
+            {kitchen && <View style={styles.endCta}>{plateButtons}</View>}
           </ScrollView>
 
-          <View style={styles.bottomCta}>
-            <TouchableOpacity onPress={logPlate} activeOpacity={0.85} disabled={total <= 0}>
-              <LinearGradient colors={['#34D399', GREEN]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.primaryBtn, styles.logBtn, total <= 0 && { opacity: 0.5 }]}>
-                <Ionicons name={kitchen ? 'checkmark' : 'checkmark-circle-outline'} size={20} color="#fff" />
-                <Text style={styles.primaryBtnText}>{kitchen ? 'Log this meal' : 'Log this plate'}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            {kitchen && (
-              <TouchableOpacity style={styles.secondaryBtn} onPress={saveRecipe} disabled={savedRecipe}>
-                <Ionicons name={savedRecipe ? 'bookmark' : 'bookmark-outline'} size={17} color={savedRecipe ? GREEN : INK} />
-                <Text style={[styles.secondaryBtnText, savedRecipe && { color: GREEN }]}>{savedRecipe === 'saving' ? 'Saving…' : savedRecipe ? 'Saved to your recipes' : 'Save recipe'}</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity style={kitchen ? styles.textBtn : styles.secondaryBtn} onPress={() => setStep('input')}>
-              <Ionicons name="refresh" size={17} color={INK} />
-              <Text style={styles.secondaryBtnText}>{kitchen ? 'Try another recipe' : 'Try another combo'}</Text>
-            </TouchableOpacity>
-          </View>
+          {!kitchen && <View style={styles.bottomCta}>{plateButtons}</View>}
         </View>
       )}
     </View>
@@ -1238,6 +1243,7 @@ const styles = StyleSheet.create({
   recentWhen: { fontSize: 12.5, color: '#9CA3AF' },
   stepDone: { width: 22, height: 22, borderRadius: 11, backgroundColor: GREEN, alignItems: 'center', justifyContent: 'center' },
   stepText: { fontSize: 14, fontWeight: '600', color: INK, flex: 1 },
+  endCta: { paddingHorizontal: 20, paddingTop: 14, gap: 10 },
   bottomCta: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 34, backgroundColor: 'rgba(249,250,251,0.96)', gap: 10 },
   plateSmall: { fontSize: 13, color: '#4B5563' },
   plateBig: { fontSize: 18, fontWeight: '700', letterSpacing: -0.3, color: INK },
