@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, Modal } from 'react-native';
 import Svg, { Path, Circle, Line, Rect, Text as SvgText } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccountPref, setAccountPref } from '../lib/accountPrefs';
 import { useTheme } from '../lib/theme';
 import { computeMomentumTimeline, MET, MIN_LOGGED_DAYS } from '../lib/momentum';
 import { computeWeeklyPace, estimateChangeSinceWeighInKg, scaleTrendWeekly, blendWeeklyRate, findOddWeighIns } from '../lib/trajectory';
@@ -609,11 +610,13 @@ const ProgressTab = ({
     if (!userId || bmrCheckpointWeightKg == null) return;
     let cancelled = false;
     const key = `bmr_checkpoint_seen_${userId}`;
-    AsyncStorage.getItem(key).then((raw) => {
+    // the account's copy wins over this phone's, so a new phone doesn't show it again
+    Promise.all([AsyncStorage.getItem(key).catch(() => null), getAccountPref(userId, 'bmrCheckpointSeenKg')]).then(([raw, onAccount]) => {
       if (cancelled) return;
-      const prevKg = raw != null ? parseFloat(raw) : null;
+      const prevKg = onAccount != null ? Number(onAccount) : raw != null ? parseFloat(raw) : null;
       if (prevKg == null) {
         AsyncStorage.setItem(key, String(bmrCheckpointWeightKg));
+        setAccountPref(userId, 'bmrCheckpointSeenKg', bmrCheckpointWeightKg);
         return;
       }
       if (Math.abs(bmrCheckpointWeightKg - prevKg) > 0.05) {
@@ -624,7 +627,10 @@ const ProgressTab = ({
   }, [userId, bmrCheckpointWeightKg]);
 
   const dismissCheckpointNotice = () => {
-    if (checkpointNotice && userId) AsyncStorage.setItem(`bmr_checkpoint_seen_${userId}`, String(checkpointNotice.newKg));
+    if (checkpointNotice && userId) {
+      AsyncStorage.setItem(`bmr_checkpoint_seen_${userId}`, String(checkpointNotice.newKg));
+      setAccountPref(userId, 'bmrCheckpointSeenKg', checkpointNotice.newKg);
+    }
     setCheckpointNotice(null);
   };
 

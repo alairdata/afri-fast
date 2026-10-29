@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccountPref, setAccountPref } from '../lib/accountPrefs';
 import { OfferScreen, WidgetScreen, WidgetStepsScreen } from './PreAuthOnboarding';
 import { getSubscription, onSubscriptionChange, loadIntroOffer } from '../lib/subscription';
 
@@ -22,6 +23,7 @@ export default function CatchUpPrompts({ userId, name, kcal, newUser, busy }) {
     if (Platform.OS !== 'ios' || !userId || !newUser) return;
     checked.current = true;
     AsyncStorage.setItem(keyFor(userId), '1').catch(() => {});
+    setAccountPref(userId, 'catchUpDone', true);
   }, [userId, newUser]);
 
   useEffect(() => {
@@ -30,9 +32,10 @@ export default function CatchUpPrompts({ userId, name, kcal, newUser, busy }) {
     const t = setTimeout(async () => {
       if (checked.current) return;
       checked.current = true;
-      const done = await AsyncStorage.getItem(keyFor(userId)).catch(() => '1');
+      const done = (await AsyncStorage.getItem(keyFor(userId)).catch(() => '1')) || (await getAccountPref(userId, 'catchUpDone'));
       if (done) return;
       AsyncStorage.setItem(keyFor(userId), '1').catch(() => {});
+      setAccountPref(userId, 'catchUpDone', true);
       // Wait for RevenueCat to say whether this account is on Pro.
       if (!getSubscription().ready) {
         await new Promise((resolve) => {

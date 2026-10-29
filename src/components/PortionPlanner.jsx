@@ -19,6 +19,7 @@ import { saveCustomRecipe } from '../lib/savedRecipes';
 import { fillMethodStep } from '../lib/recipeMethod';
 import { uploadMealPhoto } from '../lib/mealPhotoUpload';
 import { aiHeaders } from '../lib/aiAuth';
+import { getAccountPref, setAccountPref } from '../lib/accountPrefs';
 
 // The recipe's AI photo (a data URI) uploaded to storage, so a saved recipe keeps it. Null if it can't be uploaded.
 async function uploadRecipeImage(dataUri) {
@@ -128,16 +129,19 @@ const SpinRing = () => {
 // Generated recipe photos, kept for the session so reopening a recipe never pays for a second picture.
 const recipeImageCache = new Map();
 
-// The last recipes built from the kitchen (Recents), kept on this phone per account; the newest first.
+// The last recipes built from the kitchen (Recents), kept on the account (and a copy on this phone); the newest first.
 const RECENTS_MAX = 3;
 const recentsKey = (userId) => `logga-kitchen-recents:${userId || 'anon'}`;
 const loadRecents = async (userId) => {
+  const onAccount = await getAccountPref(userId, 'kitchenRecents');
+  if (Array.isArray(onAccount)) return onAccount;
   try { const raw = await AsyncStorage.getItem(recentsKey(userId)); return raw ? JSON.parse(raw) : []; } catch (_) { return []; }
 };
 const addRecent = async (userId, entry) => {
   const list = (await loadRecents(userId)).filter((r) => r.title !== entry.title);
   const next = [entry, ...list].slice(0, RECENTS_MAX);
   AsyncStorage.setItem(recentsKey(userId), JSON.stringify(next)).catch(() => {});
+  setAccountPref(userId, 'kitchenRecents', next);
   return next;
 };
 // "Today", "Yesterday", a weekday within the week, else "3 Oct".

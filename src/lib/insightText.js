@@ -5,6 +5,7 @@
 // Also owns "Got it": a dismissed card stays dismissed until its fingerprint changes.
 import { ensureAiConsent, AiConsentError } from './consent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccountPref, setAccountPref } from './accountPrefs';
 import { Platform } from 'react-native';
 import { aiHeaders } from './aiAuth';
 
@@ -64,14 +65,16 @@ export async function getAiText({ kind, userId, facts, fingerprint, force = fals
 
 // ---- "Got it" -----------------------------------------------------------------------------------
 
+// This phone's copy plus the account's (which wins), so a "Got it" holds on a new phone too.
 export async function getDismissedFingerprints(userId) {
   if (!userId) return {};
+  let local = {};
   try {
     const raw = await AsyncStorage.getItem(dismissKey(userId));
-    return raw ? JSON.parse(raw) : {};
-  } catch (_) {
-    return {};
-  }
+    local = raw ? JSON.parse(raw) : {};
+  } catch (_) {}
+  const onAccount = await getAccountPref(userId, 'dismissedInsights');
+  return { ...local, ...(onAccount && typeof onAccount === 'object' ? onAccount : {}) };
 }
 
 export async function dismissInsight(userId, kind, fingerprint) {
@@ -79,4 +82,5 @@ export async function dismissInsight(userId, kind, fingerprint) {
   const all = await getDismissedFingerprints(userId);
   all[kind] = fingerprint;
   try { await AsyncStorage.setItem(dismissKey(userId), JSON.stringify(all)); } catch (_) {}
+  setAccountPref(userId, 'dismissedInsights', all);
 }

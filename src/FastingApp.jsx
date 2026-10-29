@@ -91,6 +91,7 @@ import { initSubscriptions, signOutSubscriptions, useSubscription, openPaywall, 
 import { ensureAiConsent, CONSENT_KEYS_KEPT_ON_LOGOUT, resetConsentMemory } from './lib/consent';
 import { showAlert } from './lib/alert';
 import { aiHeaders } from './lib/aiAuth';
+import { getAccountPref, setAccountPref } from './lib/accountPrefs';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -1059,20 +1060,22 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   // Request notification permissions
   useEffect(() => { requestNotificationPermissions(); }, []);
 
+  // Community photo sharing: the phone's copy first, then the account's (which wins, so it follows them to a new phone).
   useEffect(() => {
+    const apply = (v) => { if (v != null) { setShareCommunityPhotos(v); setCommunitySharingEnabled(v); } };
     AsyncStorage.getItem(PRIVACY_SETTINGS_KEY).then((raw) => {
       if (!raw) return;
-      try {
-        const v = JSON.parse(raw).shareCommunityPhotos;
-        if (v != null) { setShareCommunityPhotos(v); setCommunitySharingEnabled(v); }
-      } catch (_) {}
-    }).catch(() => {});
-  }, []);
+      try { apply(JSON.parse(raw).shareCommunityPhotos); } catch (_) {}
+    }).catch(() => {})
+      .then(() => getAccountPref(session?.user?.id, 'shareCommunityPhotos'))
+      .then(apply);
+  }, [session?.user?.id]);
 
   const handleToggleShareCommunityPhotos = (val) => {
     setShareCommunityPhotos(val);
     setCommunitySharingEnabled(val);
     AsyncStorage.setItem(PRIVACY_SETTINGS_KEY, JSON.stringify({ shareCommunityPhotos: val })).catch(() => {});
+    setAccountPref(session?.user?.id, 'shareCommunityPhotos', !!val);
     // Withdrawing consent also takes back what was already shared.
     if (!val && session?.user?.id) {
       supabase.from('recipe_community_photos').delete().eq('user_id', session.user.id).then(() => {}, () => {});
@@ -1125,11 +1128,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     (async () => {
       const storeKey = `${MILESTONES_FIRED_KEY}_${session.user.id}`;
       if (!milestonesFiredRef.current) {
-        try {
-          milestonesFiredRef.current = new Set(JSON.parse((await AsyncStorage.getItem(storeKey)) || '[]'));
-        } catch (_) {
-          milestonesFiredRef.current = new Set();
-        }
+        let local = [];
+        try { local = JSON.parse((await AsyncStorage.getItem(storeKey)) || '[]'); } catch (_) {}
+        // plus the ones already celebrated on another phone (kept on the account)
+        const onAccount = await getAccountPref(session.user.id, 'milestonesFired');
+        milestonesFiredRef.current = new Set([...(Array.isArray(local) ? local : []), ...(Array.isArray(onAccount) ? onAccount : [])]);
       }
       if (cancelled) return;
       const fired = milestonesFiredRef.current;
@@ -1141,6 +1144,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       if (!earned.length) return;
       earned.forEach((m) => fired.add(m.key));
       AsyncStorage.setItem(storeKey, JSON.stringify([...fired])).catch(() => {});
+      setAccountPref(session.user.id, 'milestonesFired', [...fired]);
       for (const m of earned) {
         if (Platform.OS === 'web') showToast(`${m.title}: ${m.body}`);
         else await fireCelebrationNotification(m.title, m.body).catch(() => {});
@@ -1154,26 +1158,30 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   // Reminder toggles + times persist on the device, and the scheduled notifications are always
   // derived from them (schedule what's on, cancel what's off), so the Settings screen can never
   // disagree with what's actually scheduled -- including after an app restart.
+  // The phone's copy first, then the account's (which wins, so the choices follow them to a new phone). Saving only
+  // starts once both are read, so the defaults can never overwrite what the account already holds.
   useEffect(() => {
+    const apply = (n) => {
+      if (!n || typeof n !== 'object') return;
+      if (n.notifyMealReminder != null) setNotifyMealReminder(n.notifyMealReminder);
+      if (n.notifyMilestones != null) setNotifyMilestones(n.notifyMilestones);
+      if (n.notifySmart != null) setNotifySmart(n.notifySmart);
+      if (n.mealReminderTime) setMealReminderTime(n.mealReminderTime);
+      if (n.milestoneConfig) setMilestoneConfig(n.milestoneConfig);
+    };
     AsyncStorage.getItem(NOTIF_SETTINGS_KEY).then((raw) => {
-      if (raw) {
-        try {
-          const n = JSON.parse(raw);
-          if (n.notifyMealReminder != null) setNotifyMealReminder(n.notifyMealReminder);
-          if (n.notifyMilestones != null) setNotifyMilestones(n.notifyMilestones);
-          if (n.notifySmart != null) setNotifySmart(n.notifySmart);
-          if (n.mealReminderTime) setMealReminderTime(n.mealReminderTime);
-          if (n.milestoneConfig) setMilestoneConfig(n.milestoneConfig);
-        } catch (_) {}
-      }
-    }).catch(() => {}).finally(() => setNotifSettingsLoaded(true));
+      if (raw) { try { apply(JSON.parse(raw)); } catch (_) {} }
+    }).catch(() => {})
+      .then(() => getAccountPref(session?.user?.id, 'notifications'))
+      .then(apply)
+      .finally(() => setNotifSettingsLoaded(true));
   }, []);
 
   useEffect(() => {
     if (!notifSettingsLoaded) return;
-    AsyncStorage.setItem(NOTIF_SETTINGS_KEY, JSON.stringify({
-      notifyMealReminder, notifyMilestones, notifySmart, mealReminderTime, milestoneConfig,
-    })).catch(() => {});
+    const notifSettings = { notifyMealReminder, notifyMilestones, notifySmart, mealReminderTime, milestoneConfig };
+    AsyncStorage.setItem(NOTIF_SETTINGS_KEY, JSON.stringify(notifSettings)).catch(() => {});
+    setAccountPref(session?.user?.id, 'notifications', notifSettings);
     if (Platform.OS === 'web') return;
     (async () => {
       if (!(await requestNotificationPermissions())) return;
