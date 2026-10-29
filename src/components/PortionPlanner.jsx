@@ -14,6 +14,7 @@ import { track } from '../lib/analytics';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 import { SourcesLink } from './HealthSourcesPage';
 import { estimateSatiety, satietyProfile, formatHalfHours, gramsOf, PROFILE } from '../lib/satiety';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveCustomRecipe } from '../lib/savedRecipes';
 import { fillMethodStep } from '../lib/recipeMethod';
 import { uploadMealPhoto } from '../lib/mealPhotoUpload';
@@ -84,6 +85,29 @@ const COPY = {
 
 // Generated recipe photos, kept for the session so reopening a recipe never pays for a second picture.
 const recipeImageCache = new Map();
+
+// The last recipes built from the kitchen (Recents), kept on this phone per account; the newest first.
+const RECENTS_MAX = 3;
+const recentsKey = (userId) => `logga-kitchen-recents:${userId || 'anon'}`;
+const loadRecents = async (userId) => {
+  try { const raw = await AsyncStorage.getItem(recentsKey(userId)); return raw ? JSON.parse(raw) : []; } catch (_) { return []; }
+};
+const addRecent = async (userId, entry) => {
+  const list = (await loadRecents(userId)).filter((r) => r.title !== entry.title);
+  const next = [entry, ...list].slice(0, RECENTS_MAX);
+  AsyncStorage.setItem(recentsKey(userId), JSON.stringify(next)).catch(() => {});
+  return next;
+};
+// "Today", "Yesterday", a weekday within the week, else "3 Oct".
+const whenLabel = (at) => {
+  const d = new Date(at), now = new Date();
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(now) - day(d)) / 86400000);
+  if (diff <= 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  if (diff < 7) return d.toLocaleDateString('en-US', { weekday: 'short' });
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+};
 
 const readUriAsBase64 = async (uri) => {
   if (Platform.OS === 'web') {
@@ -188,6 +212,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const [pct, setPct] = useState(0);
   const [error, setError] = useState(null);
   const [plan, setPlan] = useState(null);
+  const [recents, setRecents] = useState([]);
   // The plate as a list of foods, the same shape (and editing) as a scanned meal's detected foods.
   const [foods, setFoods] = useState([]);
   const resultRef = useRef(null);
@@ -281,6 +306,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   useEffect(() => {
     if (!visible) return;
     setStep('input'); setText(''); setPhoto(null); setPlan(null); setError(null); setServings(1); setRecipeImage(null); setSavedRecipe(false);
+    if (kitchen) loadRecents(userId).then(setRecents);
     const left = Math.max(0, Math.round(caloriesLeft));
     setUseAll(false);
     setAmount(left >= 150 ? Math.min(left, Math.max(100, Math.round((left * 0.6) / 10) * 10)) : 300);
@@ -324,8 +350,16 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   }, [step]);
   useEffect(() => {
     if (pct === 100 && resultRef.current?.foods) {
-      setPlan(resultRef.current);
-      setFoods(resultRef.current.foods.map(toFood));
+      const built = resultRef.current;
+      const builtFoods = built.foods.map(toFood);
+      setPlan(built);
+      setFoods(builtFoods);
+      if (kitchen && built.title) {
+        addRecent(userId, {
+          title: built.title, at: Date.now(), budget: chosen, servings,
+          cal: Math.round(builtFoods.reduce((sum, f) => sum + (f.cal || 0), 0)), plan: built,
+        }).then(setRecents);
+      }
     }
   }, [pct]);
 
@@ -466,10 +500,12 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const shown = labels.slice(0, Math.min(stepIdx, labels.length - 1) + 1);
   const ready = pct >= 100 && !!resultRef.current?.foods;
   const C = 2 * Math.PI * 60;
+  const C62 = 2 * Math.PI * 62;
+  const kitchenLoadingWhite = kitchen && step === 'loading';
 
   return (
-    <View style={styles.overlay}>
-      <HeaderFade bg="#F9FAFB" scrollY={pageFade.scrollY} />
+    <View style={[styles.overlay, kitchenLoadingWhite && { backgroundColor: '#fff' }]}>
+      <HeaderFade bg={kitchenLoadingWhite ? '#fff' : '#F9FAFB'} scrollY={pageFade.scrollY} />
 
       {/* 1. What you have (also sits behind the "how much" sheet) */}
       {(step === 'input' || step === 'budget') && (
@@ -498,6 +534,33 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 </View>
               ))}
             </View>
+            {kitchen && recents.length > 0 && (
+              <>
+                <Text style={[styles.kicker, { marginTop: 16 }]}>RECENTS</Text>
+                <View style={styles.whenCard}>
+                  {recents.map((r, i) => (
+                    <TouchableOpacity
+                      key={r.title + r.at}
+                      style={[styles.recentRow, i < recents.length - 1 && styles.rowDivider]}
+                      activeOpacity={0.7}
+                      accessibilityLabel={`Open ${r.title}`}
+                      onPress={() => {
+                        setPlan(r.plan); setFoods((r.plan.foods || []).map(toFood));
+                        setUseAll(false); setAmount(r.budget || 450); setServings(r.servings || 1);
+                        setRecipeImage(null); setSavedRecipe(false); resetEditing(); setStep('plate');
+                      }}
+                    >
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.whenTitle} numberOfLines={1}>{r.title}</Text>
+                        <Text style={styles.whenSub}>{r.cal.toLocaleString()} cal</Text>
+                      </View>
+                      <Text style={styles.recentWhen}>{whenLabel(r.at)}</Text>
+                      <Ionicons name="chevron-forward" size={16} color="#C4C8CE" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
           </ScrollView>
 
           <View style={styles.composerWrap}>
@@ -645,21 +708,30 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
       {/* 3. Fitting it in: a 0 to 100% ring with the steps ticking in */}
       {step === 'loading' && (
         <View style={{ flex: 1 }}>
-          <View style={styles.loadingTop}>
+          <View style={[styles.loadingTop, kitchen && { paddingTop: 60 }]}>
             <View style={{ width: 140, height: 140 }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: pct }}>
-              <Svg width={140} height={140} viewBox="0 0 140 140" style={StyleSheet.absoluteFill}>
-                <Circle cx={70} cy={70} r={60} fill="#fff" stroke="#E3F5EA" strokeWidth={10} />
-                <Circle cx={70} cy={70} r={60} fill="none" stroke={GREEN} strokeWidth={10} strokeLinecap="round" strokeDasharray={`${(C * pct) / 100} ${C}`} transform="rotate(-90 70 70)" />
-              </Svg>
+              {kitchen ? (
+                <Svg width={140} height={140} viewBox="0 0 140 140" style={StyleSheet.absoluteFill}>
+                  <Circle cx={70} cy={70} r={62} fill="none" stroke="#EEF0EC" strokeWidth={7} />
+                  <Circle cx={70} cy={70} r={62} fill="none" stroke={GREEN} strokeWidth={7} strokeLinecap="round" strokeDasharray={`${(C62 * pct) / 100} ${C62}`} transform="rotate(-90 70 70)" />
+                </Svg>
+              ) : (
+                <Svg width={140} height={140} viewBox="0 0 140 140" style={StyleSheet.absoluteFill}>
+                  <Circle cx={70} cy={70} r={60} fill="#fff" stroke="#E3F5EA" strokeWidth={10} />
+                  <Circle cx={70} cy={70} r={60} fill="none" stroke={GREEN} strokeWidth={10} strokeLinecap="round" strokeDasharray={`${(C * pct) / 100} ${C}`} transform="rotate(-90 70 70)" />
+                </Svg>
+              )}
               <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-                <Text style={styles.pctText}>{pct}<Text style={styles.pctSign}>%</Text></Text>
+                {kitchen
+                  ? <Text style={[styles.kitchenNum, ready && { color: GREEN }]}>{pct}</Text>
+                  : <Text style={styles.pctText}>{pct}<Text style={styles.pctSign}>%</Text></Text>}
               </View>
             </View>
             <Text style={styles.loadingTitle}>{error ? copy.errorTitle : ready ? copy.readyTitle : copy.loadingTitle}</Text>
             <Text style={styles.loadingSub}>{error || copy.loadingSub(chosen)}</Text>
           </View>
           {!error && (
-            <View style={styles.stepsCard}>
+            <View style={kitchen ? styles.kitchenSteps : styles.stepsCard}>
               {shown.map((label, i) => {
                 const done = i < stepIdx;
                 return (
@@ -675,7 +747,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               })}
             </View>
           )}
-          <View style={styles.bottomCta}>
+          <View style={[styles.bottomCta, kitchen && { backgroundColor: 'rgba(255,255,255,0.96)' }]}>
             {error ? (
               <>
                 <TouchableOpacity style={styles.primaryBtn} onPress={run}><Text style={styles.primaryBtnText}>Try again</Text></TouchableOpacity>
@@ -1025,6 +1097,11 @@ const styles = StyleSheet.create({
   loadingSub: { marginTop: 8, fontSize: 14, lineHeight: 20, color: '#4B5563', textAlign: 'center' },
   stepsCard: { marginTop: 28, marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB', paddingVertical: 6, paddingHorizontal: 16 },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  // Building your recipe (kitchen): plain white, the steps straight on the page, the number with no %
+  kitchenNum: { fontSize: 40, fontWeight: '600', letterSpacing: -1.5, color: INK, fontVariant: ['tabular-nums'] },
+  kitchenSteps: { marginTop: 36, marginHorizontal: 28 },
+  recentRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 16 },
+  recentWhen: { fontSize: 12.5, color: '#9CA3AF' },
   stepDone: { width: 22, height: 22, borderRadius: 11, backgroundColor: GREEN, alignItems: 'center', justifyContent: 'center' },
   stepText: { fontSize: 14, fontWeight: '600', color: INK, flex: 1 },
   bottomCta: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 34, backgroundColor: 'rgba(249,250,251,0.96)', gap: 10 },
