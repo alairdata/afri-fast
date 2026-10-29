@@ -1153,7 +1153,7 @@ const BUILD_STEPS = [
 ];
 const QUICK = {
   water: {
-    lumi: 'water', at: [0, 7],
+    lumi: 'water', at: [0, 100],
     title: 'How much water do you drink a day?',
     sub: 'Counted in sachets, so your water goal makes sense.',
     opts: [['none', 'Barely any'], ['1-2', '1 to 2 sachets'], ['3-4', '3 to 4 sachets'], ['5+', '5 sachets or more']],
@@ -1209,7 +1209,7 @@ function QuickQuestion({ q, onAnswer }) {
   );
 }
 
-// Four steps, each with its own bar. Two quick questions pop up on the way: water early in step 1,
+// Four steps, each with its own bar. Two quick questions pop up on the way: water once step 1 is full,
 // meals near the end of step 3. Then it moves on to the plan by itself.
 function BuildingScreen({ d, set, next }) {
   const first = firstName(d);
