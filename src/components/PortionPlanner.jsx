@@ -1037,7 +1037,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={styles.foodName}>{food.name}</Text>
-                      {food.locked && !kitchen && <View style={styles.yoursTag}><Ionicons name="lock-closed" size={9} color="#047857" /><Text style={styles.yoursTagText}>Yours</Text></View>}
+                      {food.locked && <View style={styles.yoursTag}><Ionicons name="lock-closed" size={9} color="#047857" /><Text style={styles.yoursTagText}>Yours</Text></View>}
                     </View>
                     {editingQtyIdx === i ? (
                       <View style={styles.editQtyRow}>
