@@ -1741,7 +1741,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
             {renderCheckInWidget()}
 
-            <TouchableOpacity style={[styles.logBtn, { marginHorizontal: 20 }]} onPress={logRecipeMeal}>
+            <TouchableOpacity style={[styles.logBtn, { marginHorizontal: 20 }]} onPress={() => requestLog(logRecipeMeal)}>
               <Text style={styles.logBtnText}>Log Meal</Text>
             </TouchableOpacity>
           </ScrollView>
