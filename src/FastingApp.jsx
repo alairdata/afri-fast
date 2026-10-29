@@ -74,6 +74,7 @@ import PortionPlanner from './components/PortionPlanner';
 import { computeTdeeSummary } from './lib/tdeeSummary';
 import { processPendingMealPhotos } from './lib/mealPhotoUpload';
 import { AFRICAN_RECIPES } from './lib/africanRecipes';
+import { loadRecipes } from './lib/recipes';
 import { uploadAvatar } from './lib/avatarUpload';
 import { quickWaterIncrement, quickWaterLabel } from './lib/waterQuickAdd';
 import MakeRecipePage from './components/MakeRecipePage';
@@ -1318,6 +1319,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     return () => sub.remove();
   }, []);
 
+
+  // The recipes edited in the admin portal (see lib/recipes.js); the built-in list shows until they arrive.
+  useEffect(() => { if (session?.user?.id) loadRecipes(); }, [session?.user?.id]);
 
   // Fetch meals from Supabase
   useEffect(() => {

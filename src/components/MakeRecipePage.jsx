@@ -7,6 +7,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
+import { useRecipesVersion } from '../lib/recipes';
 import { useSubscription } from '../lib/subscription';
 import { unlock } from './ProLock';
 import LumiRive from './LumiRive';
@@ -545,7 +546,8 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
   const cameraRef = useRef(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
-  const visibleRecipes = useMemo(() => recipesForCountry(userCountry), [userCountry]);
+  const recipesVersion = useRecipesVersion(); // the list from Supabase arrived or changed
+  const visibleRecipes = useMemo(() => recipesForCountry(userCountry), [userCountry, recipesVersion]);
   const freeRecipeIds = useMemo(() => {
     const ids = new Set();
     RECIPE_CATEGORIES.forEach(cat => { const first = visibleRecipes.find(r => r.category === cat); if (first) ids.add(first.id); });
