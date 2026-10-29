@@ -116,7 +116,12 @@ export function calcPlan(d) {
   const weeks = d.targetKg < d.weightKg && gap > 0 ? Math.max(1, Math.round(gap / rate)) : 0;
   const protein = Math.round(d.weightKg * 1.6);
   const water = Math.max(2, Math.round(d.weightKg * 0.033 * 10) / 10);
-  return { tdee: Math.round(tdee), target, weeks, protein, water, deficit };
+  // The starting plan's water (to the nearest half litre, i.e. whole 500 ml sachets) and steps (by how active
+  // a normal day is), and its macros from the app's balanced split (30% protein, 40% carbs, 30% fat).
+  const waterL = Math.max(2, Math.round(water * 2) / 2);
+  const steps = { sedentary: 6000, light: 8000, moderate: 10000, active: 12000 }[d.activity] || 8000;
+  const macros = { protein: Math.round((target * 0.3) / 4), carbs: Math.round((target * 0.4) / 4), fats: Math.round((target * 0.3) / 9) };
+  return { tdee: Math.round(tdee), target, weeks, protein, water, deficit, waterL, steps, macros, rate };
 }
 
 const PACE_RATE = { slow: 0.25, moderate: 0.5, aggressive: 0.75, extreme: 1.0 };
@@ -178,6 +183,8 @@ function buildAnswers(d) {
     whys: d.whys,
     goalDate,
     dailyCalorieGoal: plan.target,
+    hydrationGoal: plan.waterL * 2, // in 500 ml sachets, the unit a new account starts with
+    stepGoal: plan.steps,
   };
 }
 
@@ -398,13 +405,13 @@ const HOOK_PLATES = [
   { img: require('../../assets/welcome/jollof-plantain-chicken.jpg'), left: 4, top: 22, size: 168 },
   { img: require('../../assets/welcome/pepper-soup.jpg'), left: 200, top: 4, size: 120 },
   { img: require('../../assets/welcome/ampesi-egg-stew.jpg'), left: 186, top: 160, size: 132 },
-  { img: require('../../assets/welcome/koose.jpg'), left: 62, top: 206, size: 108 },
+  { img: require('../../assets/welcome/porridge-akara.jpg'), left: 62, top: 206, size: 108 },
 ];
 const HOOK_TAGS = [
   { label: 'Jollof, plantain & chicken', kcal: 1010, style: { left: 0, top: 166 } },
   { label: 'Pepper soup', kcal: 250, style: { right: 14, top: 110 } },
   { label: 'Ampesi & egg stew', kcal: 450, style: { right: -4, top: 280 } },
-  { label: 'Koose', kcal: 410, style: { left: 40, top: 302 } },
+  { label: 'Porridge & akara', kcal: 410, style: { left: 40, top: 302 } },
 ];
 
 function HookScreen({ next, onLogin }) {
@@ -413,7 +420,7 @@ function HookScreen({ next, onLogin }) {
       <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 92, height: 34 }} resizeMode="contain" accessibilityLabel="Logga" />
       <View style={s.hookHero}>
         <Sparkles />
-        <View style={s.hookPlates} accessible accessibilityRole="image" accessibilityLabel="Real plates of jollof with plantain and chicken, pepper soup, ampesi with egg stew and koose, each tagged with its calories">
+        <View style={s.hookPlates} accessible accessibilityRole="image" accessibilityLabel="Real plates of jollof with plantain and chicken, pepper soup, ampesi with egg stew and porridge with akara, each tagged with its calories">
           {HOOK_PLATES.map((p, i) => (
             <Image key={i} source={p.img} style={[s.hookPlate, { left: p.left, top: p.top, width: p.size, height: p.size, borderRadius: p.size / 2 }]} />
           ))}
@@ -1300,6 +1307,7 @@ function BuildingScreen({ d, set, next }) {
 
 function DoneScreen({ d, onNext, onStartOver }) {
   const plan = calcPlan(d);
+  const win = predictedWindow(d);
   const first = firstName(d) || 'friend';
   return (
     <View style={[s.shell, { backgroundColor: C.plan }]}>
@@ -1314,6 +1322,29 @@ function DoneScreen({ d, onNext, onStartOver }) {
         <View style={s.planNumberWrap}>
           <Text style={s.planNumber}>{plan.target.toLocaleString()}</Text>
           <Text style={s.planNumberUnit}>calories a day</Text>
+        </View>
+        <View style={[s.planBox, s.planMacros]}>
+          {[['Protein', plan.macros.protein, 30, C.primary], ['Carbs', plan.macros.carbs, 40, '#34D399'], ['Fat', plan.macros.fats, 30, '#A7F3D0']].map(([label, g, pct, color]) => (
+            <View key={label} style={{ flex: 1 }}>
+              <Text style={s.planMacroLabel}>{label}</Text>
+              <Text style={s.planMacroNum}>{g}<Text style={s.planMacroUnit}> g</Text></Text>
+              <View style={s.planMacroTrack}><View style={[s.planMacroFill, { width: `${pct}%`, backgroundColor: color }]} /></View>
+            </View>
+          ))}
+        </View>
+        <View style={[s.planBox, s.planList]}>
+          {[
+            ['flag-outline', 'Goal', win ? `${weightText(d.targetKg, d.unitW)} by ${win.end}` : weightText(d.targetKg, d.unitW)],
+            ['water-outline', 'Water', `${plan.waterL} L a day`],
+            ['footsteps-outline', 'Steps', `${plan.steps.toLocaleString()} a day`],
+            ['speedometer-outline', 'Pace', `${d.unitW === 'lb' ? `${Math.round(plan.rate * 2.2046 * 10) / 10} lb` : `${plan.rate} kg`} a week`],
+          ].filter((row) => row[0] !== 'speedometer-outline' || d.targetKg < d.weightKg).map(([icon, label, value], i, rows) => (
+            <View key={label} style={[s.planRow2, i < rows.length - 1 && s.planRowLine]}>
+              <View style={s.planRowIcon}><Ionicons name={icon} size={16} color={C.ink500} /></View>
+              <Text style={s.planRowLabel}>{label}</Text>
+              <Text style={s.planRowValue}>{value}</Text>
+            </View>
+          ))}
         </View>
         <Text style={s.planNote}>Logga is a tracking tool, not medical advice. Talk to a qualified professional before changing your diet or exercise.</Text>
       </ScrollView>
@@ -2168,6 +2199,19 @@ const s = StyleSheet.create({
   qqSkip: { height: 42, marginTop: 6, alignItems: 'center', justifyContent: 'center' },
 
   // Plan
+  planBox: { backgroundColor: '#fff', borderRadius: 18, shadowColor: '#0B3D2E', shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
+  planMacros: { marginTop: 22, flexDirection: 'row', gap: 18, padding: 16 },
+  planMacroLabel: { fontSize: 12.5, fontWeight: '700', color: '#6c7872' },
+  planMacroNum: { marginTop: 4, fontSize: 20, fontWeight: '800', letterSpacing: -0.4, color: C.ink },
+  planMacroUnit: { fontSize: 13, fontWeight: '700', color: '#97a19b' },
+  planMacroTrack: { marginTop: 8, height: 4, borderRadius: 2, backgroundColor: '#EEF0EC', overflow: 'hidden' },
+  planMacroFill: { height: 4, borderRadius: 2 },
+  planList: { marginTop: 14, paddingVertical: 2, paddingHorizontal: 16 },
+  planRow2: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 50 },
+  planRowLine: { borderBottomWidth: 1, borderBottomColor: '#EEF0EC' },
+  planRowIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: '#F3F4F2', alignItems: 'center', justifyContent: 'center' },
+  planRowLabel: { flex: 1, fontSize: 14.5, fontWeight: '600', color: '#374151' },
+  planRowValue: { fontSize: 14.5, fontWeight: '600', color: C.ink },
   planKicker: { fontSize: 11.5, fontWeight: '800', color: C.ink400, letterSpacing: 1.8, marginBottom: 8 },
   planHeadline: { fontSize: 26, fontWeight: '800', color: C.ink, lineHeight: 32, letterSpacing: -0.6 },
   planNumberWrap: { marginTop: 16, marginBottom: 18 },

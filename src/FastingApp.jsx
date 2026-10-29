@@ -1750,6 +1750,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
               protein_goal: Math.round((onboardingCal * split.protein) / 4),
               carbs_goal: Math.round((onboardingCal * split.carbs) / 4),
               fats_goal: Math.round((onboardingCal * split.fats) / 9),
+              // the water and steps the starting plan showed
+              ...(Number(pendingPreAuthData.hydrationGoal) > 0 ? { hydration_goal: Number(pendingPreAuthData.hydrationGoal) } : {}),
+              ...(Number(pendingPreAuthData.stepGoal) > 0 ? { step_goal: Number(pendingPreAuthData.stepGoal) } : {}),
             })
             .eq('id', session.user.id);
           if (!isNewAccount) q = q.is('daily_calorie_goal', null);
@@ -1759,7 +1762,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
         // Show exactly what is now saved (name, calorie goal, macros), so the screen matches the account.
         const { data: saved } = await supabase.from('profiles')
-          .select('name, daily_calorie_goal, protein_goal, carbs_goal, fats_goal')
+          .select('name, daily_calorie_goal, protein_goal, carbs_goal, fats_goal, hydration_goal, step_goal')
           .eq('id', session.user.id).maybeSingle();
         if (!cancelled && saved) {
           if (saved.name) setUserName(saved.name);
@@ -1767,6 +1770,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           if (saved.protein_goal != null) setProteinGoal(saved.protein_goal);
           if (saved.carbs_goal != null) setCarbsGoal(saved.carbs_goal);
           if (saved.fats_goal != null) setFatsGoal(saved.fats_goal);
+          if (saved.hydration_goal != null) setHydrationGoal(saved.hydration_goal);
+          if (saved.step_goal != null) setStepGoal(saved.step_goal);
         }
 
         if (pendingPreAuthData.currentWeight && weightLogs.length === 0) {
