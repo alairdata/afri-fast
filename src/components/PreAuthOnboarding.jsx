@@ -1219,31 +1219,35 @@ function BuildingScreen({ d, set, next }) {
   const paused = useRef(false);
   const done = useRef(false);
 
+  const elapsed = useRef([0, 0, 0, 0]); // ms each bar has run (the bars are worked out from this)
+
   useEffect(() => {
-    const STEP_MS = 1500;
+    // How long each bar takes (about 12 s in all). Each starts quick and slows as it nears 100%, like real work.
+    const STEP_MS = [2500, 3500, 3000, 3000];
     const DT = 40;
+    const ease = (x) => 1 - Math.pow(1 - x, 2.5);
     const iv = setInterval(() => {
       if (paused.current || done.current) return;
-      setProg((prev) => {
-        const i = prev.findIndex((v) => v < 100);
-        if (i < 0) return prev;
-        const nextVal = Math.min(100, prev[i] + (100 * DT) / STEP_MS);
-        for (const key of Object.keys(QUICK)) {
-          const [si, pct] = QUICK[key].at;
-          if (si === i && !asked.current[key] && nextVal >= pct) {
-            asked.current[key] = true;
-            paused.current = true;
-            setAsk(key);
-            const out = [...prev]; out[i] = pct; return out;
-          }
+      const el = elapsed.current;
+      const i = el.findIndex((t, k) => t < STEP_MS[k]);
+      if (i < 0) return;
+      el[i] = Math.min(STEP_MS[i], el[i] + DT);
+      const frac = el[i] / STEP_MS[i];
+      let val = frac >= 1 ? 100 : ease(frac) * 100;
+      for (const key of Object.keys(QUICK)) {
+        const [si, pct] = QUICK[key].at;
+        if (si === i && !asked.current[key] && val >= pct) {
+          asked.current[key] = true;
+          paused.current = true;
+          val = pct;
+          setAsk(key);
         }
-        const out = [...prev]; out[i] = nextVal;
-        if (i === 3 && nextVal >= 100 && !done.current) {
-          done.current = true;
-          setTimeout(next, 500);
-        }
-        return out;
-      });
+      }
+      setProg(el.map((t, k) => (k === i ? val : t >= STEP_MS[k] ? 100 : 0)));
+      if (i === 3 && frac >= 1) {
+        done.current = true;
+        setTimeout(next, 500);
+      }
     }, DT);
     return () => clearInterval(iv);
   }, []);
