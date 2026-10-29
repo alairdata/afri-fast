@@ -112,6 +112,34 @@ function DoodleAuth() {
 const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 // The log-in sheet over the welcome screen, and the email and code screens after it.
+// Sign up (after Create my account), as on the canvas
+const su = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  wave: { position: 'absolute', top: 0, left: 0, right: 0 },
+  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: Platform.OS === 'ios' ? 80 : 60, paddingBottom: 30 },
+  middle: { flex: 1, justifyContent: 'center', paddingBottom: 20 },
+  title: { fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.8, color: '#16201b', textAlign: 'center' },
+  sub: { marginTop: 10, marginHorizontal: 20, fontSize: 14.5, lineHeight: 21, color: '#6c7872', textAlign: 'center' },
+  socialRow: { marginTop: 30, flexDirection: 'row', gap: 12 },
+  socialBtn: { flex: 1, height: 54, borderRadius: 999, backgroundColor: '#F3F4F2', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  socialTxt: { fontSize: 15, fontWeight: '600', color: '#16201b' },
+  divider: { marginVertical: 24, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  divLine: { flex: 1, height: 1, backgroundColor: '#EEF0EC' },
+  divTxt: { fontSize: 13, color: '#A3ACA7' },
+  label: { fontSize: 13.5, fontWeight: '600', color: '#6c7872', marginBottom: 8, marginLeft: 4 },
+  field: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 54, paddingLeft: 20, paddingRight: 20, borderRadius: 999, backgroundColor: '#F3F4F2' },
+  fieldErr: { backgroundColor: '#FFF1F1' },
+  input: { flex: 1, minWidth: 0, fontSize: 15.5, fontWeight: '500', color: '#16201b', ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) },
+  eye: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  hint: { marginTop: 8, marginRight: 6, fontSize: 12.5, color: '#A3ACA7', textAlign: 'right' },
+  createBtn: { height: 56, borderRadius: 999, backgroundColor: '#16201b', alignItems: 'center', justifyContent: 'center' },
+  createTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  have: { marginTop: 16, textAlign: 'center', fontSize: 14, color: '#6c7872' },
+  haveLink: { color: '#16201b', fontWeight: '700' },
+  legal: { marginTop: 10, textAlign: 'center', fontSize: 12, lineHeight: 18, color: '#A3ACA7' },
+  legalLink: { color: '#6c7872', fontWeight: '600' },
+});
+
 const lg = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 10, paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 28 },
@@ -313,7 +341,6 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [focused, setFocused] = useState('');
   const [screen, setScreen] = useState(preAuthData?.completedAt ? 'auth' : 'onboarding'); // 'onboarding' | 'auth' | 'confirm'
   const [rawOnboarding, setRawOnboarding] = useState(null);
-  const [showEmailForm, setShowEmailForm] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [confirmEmail, setConfirmEmail] = useState('');
   const [resendIn, setResendIn] = useState(0);
@@ -712,66 +739,87 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   if (mode === 'signup') {
     const shownName = displayName(name);
     return (
-      <KeyboardAvoidingView style={ca.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={ca.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <AuthTop onBack={() => setScreen('onboarding')} />
+      <KeyboardAvoidingView style={su.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* soft green wave across the top */}
+        <Svg width="100%" height={156} viewBox="0 0 390 156" preserveAspectRatio="none" style={su.wave} pointerEvents="none">
+          <Path d="M-10 -2 L-10 134 C 30 134, 70 126, 104 100 C 128 81, 146 70, 168 70 C 200 70, 228 88, 262 100 C 304 115, 342 130, 400 144 L 400 -2 Z" fill="#E6F8EF" />
+          <Path d="M-10 134 C 30 134, 70 126, 104 100 C 128 81, 146 70, 168 70 C 200 70, 228 88, 262 100 C 304 115, 342 130, 400 144" fill="none" stroke="#6EE7B7" strokeWidth={2.5} strokeLinecap="round" />
+        </Svg>
+        <ScrollView contentContainerStyle={su.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={su.middle}>
+            <Text style={su.title}>Save your plan{shownName ? `, ${shownName}` : ''}</Text>
+            <Text style={su.sub}>Create an account so your plan and progress stay safe on any phone.</Text>
 
-          <Text style={[ca.headline, { textAlign: 'center' }]}>
-            Save your plan{shownName ? ', ' : ''}
-            {shownName ? <Text style={ca.headlineAccent}>{shownName}</Text> : null}
-          </Text>
-          <Text style={[ca.subtitle, { textAlign: 'center' }]}>Create your account so your plan and progress are safe on any phone.</Text>
+            <View style={su.socialRow}>
+              <TouchableOpacity style={su.socialBtn} activeOpacity={0.85} onPress={() => handleOAuth('google')}>
+                <Ionicons name="logo-google" size={18} color="#4285F4" />
+                <Text style={su.socialTxt}>Google</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={su.socialBtn} activeOpacity={0.85} onPress={() => handleOAuth('apple')}>
+                <Ionicons name="logo-apple" size={19} color="#16201b" />
+                <Text style={su.socialTxt}>Apple</Text>
+              </TouchableOpacity>
+            </View>
 
-          {!showEmailForm ? (
-            <Image source={require('../../assets/lumi/lumi-account.png')} style={ca.lumi} resizeMode="contain" accessibilityLabel="Lumi" />
-          ) : null}
+            <View style={su.divider}>
+              <View style={su.divLine} />
+              <Text style={su.divTxt}>or</Text>
+              <View style={su.divLine} />
+            </View>
 
-          <TouchableOpacity style={ca.appleBtn} activeOpacity={0.85} onPress={() => handleOAuth('apple')}>
-            <Ionicons name="logo-apple" size={20} color="#fff" />
-            <Text style={ca.appleTxt}>Continue with Apple</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={ca.googleBtn} activeOpacity={0.85} onPress={() => handleOAuth('google')}>
-            <Ionicons name="logo-google" size={18} color="#444" />
-            <Text style={ca.googleTxt}>Continue with Google</Text>
-          </TouchableOpacity>
+            <Text style={su.label}>Email address</Text>
+            <View style={[su.field, touched.email && !email.trim() && su.fieldErr]}>
+              <TextInput
+                style={su.input}
+                placeholder="you@example.com"
+                placeholderTextColor="#A3ACA7"
+                value={email}
+                onChangeText={(v) => { setEmail(v); setTouched((t) => ({ ...t, email: true })); }}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                autoComplete="email"
+              />
+            </View>
 
-          {!showEmailForm ? (
-            <TouchableOpacity style={ca.emailToggle} onPress={() => setShowEmailForm(true)} activeOpacity={0.7}>
-              <Text style={ca.emailToggleTxt}>Use email instead</Text>
+            <Text style={[su.label, { marginTop: 18 }]}>Password</Text>
+            <View style={[su.field, { paddingRight: 12 }, touched.password && !password && su.fieldErr]}>
+              <TextInput
+                style={su.input}
+                value={password}
+                onChangeText={(v) => { setPassword(v); setTouched((t) => ({ ...t, password: true })); }}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                textContentType="newPassword"
+                autoComplete="new-password"
+              />
+              <TouchableOpacity onPress={() => setShowPassword((v) => !v)} style={su.eye} accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
+                <Ionicons name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color="#6c7872" />
+              </TouchableOpacity>
+            </View>
+            <Text style={su.hint}>At least {MIN_PASSWORD} characters</Text>
+
+            {error ? <Text style={ca.error}>{error}</Text> : null}
+            {message ? <Text style={ca.success}>{message}</Text> : null}
+          </View>
+
+          <View>
+            <TouchableOpacity style={[su.createBtn, loading && { opacity: 0.6 }]} onPress={handleSignUp} disabled={loading} activeOpacity={0.85}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={su.createTxt}>Create account</Text>}
             </TouchableOpacity>
-          ) : (
-            <>
-              <View style={ca.divider}>
-                <View style={ca.divLine} />
-                <Text style={ca.divTxt}>OR USE EMAIL</Text>
-                <View style={ca.divLine} />
-              </View>
-              {emailField}
-              {passwordField('Create a password', true)}
-            </>
-          )}
-
-          {error ? <Text style={ca.error}>{error}</Text> : null}
-          {message ? <Text style={ca.success}>{message}</Text> : null}
-
-          {showEmailForm ? (
-            <TouchableOpacity style={[ca.createBtn, loading && { opacity: 0.6 }]} onPress={handleSignUp} disabled={loading} activeOpacity={0.85}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={ca.createTxt}>Create account</Text>}
-            </TouchableOpacity>
-          ) : null}
-
-          <Text style={[ca.terms, { marginTop: 12 }]}>If you started Pro on the way here, it moves onto this account automatically.</Text>
-
-          <Text style={ca.terms}>
-            Already have an account?{' '}
-            <Text style={ca.link} onPress={() => { setError(''); setMessage(''); setMode('login'); }}>Log in</Text>
-          </Text>
-          <Text style={[ca.terms, { marginTop: 10, fontSize: 12 }]}>
-            By continuing you agree to our{' '}
-            <Text style={ca.link} onPress={() => openLegal('terms')}>Terms</Text>
-            {' '}and{' '}
-            <Text style={ca.link} onPress={() => openLegal('privacy')}>Privacy Policy</Text>.
-          </Text>
+            <Text style={su.have}>
+              Already have an account?{' '}
+              <Text style={su.haveLink} onPress={() => { setError(''); setMessage(''); setMode('login'); }}>Log in</Text>
+            </Text>
+            <Text style={su.legal}>
+              By continuing, you agree to our{' '}
+              <Text style={su.legalLink} onPress={() => openLegal('terms')}>Terms of Use</Text>
+              {' '}and{' '}
+              <Text style={su.legalLink} onPress={() => openLegal('privacy')}>Privacy Notice</Text>.
+            </Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     );
