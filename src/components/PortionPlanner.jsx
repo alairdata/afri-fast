@@ -564,7 +564,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
           </ScrollView>
 
           <View style={styles.composerWrap}>
-            <View style={styles.composer}>
+            <View style={[styles.composer, kitchen && styles.composerSlim]}>
               {photo && (
                 <View style={styles.photoChip}>
                   <Image source={{ uri: photo }} style={styles.photoThumb} />
@@ -580,6 +580,45 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 </View>
               )}
               {voiceNote && voice === 'idle' && <Text style={styles.voiceNote}>{voiceNote}</Text>}
+              {kitchen ? (
+                // Kitchen (as on the canvas): one slim row, + | the text box | mic | send. The box grows a line at a
+                // time as they type, up to about four lines, then scrolls inside.
+                <View style={styles.slimRow}>
+                  <TouchableOpacity style={styles.composerBtnOutline} onPress={() => pickPhoto(false)} accessibilityLabel="Add a photo">
+                    <Ionicons name="add" size={20} color={INK} />
+                  </TouchableOpacity>
+                  {Platform.OS !== 'web' && (
+                    <TouchableOpacity style={styles.composerBtn} onPress={() => pickPhoto(true)} accessibilityLabel="Take a photo">
+                      <Ionicons name="camera-outline" size={20} color={INK} />
+                    </TouchableOpacity>
+                  )}
+                  <TextInput
+                    style={styles.slimInput}
+                    placeholder="What do you have?"
+                    placeholderTextColor="#9CA3AF"
+                    value={text}
+                    onChangeText={setText}
+                    multiline
+                    accessibilityLabel={copy.inputLabel}
+                  />
+                  <TouchableOpacity
+                    style={[styles.composerBtn, voice === 'listening' && styles.micOn]}
+                    onPress={voice === 'listening' ? stopVoice : startVoice}
+                    disabled={voice === 'transcribing'}
+                    accessibilityLabel={voice === 'listening' ? 'Stop recording' : 'Say it'}
+                  >
+                    <Ionicons name={voice === 'listening' ? 'stop' : 'mic-outline'} size={voice === 'listening' ? 16 : 20} color={voice === 'listening' ? '#fff' : INK} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.sendBtn, (!canSend || voice !== 'idle') && { opacity: 0.35 }]}
+                    disabled={!canSend || voice !== 'idle'}
+                    onPress={() => { Keyboard.dismiss(); setStep('budget'); }}
+                    accessibilityLabel="Send"
+                  >
+                    <Ionicons name="arrow-up" size={18} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ) : (<>
               <TextInput
                 style={styles.composerInput}
                 placeholder="What do you have?"
@@ -616,6 +655,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                   <Ionicons name="arrow-up" size={18} color="#fff" />
                 </TouchableOpacity>
               </View>
+              </>)}
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -1023,6 +1063,9 @@ const styles = StyleSheet.create({
   composer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 28, paddingTop: 12, paddingRight: 12, paddingBottom: 10, paddingLeft: 18, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   composerInput: { fontSize: 16, lineHeight: 22, color: INK, minHeight: 26, maxHeight: 110, paddingVertical: 2, outlineStyle: 'none' },
   composerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  composerSlim: { borderRadius: 26, paddingTop: 8, paddingRight: 8, paddingBottom: 8, paddingLeft: 8 },
+  slimRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  slimInput: { flex: 1, minWidth: 0, fontSize: 16, lineHeight: 24, color: INK, minHeight: 36, maxHeight: 112, paddingTop: 6, paddingBottom: 6, paddingHorizontal: 4, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) },
   composerBtnOutline: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
   composerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   sendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' },
