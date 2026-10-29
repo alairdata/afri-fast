@@ -282,14 +282,19 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       setWaterCount(0);
       setNoteEntries([]);
     } else {
-      const todayCI = checkInHistory.find(c => c.date === new Date().toDateString());
-      setWaterCount(todayCI?.waterCount || 0);
-      const existingEntries = todayCI?.v2Data?.noteEntries;
-      setNoteEntries(existingEntries || (todayCI?.notes ? [{ text: todayCI.notes, savedAt: todayCI.loggedAt || new Date().toISOString() }] : []));
-      setCheckInInitialData(todayCI?.v2Data || null);
+      loadCheckInDay(new Date());
     }
     setCheckInSource(source);
     setShowCheckInPage(true);
+  };
+
+  // Fills the daily check-in with what was saved for that day (blank if nothing); also used when its arrows change day.
+  const loadCheckInDay = (day) => {
+    const dayCI = checkInHistory.find(c => c.date === day.toDateString());
+    setWaterCount(dayCI?.waterCount || 0);
+    const existingEntries = dayCI?.v2Data?.noteEntries;
+    setNoteEntries(existingEntries || (dayCI?.notes ? [{ text: dayCI.notes, savedAt: dayCI.loggedAt || new Date().toISOString() }] : []));
+    setCheckInInitialData(dayCI?.v2Data || {}); // a new object every time, so the page refills even when both days are blank
   };
 
   // === Chat state ===
@@ -2018,12 +2023,15 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   };
 
   // sourceOverride: the quick check-in on the meal screen saves as a meal check-in without opening this page.
-  const saveCheckIn = (data = {}, sourceOverride = null) => {
+  // `day` is the day shown on the daily check-in (its arrows); a meal's check-in is always today.
+  const saveCheckIn = (data = {}, sourceOverride = null, day = null) => {
     const now = new Date();
-    const dateStr = now.toDateString();
+    const isMeal = (sourceOverride || checkInSource) === 'meal';
+    const forDay = !isMeal && day ? day : now;
+    const dateStr = forDay.toDateString();
     const existingCI = checkInHistory.find(c => c.date === dateStr);
 
-    if ((sourceOverride || checkInSource) === 'meal') {
+    if (isMeal) {
       // Merge ALL fields from this meal's check-in into the master — never wipe other data.
       // If the master row predates v2Data, rebuild a baseline from its legacy fields.
       const existingV2 = existingCI?.v2Data || (existingCI ? {
@@ -2158,7 +2166,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         const wId = Date.now() + 1;
         const waterLog = {
           id: wId, date: dateStr,
-          displayDate: `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()]}, ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+          displayDate: `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][forDay.getDay()]}, ${forDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
           amount: resolvedWaterCount, unit: volumeUnit,
         };
         setWaterLogs(prev => [waterLog, ...prev]);
@@ -2669,6 +2677,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         setVolumeUnit={setVolumeUnit}
         onViewWaterLogs={() => { setShowCheckInPage(false); setShowHydrationDetails(true); }}
         initialData={checkInInitialData}
+        onDayChange={loadCheckInDay}
         fastingSessions={fastingSessions}
         isFastingNow={isFasting}
       />

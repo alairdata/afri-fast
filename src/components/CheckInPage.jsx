@@ -160,6 +160,7 @@ const CheckInPage = ({
   volumeUnit, setVolumeUnit,
   onViewWaterLogs,
   initialData,
+  onDayChange,
   fastingSessions = [],
   isFastingNow = false,
   source = 'today',
@@ -224,7 +225,10 @@ const CheckInPage = ({
   const [fastingGoalMet, setFastingGoalMet] = useState(null);
   const [tomorrowConfidence, setTomorrowConfidence] = useState(null);
 
-  // Reset all fields on every open — populate from existing check-in if present, blank otherwise
+  // Every open starts on today (the arrows can then move to another day).
+  useEffect(() => { if (show) setCheckInDate(new Date()); }, [show]);
+
+  // Reset all fields on every open and every change of day — populate from that day's check-in if present, blank otherwise
   useEffect(() => {
     if (show) {
       const d = initialData || {};
@@ -263,7 +267,7 @@ const CheckInPage = ({
       setFastingGoalMet(d.fastingGoalMet ?? null);
       setTomorrowConfidence(d.tomorrowConfidence ?? null);
     }
-  }, [show]);
+  }, [show, initialData]);
 
   const isToday = checkInDate.toDateString() === new Date().toDateString();
   const formatCheckInDate = () => checkInDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -310,7 +314,7 @@ const CheckInPage = ({
       activities: exerciseTypes,
       otherFactors: stressContributors,
     };
-    onSave?.({ ...legacy, ...v2 });
+    onSave?.({ ...legacy, ...v2 }, null, checkInDate);
   };
 
   return (
@@ -328,7 +332,7 @@ const CheckInPage = ({
           ) : (
           <View style={ss.header}>
             <TouchableOpacity style={ss.navBtn} onPress={() => {
-              const prev = new Date(checkInDate); prev.setDate(prev.getDate() - 1); setCheckInDate(prev);
+              const prev = new Date(checkInDate); prev.setDate(prev.getDate() - 1); setCheckInDate(prev); onDayChange?.(prev);
             }}>
               <Ionicons name="chevron-back" size={22} color="#059669" />
             </TouchableOpacity>
@@ -340,7 +344,7 @@ const CheckInPage = ({
               onPress={() => {
                 if (!isToday) {
                   const next = new Date(checkInDate); next.setDate(next.getDate() + 1);
-                  if (next <= new Date()) setCheckInDate(next);
+                  if (next <= new Date()) { setCheckInDate(next); onDayChange?.(next); }
                 }
               }}
               disabled={isToday}
