@@ -131,9 +131,12 @@ onConsentChange((c) => {
   else if (c.analytics === false) { queue = []; persistQueue(); }
 });
 
+// The last track() still being queued, so a reset right after it (log out) waits for it to go out first.
+let lastTrack = Promise.resolve();
+
 export function track(event, properties = {}) {
   if (!enabled()) return;
-  (async () => {
+  lastTrack = (async () => {
     try {
       await init();
       queue.push({
@@ -181,6 +184,7 @@ export function identify(id) {
 export function resetAnalytics() {
   (async () => {
     try {
+      await lastTrack;
       await flush();
       userId = null;
       anonId = uuid();
