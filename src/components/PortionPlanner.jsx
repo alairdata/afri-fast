@@ -436,7 +436,9 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   // A food they change stays as they set it (locked); the foods they haven't touched are re-sized together so the
   // plate still comes to the calories they chose. If their own choices already use it all, the rest shrink right
   // down (never to nothing) and the bar shows how far over it is.
+  // A kitchen recipe never rebalances: changing one ingredient changes only that one.
   const refit = (list) => {
+    if (kitchen) return list;
     const target = chosen;
     const fixed = list.filter((f) => f.locked).reduce((s, f) => s + (f.cal || 0), 0);
     const free = list.filter((f) => !f.locked && f.cal > 0);
@@ -1014,7 +1016,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
             </View>
             )}
 
-            <Text style={styles.portionNote}>{kitchen ? 'Want more or less of something? Use − / + and the recipe rebalances.' : <>Change any amount (tap the green label or use − / +) and Logga re-fits the others to your {Math.round(chosen).toLocaleString()} cal. Foods you change stay as you set them. Calories are AI estimates.</>}</Text>
+            <Text style={styles.portionNote}>{kitchen ? 'Want more or less of something? Use − / + to change just that ingredient.' : <>Change any amount (tap the green label or use − / +) and Logga re-fits the others to your {Math.round(chosen).toLocaleString()} cal. Foods you change stay as you set them. Calories are AI estimates.</>}</Text>
             <View style={styles.foodCard}>
               <View style={styles.foodCardHead}>
                 <Text style={styles.foodCardTitle}>{kitchen ? 'INGREDIENTS' : 'YOUR PORTIONS'}</Text>
@@ -1035,7 +1037,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={styles.foodName}>{food.name}</Text>
-                      {food.locked && <View style={styles.yoursTag}><Ionicons name="lock-closed" size={9} color="#047857" /><Text style={styles.yoursTagText}>Yours</Text></View>}
+                      {food.locked && !kitchen && <View style={styles.yoursTag}><Ionicons name="lock-closed" size={9} color="#047857" /><Text style={styles.yoursTagText}>Yours</Text></View>}
                     </View>
                     {editingQtyIdx === i ? (
                       <View style={styles.editQtyRow}>
