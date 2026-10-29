@@ -848,30 +848,36 @@ export function TargetScreen(p) {
 }
 
 // The predicted line from today's weight to the goal, with the window it lands in.
-function PaceChart({ d, win }) {
+// Under the pace options: how many weeks to the goal at the chosen pace, and a bar from today's weight to
+// the goal that fills again (quicker for a faster pace) each time the pace changes.
+const PACE_RATE = { slow: 0.25, moderate: 0.5, aggressive: 0.75, extreme: 1 };
+function PaceSummary({ d }) {
+  const rate = PACE_RATE[d.pace];
+  const kg = Math.abs((d.weightKg || 0) - (d.targetKg || 0));
+  const line = useRef(new Animated.Value(0)).current;
+  const fill = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!rate) return;
+    line.setValue(0); fill.setValue(0);
+    Animated.timing(line, { toValue: 1, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+    Animated.timing(fill, { toValue: 1, duration: (0.8 + 0.25 / rate) * 1000, delay: 250, easing: Easing.bezier(0.3, 0.7, 0.2, 1), useNativeDriver: false }).start();
+  }, [d.pace]);
+  if (!rate || !kg || !d.targetKg) return null;
+  const weeks = Math.max(1, Math.round(kg / rate));
   return (
-    <View style={s.paceChart}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Text style={s.paceChartLabel}>PREDICTED</Text>
-        <Text style={s.paceChartWhen}>{win.long}</Text>
+    <View style={s.paceSum}>
+      <Animated.Text style={[s.paceSumLine, { opacity: line, transform: [{ translateY: line.interpolate({ inputRange: [0, 1], outputRange: [4, 0] }) }] }]}>
+        You'll reach <Text style={{ color: C.primary }}>{weightText(d.targetKg, d.unitW)}</Text> in about {weeks} {weeks === 1 ? 'week' : 'weeks'}
+      </Animated.Text>
+      <View style={s.paceTrack}>
+        <Animated.View style={[s.paceFill, { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]}>
+          <View style={s.paceDot} />
+        </Animated.View>
       </View>
-      <Svg width="100%" height={150} viewBox="0 0 330 150" accessibilityLabel={`Predicted weight line from ${weightText(d.weightKg, d.unitW)} now to ${weightText(d.targetKg, d.unitW)} around ${win.long}`}>
-        <Defs>
-          <SvgGradient id="pf" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={C.primary} stopOpacity="0.28" />
-            <Stop offset="1" stopColor={C.primary} stopOpacity="0" />
-          </SvgGradient>
-        </Defs>
-        <Rect x="250" y="8" width="58" height="112" rx="8" fill={C.primary} opacity="0.1" />
-        <Path d="M20 26 C 55 32, 95 50, 128 58 C 142 61, 150 53, 162 55 C 190 60, 235 88, 278 104 L 278 120 L 20 120 Z" fill="url(#pf)" />
-        <Path d="M20 26 C 55 32, 95 50, 128 58 C 142 61, 150 53, 162 55 C 190 60, 235 88, 278 104" fill="none" stroke={C.primary} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-        <Circle cx="20" cy="26" r="6" fill="#fff" stroke={C.ink} strokeWidth="3" />
-        <Circle cx="278" cy="104" r="7" fill={C.primary} stroke="#fff" strokeWidth="3" />
-        <SvgText x="30" y="20" fontSize="12" fontWeight="800" fill={C.ink}>{weightText(d.weightKg, d.unitW)}</SvgText>
-        <SvgText x="306" y="84" textAnchor="end" fontSize="13" fontWeight="800" fill={C.primaryDark} stroke="#fff" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke">{weightText(d.targetKg, d.unitW)}</SvgText>
-        <SvgText x="20" y="142" fontSize="11" fontWeight="700" fill={C.ink500}>Today</SvgText>
-        <SvgText x="252" y="142" fontSize="11" fontWeight="700" fill={C.primaryDark}>{win.short}</SvgText>
-      </Svg>
+      <View style={s.paceEnds}>
+        <Text style={s.paceEndTxt}>{weightText(d.weightKg, d.unitW)} today</Text>
+        <Text style={s.paceEndTxt}>{weightText(d.targetKg, d.unitW)} goal</Text>
+      </View>
     </View>
   );
 }
@@ -884,7 +890,6 @@ export function PaceScreen(p) {
     { v: 'aggressive', t: 'All-in',        s: '~0.75 kg a week · needs discipline' },
     { v: 'extreme',    t: 'All-out',       s: '~1.0 kg a week · needs strict discipline' },
   ];
-  const win = predictedWindow(d);
   return (
     <ScreenShell {...p} footer={<PrimaryBtn label={p.ctaLabel || 'Continue'} onPress={next} disabled={!d.pace} />}>
       <Bubble hideLumi={p.editing} title="How fast do you want to get there?" />
@@ -900,7 +905,7 @@ export function PaceScreen(p) {
           />
         ))}
       </View>
-      {win ? <PaceChart d={d} win={win} /> : null}
+      <PaceSummary d={d} />
     </ScreenShell>
   );
 }
@@ -2096,12 +2101,13 @@ const s = StyleSheet.create({
   guardTxt: { fontSize: 13.5, lineHeight: 19, color: '#B91C1C', textAlign: 'center' },
 
   // Pace chart
-  paceChart: {
-    marginTop: 16, paddingTop: 14, paddingHorizontal: 14, paddingBottom: 6, borderRadius: 18, backgroundColor: C.surface,
-    shadowColor: '#0B3D2E', shadowOpacity: 0.07, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2,
-  },
-  paceChartLabel: { fontSize: 12, fontWeight: '800', color: C.primaryDark, letterSpacing: 0.6 },
-  paceChartWhen: { fontSize: 15, fontWeight: '800', color: C.ink },
+  paceSum: { marginTop: 30, paddingHorizontal: 4 },
+  paceSumLine: { fontSize: 18, lineHeight: 25, fontWeight: '800', letterSpacing: -0.3, color: C.ink },
+  paceTrack: { marginTop: 18, height: 6, borderRadius: 3, backgroundColor: '#E3E7E2' },
+  paceFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 3, backgroundColor: C.primary },
+  paceDot: { position: 'absolute', right: -11, top: -8, width: 22, height: 22, borderRadius: 11, backgroundColor: C.primary, borderWidth: 4, borderColor: '#fff', shadowColor: C.primary, shadowOpacity: 0.35, shadowRadius: 3, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  paceEnds: { marginTop: 12, flexDirection: 'row', justifyContent: 'space-between' },
+  paceEndTxt: { fontSize: 12.5, fontWeight: '600', color: '#8A938E' },
 
   // Care
   careTitle: { marginTop: 34, fontSize: 28, lineHeight: 34, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center', color: C.ink },
