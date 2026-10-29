@@ -435,6 +435,12 @@ function HookScreen({ next, onLogin }) {
         <TouchableOpacity onPress={onLogin} style={s.hookLoginBtn} activeOpacity={0.7} accessibilityRole="button">
           <Text style={s.hookLoginTxt}>I already have an account</Text>
         </TouchableOpacity>
+        <Text style={s.hookLegal}>
+          By continuing, you agree to our{' '}
+          <Text style={s.hookLegalLink} onPress={() => openUrl('https://www.logga.space/terms')} accessibilityRole="link">Terms of Use</Text>
+          {' '}and{' '}
+          <Text style={s.hookLegalLink} onPress={() => openUrl('https://www.logga.space/privacy')} accessibilityRole="link">Privacy Notice</Text>.
+        </Text>
       </View>
     </LinearGradient>
   );
@@ -1890,7 +1896,9 @@ const s = StyleSheet.create({
   hookTagTxt: { fontSize: 11.5, fontWeight: '700', color: C.ink },
   hookHeadline: { marginTop: 12, marginHorizontal: -8, fontSize: 28, lineHeight: 34, fontWeight: '800', textAlign: 'center', letterSpacing: -0.8, color: C.ink },
   hookSubline: { marginTop: 14, fontSize: 15, lineHeight: 22, color: C.ink600, textAlign: 'center' },
-  hookCta: { alignSelf: 'stretch', paddingTop: 22, paddingBottom: Platform.OS === 'ios' ? 34 : 22 },
+  hookCta: { alignSelf: 'stretch', paddingTop: 22, paddingBottom: Platform.OS === 'ios' ? 28 : 22 },
+  hookLegal: { marginTop: 6, marginHorizontal: 12, fontSize: 12, lineHeight: 17, color: '#8A938E', textAlign: 'center' },
+  hookLegalLink: { color: C.ink600, fontWeight: '600', textDecorationLine: 'underline' },
   hookLoginBtn: { height: 46, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   hookLoginTxt: { fontSize: 15, fontWeight: '700', color: C.ink600 },
 
