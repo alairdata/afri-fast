@@ -30,7 +30,8 @@ export function fillMethodStep(step, ingredients) {
     .replace(/\{(\d+)\}/g, (m, k) => {
       const f = ingredients[Number(k) - 1];
       if (!f) return '';
-      const name = String(f.name).toLowerCase();
+      // "White rice (raw)" in the ingredients reads as just "white rice" in a step
+      const name = String(f.name).replace(/\s*\((raw|cooked)\)\s*$/i, '').toLowerCase();
       if (f.grams == null) return name;
       const amt = amountText(f);
       // the measure may already say what it is ("1 medium onion"): don't repeat the name
