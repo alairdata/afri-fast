@@ -8,6 +8,7 @@
 //   body { mode: 'restore' }: cancel a scheduled deletion.
 // api/cron/user-onboarding.js erases accounts once their 7 days have passed.
 import { purgeUser, setDeletionDate, userFromRequest, RESTORE_WINDOW_DAYS } from './_purgeUser.js';
+import { handleAdmin } from './_admin.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -21,6 +22,9 @@ export default async function handler(req, res) {
   try {
     const user = await userFromRequest(req);
     if (!user) return res.status(401).json({ error: 'Invalid session' });
+
+    // The admin portal's server actions (see _admin.js); each checks the caller is an admin first.
+    if (String(req.body?.mode || '').startsWith('admin_')) return handleAdmin(req, res, user);
 
     // "Restore my account" during the 7-day window. (Here rather than its own endpoint: the Hobby plan allows
     // only 12 serverless functions.)

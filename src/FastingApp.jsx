@@ -93,6 +93,7 @@ import { ensureAiConsent, CONSENT_KEYS_KEPT_ON_LOGOUT, resetConsentMemory } from
 import { showAlert } from './lib/alert';
 import { aiHeaders } from './lib/aiAuth';
 import { getAccountPref, setAccountPref } from './lib/accountPrefs';
+import { deliverNudges, savePushToken } from './lib/adminMessages';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -1244,9 +1245,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     const uid = session?.user?.id;
     if (!uid) return undefined;
     const save = () => {
+      deliverNudges(uid); // messages sent from the admin portal (see lib/adminMessages.js)
       if (Date.now() - lastSeenSaved.current < 5 * 60 * 1000) return;
       lastSeenSaved.current = Date.now();
       setAccountPref(uid, 'device', { platform: Platform.OS, lastSeenAt: new Date().toISOString() });
+      savePushToken(uid);
     };
     save();
     const sub = AppState.addEventListener('change', (state) => { if (state === 'active') save(); });

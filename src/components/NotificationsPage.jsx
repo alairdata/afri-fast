@@ -13,6 +13,7 @@ const ICONS = {
   burnout: { name: 'heart-outline', color: '#DB2777', bg: '#FDF2F8' },
   insight: { name: 'bulb-outline', color: '#CA8A04', bg: '#FEFCE8' },
   prediction: { name: 'bulb-outline', color: '#CA8A04', bg: '#FEFCE8' },
+  nudge: { name: 'sparkles-outline', color: '#059669', bg: '#ECFDF5' }, // a message from the Logga team (admin portal)
 };
 const DEFAULT_ICON = { name: 'notifications-outline', color: '#059669', bg: '#ECFDF5' };
 

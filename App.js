@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, StatusBar, View, ActivityIndicator, Text, TextInput, Platform, KeyboardAvoidingView } from 'react-native';
+import { SafeAreaView, StatusBar, View, ActivityIndicator, Text, TextInput, Platform, KeyboardAvoidingView, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './src/lib/supabase';
@@ -15,6 +15,8 @@ import { ThemeContext, COLORS, DARK_MODE_AVAILABLE } from './src/lib/theme';
 import { takeAuthIntent } from './src/lib/authIntent';
 import AccountNotFoundScreen from './src/components/AccountNotFoundScreen';
 import RestoreAccountScreen from './src/components/RestoreAccountScreen';
+import RestrictedScreen from './src/components/RestrictedScreen';
+import { isAccountRestricted } from './src/lib/adminMessages';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   // Load Inter from Google Fonts
@@ -151,6 +153,17 @@ export default function App() {
   // So-UnFiltered AI's onboarding_complete flag). Someone who taps Apple/Google on the LOGIN screen
   // creates an account without ever answering the questions; catch that here. We call onboarding done
   // if they answered it before sign-up (preAuthData) or their profile already has any of the answers.
+  // An admin can restrict an account from the admin portal; it's checked on sign-in and every time the app comes back.
+  const [restricted, setRestricted] = useState(false);
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid) { setRestricted(false); return undefined; }
+    const check = () => isAccountRestricted(uid).then(setRestricted);
+    check();
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') check(); });
+    return () => sub.remove();
+  }, [session?.user?.id]);
+
   const [profileCheck, setProfileCheck] = useState('idle'); // 'idle' | 'checking' | 'needs' | 'ok' | 'notfound'
   useEffect(() => {
     const uid = session?.user?.id;
@@ -286,6 +299,14 @@ export default function App() {
             await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
           }}
         />
+      </SafeAreaProvider>
+    );
+  }
+
+  if (restricted) {
+    return (
+      <SafeAreaProvider>
+        <RestrictedScreen onLogOut={() => supabase.auth.signOut()} />
       </SafeAreaProvider>
     );
   }
