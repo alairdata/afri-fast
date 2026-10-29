@@ -850,7 +850,6 @@ export function TargetScreen(p) {
 // The predicted line from today's weight to the goal, with the window it lands in.
 // Under the pace options: how many weeks to the goal at the chosen pace, and a bar from today's weight to
 // the goal that fills again (quicker for a faster pace) each time the pace changes.
-const PACE_RATE = { slow: 0.25, moderate: 0.5, aggressive: 0.75, extreme: 1 };
 function PaceSummary({ d }) {
   const rate = PACE_RATE[d.pace];
   const kg = Math.abs((d.weightKg || 0) - (d.targetKg || 0));
