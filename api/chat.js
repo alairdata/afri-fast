@@ -1,4 +1,5 @@
 import { MEDICAL_SAFETY } from './_safety.js';
+import { checkAiAuth } from './_aiAuth.js';
 import { toneInstruction } from './_tone.js';
 function buildUserContext(data) {
   const {
@@ -299,9 +300,10 @@ async function logToSupabase(supabaseUrl, supabaseKey, rows) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (!(await checkAiAuth(req, res, 'chat'))) return;
 
   const CLAUDE_KEY = process.env.CLAUDE_KEY;
   if (!CLAUDE_KEY) return res.status(500).json({ error: 'API key not configured' });

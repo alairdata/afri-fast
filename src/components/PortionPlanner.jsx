@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveCustomRecipe } from '../lib/savedRecipes';
 import { fillMethodStep } from '../lib/recipeMethod';
 import { uploadMealPhoto } from '../lib/mealPhotoUpload';
+import { aiHeaders } from '../lib/aiAuth';
 
 // The recipe's AI photo (a data URI) uploaded to storage, so a saved recipe keeps it. Null if it can't be uploaded.
 async function uploadRecipeImage(dataUri) {
@@ -135,7 +136,7 @@ async function planPortions({ text, photoUri, budget, userCountry, type = 'plan_
   }
   const response = await fetch(`${BASE}/api/gemini`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await aiHeaders(),
     body: JSON.stringify({ type, data: { text, base64, budget, userCountry, servings } }),
   });
   let result;
@@ -149,7 +150,7 @@ async function transcribe(uri) {
   const base64 = await readUriAsBase64(uri);
   const response = await fetch(`${BASE}/api/gemini`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await aiHeaders(),
     body: JSON.stringify({ type: 'transcribe_audio', data: { base64 } }),
   });
   const result = await response.json().catch(() => ({}));
@@ -161,7 +162,7 @@ async function callApi(type, data) {
   if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError();
   const response = await fetch(`${BASE}/api/gemini`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await aiHeaders(),
     body: JSON.stringify({ type, data }),
   });
   const result = await response.json().catch(() => null);

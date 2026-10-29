@@ -2,6 +2,7 @@ import { PNG } from 'pngjs';
 import jpegJs from 'jpeg-js';
 import { fillMethodStep } from '../src/lib/recipeMethod.js';
 import { MEDICAL_SAFETY } from './_safety.js';
+import { checkAiAuth } from './_aiAuth.js';
 import { toneInstruction } from './_tone.js';
 
 // Lumi's chosen voice for the Insights tab texts (data.coachTone), or nothing.
@@ -269,9 +270,10 @@ function normalizeFood(f, fallback = 'Unknown food') {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (!(await checkAiAuth(req, res, 'gemini'))) return;
 
   const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   if (!GEMINI_KEY) return res.status(500).json({ error: 'AI service not configured' });

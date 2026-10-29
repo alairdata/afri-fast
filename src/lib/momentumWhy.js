@@ -7,6 +7,7 @@ import { ensureAiConsent, AiConsentError } from './consent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
+import { aiHeaders } from './aiAuth';
 
 // CACHE_KEY/CACHE_TYPE carry a version suffix separate from API_TYPE (the value actually sent to
 // /api/gemini, which must stay 'momentum_why' to match its route) -- bump this suffix whenever the
@@ -24,7 +25,7 @@ async function callApi(data) {
   if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError(); // no consent, nothing goes to AI
   const response = await fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await aiHeaders(),
     body: JSON.stringify({ type: API_TYPE, data }),
   });
   const result = await response.json();

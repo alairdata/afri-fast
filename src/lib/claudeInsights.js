@@ -2,6 +2,7 @@ import { ensureAiConsent, AiConsentError } from './consent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
+import { aiHeaders } from './aiAuth';
 
 const DAILY_CACHE_KEY = 'claude_daily_insights_v1';
 const JFY_CACHE_KEY = 'claude_just_for_you_v4';
@@ -38,7 +39,7 @@ async function callApi(type, data) {
   if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError(); // no consent, nothing goes to AI
   const response = await fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await aiHeaders(),
     // The phone's own date and time zone, so the server (on UTC) says "today" / "yesterday" and meal times
     // the way the person lived them.
     body: JSON.stringify({ type, data: { ...data, clientToday: new Date().toDateString(), tzOffsetMinutes: new Date().getTimezoneOffset() } }),

@@ -11,6 +11,7 @@ import FormattedText from '../lib/FormattedText';
 import { coachGreeting } from '../lib/lumiVoice';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 import { useVoiceInput } from '../lib/useVoiceInput';
+import { aiHeaders } from '../lib/aiAuth';
 
 const INK = '#1F1F1F';
 const MUTED = '#6B7280';
@@ -75,7 +76,7 @@ async function callChat(body) {
   if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError(); // no consent, nothing goes to AI
   const res = await fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await aiHeaders(),
     body: JSON.stringify(body),
   });
   const json = await res.json();

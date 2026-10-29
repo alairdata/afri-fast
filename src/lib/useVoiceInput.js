@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import { ensureAiConsent, AiConsentError } from './consent';
+import { aiHeaders } from './aiAuth';
 
 const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
 
@@ -28,7 +29,7 @@ async function transcribe(uri) {
   const base64 = await readUriAsBase64(uri);
   const response = await fetch(`${BASE}/api/gemini`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await aiHeaders(),
     body: JSON.stringify({ type: 'transcribe_audio', data: { base64 } }),
   });
   const result = await response.json().catch(() => ({}));

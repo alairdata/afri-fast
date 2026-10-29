@@ -90,6 +90,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { initSubscriptions, signOutSubscriptions, useSubscription, openPaywall, FREE_MEALS_PER_DAY } from './lib/subscription';
 import { ensureAiConsent, CONSENT_KEYS_KEPT_ON_LOGOUT, resetConsentMemory } from './lib/consent';
 import { showAlert } from './lib/alert';
+import { aiHeaders } from './lib/aiAuth';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -1033,10 +1034,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         // Trigger monthly personality rebuild in background if older than 30 days
         const lastUpdate = data.personality_updated_at ? new Date(data.personality_updated_at) : null;
         const needsRebuild = !lastUpdate || (Date.now() - lastUpdate.getTime() > 30 * 24 * 60 * 60 * 1000);
-        if (needsRebuild) ensureAiConsent({ silent: true }).then((ok) => ok && 
+        if (needsRebuild) ensureAiConsent({ silent: true }).then(async (ok) => ok && 
           fetch('/api/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: await aiHeaders(),
             body: JSON.stringify({ action: 'rebuild_personality', data: { personality: data.personality || '' } }),
           }).then(r => r.json()).then(res => {
             if (res.personality) {

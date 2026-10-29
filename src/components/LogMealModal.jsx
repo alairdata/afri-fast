@@ -19,6 +19,7 @@ import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
 import LumiRive from './LumiRive';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
+import { aiHeaders } from '../lib/aiAuth';
 
 // Web-safe helper: convert a URI (blob URL or data URL) to base64 string
 const readUriAsBase64 = async (uri) => {
@@ -110,7 +111,7 @@ async function callGeminiApi(type, data) {
   if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError();
   const response = await fetch(GEMINI_API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await aiHeaders(),
     body: JSON.stringify({ type, data }),
   });
   const text = await response.text();

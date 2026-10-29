@@ -14,6 +14,7 @@ import { useSavedRecipes, toggleSavedRecipe, useCustomRecipes, removeCustomRecip
 import { showAlert } from '../lib/alert';
 import ShimmerImage from './ShimmerImage';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
+import { aiHeaders } from '../lib/aiAuth';
 
 // ── Ingredient amount scaler ─────────────────────────────────────────────────
 
@@ -645,7 +646,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
       const images = await Promise.all(uris.map(readUriAsBase64));
       const resp = await fetch(`${GEMINI_BASE}/api/gemini`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await aiHeaders(),
         body: JSON.stringify({ type: 'identify_ingredients', data: { images } }),
       });
       const result = await resp.json();

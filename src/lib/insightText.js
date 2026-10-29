@@ -6,6 +6,7 @@
 import { ensureAiConsent, AiConsentError } from './consent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { aiHeaders } from './aiAuth';
 
 const MIN_REFRESH_MS = 60 * 60 * 1000;
 const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
@@ -18,7 +19,7 @@ async function callApi(type, data) {
   if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError(); // no consent, nothing goes to AI
   const response = await fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await aiHeaders(),
     body: JSON.stringify({ type, data }),
   });
   const result = await response.json();
