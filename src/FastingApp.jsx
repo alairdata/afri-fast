@@ -457,7 +457,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
   // === Welcome-back modal (returning OAuth user) ===
   const [showWelcomeBackModal, setShowWelcomeBackModal] = useState(false);
-  const [welcomeBackInfo, setWelcomeBackInfo] = useState(null); // { name, joinDate }
+  const [welcomeBackInfo, setWelcomeBackInfo] = useState(null); // { name, awayMs }
 
   // === AI personality profile ===
   const [userPersonality, setUserPersonality] = useState('');
@@ -935,7 +935,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   // Fetch profile from Supabase
   useEffect(() => {
     if (!session?.user?.id) return;
-    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window, goal_history, goal_source, age, sex, goal_date, activity_level, step_goal, pace_preference, struggles, food_context, cuisines, motivations, accountability').eq('id', session.user.id).maybeSingle()
+    supabase.from('profiles').select('name, country, selected_plan, target_weight, starting_weight, height, height_unit, weight_unit, volume_unit, food_measurement, daily_calorie_goal, macro_style, protein_goal, carbs_goal, fats_goal, hydration_goal, goal, created_at, personality, personality_updated_at, eating_style, eating_window, goal_history, goal_source, age, sex, goal_date, activity_level, step_goal, pace_preference, struggles, food_context, cuisines, motivations, accountability, last_logged_out_at').eq('id', session.user.id).maybeSingle()
       .then(async ({ data, error }) => {
         if (error) {
           console.error('[Profile fetch error]', error);
@@ -968,16 +968,18 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           return;
         }
 
-        // Show "your data has been retained" modal only when:
-        // 1. They came through the pre-auth onboarding (thought they were new)
-        // 2. Their profile already existed (account older than 5 minutes)
+        // "Welcome back, all your data has been retained": only when they log in 7 days or more after they last
+        // logged out (profiles.last_logged_out_at), and once per log-in (not on every app open after it).
         const oauthPending = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('afri-fast-oauth-pending');
         if (oauthPending) sessionStorage.removeItem('afri-fast-oauth-pending');
-        if (pendingPreAuthData) {
-          const joinDate = data.created_at ? new Date(data.created_at) : null;
-          const ageMs = joinDate ? Date.now() - joinDate.getTime() : 0;
-          if (joinDate && ageMs > 5 * 60 * 1000) {
-            setWelcomeBackInfo({ name: data.name || '', joinDate });
+        const loggedOutAt = data.last_logged_out_at ? new Date(data.last_logged_out_at) : null;
+        const loggedInAt = session.user.last_sign_in_at ? new Date(session.user.last_sign_in_at) : new Date();
+        if (loggedOutAt && loggedInAt > loggedOutAt && loggedInAt - loggedOutAt >= 7 * 86400000) {
+          const shownKey = `logga-welcome-back-shown:${session.user.id}`;
+          const shownFor = await AsyncStorage.getItem(shownKey).catch(() => null);
+          if (shownFor !== data.last_logged_out_at) {
+            AsyncStorage.setItem(shownKey, data.last_logged_out_at).catch(() => {});
+            setWelcomeBackInfo({ name: data.name || '', awayMs: loggedInAt - loggedOutAt });
             setShowWelcomeBackModal(true);
           }
         }
@@ -3064,20 +3066,17 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
               {welcomeBackInfo?.name ? `Welcome back, ${welcomeBackInfo.name.split(' ')[0]}!` : 'Welcome back!'}
             </Text>
             <Text style={[styles.modalDesc, { marginBottom: 6 }]}>
-              Your account has been with us since{' '}
+              You've been away for{' '}
               <Text style={{ fontWeight: '700', color: '#059669' }}>
-                {welcomeBackInfo?.joinDate
-                  ? welcomeBackInfo.joinDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-                  : ''}
-              </Text>
-              {welcomeBackInfo?.joinDate ? ` — ${(() => {
-                const ms = Date.now() - welcomeBackInfo.joinDate.getTime();
-                const days = Math.floor(ms / 86400000);
-                if (days < 7) return `${days} day${days !== 1 ? 's' : ''} ago`;
-                if (days < 30) return `${Math.floor(days / 7)} week${Math.floor(days / 7) !== 1 ? 's' : ''} ago`;
-                if (days < 365) return `${Math.floor(days / 30)} month${Math.floor(days / 30) !== 1 ? 's' : ''} ago`;
-                return `over ${Math.floor(days / 365)} year${Math.floor(days / 365) !== 1 ? 's' : ''}`;
-              })()}.` : '.'}
+                {(() => {
+                  const days = Math.floor((welcomeBackInfo?.awayMs || 0) / 86400000);
+                  if (days < 14) return `${days} days`;
+                  if (days < 60) return `${Math.floor(days / 7)} weeks`;
+                  if (days < 365) return `${Math.floor(days / 30)} months`;
+                  const years = Math.floor(days / 365);
+                  return `over ${years} year${years !== 1 ? 's' : ''}`;
+                })()}
+              </Text>.
             </Text>
             <Text style={[styles.modalDesc, { marginBottom: 20 }]}>
               All your data has been retained.
