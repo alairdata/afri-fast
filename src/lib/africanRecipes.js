@@ -1,7 +1,7 @@
 export const AFRICAN_RECIPES = [
   {
     "id": 1,
-    "name": "Awoyo (Tilapia)",
+    "name": "Tilapia Pepper Soup",
     "category": "Weight Loss Friendly",
     "countries": [
       "Nigeria",
@@ -12,7 +12,7 @@ export const AFRICAN_RECIPES = [
     ],
     "localNames": {
       "Nigeria": "Pepper Soup",
-      "Ghana": "Awoyo",
+      "Ghana": "Tilapia Pepper Soup",
       "Sierra Leone": "Pepper Soup",
       "Liberia": "Pepper Soup",
       "Cameroon": "Pepper Soup"
@@ -837,8 +837,7 @@ export const AFRICAN_RECIPES = [
       "Cameroon"
     ],
     "localNames": {
-      "Nigeria": "Point and Kill",
-      "Ghana": "Awoyo"
+      "Nigeria": "Point and Kill"
     },
     "description": "A light, spicy fish broth infused with aromatic local herbs.",
     "calories": 210,
