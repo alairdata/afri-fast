@@ -23,6 +23,7 @@ const HEADLINES = {
   recipe: ['Unlock every recipe', 'Every recipe in every section, with calories and macros for each.'],
   recipe_photo: ['Cook with what you have', 'Snap your ingredients and Logga builds recipes around them.'],
   jfy: ['More insights, every day', 'Three more personal insights written from your own logs, fresh every day.'],
+  jfy_refresh: ['Fresh insights any time', 'Refresh your insights whenever you like, written again from your latest logs.'],
 };
 const DEFAULT_HEADLINE = ['Get more from Logga', 'Unlimited logging, deeper insights and every recipe.'];
 

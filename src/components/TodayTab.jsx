@@ -655,7 +655,8 @@ const TodayTab = ({
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchInsights(buildPayload(), true);
+    // Pulling down asks for fresh insights only on Pro; Free keeps the day's insight
+    fetchInsights(buildPayload(), isPro);
     setTimeout(() => setRefreshing(false), 800);
   };
 
@@ -1126,9 +1127,14 @@ const TodayTab = ({
               <Text style={{ fontSize: 12, color: '#059669', fontWeight: '500' }}>Refreshing...</Text>
             ) : (
               <TouchableOpacity
-                onPress={() => fetchInsights(buildPayload(), true)}
+                // Refreshing the insights on demand is Logga Pro (unlimited insights); Free gets the day's insight
+                onPress={() => (isPro ? fetchInsights(buildPayload(), true) : unlock('jfy_refresh'))}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
+                accessibilityRole="button"
+                accessibilityLabel={isPro ? 'Refresh insights' : 'Refresh insights with Logga Pro'}
               >
+                {!isPro && <Ionicons name="lock-closed" size={11} color="#059669" />}
                 <Text style={{ fontSize: 18, color: '#059669' }}>↻</Text>
               </TouchableOpacity>
             )}
