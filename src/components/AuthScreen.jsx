@@ -339,7 +339,8 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   const [message, setMessage] = useState('');
   const [touched, setTouched] = useState({});
   const [focused, setFocused] = useState('');
-  const [screen, setScreen] = useState(preAuthData?.completedAt ? 'auth' : 'onboarding'); // 'onboarding' | 'auth' | 'confirm'
+  // Opening the app always starts on the welcome screen (Eat the food you love), even after onboarding was finished before
+  const [screen, setScreen] = useState('onboarding'); // 'onboarding' | 'auth' | 'confirm'
   const [rawOnboarding, setRawOnboarding] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [confirmEmail, setConfirmEmail] = useState('');
