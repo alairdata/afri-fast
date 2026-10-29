@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Logga Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<!--
+  Logga admin portal (logga.space/admin), built from the owner's "Logga Admin Portal" design.
+  Sign-in: the app's email code (POST /api/account-exists, then Supabase verifyOtp). Access: Supabase's is_admin()
+  (emails on admin_emails, migration 20261029_admin_portal.sql) gates every admin read and write on the server, so
+  this page can only ever see what a signed-in admin is allowed to. Data is read straight from Supabase.
+-->
+<style>
+  :root {
+    --ink: #1A1F1B; --muted: #565D57; --line: #E4DED1; --line2: #F0EBE0; --bg: #F6F3EC; --card: #FFFFFF;
+    --green: #1F5A36; --green-dk: #13241A; --green-lt: #E2EFE4; --amber: #F2A541; --orange: #D9822B;
+    --cream: #FFF8EC; --cream-line: #EDD3A6; --brown: #6A3B00; --red-bg: #FBE5DC; --red: #8A2E10;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: Inter, system-ui, sans-serif; }
+  a { color: var(--green); } a:hover { color: #143D24; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .display { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+  .muted { color: var(--muted); }
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .field { height: 44px; padding: 0 14px; border: 1.5px solid #CFC9BB; border-radius: 10px; background: #fff; font-size: 15px; }
+  .btn { min-height: 44px; padding: 0 16px; border: 1px solid #CFC9BB; border-radius: 10px; background: #fff; font-size: 14px; }
+  .btn-primary { border: 0; background: var(--green); color: #fff; font-weight: 600; }
+  .btn-danger { border: 0; background: #A3330D; color: #fff; font-weight: 600; }
+  .chip { min-height: 44px; padding: 0 14px; border: 1px solid #CFC9BB; border-radius: 999px; background: #fff; font-size: 14px; }
+  .chip[aria-pressed="true"] { border: 0; background: var(--green); color: #fff; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 10px 12px; }
+  td { padding: 10px 12px; border-top: 1px solid var(--line2); vertical-align: middle; }
+  .tablewrap { overflow-x: auto; }
+  @keyframes lgpulse { 0% { box-shadow: 0 0 0 0 rgba(47,140,79,.55) } 70% { box-shadow: 0 0 0 9px rgba(47,140,79,0) } 100% { box-shadow: 0 0 0 0 rgba(47,140,79,0) } }
+  .live-dot { width: 9px; height: 9px; border-radius: 50%; background: #2F8C4F; animation: lgpulse 1.8s infinite; }
+  .nav-btn { min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: #C9D6CC; font-size: 15px; text-align: left; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  .nav-btn[aria-current="page"] { background: #234333; color: #fff; font-weight: 600; }
+  .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; }
+  .stat { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .bar { height: 8px; border-radius: 4px; background: var(--line2); overflow: hidden; }
+  .bar > div { height: 100%; border-radius: 4px; }
+  .row { display: flex; flex-wrap: wrap; gap: 20px; align-items: stretch; }
+  .modal-back { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal-back > .shade { position: absolute; inset: 0; border: 0; background: rgba(19,36,26,.55); }
+  .modal { position: relative; width: 100%; max-height: calc(100vh - 32px); overflow-y: auto; background: #fff; border-radius: 18px; box-shadow: 0 24px 64px rgba(0,0,0,.25); padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .xbtn { flex: none; width: 40px; height: 40px; border: 1px solid #CFC9BB; border-radius: 10px; background: #fff; display: flex; align-items: center; justify-content: center; }
+  label.lbl { font-size: 13px; font-weight: 600; }
+  .formgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .stack { display: flex; flex-direction: column; gap: 6px; }
+  textarea.field { height: auto; padding: 10px 12px; resize: vertical; font-size: 14px; }
+  .alert { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--red-bg); color: var(--red); font-size: 14px; }
+  .note { margin: 0; padding: 10px 12px; border-radius: 8px; background: #F7E3C4; color: var(--brown); font-size: 13px; line-height: 1.5; }
+  @media (min-width: 800px) { .lg-nav { position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; } }
+  .chart { position: relative; height: 200px; display: flex; align-items: flex-end; gap: 6px; border-bottom: 1px solid #CFC9BB; }
+  .chart .gl { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); }
+</style>
+</head>
+<body>
+<div id="app"><p style="padding:40px;text-align:center" class="muted">Loading…</p></div>
+
+<script>
+(function () {
+  'use strict';
+  var SUPABASE_URL = 'https://exvbplhajnvuhanykumm.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4dmJwbGhham52dWhhbnlrdW1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwODY2NTEsImV4cCI6MjA5MDY2MjY1MX0.L-D_1nnehcjcQZ52XEl0rhKOoUm7HmOMC4_wGIwQETE';
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, storageKey: 'logga-admin-auth' } });
+
+  var CATEGORIES = ['Weight Loss Friendly', 'Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts', 'Drinks', 'Weight Loss Drinks', 'Quick & Easy', 'Low Fat', 'Low Carb', 'High Protein'];
+  var TILES = ['#1F5A36', '#2E7D4F', '#9A4A0C', '#3C6FB4', '#C2621A', '#5B4A8A', '#8A3B2E', '#2F5F6E'];
+  var DAY = 86400000;
+
+  // ---------- state ----------
+  var S = {
+    phase: 'loading', // loading | email | code | denied | dash
+    email: '', code: '', authError: '', busy: false,
+    me: null, tab: 'overview', toast: '', modal: null, live: true,
+    data: null, loadError: '',
+    metric: 'signups', userQuery: '', userFilter: 'All', recipeQuery: '', recipeCountry: 'All', fbFilter: 'Open',
+    draft: null, formError: '', bulk: null, newAdmin: '',
+    rc: null, plans: {}, customer: {}, menuFor: null, nudge: null,
+  };
+
+  // Server actions (delete a user, push a nudge, RevenueCat) live on /api/delete-account with mode 'admin_…';
+  // the server checks this login is on the admin list before doing anything.
+  async function adminApi(body) {
+    var s = (await sb.auth.getSession()).data.session;
+    var r = await fetch('/api/delete-account', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (s && s.access_token) }, body: JSON.stringify(body) });
+    var j = await r.json().catch(function () { return {}; });
+    if (!r.ok) throw new Error(j.error || ('Request failed (' + r.status + ')'));
+    return j;
+  }
+  async function loadRevenue() {
+    try {
+      var rev = await adminApi({ mode: 'admin_revenue' });
+      S.rc = rev;
+      if (rev.configured && S.data) {
+        var p = await adminApi({ mode: 'admin_plans', userIds: S.data.users.map(function (u) { return u.id; }) });
+        S.plans = p.plans || {};
+      }
+    } catch (err) { S.rc = { configured: true, error: err.message }; }
+    render();
+  }
+  var PLAN_STYLE = { Pro: ['#13241A', '#F2A541'], Free: ['#F0EBE0', '#4A4F49'] };
+  function planPill(id) { var p = S.plans[id]; if (!p) return '<span class="muted">—</span>'; var s = PLAN_STYLE[p]; return '<span class="pill" style="background:' + s[0] + ';color:' + s[1] + '">' + p + '</span>'; }
+  function flagTags(u) { return (u.flags.restricted ? ' <span style="font-size:11px;font-weight:700;color:#8A2E10">RESTRICTED</span>' : '') + (u.flags.flagged ? ' <span style="font-size:11px;font-weight:700;color:#B23E14">FLAGGED</span>' : ''); }
+
+  // ---------- helpers ----------
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function fmt(n) { return Number(n || 0).toLocaleString('en-US'); }
+  function pct(a, b) { return b ? Math.round((a / b) * 100) : 0; }
+  function startOfDay(t) { var d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); }
+  function ago(t) {
+    if (!t) return 'never';
+    var s = (Date.now() - t) / 1000;
+    if (s < 90) return 'just now';
+    if (s < 3600) return Math.round(s / 60) + ' min ago';
+    if (s < 86400) return Math.round(s / 3600) + ' h ago';
+    var d = Math.round(s / 86400); return d === 1 ? 'yesterday' : d + ' days ago';
+  }
+  function dateLabel(t) { return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }
+  function initials(name) { return String(name || '?').trim().split(/\s+/).slice(0, 2).map(function (w) { return w[0] ? w[0].toUpperCase() : ''; }).join('') || '?'; }
+  function nice(max) { if (max <= 0) return 1; var p = Math.pow(10, Math.floor(Math.log10(max))); var m = max / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p; }
+  function riskStyle(r) { return r >= 70 ? ['High', '#FBE5DC', '#8A2E10'] : r >= 40 ? ['Medium', '#F7E3C4', '#6A3B00'] : ['Low', '#E2EFE4', '#1F5A36']; }
+  var PLATFORM = { ios: 'iOS', android: 'Android', web: 'Web' };
+  function setState(p) { Object.assign(S, p); render(); }
+  function toast(msg) { S.toast = msg; render(); clearTimeout(toast.t); toast.t = setTimeout(function () { S.toast = ''; render(); }, 3500); }
+
+  // Every row of a table (Supabase returns 1,000 at a time).
+  async function fetchAll(table, columns, build) {
+    var out = [], from = 0, size = 1000;
+    for (;;) {
+      var q = sb.from(table).select(columns).range(from, from + size - 1);
+      if (build) q = build(q);
+      var res = await q;
+      if (res.error) throw new Error(table + ': ' + res.error.message);
+      out = out.concat(res.data || []);
+      if (!res.data || res.data.length < size) return out;
+      from += size;
+    }
+  }
+
+  // ---------- auth ----------
+  async function boot() {
+    var res = await sb.auth.getSession();
+    var session = res.data && res.data.session;
+    if (!session) return setState({ phase: 'email' });
+    await afterSignIn(session);
+  }
+  async function afterSignIn(session) {
+    var ok = await sb.rpc('is_admin');
+    if (ok.error || ok.data !== true) {
+      await sb.auth.signOut();
+      return setState({ phase: 'denied', authError: ok.error ? 'Could not check admin access (' + ok.error.message + '). Has the admin portal SQL been run?' : (session.user.email + ' is not on the admin list.') });
+    }
+    S.me = session.user;
+    setState({ phase: 'dash' });
+    loadData();
+  }
+  async function sendCode(e) {
+    e && e.preventDefault();
+    var email = S.email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setState({ authError: 'Enter your email address.' });
+    setState({ busy: true, authError: '' });
+    try {
+      var r = await fetch('/api/account-exists', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, sendLoginCode: true }) });
+      var j = await r.json().catch(function () { return {}; });
+      if (!r.ok) throw new Error(j.error || 'Could not send the code.');
+      if (j.exists === false) throw new Error('There is no Logga account with that email.');
+      setState({ phase: 'code', busy: false, code: '' });
+    } catch (err) { setState({ busy: false, authError: err.message }); }
+  }
+  async function verifyCode(e) {
+    e && e.preventDefault();
+    setState({ busy: true, authError: '' });
+    var res = await sb.auth.verifyOtp({ email: S.email.trim().toLowerCase(), token: S.code.trim(), type: 'email' });
+    if (res.error) return setState({ busy: false, authError: res.status === 429 ? 'Too many tries. Wait a few minutes.' : "That code isn't right or has expired." });
+    S.busy = false;
+    await afterSignIn(res.data.session);
+  }
+  async function signOut() { await sb.auth.signOut(); S.data = null; setState({ phase: 'email', me: null, code: '' }); }
+
+  // ---------- data ----------
+  async function loadData(quiet) {
+    if (!quiet) setState({ loadError: '' });
+    try {
+      var since = new Date(Date.now() - 35 * DAY).toISOString();
+      var results = await Promise.all([
+        fetchAll('profiles', 'id, name, email, country, created_at, goal, daily_calorie_goal, app_prefs'),
+        fetchAll('meals', 'id, user_id, name, calories, foods, logged_at, method', function (q) { return q.gte('logged_at', since); }),
+        fetchAll('water_logs', 'user_id, logged_at', function (q) { return q.gte('logged_at', since); }),
+        fetchAll('check_ins', 'user_id, logged_at', function (q) { return q.gte('logged_at', since); }),
+        fetchAll('weight_logs', 'user_id, logged_at', function (q) { return q.gte('logged_at', since); }),
+        fetchAll('recipes', 'id, data, published, sort, updated_at', function (q) { return q.order('sort', { ascending: true }); }),
+        fetchAll('feedback', 'id, user_id, type, rating, message, email, app_version, created_at, handled', function (q) { return q.order('created_at', { ascending: false }); }),
+        fetchAll('admin_emails', 'email, added_at'),
+        sb.from('meals').select('id', { count: 'exact', head: true }),
+        fetchAll('user_admin_flags', 'user_id, flagged, restricted, note').catch(function () { return []; }),
+        fetchAll('admin_settings', 'key, value').catch(function () { return []; }),
+      ]);
+      var first = !S.data;
+      S.data = compute({ profiles: results[0], meals: results[1], water: results[2], checkins: results[3], weights: results[4], recipes: results[5], feedback: results[6], admins: results[7], mealsAllTime: results[8].count || 0, flags: results[9], settings: results[10] });
+      S.loadError = '';
+      render();
+      if (first || !quiet) loadRevenue();
+    } catch (err) { setState({ loadError: err.message }); }
+  }
+
+  function compute(raw) {
+    var now = Date.now(), today = startOfDay(now);
+    var users = {};
+    raw.profiles.forEach(function (p) {
+      var dev = (p.app_prefs && p.app_prefs.device) || {};
+      users[p.id] = { id: p.id, name: p.name || (p.email || '').split('@')[0] || 'No name', email: p.email || '', country: p.country || '', goal: p.goal || '',
+        joined: p.created_at ? new Date(p.created_at).getTime() : 0, target: p.daily_calorie_goal || 0,
+        platform: dev.platform || '', seen: dev.lastSeenAt ? new Date(dev.lastSeenAt).getTime() : 0,
+        lastLog: 0, logs7: 0, logsPrev: 0, meals: [], logDays: {}, flags: { flagged: false, restricted: false },
+        hasPush: !!(p.app_prefs && p.app_prefs.pushToken && p.app_prefs.pushToken.token) };
+    });
+    (raw.flags || []).forEach(function (f) { if (users[f.user_id]) users[f.user_id].flags = { flagged: !!f.flagged, restricted: !!f.restricted, note: f.note || '' }; });
+    var settings = {}; (raw.settings || []).forEach(function (s) { settings[s.key] = s.value; });
+    function touch(row, isMeal) {
+      var u = users[row.user_id]; if (!u) return;
+      var t = new Date(row.logged_at).getTime(); if (!t) return;
+      if (t > u.lastLog) u.lastLog = t;
+      if (t >= now - 7 * DAY) u.logs7++; else if (t >= now - 14 * DAY) u.logsPrev++;
+      u.logDays[startOfDay(t)] = true;
+      if (isMeal) u.meals.push(row);
+    }
+    raw.meals.forEach(function (m) { touch(m, true); });
+    raw.water.forEach(function (r) { touch(r); });
+    raw.checkins.forEach(function (r) { touch(r); });
+    raw.weights.forEach(function (r) { touch(r); });
+
+    var list = Object.keys(users).map(function (k) { return users[k]; });
+    list.forEach(function (u) {
+      u.last = Math.max(u.seen, u.lastLog);
+      var idle = u.last ? (now - u.last) / DAY : (now - u.joined) / DAY;
+      var risk = 0, reason = 'Logging steadily';
+      if (idle >= 5) { risk = Math.min(98, Math.round(70 + (idle - 5) * 3)); reason = u.last ? 'No activity for ' + Math.floor(idle) + ' days' : 'Never logged anything'; }
+      else if (u.logsPrev >= 4 && u.logs7 <= u.logsPrev / 2) { risk = Math.round(40 + Math.min(29, (1 - u.logs7 / u.logsPrev) * 58)); reason = 'Logging dropped from ' + u.logsPrev + ' to ' + u.logs7 + ' a week'; }
+      else if (idle >= 3) { risk = 30; reason = 'Quiet for ' + Math.floor(idle) + ' days'; }
+      u.risk = risk; u.reason = reason;
+      u.status = idle < 2 ? 'Active' : risk >= 40 ? 'At risk' : 'Quiet';
+      var streak = 0, d = today; if (!u.logDays[d]) d -= DAY;
+      while (u.logDays[d]) { streak++; d -= DAY; }
+      u.streak = streak;
+      u.todayKcal = u.meals.filter(function (m) { return new Date(m.logged_at).getTime() >= today; }).reduce(function (s, m) { return s + (m.calories || 0); }, 0);
+      u.meals.sort(function (a, b) { return new Date(b.logged_at) - new Date(a.logged_at); });
+    });
+
+    var activeNow = list.filter(function (u) { return u.last && now - u.last < 15 * 60 * 1000; }).length;
+    var dau = list.filter(function (u) { return u.last >= today; }).length;
+    var dauLastWeek = list.filter(function (u) { return u.logDays[today - 7 * DAY]; }).length;
+    var mealsToday = raw.meals.filter(function (m) { return new Date(m.logged_at).getTime() >= today; });
+    var cohort = list.filter(function (u) { return u.joined >= now - 14 * DAY && u.joined < now - 7 * DAY; });
+    var retained = cohort.filter(function (u) { return u.last >= now - 7 * DAY; }).length;
+
+    // 14-day series
+    var days = [];
+    for (var i = 13; i >= 0; i--) {
+      var s0 = today - i * DAY, s1 = s0 + DAY;
+      days.push({ t: s0,
+        signups: list.filter(function (u) { return u.joined >= s0 && u.joined < s1; }).length,
+        active: list.filter(function (u) { return u.logDays[s0]; }).length,
+        meals: raw.meals.filter(function (m) { var t = new Date(m.logged_at).getTime(); return t >= s0 && t < s1; }).length });
+    }
+
+    // Foods logged today (each food in a meal; a meal without food items counts by its name)
+    function foodsOf(m) {
+      var f = Array.isArray(m.foods) && m.foods.length ? m.foods : null;
+      return f ? f.map(function (x) { return { name: x.name || m.name, cal: Number(x.cal || x.calories || 0) }; }) : [{ name: m.name || 'Meal', cal: m.calories || 0 }];
+    }
+    function rankFoods(meals) {
+      var map = {};
+      meals.forEach(function (m) { foodsOf(m).forEach(function (f) {
+        var key = String(f.name || '').trim().toLowerCase(); if (!key) return;
+        var e = map[key] || (map[key] = { name: String(f.name).trim(), count: 0, kcal: 0 });
+        e.count++; e.kcal += f.cal || 0;
+      }); });
+      return Object.keys(map).map(function (k) { var e = map[k]; e.avg = Math.round(e.kcal / e.count); return e; }).sort(function (a, b) { return b.count - a.count; });
+    }
+    var foodsToday = rankFoods(mealsToday);
+
+    // Hours today, and meal times (by when it was logged)
+    var hours = []; for (var h = 0; h < 24; h++) hours.push(0);
+    mealsToday.forEach(function (m) { hours[new Date(m.logged_at).getHours()]++; });
+    var slots = { Breakfast: [], Lunch: [], Dinner: [], 'Late snack': [] };
+    raw.meals.filter(function (m) { return new Date(m.logged_at).getTime() >= now - 7 * DAY; }).forEach(function (m) {
+      var hr = new Date(m.logged_at).getHours();
+      (hr >= 5 && hr < 11 ? slots.Breakfast : hr >= 11 && hr < 16 ? slots.Lunch : hr >= 16 && hr < 22 ? slots.Dinner : slots['Late snack']).push(m.calories || 0);
+    });
+
+    // Recipe logs (meals logged from a recipe, matched by name, last 35 days)
+    var recipeLogs = {};
+    raw.meals.forEach(function (m) { if (m.method === 'recipe' && m.name) { var k = m.name.trim().toLowerCase(); recipeLogs[k] = (recipeLogs[k] || 0) + 1; } });
+
+    var goals = {};
+    list.forEach(function (u) { var g = u.goal || 'Not set'; goals[g] = (goals[g] || 0) + 1; });
+
+    return { users: list, activeNow: activeNow, dau: dau, dauLastWeek: dauLastWeek, mealsToday: mealsToday.length, mealsAllTime: raw.mealsAllTime,
+      retention: cohort.length ? pct(retained, cohort.length) : null, cohortSize: cohort.length,
+      signupsToday: list.filter(function (u) { return u.joined >= today; }).length, days: days, foodsToday: foodsToday, hours: hours, slots: slots,
+      recipes: raw.recipes, recipeLogs: recipeLogs, feedback: raw.feedback, admins: raw.admins, goals: goals, settings: settings, refreshedAt: now };
+  }
+
+  // ---------- views ----------
+  function statCard(label, value, sub, dark, onclick) {
+    var tag = onclick ? 'button type="button" data-act="' + onclick + '"' : 'div';
+    var close = onclick ? 'button' : 'div';
+    return '<' + tag + ' class="' + (dark ? '' : 'card ') + 'stat" style="text-align:left;' + (dark ? 'background:#13241A;color:#fff;border-radius:16px;border:0;' : '') + '">' +
+      '<span style="font-size:13px;font-weight:500;color:' + (dark ? '#B9CDBC' : '#565D57') + '">' + esc(label) + (onclick ? ' →' : '') + '</span>' +
+      '<span class="display" style="font-size:' + (dark ? 44 : 38) + 'px">' + esc(value) + '</span>' +
+      '<span style="font-size:13px;color:' + (dark ? '#F2A541' : '#565D57') + '">' + sub + '</span></' + close + '>';
+  }
+
+  function viewOverview(D) {
+    var dauDelta = D.dauLastWeek ? Math.round(((D.dau - D.dauLastWeek) / D.dauLastWeek) * 100) : null;
+    var series = D.days.map(function (d) { return d[S.metric]; });
+    var max = nice(Math.max.apply(null, series.concat([1])));
+    var metrics = [['signups', 'Signups'], ['active', 'Active users'], ['meals', 'Meals logged']];
+    var label = metrics.filter(function (m) { return m[0] === S.metric; })[0][1];
+    var peak = Math.max.apply(null, series);
+    var bars = D.days.map(function (d, i) {
+      var v = d[S.metric], h = Math.round((v / max) * 196);
+      return '<div title="' + esc(dateLabel(d.t) + ': ' + v) + '" style="position:relative;flex:1 1 0;height:' + h + 'px;border-radius:4px 4px 0 0;background:' + (i === D.days.length - 1 ? '#D9822B' : '#1F5A36') + '">' +
+        (v === peak && v > 0 ? '<span style="position:absolute;left:50%;bottom:100%;transform:translate(-50%,-4px);font-size:11px;font-weight:600;color:#9A4A0C">' + v + '</span>' : '') + '</div>';
+    }).join('');
+    var dates = D.days.map(function (d) { return '<span style="flex:1 1 0;text-align:center;font-size:11px" class="muted">' + esc(dateLabel(d.t)) + '</span>'; }).join('');
+
+    var atRisk = D.users.filter(function (u) { return u.risk >= 40; }).sort(function (a, b) { return b.risk - a.risk; });
+    var high = atRisk.filter(function (u) { return u.risk >= 70; }).length, med = atRisk.length - high;
+    var churnRows = atRisk.slice(0, 10).map(function (u) {
+      var r = riskStyle(u.risk);
+      return '<tr><td style="padding-left:22px"><div style="font-weight:600">' + esc(u.name) + flagTags(u) + '</div><div style="font-size:12px" class="muted">' + esc(u.reason) + '</div></td>' +
+        '<td>' + planPill(u.id) + '</td><td class="muted">' + esc(ago(u.last)) + '</td><td>' + u.logs7 + ' / ' + u.logsPrev + '</td>' +
+        '<td><span class="pill" style="background:' + r[1] + ';color:' + r[2] + '">' + u.risk + '%</span></td>' +
+        '<td style="text-align:right;padding-right:22px"><button type="button" class="btn" style="min-height:36px;font-size:13px" data-act="viewUser" data-id="' + esc(u.id) + '">View</button></td></tr>';
+    }).join('') || '<tr><td colspan="6" style="padding:22px;text-align:center" class="muted">Nobody looks at risk right now.</td></tr>';
+    var payingAtRisk = atRisk.filter(function (u) { return S.plans[u.id] === 'Pro'; }).length;
+
+    var top = D.foodsToday.slice(0, 10), topLogs = top.reduce(function (s, f) { return s + f.count; }, 0);
+    var allLogs = D.foodsToday.reduce(function (s, f) { return s + f.count; }, 0);
+    var topMax = top.length ? top[0].count : 1;
+    var foods = top.map(function (f, i) {
+      return '<li style="display:grid;grid-template-columns:22px minmax(110px,150px) minmax(0,1fr) 52px 70px;align-items:center;gap:10px;padding:4px 0;border-bottom:1px solid #F6F3EC">' +
+        '<span style="font-size:12px;font-weight:600" class="muted">' + (i + 1) + '</span><span style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(f.name) + '</span>' +
+        '<div class="bar"><div style="width:' + pct(f.count, topMax) + '%;background:#D9822B"></div></div>' +
+        '<span style="font-size:13px;text-align:right" class="muted">' + f.count + '</span><span style="font-size:13px;font-weight:600;text-align:right">' + fmt(f.avg) + '</span></li>';
+    }).join('') || '<li class="muted" style="padding:12px 0">Nothing logged yet today.</li>';
+    var weighted = topLogs ? Math.round(top.reduce(function (s, f) { return s + f.kcal; }, 0) / topLogs) : 0;
+
+    var total = D.users.length;
+    var plat = { ios: 0, android: 0, web: 0, '': 0 };
+    D.users.forEach(function (u) { plat[u.platform in plat ? u.platform : ''] += 1; });
+    var storeRow = function (name, n, color, bg) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;background:' + bg + '">' +
+        '<span style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600"><span style="width:10px;height:10px;border-radius:3px;background:' + color + '"></span>' + name + '</span>' +
+        '<span><span class="display" style="font-size:24px;letter-spacing:0">' + n + '</span> <span class="muted" style="font-size:13px">' + pct(n, total) + '%</span></span></div>';
+    };
+    var goals = Object.keys(D.goals).sort(function (a, b) { return D.goals[b] - D.goals[a]; }).map(function (g) {
+      var p = pct(D.goals[g], total);
+      return '<div class="stack"><div style="display:flex;justify-content:space-between;font-size:14px"><span>' + esc(g) + '</span><span class="muted">' + p + '% · ' + D.goals[g] + '</span></div><div class="bar"><div style="width:' + p + '%;background:#1F5A36"></div></div></div>';
+    }).join('');
+
+    return '<div style="display:flex;flex-direction:column;gap:24px">' +
+      '<section aria-label="Key numbers" class="grid-stats">' +
+        statCard('Active right now', D.activeNow, 'in the app in the last 15 min', true) +
+        statCard('Total users', fmt(total), '<span style="color:#1F6B3D;font-weight:600">+' + D.signupsToday + ' today</span>', false, 'goUsers') +
+        statCard('Daily active users', fmt(D.dau), dauDelta == null ? 'opened or logged today' : '<span style="color:' + (dauDelta >= 0 ? '#1F6B3D' : '#9A3A12') + ';font-weight:600">' + (dauDelta >= 0 ? '+' : '') + dauDelta + '% vs same day last week</span>') +
+        statCard('Meals logged today', fmt(D.mealsToday), (D.dau ? (D.mealsToday / D.dau).toFixed(1) : '0') + ' per active user · ' + fmt(D.mealsAllTime) + ' all time', false, 'goMeals') +
+        statCard('7-day retention', D.retention == null ? '—' : D.retention + '%', D.retention == null ? 'no one joined 7–14 days ago' : 'of ' + D.cohortSize + ' who joined 7–14 days ago') +
+      '</section>' +
+      '<div class="row">' +
+        '<section class="card" aria-label="Growth chart" style="flex:2 1 480px;min-width:0;padding:22px;display:flex;flex-direction:column;gap:18px">' +
+          '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px"><div><h2 style="margin:0;font-size:17px;font-weight:600">' + label + ' · last 14 days</h2>' +
+          '<span style="font-size:13px" class="muted">Today ' + series[series.length - 1] + ' · peak ' + peak + '</span></div>' +
+          '<div role="group" aria-label="Metric" style="display:flex;gap:6px;background:#F0EBE0;padding:4px;border-radius:10px">' +
+            metrics.map(function (m) { var on = m[0] === S.metric; return '<button type="button" aria-pressed="' + on + '" data-act="metric" data-id="' + m[0] + '" style="min-height:36px;padding:0 12px;border:0;border-radius:7px;font-size:13px;' + (on ? 'background:#fff;font-weight:600' : 'background:transparent;color:#565D57') + '">' + m[1] + '</button>'; }).join('') +
+          '</div></div>' +
+          '<div style="display:flex;gap:10px"><div aria-hidden="true" style="flex:none;width:40px;height:200px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;font-size:11px;line-height:1" class="muted"><span>' + max + '</span><span>' + (max / 2) + '</span><span>0</span></div>' +
+          '<div style="flex:1 1 auto;min-width:0;overflow-x:auto"><div class="chart" style="min-width:420px"><div class="gl" style="top:0"></div><div class="gl" style="top:50%"></div>' + bars + '</div>' +
+          '<div style="min-width:420px;display:flex;gap:6px;padding-top:8px">' + dates + '</div></div></div>' +
+        '</section>' +
+        viewPlans(D) +
+      '</div>' +
+      '<div class="row">' +
+        '<section class="card" aria-label="Top 10 users likely to churn" style="flex:3 1 520px;min-width:0;padding:22px 0 8px;display:flex;flex-direction:column;gap:12px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0 22px"><h2 style="margin:0;font-size:17px;font-weight:600">Top 10 users likely to churn</h2><button type="button" data-act="goAtRisk" style="min-height:36px;border:0;background:transparent;color:#1F5A36;font-size:13px;font-weight:600">All at-risk users →</button></div>' +
+          '<div class="tablewrap"><table style="min-width:620px"><thead><tr><th style="padding-left:22px">User</th><th>Plan</th><th>Last active</th><th>Logs this wk / last wk</th><th>Risk</th><th></th></tr></thead><tbody>' + churnRows + '</tbody></table></div>' +
+        '</section>' +
+        '<section aria-label="Churn risk count" style="flex:1 1 260px;min-width:0;background:#FBE5DC;border:1px solid #F0C3B0;border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:16px">' +
+          '<h2 style="margin:0;font-size:17px;font-weight:600;color:#5C1F0A">Likely to churn</h2>' +
+          '<div><div class="display" style="font-size:52px;color:#5C1F0A">' + atRisk.length + '</div><div style="font-size:14px;color:#6E2A12">' + pct(atRisk.length, total) + '% of all users</div></div>' +
+          '<div style="display:flex;flex-direction:column;gap:10px">' +
+            '<div style="display:flex;justify-content:space-between;font-size:14px;color:#5C1F0A"><span>High risk (70%+)</span><strong>' + high + '</strong></div><div class="bar" style="background:#F6D0C1"><div style="width:' + pct(high, total) + '%;background:#B23E14"></div></div>' +
+            '<div style="display:flex;justify-content:space-between;font-size:14px;color:#5C1F0A"><span>Medium risk (40–69%)</span><strong>' + med + '</strong></div><div class="bar" style="background:#F6D0C1"><div style="width:' + pct(med, total) + '%;background:#D9822B"></div></div>' +
+            '<div style="display:flex;justify-content:space-between;font-size:14px;color:#5C1F0A"><span>Paying users at risk</span><strong>' + (S.rc && S.rc.configured && !S.rc.error ? payingAtRisk : '—') + '</strong></div>' +
+          '</div>' + (atRisk.length ? '<button type="button" class="btn" style="background:#fff;border-color:#F0C3B0;color:#5C1F0A;font-weight:600" data-act="nudgeAtRisk">Nudge all ' + atRisk.length + ' at-risk users</button>' : '') +
+          '<p style="margin:0;font-size:12px;line-height:1.5;color:#6E2A12">At risk = nothing opened or logged in 5+ days, or logging dropped 50%+ week over week.</p>' +
+        '</section>' +
+      '</div>' +
+      '<div class="row">' +
+        '<section class="card" aria-label="Top 10 most logged foods" style="flex:3 1 420px;min-width:0;padding:22px;display:flex;flex-direction:column;gap:14px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><h2 style="margin:0;font-size:17px;font-weight:600">Top 10 most logged foods today</h2><button type="button" data-act="goFoods" style="min-height:36px;border:0;background:transparent;color:#1F5A36;font-size:13px;font-weight:600">Recipes →</button></div>' +
+          '<div aria-hidden="true" style="display:grid;grid-template-columns:22px minmax(110px,150px) minmax(0,1fr) 52px 70px;gap:10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px" class="muted"><span>#</span><span>Food</span><span>Share of top 10</span><span style="text-align:right">Logs</span><span style="text-align:right">Avg kcal</span></div>' +
+          '<ol style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px">' + foods + '</ol>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">' +
+            '<div style="padding:12px 14px;border-radius:10px;background:#FFF8EC"><div style="font-size:12px;color:#6A3B00;font-weight:600">Top 10 share</div><div class="display" style="font-size:22px">' + pct(topLogs, allLogs) + '%</div><div style="font-size:12px;color:#6A3B00">of today\'s logs</div></div>' +
+            '<div style="padding:12px 14px;border-radius:10px;background:#F0EBE0"><div style="font-size:12px;color:#4A4F49;font-weight:600">Top 10 logs</div><div class="display" style="font-size:22px">' + topLogs + '</div><div style="font-size:12px;color:#4A4F49">today</div></div>' +
+            '<div style="padding:12px 14px;border-radius:10px;background:#E2EFE4"><div style="font-size:12px;color:#1F5A36;font-weight:600">Avg kcal · top 10</div><div class="display" style="font-size:22px">' + fmt(weighted) + '</div><div style="font-size:12px;color:#1F5A36">weighted by logs</div></div>' +
+          '</div>' +
+        '</section>' +
+        '<div style="flex:2 1 300px;min-width:0;display:flex;flex-direction:column;gap:20px">' +
+          '<section class="card" aria-label="Users by device" style="padding:22px;display:flex;flex-direction:column;gap:12px">' +
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 style="margin:0;font-size:17px;font-weight:600">Users by device</h2><span style="font-size:13px" class="muted">' + total + ' total</span></div>' +
+            '<div style="display:flex;height:14px;border-radius:7px;overflow:hidden;background:#F0EBE0" role="img" aria-label="' + esc('iOS ' + plat.ios + ', Android ' + plat.android + ', web ' + plat.web + ', not yet known ' + plat['']) + '">' +
+              '<div style="width:' + pct(plat.ios, total) + '%;background:#1F5A36"></div><div style="width:' + pct(plat.android, total) + '%;background:#D9822B"></div><div style="width:' + pct(plat.web, total) + '%;background:#3C6FB4"></div></div>' +
+            storeRow('App Store · iOS · Live', plat.ios, '#1F5A36', '#E2EFE4') + storeRow('Play Store · Android · ' + (D.settings.android_live ? 'Live' : 'Coming soon'), plat.android, '#D9822B', '#F0EBE0') + storeRow('Web · logga.space/app', plat.web, '#3C6FB4', '#EAF0F8') +
+            '<button type="button" class="btn" style="align-self:flex-start;min-height:40px;font-size:13px" data-act="toggleAndroid">' + (D.settings.android_live ? 'Mark Android as coming soon' : 'Mark Android as live') + '</button>' +
+            (plat[''] ? '<p style="margin:0;font-size:12px" class="muted">' + plat[''] + ' not known yet: the device is saved the next time each person opens an updated app.</p>' : '') +
+          '</section>' +
+          '<section class="card" aria-label="Goals" style="padding:22px;display:flex;flex-direction:column;gap:14px"><h2 style="margin:0;font-size:17px;font-weight:600">User goals</h2>' + goals + '</section>' +
+        '</div>' +
+      '</div></div>';
+  }
+
+  // Free / Pro and revenue, from RevenueCat (metrics overview + each person's active entitlements).
+  function viewPlans(D) {
+    var rc = S.rc, total = D.users.length;
+    var metric = function (id) { return rc && rc.metrics && rc.metrics[id] ? rc.metrics[id].value : null; };
+    var known = Object.keys(S.plans).length, pro = Object.keys(S.plans).filter(function (k) { return S.plans[k] === 'Pro'; }).length;
+    if (!known && metric('active_subscriptions') != null) pro = metric('active_subscriptions');
+    var free = known ? known - pro : (rc && rc.configured ? Math.max(0, total - pro) : null);
+    var money = function (v) { return v == null ? '—' : '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); };
+    var planCard = function (label, n, dark, sub) {
+      return '<div style="' + (dark ? 'background:#13241A;color:#fff;' : 'background:#fff;border:1px solid #E4DED1;') + 'border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;font-weight:600;letter-spacing:.5px;color:' + (dark ? '#F2A541' : '#565D57') + '">' + label + '</span>' +
+        '<span class="display" style="font-size:30px">' + (n == null ? '—' : fmt(n)) + '</span><span style="font-size:12px;color:' + (dark ? '#B9CDBC' : '#565D57') + '">' + sub + '</span></div>';
+    };
+    var body;
+    if (!rc) body = '<span style="font-size:13px;color:#6A3B00">Loading from RevenueCat…</span>';
+    else if (!rc.configured) body = '<span style="font-size:13px;line-height:1.5;color:#6A3B00">Connect RevenueCat to see subscribers and revenue: in Vercel › Settings › Environment Variables add <strong>REVENUECAT_API_KEY</strong> (a v2 secret key from RevenueCat › Project settings › API keys) and <strong>REVENUECAT_PROJECT_ID</strong>, then redeploy.</span>';
+    else if (rc.error) body = '<span style="font-size:13px;color:#8A2E10">RevenueCat: ' + esc(rc.error) + '</span>';
+    else body = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">' +
+      '<div><div style="font-size:13px;color:#6A3B00;font-weight:600">Monthly recurring revenue</div><div class="display" style="font-size:30px;margin-top:8px">' + money(metric('mrr')) + '</div></div>' +
+      '<div><div style="font-size:13px;color:#6A3B00;font-weight:600">Revenue · last 28 days</div><div class="display" style="font-size:30px;margin-top:8px">' + money(metric('revenue')) + '</div></div>' +
+      '<div><div style="font-size:13px;color:#6A3B00;font-weight:600">Active trials</div><div class="display" style="font-size:30px;margin-top:8px">' + (metric('active_trials') == null ? '—' : fmt(metric('active_trials'))) + '</div></div></div>';
+    return '<section aria-label="Plans and revenue" style="flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:12px">' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px">' +
+        planCard('PRO', pro && rc && rc.configured ? pro : (rc && rc.configured ? 0 : null), true, rc && rc.configured ? pct(pro, total) + '% of users' : 'from RevenueCat') +
+        planCard('FREE', free, false, free != null ? pct(free, total) + '% of users' : 'from RevenueCat') + '</div>' +
+      '<div style="flex:1 1 auto;background:#FFF8EC;border:1px solid #EDD3A6;border-radius:14px;padding:18px;display:flex;flex-direction:column;justify-content:center;gap:10px">' + body + '</div></section>';
+  }
+
+  // The "⋯" menu on a user row
+  function userMenu(u) {
+    var open = S.menuFor === u.id;
+    var item = function (act, label, danger) { return '<button type="button" role="menuitem" data-act="' + act + '" data-id="' + esc(u.id) + '" style="min-height:40px;padding:0 12px;border:0;border-radius:8px;background:transparent;font-size:14px;text-align:left;' + (danger ? 'color:#A3330D;font-weight:600' : '') + '" onmouseover="this.style.background=\'#F6F3EC\'" onmouseout="this.style.background=\'transparent\'">' + label + '</button>'; };
+    return '<div style="position:relative;display:inline-block"><button type="button" aria-haspopup="menu" aria-expanded="' + open + '" aria-label="Actions for ' + esc(u.name) + '" data-act="toggleMenu" data-id="' + esc(u.id) + '" style="width:40px;height:40px;border:1px solid #CFC9BB;border-radius:8px;background:#fff;display:inline-flex;align-items:center;justify-content:center">' +
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="#1A1F1B" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>' +
+      (open ? '<div role="menu" style="position:absolute;right:0;top:44px;z-index:30;width:230px;padding:6px;background:#fff;border:1px solid #E4DED1;border-radius:12px;box-shadow:0 12px 32px rgba(19,36,26,.18);display:flex;flex-direction:column;text-align:left">' +
+        item('viewUser', 'View profile') + item('askNudge', 'Send re-engagement nudge') + item('toggleFlag', u.flags.flagged ? 'Remove flag' : 'Flag user') +
+        item('toggleRestrict', u.flags.restricted ? 'Lift restriction' : 'Restrict account') + '<div style="height:1px;background:#F0EBE0;margin:4px 0"></div>' + item('askDelUser', 'Delete user', true) + '</div>' : '') + '</div>';
+  }
+
+  function viewUsers(D) {
+    var q = S.userQuery.trim().toLowerCase();
+    var chips = ['All', 'Active', 'At risk', 'Quiet', 'Pro', 'Free', 'iOS', 'Android', 'Web', 'Flagged', 'Restricted'];
+    var rows = D.users.filter(function (u) {
+      if (q && (u.name + ' ' + u.email + ' ' + u.country).toLowerCase().indexOf(q) < 0) return false;
+      var f = S.userFilter;
+      if (f === 'All') return true;
+      if (f === 'iOS' || f === 'Android' || f === 'Web') return PLATFORM[u.platform] === f;
+      if (f === 'Pro' || f === 'Free') return S.plans[u.id] === f;
+      if (f === 'Flagged') return u.flags.flagged;
+      if (f === 'Restricted') return u.flags.restricted;
+      return u.status === f;
+    }).sort(function (a, b) { return b.joined - a.joined; });
+    var counts = [
+      ['Total users', D.users.length, '#fff', '#E4DED1', '#565D57', '#1A1F1B'],
+      ['Active', D.users.filter(function (u) { return u.status === 'Active'; }).length, '#E2EFE4', '#C5DECA', '#1F5A36', '#1F5A36'],
+      ['At risk', D.users.filter(function (u) { return u.status === 'At risk'; }).length, '#FBE5DC', '#F0C3B0', '#8A2E10', '#5C1F0A'],
+      ['Quiet', D.users.filter(function (u) { return u.status === 'Quiet'; }).length, '#F0EBE0', '#E4DED1', '#4A4F49', '#1A1F1B'],
+      ['Joined this week', D.users.filter(function (u) { return u.joined >= Date.now() - 7 * DAY; }).length, '#FFF8EC', '#EDD3A6', '#6A3B00', '#1A1F1B'],
+      ['Flagged', D.users.filter(function (u) { return u.flags.flagged; }).length, '#fff', '#E4DED1', '#B23E14', '#1A1F1B'],
+      ['Restricted', D.users.filter(function (u) { return u.flags.restricted; }).length, '#fff', '#E4DED1', '#8A2E10', '#1A1F1B'],
+    ].map(function (c) { return '<div style="background:' + c[2] + ';border:1px solid ' + c[3] + ';border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600;color:' + c[4] + '">' + c[0] + '</span><span class="display" style="font-size:28px;color:' + c[5] + '">' + fmt(c[1]) + '</span></div>'; }).join('');
+    var statusStyle = { Active: ['#E2EFE4', '#1F5A36'], 'At risk': ['#FBE5DC', '#8A2E10'], Quiet: ['#F0EBE0', '#4A4F49'] };
+    var body = rows.map(function (u) {
+      var r = riskStyle(u.risk), st = statusStyle[u.status];
+      return '<tr><td style="padding-left:16px"><div style="font-weight:600">' + esc(u.name) + flagTags(u) + '</div><div style="font-size:12px" class="muted">' + esc(u.email) + (u.country ? ' · ' + esc(u.country) : '') + '</div></td>' +
+        '<td>' + planPill(u.id) + '</td><td>' + esc(PLATFORM[u.platform] || '—') + '</td><td>' + esc(u.joined ? dateLabel(u.joined) : '—') + '</td><td class="muted">' + esc(ago(u.last)) + '</td>' +
+        '<td><span class="pill" style="background:' + r[1] + ';color:' + r[2] + '">' + r[0] + ' · ' + u.risk + '%</span></td>' +
+        '<td><span class="pill" style="background:' + st[0] + ';color:' + st[1] + '">' + u.status + '</span></td>' +
+        '<td style="text-align:right;padding-right:16px">' + userMenu(u) + '</td></tr>';
+    }).join('');
+    return '<div style="display:flex;flex-direction:column;gap:20px">' +
+      '<section aria-label="User counts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">' + counts + '</section>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center"><label for="usearch" class="sr">Search users</label>' +
+        '<input id="usearch" class="field" type="search" placeholder="Search by name, email or country" value="' + esc(S.userQuery) + '" data-input="userQuery" style="flex:1 1 240px">' +
+        '<div role="group" aria-label="Filter" style="display:flex;flex-wrap:wrap;gap:6px">' + chips.map(function (c) { return '<button type="button" class="chip" aria-pressed="' + (S.userFilter === c) + '" data-act="userFilter" data-id="' + c + '">' + c + '</button>'; }).join('') + '</div></div>' +
+      '<section class="card tablewrap" aria-label="Users"><table style="min-width:900px"><thead><tr style="background:#F6F3EC"><th style="padding-left:16px">User</th><th>Plan</th><th>Device</th><th>Joined</th><th>Last active</th><th>Churn risk</th><th>Status</th><th><span class="sr">Actions</span></th></tr></thead><tbody>' + body + '</tbody></table>' +
+      (rows.length ? '' : '<p style="margin:0;padding:24px;text-align:center" class="muted">No users match.</p>') +
+      '<p style="margin:0;padding:12px 16px;border-top:1px solid #F0EBE0;font-size:12px" class="muted">Showing ' + rows.length + ' of ' + D.users.length + ' users</p></section></div>';
+  }
+
+  function viewMeals(D) {
+    var slotNames = Object.keys(D.slots), totalSlot = slotNames.reduce(function (s, k) { return s + D.slots[k].length; }, 0);
+    var types = slotNames.map(function (k) {
+      var arr = D.slots[k], avg = arr.length ? Math.round(arr.reduce(function (a, b) { return a + b; }, 0) / arr.length) : 0;
+      return '<div class="card stat"><span style="font-size:13px;font-weight:500" class="muted">' + k + '</span><span class="display" style="font-size:34px">' + pct(arr.length, totalSlot) + '%</span><span style="font-size:13px" class="muted">avg ' + fmt(avg) + ' kcal · ' + arr.length + ' meals</span></div>';
+    }).join('');
+    var hmax = nice(Math.max.apply(null, D.hours.concat([1]))), peak = Math.max.apply(null, D.hours), peakAt = D.hours.indexOf(peak);
+    var hl = function (h) { return (h % 12 || 12) + (h < 12 ? 'am' : 'pm'); };
+    var bars = D.hours.map(function (v, h) { return '<div title="' + hl(h) + ': ' + v + '" style="flex:1 1 0;height:' + Math.round((v / hmax) * 196) + 'px;border-radius:3px 3px 0 0;background:' + (v === peak && v > 0 ? '#D9822B' : '#1F5A36') + '"></div>'; }).join('');
+    var labels = D.hours.map(function (v, h) { return '<span style="flex:1 1 0;text-align:center;font-size:10px;white-space:nowrap" class="muted">' + (h % 3 === 0 ? hl(h) : '') + '</span>'; }).join('');
+    var rows = D.foodsToday.slice(0, 25).map(function (f, i) { return '<tr><td style="padding-left:0"><span style="display:inline-block;width:26px;font-size:12px;font-weight:600" class="muted">' + (i + 1) + '</span>' + esc(f.name) + '</td><td style="text-align:right">' + f.count + '</td><td style="text-align:right;font-weight:600;padding-right:0">' + fmt(f.avg) + ' kcal</td></tr>'; }).join('') ||
+      '<tr><td colspan="3" class="muted" style="padding:16px 0">Nothing logged yet today.</td></tr>';
+    return '<div style="display:flex;flex-direction:column;gap:20px">' +
+      '<p class="muted" style="margin:0;font-size:13px">Meal times are grouped by when each meal was logged (last 7 days): breakfast 5–11am, lunch 11am–4pm, dinner 4–10pm, late snack after 10pm.</p>' +
+      '<section aria-label="Meal times" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px">' + types + '</section>' +
+      '<section class="card" aria-label="Logs by hour" style="padding:22px;display:flex;flex-direction:column;gap:18px"><div><h2 style="margin:0;font-size:17px;font-weight:600">Meals logged by hour · today</h2><span style="font-size:13px" class="muted">' + (peak ? 'Busiest hour: ' + hl(peakAt) + ' · ' + peak + ' logs' : 'No meals logged yet today') + '</span></div>' +
+        '<div style="display:flex;gap:10px"><div aria-hidden="true" style="flex:none;width:34px;height:200px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;font-size:11px;line-height:1" class="muted"><span>' + hmax + '</span><span>' + (hmax / 2) + '</span><span>0</span></div>' +
+        '<div style="flex:1 1 auto;min-width:0;overflow-x:auto"><div class="chart" style="min-width:600px;gap:4px"><div class="gl" style="top:0"></div><div class="gl" style="top:50%"></div>' + bars + '</div><div style="min-width:600px;display:flex;gap:4px;padding-top:8px">' + labels + '</div></div></div></section>' +
+      '<section class="card" aria-label="Most logged foods" style="padding:22px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px"><h2 style="margin:0;font-size:17px;font-weight:600">Most logged foods · today</h2><span style="font-size:13px" class="muted">Ranked by times logged</span></div>' +
+        '<div class="tablewrap"><table style="min-width:420px"><thead><tr><th style="padding-left:0">Food</th><th style="text-align:right">Times logged</th><th style="text-align:right;padding-right:0">Avg calories</th></tr></thead><tbody>' + rows + '</tbody></table></div></section></div>';
+  }
+
+  function recipeCountriesOf(r) { return (r.data.countries || []).filter(Boolean); }
+  function viewRecipes(D) {
+    var all = D.recipes, q = S.recipeQuery.trim().toLowerCase();
+    var countryCount = {};
+    all.forEach(function (r) { recipeCountriesOf(r).forEach(function (c) { countryCount[c] = (countryCount[c] || 0) + 1; }); });
+    var countries = Object.keys(countryCount).sort(function (a, b) { return countryCount[b] - countryCount[a]; });
+    var shown = all.filter(function (r) {
+      if (S.recipeCountry !== 'All' && recipeCountriesOf(r).indexOf(S.recipeCountry) < 0) return false;
+      return !q || (r.data.name + ' ' + (r.data.category || '') + ' ' + recipeCountriesOf(r).join(' ')).toLowerCase().indexOf(q) >= 0;
+    });
+    var cmax = countries.length ? countryCount[countries[0]] : 1;
+    var items = shown.map(function (r, i) {
+      var d = r.data, logs = D.recipeLogs[String(d.name || '').trim().toLowerCase()] || 0;
+      var photo = d.imageUrl ? '<img src="' + esc(d.imageUrl) + '" alt="" loading="lazy" style="flex:none;width:44px;height:44px;border-radius:10px;object-fit:cover">' :
+        '<span aria-hidden="true" class="display" style="flex:none;width:44px;height:44px;border-radius:10px;background:' + TILES[r.id % TILES.length] + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;letter-spacing:0">' + esc(initials(d.name)) + '</span>';
+      return '<li style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:12px 18px;border-top:1px solid #F0EBE0">' + photo +
+        '<div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0;font-size:15px;font-weight:600">' + esc(d.name) + '</h3>' +
+        '<span class="pill" style="font-size:11px;font-weight:700;' + (r.published ? 'background:#E2EFE4;color:#1F5A36">Published' : 'background:#F0EBE0;color:#4A4F49">Draft') + '</span></div>' +
+        '<span style="font-size:13px" class="muted">' + esc(recipeCountriesOf(r).slice(0, 3).join(', ') || 'No country') + ' · ' + esc(d.category || '') + (d.prepTime ? ' · ' + esc(d.prepTime) : '') + ' · ' + logs + ' logs (35 days)</span></div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px"><span style="padding:3px 8px;border-radius:6px;background:#FFF1DD;color:#6A3B00;font-weight:600">' + fmt(d.calories) + ' kcal</span><span style="padding:3px 8px;border-radius:6px;background:#F0EBE0">P ' + (d.protein || 0) + ' · C ' + (d.carbs || 0) + ' · F ' + (d.fats || 0) + 'g</span></div>' +
+        '<div style="flex:none;display:flex;gap:6px"><button type="button" class="btn" style="min-height:38px;font-size:13px;font-weight:600" data-act="togglePub" data-id="' + r.id + '">' + (r.published ? 'Unpublish' : 'Publish') + '</button>' +
+        '<button type="button" class="btn" style="min-height:38px;font-size:13px" data-act="editRecipe" data-id="' + r.id + '">Edit</button>' +
+        '<button type="button" class="btn" style="min-height:38px;font-size:13px;color:#A3330D" data-act="askDelRecipe" data-id="' + r.id + '" aria-label="Delete ' + esc(d.name) + '">Delete</button></div></li>';
+    }).join('');
+    var pub = all.filter(function (r) { return r.published; }).length;
+    var counts = [['Recipes', all.length, true], ['Published', pub], ['Drafts', all.length - pub], ['Countries', countries.length]].map(function (c) {
+      return '<div style="' + (c[2] ? 'background:#13241A;color:#fff;border:0;' : 'background:#fff;border:1px solid #E4DED1;') + 'border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600;color:' + (c[2] ? '#B9CDBC' : '#565D57') + '">' + c[0] + '</span><span class="display" style="font-size:32px">' + c[1] + '</span></div>';
+    }).join('');
+    return '<div style="display:flex;flex-direction:column;gap:20px">' +
+      '<section aria-label="Recipe counts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">' + counts + '</section>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center"><label for="rsearch" class="sr">Search recipes</label><input id="rsearch" class="field" type="search" placeholder="Search recipes" value="' + esc(S.recipeQuery) + '" data-input="recipeQuery" style="flex:1 1 220px">' +
+        '<div style="flex:0 1 240px;display:flex;align-items:center;gap:8px"><label for="rcountry" style="font-size:14px;font-weight:600">Country</label><select id="rcountry" class="field" data-input="recipeCountry" style="flex:1 1 auto;min-width:0;padding:0 10px">' +
+        ['All'].concat(countries).map(function (c) { return '<option value="' + esc(c) + '"' + (c === S.recipeCountry ? ' selected' : '') + '>' + esc(c === 'All' ? 'All countries' : c) + '</option>'; }).join('') + '</select></div>' +
+        '<button type="button" data-act="addRecipe" style="min-height:44px;padding:0 18px;border:0;border-radius:10px;background:#D9822B;font-size:15px;font-weight:700">+ Add recipe</button></div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">' +
+        '<section class="card" aria-label="Recipes" style="flex:3 1 520px;min-width:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:16px 18px 12px"><h2 style="margin:0;font-size:15px;font-weight:600">All recipes</h2><span style="font-size:13px" class="muted">' + shown.length + ' shown</span></div>' +
+          '<ul style="list-style:none;margin:0;padding:0">' + items + '</ul>' + (shown.length ? '' : '<p style="margin:0;padding:24px;text-align:center;border-top:1px solid #F0EBE0" class="muted">No recipes match.</p>') + '</section>' +
+        '<section class="card" aria-label="Recipes by country" style="flex:1 1 260px;min-width:0;position:sticky;top:20px;padding:20px;display:flex;flex-direction:column;gap:10px"><h2 style="margin:0;font-size:15px;font-weight:600">Recipes by country</h2>' +
+          countries.slice(0, 14).map(function (c) { return '<div style="display:grid;grid-template-columns:minmax(80px,120px) minmax(0,1fr) 24px;align-items:center;gap:10px"><span style="font-size:13px">' + esc(c) + '</span><div class="bar"><div style="width:' + pct(countryCount[c], cmax) + '%;background:#1F5A36"></div></div><span style="font-size:13px;font-weight:600;text-align:right">' + countryCount[c] + '</span></div>'; }).join('') +
+        '</section></div></div>';
+  }
+
+  function viewFeedback(D) {
+    var fb = D.feedback, open = fb.filter(function (f) { return !f.handled; }).length;
+    var rated = fb.filter(function (f) { return f.rating; }), avg = rated.length ? (rated.reduce(function (s, f) { return s + f.rating; }, 0) / rated.length).toFixed(1) : '—';
+    var shown = fb.filter(function (f) { return S.fbFilter === 'All' || (S.fbFilter === 'Open' ? !f.handled : f.handled); });
+    var users = {}; D.users.forEach(function (u) { users[u.id] = u; });
+    var items = shown.map(function (f) {
+      var who = (users[f.user_id] && users[f.user_id].name) || f.email || 'Someone';
+      var stars = f.rating ? '★★★★★'.slice(0, f.rating) + '☆☆☆☆☆'.slice(0, 5 - f.rating) : '';
+      return '<article class="card" style="border-radius:14px;padding:18px 20px;display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:flex-start">' +
+        '<div style="flex:1 1 320px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center"><span style="font-size:15px;font-weight:600">' + esc(who) + '</span>' +
+        (stars ? '<span aria-label="' + f.rating + ' out of 5 stars" style="font-size:14px;color:#B5650F;letter-spacing:1px">' + stars + '</span>' : '<span class="pill" style="background:#F0EBE0;color:#4A4F49">Support</span>') +
+        '<span style="font-size:12px" class="muted">' + esc(ago(new Date(f.created_at).getTime())) + (f.app_version ? ' · v' + esc(f.app_version) : '') + (f.email ? ' · ' + esc(f.email) : '') + '</span></div>' +
+        '<p style="margin:0;font-size:14px;line-height:1.55;white-space:pre-wrap">' + esc(f.message || '(no message)') + '</p></div>' +
+        (f.handled ? '<button type="button" class="btn" style="background:#E2EFE4;color:#1F5A36;font-weight:600" data-act="toggleFb" data-id="' + f.id + '">Resolved ✓ · reopen</button>' :
+          '<button type="button" class="btn btn-primary" data-act="toggleFb" data-id="' + f.id + '">Mark resolved</button>') + '</article>';
+    }).join('');
+    return '<div style="display:flex;flex-direction:column;gap:20px">' +
+      '<section aria-label="Feedback counts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">' +
+        '<div style="background:#13241A;color:#fff;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600;color:#B9CDBC">Total feedback</span><span class="display" style="font-size:32px">' + fb.length + '</span></div>' +
+        '<div style="background:#FFF8EC;border:1px solid #EDD3A6;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600;color:#6A3B00">Open</span><span class="display" style="font-size:32px">' + open + '</span></div>' +
+        '<div style="background:#E2EFE4;border:1px solid #C5DECA;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600;color:#1F5A36">Resolved</span><span class="display" style="font-size:32px">' + (fb.length - open) + '</span></div>' +
+        '<div class="card" style="border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600" class="muted">Average rating</span><span class="display" style="font-size:32px">' + avg + ' <span style="font-size:20px;color:#B5650F">★</span></span></div></section>' +
+      '<div role="group" aria-label="Filter feedback" style="display:flex;flex-wrap:wrap;gap:6px">' + ['Open', 'Resolved', 'All'].map(function (c) { return '<button type="button" class="chip" aria-pressed="' + (S.fbFilter === c) + '" data-act="fbFilter" data-id="' + c + '">' + c + '</button>'; }).join('') + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:12px">' + (items || '<p style="margin:0;padding:24px;text-align:center" class="muted">Nothing here.</p>') + '</div></div>';
+  }
+
+  function viewSettings(D) {
+    var me = (S.me && S.me.email || '').toLowerCase();
+    var admins = D.admins.map(function (a) {
+      var you = a.email.toLowerCase() === me;
+      return '<li style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #F0EBE0"><span style="font-size:15px;word-break:break-all">' + esc(a.email) + (you ? ' <span style="font-size:12px;color:#1F5A36;font-weight:600">you</span>' : '') + '</span>' +
+        (you ? '' : '<button type="button" class="btn" style="min-height:40px;font-size:13px;color:#8A2E10" data-act="removeAdmin" data-id="' + esc(a.email) + '" aria-label="Remove ' + esc(a.email) + '">Remove</button>') + '</li>';
+    }).join('');
+    return '<div style="display:flex;flex-direction:column;gap:20px;max-width:720px">' +
+      '<section class="card" aria-label="Admin access" style="padding:22px;display:flex;flex-direction:column;gap:16px"><div><h2 style="margin:0;font-size:17px;font-weight:600">Admin emails</h2><p style="margin:4px 0 0;font-size:14px" class="muted">Only these emails can sign in to this portal. Each needs a Logga account to get the sign-in code.</p></div>' +
+        '<form data-form="addAdmin" style="display:flex;flex-wrap:wrap;gap:10px"><label for="newadmin" class="sr">New admin email</label><input id="newadmin" class="field" type="email" placeholder="name@example.com" value="' + esc(S.newAdmin) + '" data-input="newAdmin" style="flex:1 1 240px"><button type="submit" class="btn btn-primary">Add admin</button></form>' +
+        '<ul style="list-style:none;margin:0;padding:0">' + admins + '</ul></section>' +
+      '<section class="card" aria-label="Live refresh" style="padding:22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px"><div><h2 style="margin:0;font-size:17px;font-weight:600">Live updates</h2><p style="margin:4px 0 0;font-size:14px" class="muted">' + (S.live ? 'The numbers refresh every 30 seconds.' : 'Paused. The numbers stay as they are until you refresh.') + '</p></div>' +
+        '<button type="button" class="btn" style="font-weight:600" aria-pressed="' + S.live + '" data-act="toggleLive">' + (S.live ? 'Pause live updates' : 'Turn on live updates') + '</button></section></div>';
+  }
+
+  // ---------- modals ----------
+  function xbtn() { return '<button type="button" class="xbtn" data-act="closeModal" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A1F1B" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'; }
+  function modalUser(u) {
+    var r = riskStyle(u.risk), kp = u.target ? Math.min(100, pct(u.todayKcal, u.target)) : 0;
+    var recent = u.meals.slice(0, 6).map(function (m) { return '<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid #F0EBE0;font-size:14px"><span>' + esc(m.name || 'Meal') + ' <span class="muted" style="font-size:12px">· ' + esc(ago(new Date(m.logged_at).getTime())) + '</span></span><span style="font-weight:600">' + fmt(m.calories) + ' kcal</span></div>'; }).join('');
+    var dd = function (k, v) { return '<div><dt style="font-size:12px" class="muted">' + k + '</dt><dd style="margin:2px 0 0;font-size:14px;font-weight:600;word-break:break-word">' + esc(v || '—') + '</dd></div>'; };
+    return '<div style="display:flex;gap:16px;align-items:center"><span class="display" style="flex:none;width:56px;height:56px;border-radius:50%;background:#1F5A36;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;letter-spacing:0">' + esc(initials(u.name)) + '</span>' +
+      '<div style="flex:1 1 auto;min-width:0"><h2 class="display" style="margin:0;font-size:24px;letter-spacing:-.5px">' + esc(u.name) + '</h2><div style="font-size:13px;margin-top:4px" class="muted">' + esc(u.email) + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px">' + planPill(u.id) + ' <span class="pill" style="background:#F0EBE0;color:#4A4F49">' + u.status + '</span>' + flagTags(u) + '</div></div>' + xbtn() + '</div>' +
+      '<dl style="margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px">' + dd('Country', u.country) + dd('Device', PLATFORM[u.platform]) + dd('Joined', u.joined ? dateLabel(u.joined) : '') + dd('Goal', u.goal) + dd('Last active', ago(u.last)) +
+        dd('Lifetime spend', spendText(u.id)) + dd('Push notifications', u.hasPush ? 'On (push address saved)' : 'Not yet (gets nudges in the app)') + '</dl>' + subsList(u.id) +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">' +
+        ['Meals (35 days)', u.meals.length, 'This wk / last wk', u.logs7 + ' / ' + u.logsPrev, 'Streak', u.streak + ' days'].reduce(function (h, v, i, a) { return i % 2 ? h : h + '<div style="background:#F6F3EC;border-radius:12px;padding:12px"><div style="font-size:12px" class="muted">' + a[i] + '</div><div class="display" style="font-size:24px;letter-spacing:0">' + esc(a[i + 1]) + '</div></div>'; }, '') + '</div>' +
+      '<div class="stack"><div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">Today</span><span>' + fmt(u.todayKcal) + ' / ' + (u.target ? fmt(u.target) : '—') + ' kcal</span></div><div class="bar" style="height:10px"><div style="width:' + kp + '%;background:#1F5A36"></div></div></div>' +
+      '<div style="padding:14px;border-radius:12px;background:' + r[1] + '"><div style="font-size:14px;font-weight:700;color:' + r[2] + '">Churn risk: ' + r[0] + ' · ' + u.risk + '%</div><div style="font-size:13px;color:' + r[2] + '">' + esc(u.reason) + '</div></div>' +
+      '<div class="stack"><h3 style="margin:0;font-size:14px;font-weight:600">Recent meals</h3>' + (recent || '<p style="margin:0;font-size:13px" class="muted">No meals logged recently.</p>') + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:12px;border-top:1px solid #F0EBE0">' +
+        '<button type="button" class="btn btn-primary" data-act="askNudge" data-id="' + esc(u.id) + '">Send nudge</button>' +
+        '<button type="button" class="btn" data-act="toggleFlag" data-id="' + esc(u.id) + '">' + (u.flags.flagged ? 'Remove flag' : 'Flag user') + '</button>' +
+        '<button type="button" class="btn" data-act="toggleRestrict" data-id="' + esc(u.id) + '">' + (u.flags.restricted ? 'Lift restriction' : 'Restrict account') + '</button>' +
+        '<button type="button" class="btn" style="border-color:#F0C3B0;color:#A3330D;font-weight:600;margin-left:auto" data-act="askDelUser" data-id="' + esc(u.id) + '">Delete user</button></div>';
+  }
+  function spendText(id) {
+    var c = S.customer[id];
+    if (!S.rc || !S.rc.configured) return 'Connect RevenueCat';
+    if (!c) return 'Loading…';
+    if (c.error) return 'Could not load';
+    return '$' + Number(c.spend || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function subsList(id) {
+    var c = S.customer[id];
+    if (!c || !c.subscriptions || !c.subscriptions.length) return '';
+    return '<div class="stack"><h3 style="margin:0;font-size:14px;font-weight:600">Subscriptions</h3>' + c.subscriptions.map(function (s) {
+      return '<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid #F0EBE0;font-size:13px"><span>' + esc(s.product || 'Subscription') + ' <span class="muted">· ' + esc(s.store || '') + ' · ' + esc(s.status || '') + (s.endsAt ? ' · until ' + esc(dateLabel(s.endsAt)) : '') + '</span></span><span style="font-weight:600">$' + Number(s.gross || 0).toFixed(2) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  function modalNudge() {
+    var n = S.nudge, many = n.userIds.length > 1, presets = NUDGE_PRESETS;
+    return '<form data-form="sendNudge" style="display:flex;flex-direction:column;gap:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 class="display" style="margin:0;font-size:24px;letter-spacing:-.5px">' + (many ? 'Nudge ' + n.userIds.length + ' people' : 'Send a nudge') + '</h2>' + xbtn() + '</div>' +
+      '<p style="margin:0;font-size:14px" class="muted">' + (many ? 'Each person' : esc(n.label)) + ' gets it as a notification on their phone (straight away if push is on, otherwise when they next open Logga) and in the bell on Today.</p>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' + presets.map(function (p, i) { return '<button type="button" class="chip" data-act="nudgePreset" data-id="' + i + '">' + esc(p[0]) + '</button>'; }).join('') + '</div>' +
+      '<div class="stack"><label class="lbl" for="n_title">Title</label><input id="n_title" class="field" maxlength="80" value="' + esc(n.title) + '" data-nudge="title"></div>' +
+      '<div class="stack"><label class="lbl" for="n_body">Message</label><textarea id="n_body" class="field" rows="3" maxlength="300" data-nudge="body">' + esc(n.body) + '</textarea></div>' +
+      (n.error ? '<p role="alert" class="alert">' + esc(n.error) + '</p>' : '') +
+      '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-act="closeModal">Cancel</button><button type="submit" class="btn btn-primary"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Sending…' : 'Send nudge') + '</button></div></form>';
+  }
+  var NUDGE_PRESETS = [['We miss you', 'Lumi kept your spot warm. Log one meal today and pick up right where you left off.'], ['Quick check-in', 'How is it going? Logging just today\'s meals keeps your plan on track.'], ['New recipes', 'There are new recipes waiting for you in Logga. Take a look and find tonight\'s dinner.']];
+  function draftFrom(r) {
+    if (!r) return { id: null, name: '', countries: 'Ghana', category: 'Lunch', description: '', yield: '1 plate', prepTime: 30, cookTime: '', calories: '', protein: '', carbs: '', fats: '', ingredients: '', instructions: '', imageUrl: '', published: true, file: null, base: {} };
+    var d = r.data;
+    return { id: r.id, name: d.name || '', countries: (d.countries || []).join(', '), category: d.category || 'Lunch', description: d.description || '', yield: d.yield || '',
+      prepTime: parseInt(d.prepTime, 10) || '', cookTime: parseInt(d.cookTime, 10) || '', calories: d.calories || '', protein: d.protein || '', carbs: d.carbs || '', fats: d.fats || '',
+      ingredients: (d.ingredients || []).map(function (i) { return i.amount ? i.name + ' — ' + i.amount : i.name; }).join('\n'),
+      instructions: (d.instructions || []).join('\n'), imageUrl: d.imageUrl || '', published: r.published, file: null, base: d };
+  }
+  function modalRecipe() {
+    var d = S.draft, f = function (id, label, value, type, extra) { return '<div class="stack"' + (extra || '') + '><label class="lbl" for="' + id + '">' + label + '</label><input id="' + id + '" class="field" type="' + (type || 'text') + '" value="' + esc(value) + '" data-draft="' + id.slice(2) + '"></div>'; };
+    var preview = d.file ? URL.createObjectURL(d.file) : d.imageUrl;
+    return '<form data-form="saveRecipe" style="display:flex;flex-direction:column;gap:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 class="display" style="margin:0;font-size:24px;letter-spacing:-.5px">' + (d.id ? 'Edit recipe' : 'New recipe') + '</h2>' + xbtn() + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center">' + (preview ? '<img src="' + esc(preview) + '" alt="Recipe photo preview" style="width:120px;height:90px;object-fit:cover;border-radius:10px">' : '<div style="width:120px;height:90px;border-radius:10px;background:#F0EBE0;border:1.5px dashed #CFC9BB;display:flex;align-items:center;justify-content:center;font-size:12px" class="muted">No photo</div>') +
+        '<div class="stack"><label class="lbl" for="d_file">Recipe photo</label><input id="d_file" type="file" accept="image/*" data-file="photo" style="font-size:13px"><span style="font-size:12px" class="muted">or paste a photo link below</span></div></div>' +
+      '<div class="formgrid">' + f('d_name', 'Recipe name', d.name, 'text', ' style="grid-column:1/-1"') +
+        f('d_countries', 'Countries (comma-separated)', d.countries) +
+        '<div class="stack"><label class="lbl" for="d_category">Category</label><select id="d_category" class="field" data-draft="category" style="padding:0 10px">' + CATEGORIES.map(function (c) { return '<option' + (c === d.category ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
+        f('d_yield', 'Serving size', d.yield) + f('d_prepTime', 'Prep time (min)', d.prepTime, 'number') + f('d_cookTime', 'Cook time (min)', d.cookTime, 'number') +
+        f('d_imageUrl', 'Photo link', d.imageUrl, 'url', ' style="grid-column:1/-1"') + '</div>' +
+      '<div class="stack"><label class="lbl" for="d_description">Description</label><textarea id="d_description" class="field" rows="2" data-draft="description">' + esc(d.description) + '</textarea></div>' +
+      '<fieldset style="margin:0;padding:14px;border:1px solid #E4DED1;border-radius:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px"><legend style="padding:0 6px;font-size:13px;font-weight:600">Nutrition per serving</legend>' +
+        f('d_calories', 'Calories', d.calories, 'number') + f('d_protein', 'Protein (g)', d.protein, 'number') + f('d_carbs', 'Carbs (g)', d.carbs, 'number') + f('d_fats', 'Fat (g)', d.fats, 'number') + '</fieldset>' +
+      '<div class="stack"><label class="lbl" for="d_ingredients">Ingredients <span style="font-weight:400" class="muted">— one per line, as "name — amount"</span></label><textarea id="d_ingredients" class="field" rows="5" data-draft="ingredients" placeholder="Long-grain rice — 1 cup&#10;Fresh tomatoes — 2 medium">' + esc(d.ingredients) + '</textarea></div>' +
+      '<div class="stack"><label class="lbl" for="d_instructions">Steps <span style="font-weight:400" class="muted">— one per line</span></label><textarea id="d_instructions" class="field" rows="5" data-draft="instructions">' + esc(d.instructions) + '</textarea></div>' +
+      '<label for="d_published" style="display:flex;align-items:center;gap:10px;font-size:14px;min-height:44px;cursor:pointer"><input id="d_published" type="checkbox"' + (d.published ? ' checked' : '') + ' data-draft="published" style="width:20px;height:20px;accent-color:#1F5A36">Publish to the app now (otherwise saved as a draft)</label>' +
+      (S.formError ? '<p role="alert" class="alert">' + esc(S.formError) + '</p>' : '') +
+      '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-act="closeModal">Cancel</button><button type="submit" class="btn btn-primary"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Saving…' : 'Save recipe') + '</button></div></form>';
+  }
+  function modalAddChoice() {
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 class="display" style="margin:0;font-size:24px;letter-spacing:-.5px">Add recipes</h2>' + xbtn() + '</div><p style="margin:0;font-size:14px" class="muted">One at a time, or many at once from a spreadsheet?</p>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">' +
+      '<button type="button" data-act="pickSingle" style="min-height:140px;padding:18px;border:1.5px solid #CFC9BB;border-radius:14px;background:#fff;text-align:left;display:flex;flex-direction:column;gap:8px"><span style="font-size:16px;font-weight:700">Single recipe</span><span style="font-size:13px;line-height:1.45" class="muted">Fill in one recipe with photo, nutrition, ingredients and steps.</span></button>' +
+      '<button type="button" data-act="pickBulk" style="min-height:140px;padding:18px;border:1.5px solid #CFC9BB;border-radius:14px;background:#fff;text-align:left;display:flex;flex-direction:column;gap:8px"><span style="font-size:16px;font-weight:700">Bulk upload from Excel</span><span style="font-size:13px;line-height:1.45" class="muted">Upload an .xlsx or .csv file with one recipe per row.</span></button></div>';
+  }
+  var BULK_COLS = [['name', true], ['kcal', true], ['country'], ['category'], ['serving'], ['prep_min'], ['protein_g'], ['carbs_g'], ['fat_g'], ['description'], ['ingredients'], ['steps'], ['image_url'], ['published']];
+  function modalBulk() {
+    var b = S.bulk || {};
+    var rows = (b.valid || []).map(function (r) { return '<tr><td style="padding:8px 10px;font-weight:500">' + esc(r.data.name) + '</td><td style="padding:8px 10px" class="muted">' + esc((r.data.countries || []).join(', ')) + ' · ' + esc(r.data.category) + '</td><td style="padding:8px 10px;text-align:right">' + fmt(r.data.calories) + '</td><td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:600">' + (r.published ? 'Publish' : 'Draft') + '</td></tr>'; }).join('');
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 class="display" style="margin:0;font-size:24px;letter-spacing:-.5px">Bulk upload recipes</h2>' + xbtn() + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:#F6F3EC"><span style="font-size:13px;font-weight:600">One recipe per row. Row 1 holds these column headers:</span>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px;font-family:ui-monospace,Menlo,monospace">' + BULK_COLS.map(function (c) { return '<span style="padding:3px 8px;border-radius:6px;' + (c[1] ? 'background:#FFF1DD;color:#6A3B00;font-weight:600">' + c[0] + ' *' : 'background:#fff">' + c[0]) + '</span>'; }).join('') + '</div>' +
+        '<span style="font-size:12px;line-height:1.5" class="muted">* required. category = one of the app\'s categories (default Lunch). Separate countries with ",", and ingredients and steps with ";" (ingredient as "name — amount"). published = yes or no (blank = draft). Add photos with image_url, or per recipe after import.</span></div>' +
+      '<div class="stack"><label class="lbl" for="bulkfile">Excel or CSV file</label><input id="bulkfile" type="file" accept=".xlsx,.xlsm,.xls,.csv" data-file="bulk" style="font-size:13px"></div>' +
+      (b.error ? '<p role="alert" class="alert">' + esc(b.error) + '</p>' : '') +
+      (b.fileName ? '<div style="display:flex;flex-wrap:wrap;gap:8px;font-size:13px"><span style="font-weight:600">' + esc(b.fileName) + '</span><span class="pill" style="background:#E2EFE4;color:#1F5A36">' + (b.valid || []).length + ' ready</span>' + ((b.errors || []).length ? '<span class="pill" style="background:#FBE5DC;color:#8A2E10">' + b.errors.length + ' skipped</span>' : '') + '</div>' : '') +
+      (rows ? '<div style="max-height:220px;overflow:auto;border:1px solid #E4DED1;border-radius:10px"><table style="font-size:13px"><thead><tr style="background:#F6F3EC"><th>Recipe</th><th>Countries · category</th><th style="text-align:right">kcal</th><th style="text-align:right">Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
+      ((b.errors || []).length ? '<ul style="margin:0;padding:10px 12px 10px 28px;border-radius:10px;background:#FBF1EC;color:#8A2E10;font-size:13px;line-height:1.6;max-height:140px;overflow:auto">' + b.errors.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul>' : '') +
+      '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><button type="button" class="btn" data-act="addRecipe">Back</button>' + ((b.valid || []).length ? '<button type="button" class="btn btn-primary" data-act="importBulk"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Importing…' : 'Import ' + b.valid.length + ' recipes') + '</button>' : '') + '</div>';
+  }
+  function modalConfirm(title, text, act, label) {
+    return '<h2 style="margin:0;font-size:20px;font-weight:700">' + esc(title) + '</h2><p style="margin:0;font-size:14px;line-height:1.55;color:#3E4A40">' + esc(text) + '</p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-act="closeModal">Cancel</button><button type="button" class="btn btn-danger" data-act="' + act + '">' + esc(label) + '</button></div>';
+  }
+
+  // ---------- render ----------
+  var TABS = [['overview', 'Overview', 'Live numbers across Logga'], ['users', 'Users', 'Everyone with a Logga account'], ['meals', 'Meals', 'What people are logging'],
+    ['recipes', 'Recipes', 'The recipes in the app: add, edit, publish'], ['feedback', 'Feedback', 'Support messages and ratings from the app'], ['settings', 'Settings', 'Who can get in, and live updates']];
+
+  function viewLogin() {
+    var codeStep = S.phase === 'code';
+    return '<div style="min-height:100vh;display:flex;flex-wrap:wrap">' +
+      '<div style="flex:1 1 420px;background:#1F5A36;color:#F6F3EC;padding:56px;display:flex;flex-direction:column;justify-content:space-between;gap:48px">' +
+        '<div style="display:flex;align-items:center;gap:12px">' + logo(40, '#F6F3EC') + '<span class="display" style="font-size:28px;letter-spacing:-.5px">Logga</span></div>' +
+        '<div style="display:flex;flex-direction:column;gap:16px;max-width:460px"><h1 class="display" style="margin:0;font-size:52px;line-height:1.02;letter-spacing:-1.5px">Every plate of waakye, counted.</h1>' +
+        '<p style="margin:0;font-size:17px;line-height:1.55;color:#D8E4D9">The admin console for Logga: users, recipes, feedback and the foods people are actually eating.</p></div>' +
+        '<p style="margin:0;font-size:13px;color:#B9CDBC">Restricted area · admins only</p></div>' +
+      '<div style="flex:1 1 420px;display:flex;align-items:center;justify-content:center;padding:48px 24px">' +
+        '<form data-form="' + (codeStep ? 'verifyCode' : 'sendCode') + '" style="width:100%;max-width:380px;display:flex;flex-direction:column;gap:20px">' +
+          '<div><h2 class="display" style="margin:0;font-size:32px;letter-spacing:-.8px">Admin sign in</h2><p style="margin:6px 0 0;font-size:15px" class="muted">' + (codeStep ? 'We emailed a 6-digit code to ' + esc(S.email) + '.' : 'Use your Logga account email. Only emails on the admin list can get in.') + '</p></div>' +
+          (codeStep ?
+            '<div class="stack"><label class="lbl" for="code" style="font-size:14px">6-digit code</label><input id="code" class="field" inputmode="numeric" autocomplete="one-time-code" maxlength="6" value="' + esc(S.code) + '" data-input="code" style="height:48px;letter-spacing:4px;font-size:20px"></div>' :
+            '<div class="stack"><label class="lbl" for="email" style="font-size:14px">Email</label><input id="email" class="field" type="email" autocomplete="email" placeholder="you@example.com" value="' + esc(S.email) + '" data-input="email" style="height:48px"></div>') +
+          (S.authError ? '<p role="alert" class="alert">' + esc(S.authError) + '</p>' : '') +
+          '<button type="submit" class="btn btn-primary" style="height:50px;font-size:16px"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Please wait…' : codeStep ? 'Sign in' : 'Email me a code') + '</button>' +
+          (codeStep ? '<button type="button" class="btn" data-act="backToEmail">Use a different email</button>' : '') +
+        '</form></div></div>';
+  }
+  function logo(size, ink) { return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 40 40" fill="none" aria-hidden="true"><circle cx="20" cy="20" r="19" stroke="#F2A541" stroke-width="2"/><path d="M10 22c3 6 17 6 20 0" stroke="' + ink + '" stroke-width="2.5" stroke-linecap="round"/><path d="M20 19c0-6 3-9 7-10-1 5-3 8-7 10z" fill="#F2A541"/></svg>'; }
+
+  function render() {
+    var app = document.getElementById('app');
+    var focusId = document.activeElement && document.activeElement.id, selStart = null;
+    try { selStart = document.activeElement && document.activeElement.selectionStart; } catch (_) {}
+    var html;
+    if (S.phase === 'loading') html = '<p style="padding:40px;text-align:center" class="muted">Loading…</p>';
+    else if (S.phase === 'email' || S.phase === 'code') html = viewLogin();
+    else if (S.phase === 'denied') html = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px"><div class="card" style="max-width:440px;padding:28px;display:flex;flex-direction:column;gap:14px"><h1 class="display" style="margin:0;font-size:28px;letter-spacing:-.5px">No admin access</h1><p class="alert">' + esc(S.authError) + '</p><button type="button" class="btn btn-primary" data-act="backToEmail">Sign in with another email</button></div></div>';
+    else {
+      var D = S.data, tab = TABS.filter(function (t) { return t[0] === S.tab; })[0];
+      var open = D ? D.feedback.filter(function (f) { return !f.handled; }).length : 0;
+      var content = !D ? (S.loadError ? '<p class="alert">' + esc(S.loadError) + '</p>' : '<p class="muted">Loading the numbers…</p>') :
+        S.tab === 'overview' ? viewOverview(D) : S.tab === 'users' ? viewUsers(D) : S.tab === 'meals' ? viewMeals(D) : S.tab === 'recipes' ? viewRecipes(D) : S.tab === 'feedback' ? viewFeedback(D) : viewSettings(D);
+      html = '<div style="min-height:100vh;display:flex;flex-wrap:wrap;align-items:stretch">' +
+        '<nav aria-label="Admin" class="lg-nav" style="flex:1 1 220px;max-width:100%;background:#13241A;color:#E7EEE8;padding:28px 18px;display:flex;flex-direction:column;gap:28px">' +
+          '<div style="display:flex;align-items:center;gap:10px;padding:0 8px">' + logo(30, '#E7EEE8') + '<span class="display" style="font-size:22px;letter-spacing:0">Logga <span style="font-weight:600;color:#F2A541;font-size:14px">admin</span></span></div>' +
+          '<div style="display:flex;flex-direction:column;gap:4px">' + TABS.map(function (t) { return '<button type="button" class="nav-btn"' + (t[0] === S.tab ? ' aria-current="page"' : '') + ' data-act="tab" data-id="' + t[0] + '">' + t[1] + (t[0] === 'feedback' && open ? '<span style="font-size:12px;color:#F2A541">' + open + '</span>' : '') + '</button>'; }).join('') + '</div>' +
+          '<div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;padding:0 8px"><span style="font-size:13px;color:#A9BBAE">Signed in as</span><span style="font-size:14px;font-weight:600;word-break:break-all">' + esc(S.me && S.me.email) + '</span>' +
+          '<button type="button" data-act="signOut" style="align-self:flex-start;min-height:44px;padding:0 16px;border:1px solid #3B5A47;border-radius:8px;background:transparent;color:#E7EEE8;font-size:14px">Sign out</button></div></nav>' +
+        '<main style="flex:999 1 560px;min-width:0;padding:32px clamp(16px,3vw,44px) 56px;display:flex;flex-direction:column;gap:28px">' +
+          '<header style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px"><div><h1 class="display" style="margin:0;font-size:38px">' + tab[1] + '</h1><p style="margin:6px 0 0;font-size:15px" class="muted">' + tab[2] + '</p></div>' +
+          '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">' + (D ? '<span style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:#E2EFE4;color:#1F5A36;font-size:14px;font-weight:600">' + (S.live ? '<span class="live-dot"></span>' : '') + (S.live ? 'Live' : 'Paused') + ' · ' + D.activeNow + ' in app</span>' : '') +
+          '<button type="button" class="btn" style="min-height:38px;font-size:13px" data-act="refresh">Refresh</button></div></header>' +
+          (S.toast ? '<p role="status" style="margin:0;padding:12px 16px;border-radius:10px;background:#13241A;color:#fff;font-size:14px;font-weight:500">' + esc(S.toast) + '</p>' : '') +
+          (S.loadError && D ? '<p class="alert">' + esc(S.loadError) + '</p>' : '') + content + '</main></div>';
+      if (S.modal) {
+        var m = S.modal, inner = '', width = 560;
+        if (m.type === 'user') { var u = D.users.filter(function (x) { return x.id === m.id; })[0]; inner = u ? modalUser(u) : ''; width = 640; }
+        else if (m.type === 'recipe') { inner = modalRecipe(); width = 720; }
+        else if (m.type === 'addChoice') inner = modalAddChoice();
+        else if (m.type === 'bulk') { inner = modalBulk(); width = 720; }
+        else if (m.type === 'nudge') inner = modalNudge();
+        else if (m.type === 'delUser') { var du = D.users.filter(function (x) { return x.id === m.id; })[0]; inner = modalConfirm('Delete ' + (du ? du.name : 'this user') + '?', "This erases their account, meal logs, photos and progress right away. It can't be undone.", 'confirmDelUser', S.busy ? 'Deleting…' : 'Delete user'); width = 460; }
+        else if (m.type === 'delRecipe') { var rr = D.recipes.filter(function (x) { return x.id === m.id; })[0]; inner = modalConfirm('Delete ' + (rr ? rr.data.name : 'this recipe') + '?', "It will disappear from the app for everyone. Past logs stay in people's history.", 'confirmDelRecipe', 'Delete recipe'); width = 460; }
+        html += '<div class="modal-back"><button type="button" class="shade" aria-label="Close" data-act="closeModal"></button><div class="modal" role="dialog" aria-modal="true" style="max-width:' + width + 'px">' + inner + '</div></div>';
+      }
+    }
+    app.innerHTML = html;
+    if (focusId) { var el = document.getElementById(focusId); if (el) { el.focus(); try { if (selStart != null && el.setSelectionRange) el.setSelectionRange(selStart, selStart); } catch (_) {} } }
+  }
+
+  // ---------- actions ----------
+  async function saveRecipe() {
+    var d = S.draft;
+    var num = function (v) { var n = Number(v); return isFinite(n) && n >= 0 ? Math.round(n * 10) / 10 : 0; };
+    if (!d.name.trim()) return setState({ formError: 'Give the recipe a name.' });
+    if (!(Number(d.calories) > 0)) return setState({ formError: 'Add the calories per serving.' });
+    setState({ busy: true, formError: '' });
+    try {
+      var imageUrl = d.imageUrl.trim();
+      if (d.file) imageUrl = await uploadPhoto(d.file);
+      var data = Object.assign({}, d.base, {
+        name: d.name.trim(), category: d.category, description: d.description.trim(),
+        countries: d.countries.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+        calories: Math.round(num(d.calories)), protein: num(d.protein), carbs: num(d.carbs), fats: num(d.fats),
+        prepTime: d.prepTime ? Math.round(num(d.prepTime)) + ' min' : '', cookTime: d.cookTime ? Math.round(num(d.cookTime)) + ' min' : '',
+        servings: d.base.servings || 1, yield: d.yield.trim() || '1 serving',
+        ingredients: parseIngredients(d.ingredients), instructions: d.instructions.split('\n').map(function (s) { return s.trim(); }).filter(Boolean),
+        imageUrl: imageUrl || null,
+      });
+      if (!data.localNames) data.localNames = {};
+      var id = d.id || nextId(), res;
+      if (d.id) res = await sb.from('recipes').update({ data: data, published: d.published, updated_at: new Date().toISOString() }).eq('id', id);
+      else res = await sb.from('recipes').insert({ id: id, data: data, published: d.published, sort: nextSort() });
+      if (res.error) throw new Error(res.error.message);
+      S.busy = false; S.modal = null; S.draft = null;
+      toast(d.id ? 'Recipe saved.' : 'Recipe added' + (d.published ? ' and published to the app.' : ' as a draft.'));
+      loadData(true);
+    } catch (err) { setState({ busy: false, formError: err.message }); }
+  }
+  function parseIngredients(text) {
+    return String(text || '').split(/\n|;/).map(function (l) { return l.trim(); }).filter(Boolean).map(function (l) {
+      var m = l.split(/\s+[—–-]\s+|:\s+/);
+      return m.length > 1 ? { name: m[0].trim(), amount: m.slice(1).join(' ').trim() } : { name: l, amount: '' };
+    });
+  }
+  function nextId() { return S.data.recipes.reduce(function (mx, r) { return Math.max(mx, r.id); }, 0) + 1; }
+  function nextSort() { return S.data.recipes.reduce(function (mx, r) { return Math.max(mx, r.sort || 0); }, 0) + 1; }
+  async function uploadPhoto(file) {
+    var ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+    var path = 'recipe-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+    var up = await sb.storage.from('recipe-photos').upload(path, file, { contentType: file.type || 'image/jpeg', upsert: false });
+    if (up.error) throw new Error('Photo upload failed: ' + up.error.message);
+    return sb.storage.from('recipe-photos').getPublicUrl(path).data.publicUrl;
+  }
+
+  function loadScript(src) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = function () { rej(new Error('Could not load the spreadsheet reader.')); }; document.head.appendChild(s); }); }
+  async function readBulk(file) {
+    S.bulk = { fileName: file.name, valid: [], errors: [] };
+    try {
+      if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+      var wb = window.XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      var rows = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      if (!rows.length) throw new Error('That file has no rows under the header row.');
+      var id = nextId(), sort = nextSort();
+      rows.forEach(function (row, i) {
+        var g = {}; Object.keys(row).forEach(function (k) { g[String(k).trim().toLowerCase().replace(/[\s-]+/g, '_')] = row[k]; });
+        var pick = function () { for (var a = 0; a < arguments.length; a++) { var v = g[arguments[a]]; if (v !== undefined && String(v).trim() !== '') return String(v).trim(); } return ''; };
+        var name = pick('name', 'recipe', 'recipe_name', 'title'), kcal = Number(pick('kcal', 'calories', 'cal'));
+        if (!name) return S.bulk.errors.push('Row ' + (i + 2) + ': no name');
+        if (!(kcal > 0)) return S.bulk.errors.push('Row ' + (i + 2) + ' (' + name + '): no calories');
+        var cat = pick('category', 'meal', 'meal_type'); cat = CATEGORIES.filter(function (c) { return c.toLowerCase() === cat.toLowerCase(); })[0] || 'Lunch';
+        var n = function () { var v = Number(pick.apply(null, arguments)); return isFinite(v) && v > 0 ? v : 0; };
+        var prep = n('prep_min', 'prep', 'prep_time');
+        S.bulk.valid.push({ id: id++, sort: sort++, published: /^(y|yes|true|1)$/i.test(pick('published', 'publish')), data: {
+          name: name, category: cat, description: pick('description'), countries: pick('country', 'countries').split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+          localNames: {}, calories: Math.round(kcal), protein: n('protein_g', 'protein'), carbs: n('carbs_g', 'carbs'), fats: n('fat_g', 'fats', 'fat'),
+          prepTime: prep ? prep + ' min' : '', cookTime: '', servings: 1, yield: pick('serving', 'serving_size', 'portion') || '1 serving',
+          ingredients: parseIngredients(pick('ingredients').replace(/;/g, '\n')), instructions: pick('steps', 'instructions', 'method').split(';').map(function (s) { return s.trim(); }).filter(Boolean),
+          imageUrl: pick('image_url', 'photo', 'image') || null } });
+      });
+    } catch (err) { S.bulk.error = err.message; }
+    render();
+  }
+  async function importBulk() {
+    setState({ busy: true });
+    var rows = S.bulk.valid.map(function (r) { return { id: r.id, data: r.data, published: r.published, sort: r.sort }; });
+    var res = await sb.from('recipes').insert(rows);
+    if (res.error) { S.bulk.error = res.error.message; return setState({ busy: false }); }
+    S.busy = false; S.modal = null; var n = rows.length; S.bulk = null;
+    toast('Imported ' + n + ' recipes.'); loadData(true);
+  }
+
+  var ACT = {
+    tab: function (id) { setState({ tab: id, modal: null }); window.scrollTo(0, 0); },
+    metric: function (id) { setState({ metric: id }); },
+    goUsers: function () { ACT.tab('users'); }, goMeals: function () { ACT.tab('meals'); }, goFoods: function () { ACT.tab('recipes'); },
+    goAtRisk: function () { S.userFilter = 'At risk'; ACT.tab('users'); },
+    userFilter: function (id) { setState({ userFilter: id }); }, fbFilter: function (id) { setState({ fbFilter: id }); },
+    viewUser: function (id) {
+      setState({ modal: { type: 'user', id: id }, menuFor: null });
+      if (S.rc && S.rc.configured && !S.customer[id]) {
+        adminApi({ mode: 'admin_customer', userId: id }).then(function (c) { S.customer[id] = c; render(); }, function (err) { S.customer[id] = { error: err.message }; render(); });
+      }
+    },
+    toggleMenu: function (id) { setState({ menuFor: S.menuFor === id ? null : id }); },
+    askNudge: function (id) {
+      var u = S.data.users.filter(function (x) { return x.id === id; })[0];
+      setState({ menuFor: null, modal: { type: 'nudge' }, nudge: { userIds: [id], label: u ? u.name : 'This person', title: NUDGE_PRESETS[0][0], body: NUDGE_PRESETS[0][1], error: '' } });
+    },
+    nudgeAtRisk: function () {
+      var ids = S.data.users.filter(function (u) { return u.risk >= 40 && !u.flags.restricted; }).map(function (u) { return u.id; });
+      setState({ modal: { type: 'nudge' }, nudge: { userIds: ids, label: '', title: NUDGE_PRESETS[0][0], body: NUDGE_PRESETS[0][1], error: '' } });
+    },
+    nudgePreset: function (i) { var p = NUDGE_PRESETS[Number(i)]; S.nudge.title = p[0]; S.nudge.body = p[1]; render(); },
+    toggleFlag: function (id) { setFlag(id, 'flagged'); },
+    toggleRestrict: function (id) { setFlag(id, 'restricted'); },
+    askDelUser: function (id) { setState({ menuFor: null, modal: { type: 'delUser', id: id } }); },
+    confirmDelUser: async function () {
+      var id = S.modal.id; setState({ busy: true });
+      try {
+        await adminApi({ mode: 'admin_delete_user', userId: id });
+        S.data.users = S.data.users.filter(function (u) { return u.id !== id; });
+        S.busy = false; S.modal = null; toast('User deleted.');
+      } catch (err) { S.busy = false; S.modal = null; toast('Could not delete: ' + err.message); }
+    },
+    toggleAndroid: async function () {
+      var live = !S.data.settings.android_live;
+      var res = await sb.from('admin_settings').upsert({ key: 'android_live', value: live, updated_at: new Date().toISOString() });
+      if (res.error) return toast('Could not save: ' + res.error.message);
+      S.data.settings.android_live = live; toast(live ? 'Android marked as live.' : 'Android marked as coming soon.');
+    },
+    closeModal: function () { setState({ modal: null, draft: null, formError: '', bulk: null, busy: false }); },
+    addRecipe: function () { setState({ modal: { type: 'addChoice' }, bulk: null }); },
+    pickSingle: function () { setState({ modal: { type: 'recipe' }, draft: draftFrom(null), formError: '' }); },
+    pickBulk: function () { setState({ modal: { type: 'bulk' }, bulk: null }); },
+    editRecipe: function (id) { var r = S.data.recipes.filter(function (x) { return String(x.id) === id; })[0]; setState({ modal: { type: 'recipe' }, draft: draftFrom(r), formError: '' }); },
+    togglePub: async function (id) {
+      var r = S.data.recipes.filter(function (x) { return String(x.id) === id; })[0]; if (!r) return;
+      var res = await sb.from('recipes').update({ published: !r.published, updated_at: new Date().toISOString() }).eq('id', r.id);
+      if (res.error) return toast('Could not change it: ' + res.error.message);
+      r.published = !r.published; toast(r.published ? r.data.name + ' is now in the app.' : r.data.name + ' is hidden from the app.');
+    },
+    askDelRecipe: function (id) { setState({ modal: { type: 'delRecipe', id: Number(id) } }); },
+    confirmDelRecipe: async function () {
+      var id = S.modal.id, res = await sb.from('recipes').delete().eq('id', id);
+      if (res.error) return toast('Could not delete it: ' + res.error.message);
+      S.data.recipes = S.data.recipes.filter(function (r) { return r.id !== id; }); S.modal = null; toast('Recipe deleted.');
+    },
+    importBulk: function () { importBulk(); },
+    toggleFb: async function (id) {
+      var f = S.data.feedback.filter(function (x) { return String(x.id) === id; })[0]; if (!f) return;
+      var res = await sb.from('feedback').update({ handled: !f.handled }).eq('id', f.id);
+      if (res.error) return toast('Could not update it: ' + res.error.message);
+      f.handled = !f.handled; render();
+    },
+    removeAdmin: async function (email) {
+      var res = await sb.from('admin_emails').delete().eq('email', email);
+      if (res.error) return toast('Could not remove: ' + res.error.message);
+      S.data.admins = S.data.admins.filter(function (a) { return a.email !== email; }); toast(email + ' removed.');
+    },
+    toggleLive: function () { setState({ live: !S.live }); },
+    refresh: function () { loadData(); toast('Refreshing…'); },
+    signOut: function () { signOut(); },
+    backToEmail: function () { setState({ phase: 'email', authError: '', code: '' }); },
+  };
+  async function setFlag(id, field) {
+    var u = S.data.users.filter(function (x) { return x.id === id; })[0]; if (!u) return;
+    var next = Object.assign({ flagged: false, restricted: false }, u.flags); next[field] = !next[field];
+    S.menuFor = null;
+    var res = await sb.from('user_admin_flags').upsert({ user_id: id, flagged: next.flagged, restricted: next.restricted, updated_at: new Date().toISOString() });
+    if (res.error) return toast('Could not save: ' + res.error.message);
+    u.flags = next;
+    toast(field === 'flagged' ? (next.flagged ? u.name + ' is flagged.' : 'Flag removed.') : (next.restricted ? u.name + "'s account is on hold: the app shows them a restricted screen." : u.name + ' can use Logga again.'));
+  }
+  var FORMS = {
+    sendCode: sendCode, verifyCode: verifyCode, saveRecipe: function () { saveRecipe(); },
+    sendNudge: async function () {
+      var n = S.nudge;
+      if (!n.title.trim() || !n.body.trim()) { n.error = 'Add a title and a message.'; return render(); }
+      setState({ busy: true });
+      try {
+        var r = await adminApi({ mode: 'admin_nudge', userIds: n.userIds, title: n.title.trim(), body: n.body.trim() });
+        S.busy = false; S.modal = null; S.nudge = null;
+        toast('Nudge sent to ' + r.saved + (r.saved === 1 ? ' person' : ' people') + (r.pushed ? ' (' + r.pushed + ' by push right now, the rest when they open Logga).' : '. They will see it when they next open Logga.'));
+      } catch (err) { n.error = err.message; setState({ busy: false }); }
+    },
+    addAdmin: async function () {
+      var email = S.newAdmin.trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('Enter an email address.');
+      var res = await sb.from('admin_emails').insert({ email: email });
+      if (res.error) return toast('Could not add: ' + res.error.message);
+      S.newAdmin = ''; S.data.admins.push({ email: email }); toast(email + ' can now sign in.');
+    },
+  };
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b) { if (S.menuFor && !e.target.closest('[role="menu"]')) setState({ menuFor: null }); return; }
+    var fn = ACT[b.getAttribute('data-act')]; if (fn) { e.preventDefault(); fn(b.getAttribute('data-id')); }
+  });
+  document.addEventListener('submit', function (e) {
+    var f = e.target.closest('[data-form]'); if (!f) return;
+    e.preventDefault(); var fn = FORMS[f.getAttribute('data-form')]; if (fn) fn(e);
+  });
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t.hasAttribute('data-input')) { S[t.getAttribute('data-input')] = t.value; if (t.tagName === 'SELECT' || /Query$/.test(t.getAttribute('data-input'))) render(); }
+    if (t.hasAttribute('data-draft') && S.draft) S.draft[t.getAttribute('data-draft')] = t.type === 'checkbox' ? t.checked : t.value;
+    if (t.hasAttribute('data-nudge') && S.nudge) S.nudge[t.getAttribute('data-nudge')] = t.value;
+  });
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.hasAttribute('data-draft') && S.draft && t.type === 'checkbox') S.draft.published = t.checked;
+    if (t.getAttribute('data-file') === 'photo' && t.files[0]) { S.draft.file = t.files[0]; render(); }
+    if (t.getAttribute('data-file') === 'bulk' && t.files[0]) readBulk(t.files[0]);
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && S.modal) ACT.closeModal(); });
+
+  setInterval(function () { if (S.phase === 'dash' && S.live && !S.modal && document.visibilityState === 'visible') loadData(true); }, 30000);
+  boot().catch(function (err) { setState({ phase: 'email', authError: err.message }); });
+})();
+</script>
+</body>
+</html>
