@@ -6,7 +6,7 @@ const USER_TABLES = [
   'meals', 'meal_logs', 'weight_logs', 'water_logs', 'check_ins', 'fasting_sessions', 'active_fasts',
   'willpower_logs', 'step_logs', 'activities', 'user_insights', 'burnout_predictions',
   'weight_predictions', 'daily_goal_ledger', 'whispers_posts',
-  'chat_messages', 'cached_insights', 'burnout_daily_scores', 'feedback', 'saved_recipes',
+  'chat_messages', 'cached_insights', 'burnout_daily_scores', 'feedback', 'saved_recipes', 'generated_recipes',
 ];
 const STORAGE_BUCKETS = ['avatars', 'meal-photos'];
 

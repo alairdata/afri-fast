@@ -8,7 +8,8 @@ import { userFromRequest } from './_purgeUser.js';
 export async function checkAiAuth(req, res, endpoint) {
   let user = null;
   try { user = await userFromRequest(req); } catch (_) { /* Supabase unreachable: treat as unsigned */ }
-  if (user) return true;
+  if (user) { req.aiUser = user; return true; } // the endpoint can tell whose request this is
+
   const hadToken = /^Bearer\s+\S/i.test(req.headers.authorization || '');
   console.warn(`[ai-auth] ${endpoint}: ${hadToken ? 'invalid or expired token' : 'no token'} (type: ${req.body?.type || req.body?.action || '-'})`);
   // Forgiving about how the value was typed in Vercel ("true", True, ' true ').

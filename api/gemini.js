@@ -265,6 +265,18 @@ function normalizeFood(f, fallback = 'Unknown food') {
   return { name: f.name || fallback, qty: f.qty || '1 serving', cal, protein, carbs, fats, fiber, sugar, sodium };
 }
 
+// One generated kitchen recipe into generated_recipes, with the service key (the table has no app access).
+async function recordGeneratedRecipe(row) {
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) return;
+  const r = await fetch(`${url}/rest/v1/generated_recipes`, {
+    method: 'POST',
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify(row),
+  });
+  if (!r.ok) console.warn('[generated_recipes] save failed', r.status, (await r.text().catch(() => '')).slice(0, 200));
+}
+
 // ── Route handler ────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
@@ -385,6 +397,17 @@ export default async function handler(req, res) {
       // matches the ingredient list (the app refills them when a portion is edited)
       const methodTemplate = (parsed.method || []).map(String).filter(Boolean).slice(0, 8);
       const method = methodTemplate.map((step) => fillMethodStep(step, foods.map((f) => ({ name: f.name, grams: f.grams * people, unitGrams: f.unitGrams, unitOne: f.unitOne, unitMany: f.unitMany }))));
+      // Keep every generated recipe, saved or not, in generated_recipes (owner-only). Never holds the person up.
+      await Promise.race([
+        recordGeneratedRecipe({
+          user_id: req.aiUser?.id || null, input_text: haveText ? String(haveText).slice(0, 2000) : null, had_photo: !!base64,
+          budget_kcal: target, servings: people, country: userCountry || null,
+          title: parsed.title || null, description: parsed.description || null, minutes: Math.round(num(parsed.minutes)) || null,
+          used_count: Math.round(num(parsed.usedCount)) || null, total_count: Math.round(num(parsed.totalCount)) || null,
+          total_kcal: Math.round(foods.reduce((s, f) => s + (f.kcal100 * f.grams) / 100, 0)), foods, method, tip: parsed.tip || null,
+        }),
+        new Promise((r) => setTimeout(r, 2000)),
+      ]).catch(() => {});
       return res.json({
         title: parsed.title || 'Your recipe', description: parsed.description || '', tip: parsed.tip || '',
         minutes: Math.round(num(parsed.minutes)) || null, servings: people,
