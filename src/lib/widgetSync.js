@@ -172,6 +172,21 @@ export async function pushWidgetSnapshot({ recentMeals, waterLogs, hydrationGoal
       ...(burnoutScore != null ? { burnoutScore, burnoutLabel: burnoutLabel(burnoutScore) } : {}),
     };
 
+    // The app re-runs this every time its data reloads. Only rewrite and redraw the widgets when a number has
+    // actually changed (the date stamp aside), otherwise they visibly refresh over and over on their own.
+    let unchanged = false;
+    try {
+      const prev = JSON.parse(st.get(WIDGET_KEY) || 'null');
+      if (prev && sameDay((prev.date + SWIFT_REFERENCE_EPOCH) * 1000, now.getTime())) {
+        const strip = ({ date, ...rest }) => JSON.stringify(rest);
+        unchanged = strip(prev) === strip(day);
+      }
+    } catch (_) {}
+    if (unchanged) {
+      await AsyncStorage.setItem(BASELINE_KEY, String(waterGlasses));
+      return;
+    }
+
     if (st.set(WIDGET_KEY, JSON.stringify(day)) === false) {
       console.log('[widgetSync] App Group is not available to the app; widgets cannot be updated');
       return;

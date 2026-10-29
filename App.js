@@ -61,6 +61,14 @@ TextInput.defaultProps.style = [
 installErrorTracking();
 
 const PRE_AUTH_STORAGE_KEY = 'afri-fast-preauth';
+
+// True only when Supabase's server actually rejected the saved login (a 4xx answer such as an invalid or
+// revoked refresh token). Network failures, timeouts and server hiccups (5xx) keep the person logged in.
+const isSessionRejected = (error) => {
+  if (!error || error.name === 'AuthRetryableFetchError') return false;
+  const status = Number(error.status) || 0;
+  return status >= 400 && status < 500;
+};
 const DARK_MODE_KEY = 'logga-dark-mode';
 
 export default function App() {
@@ -94,11 +102,13 @@ export default function App() {
       AsyncStorage.getItem(PRE_AUTH_STORAGE_KEY),
     ]).then(([{ data: { session }, error }, storedPreAuth]) => {
       if (!isMounted) return;
-      if (error) {
-        // Stale/invalid refresh token — clear it and show login
-        supabase.auth.signOut();
+      if (error && isSessionRejected(error)) {
+        // The server turned the saved login down (expired, revoked, account removed): clear it and show login
+        supabase.auth.signOut({ scope: 'local' }).catch(() => {});
         setSession(null);
       } else {
+        // No error, or only a network blip while renewing the login (weak signal, offline): stay logged in;
+        // Supabase renews it on its own once the connection is back.
         setSession(session);
       }
       try {
@@ -119,11 +129,12 @@ export default function App() {
       }
     });
 
-    // Poll every 30 seconds — if the user was deleted by admin, force sign out
+    // Every 30 seconds: if the server has turned the login down (e.g. the account was removed), sign out.
+    // A network error is not a reason to log anyone out.
     const sessionPoll = setInterval(async () => {
       const { error } = await supabase.auth.getSession();
-      if (error) {
-        supabase.auth.signOut();
+      if (error && isSessionRejected(error)) {
+        supabase.auth.signOut({ scope: 'local' }).catch(() => {});
         setSession(null);
       }
     }, 30000);
