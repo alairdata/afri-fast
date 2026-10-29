@@ -1086,7 +1086,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       const tables = [
         'meals', 'meal_logs', 'weight_logs', 'water_logs', 'check_ins', 'fasting_sessions', 'active_fasts',
         'willpower_logs', 'step_logs', 'activities', 'daily_goal_ledger', 'burnout_predictions',
-        'weight_predictions', 'user_insights',
+        'weight_predictions', 'user_insights', 'burnout_daily_scores',
       ];
       const results = await Promise.all(tables.map((t) => supabase.from(t).delete().eq('user_id', uid)));
       const failed = results.some((r, i) => r.error && tables[i] === 'meals');
