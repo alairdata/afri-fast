@@ -15,7 +15,6 @@ import {
   initAnonymousSubscriptions, loadPlans, loadIntroOffer, purchasePlan, restorePurchases, getSubscription,
 } from '../lib/subscription';
 import HealthSourcesPage from './HealthSourcesPage';
-import ProFeatureCarousel from './ProFeatureCarousel';
 import LumiRive from './LumiRive';
 import { showAlert } from '../lib/alert';
 
@@ -84,7 +83,7 @@ const CHAPTERS = [
 const FLOW = [
   'hook',
   ...CHAPTERS[0].ids, ...CHAPTERS[1].ids, 'bodyIntro', ...CHAPTERS[2].ids, ...CHAPTERS[3].ids, ...CHAPTERS[4].ids,
-  'building', 'done', 'pro', 'offer', 'widget', 'widgetSteps',
+  'commit', 'building', 'done', 'pro', 'wait', 'offer', 'widget', 'widgetSteps',
 ];
 const chapterOf = (id) => {
   const c = CHAPTERS.findIndex((ch) => ch.ids.includes(id));
@@ -1326,6 +1325,138 @@ const fmtMoney = (amount, currency) => {
   try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount); } catch (_) { return null; }
 };
 
+// Just before the plan is built: press and hold the ring to commit (about 1.6 s; it drains if let go early).
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const RING_R = 70;
+const RING_LEN = 2 * Math.PI * RING_R;
+function CommitScreen({ d, next, onBack }) {
+  const first = firstName(d);
+  const progress = useRef(new Animated.Value(0)).current;
+  const press = useRef(new Animated.Value(1)).current;
+  const [holding, setHolding] = useState(false);
+  const [done, setDone] = useState(false);
+  const run = useRef(null);
+  const hold = () => {
+    if (done) return;
+    setHolding(true);
+    tap();
+    Animated.spring(press, { toValue: 0.94, useNativeDriver: true, speed: 30, bounciness: 0 }).start();
+    run.current?.stop();
+    const left = 1 - progress.__getValue();
+    run.current = Animated.timing(progress, { toValue: 1, duration: Math.max(1, 1600 * left), easing: Easing.linear, useNativeDriver: false });
+    run.current.start(({ finished }) => {
+      if (!finished) return;
+      setDone(true); setHolding(false);
+      Animated.spring(press, { toValue: 1, useNativeDriver: true }).start();
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    });
+  };
+  const release = () => {
+    if (done || !holding) return;
+    setHolding(false);
+    Animated.spring(press, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 0 }).start();
+    run.current?.stop();
+    const v = progress.__getValue();
+    run.current = Animated.timing(progress, { toValue: 0, duration: 400 * v, easing: Easing.out(Easing.quad), useNativeDriver: false });
+    run.current.start();
+  };
+  const dashOffset = progress.interpolate({ inputRange: [0, 1], outputRange: [RING_LEN, 0] });
+  return (
+    <LinearGradient colors={['#EAF5FF', C.bg]} locations={[0, 0.6]} style={s.shell}>
+      <View style={s.topWrap}>
+        <View style={s.topRow}>
+          <TouchableOpacity style={s.backBtn} onPress={onBack} accessibilityRole="button" accessibilityLabel="Back">
+            <Ionicons name="chevron-back" size={22} color={C.ink} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, flexDirection: 'row', gap: 6 }}>
+            {[0, 1, 2, 3, 4].map((i) => <View key={i} style={s.commitBar} />)}
+          </View>
+        </View>
+      </View>
+      <View style={s.commitBody}>
+        <Text style={s.commitH1}>You're about to meet the best version of yourself.</Text>
+        <Text style={s.commitSub}>Make a commitment, and let's build your plan.</Text>
+        <View style={s.commitMid}>
+          <Text style={s.commitPledge}>{first ? `I, ${first}, commit` : 'I commit'} to showing up for myself, one meal at a time.</Text>
+          <View
+            style={s.commitRing}
+            onStartShouldSetResponder={() => true}
+            onResponderGrant={hold}
+            onResponderRelease={release}
+            onResponderTerminate={release}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Press and hold to commit"
+            accessibilityActions={[{ name: 'activate' }]}
+            onAccessibilityAction={() => { progress.setValue(1); setDone(true); }}
+          >
+            <Svg width={148} height={148} viewBox="0 0 148 148" style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
+              <Circle cx={74} cy={74} r={RING_R} fill="none" stroke="#E3E7E2" strokeWidth={5} />
+              <AnimatedCircle cx={74} cy={74} r={RING_R} fill="none" stroke={C.primary} strokeWidth={5} strokeLinecap="round" strokeDasharray={`${RING_LEN}`} strokeDashoffset={dashOffset} />
+            </Svg>
+            <Animated.View style={[s.commitCore, { backgroundColor: done ? C.primary : C.ink, transform: [{ scale: press }] }]}>
+              <Ionicons name={done ? 'checkmark' : 'finger-print'} size={done ? 46 : 48} color="#fff" />
+            </Animated.View>
+          </View>
+          <Text style={[s.commitLabel, done && { color: C.primary }]}>{done ? "Committed. Let's do this." : holding ? 'Keep holding…' : 'Press and hold to commit'}</Text>
+        </View>
+      </View>
+      <View style={s.footer}>
+        <PrimaryBtn label="Build my plan" onPress={next} disabled={!done} />
+      </View>
+    </LinearGradient>
+  );
+}
+
+// After closing Pro, when the first-month offer is still on: Lumi has something for them, then the offer.
+function WaitScreen({ d, onShow }) {
+  const first = firstName(d);
+  const gift = useRef(new Animated.Value(0)).current;
+  const sway = useRef(new Animated.Value(0)).current;
+  const rise = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
+  useEffect(() => {
+    Animated.spring(gift, { toValue: 1, useNativeDriver: true, tension: 70, friction: 6 }).start();
+    rise.forEach((v, i) => Animated.timing(v, { toValue: 1, duration: 500, delay: 250 + i * 150, easing: Easing.out(Easing.quad), useNativeDriver: true }).start());
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(sway, { toValue: 1, duration: 2250, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(sway, { toValue: 0, duration: 2250, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]));
+    const t = setTimeout(() => loop.start(), 700);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, []);
+  const up = (v) => ({ opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] });
+  return (
+    <LinearGradient colors={['#E8F8EF', '#F6FCF8', '#FFFFFF']} locations={[0, 0.45, 0.8]} style={s.shell}>
+      <View style={s.waitMid}>
+        <Animated.View style={{ opacity: gift, transform: [
+          { scale: gift.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) },
+          { rotate: gift.interpolate({ inputRange: [0, 1], outputRange: ['-6deg', '0deg'] }) },
+          { translateY: sway.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) },
+        ] }}>
+          <Image source={LUMI.gift} style={{ width: 220, height: 210 }} resizeMode="contain" accessibilityLabel="Lumi holding a gift" />
+        </Animated.View>
+        <Animated.Text style={[s.waitH1, up(rise[0])]}>{first ? `Wait, ${first}!` : 'Wait!'}</Animated.Text>
+        <Animated.Text style={[s.waitSub, up(rise[1])]}>I have something here for you.</Animated.Text>
+      </View>
+      <Animated.View style={[s.footer, { backgroundColor: 'transparent' }, up(rise[2])]}>
+        <PrimaryBtn label="Show me" onPress={onShow} />
+      </Animated.View>
+    </LinearGradient>
+  );
+}
+
+// What Logga Pro gives, as listed on the Pro screen.
+const PRO_FEATURES = [
+  ['restaurant-outline', 'Unlimited meal logging'],
+  ['pie-chart-outline', 'Extensive macro breakdowns for every meal'],
+  ['sparkles-outline', 'Unlimited AI insights on your progress'],
+  ['trending-up-outline', 'Accurate weight predictions to help you plan'],
+  ['calendar-outline', 'Predicted burnout days to keep you on track'],
+  ['book-outline', 'Unlocked, unlimited recipes'],
+  ['basket-outline', 'Build recipes from scratch with what’s already in your kitchen'],
+  ['options-outline', 'Tailor your calorie targets per day'],
+];
+
 function ProScreen({ d, plans, onRetry, onClose, onPurchased }) {
   const [choice, setChoice] = useState('yearly');
   const [busy, setBusy] = useState(false);
@@ -1336,20 +1467,11 @@ function ProScreen({ d, plans, onRetry, onClose, onPurchased }) {
   const trial = choice === 'yearly' ? !!plans?.trialYearly : !!plans?.trialMonthly;
   const yp = yearly?.product;
   const mp = monthly?.product;
-  const twelveMonthly = yp && mp && mp.price * 12 > yp.price ? fmtMoney(mp.price * 12, mp.currencyCode) : null;
   const yearlyPerMonth = yp ? fmtMoney(Math.floor((yp.price / 12) * 100) / 100, yp.currencyCode) : null;
   const saving = yp && mp && mp.price * 12 > yp.price ? Math.round((1 - yp.price / (mp.price * 12)) * 100) : 0;
   const win = predictedWindow(d);
-  const per = choice === 'yearly' ? 'year' : 'month';
 
-  const cta = trial ? 'Start my free week' : choice === 'yearly' && saving > 0 ? `Claim ${saving}% off now` : 'Continue';
-  const terms = selected
-    ? (trial
-      ? `7 days free, then ${selected.product.priceString}/${per}`
-      : choice === 'yearly' && yearlyPerMonth
-        ? `${selected.product.priceString} a year, just ${yearlyPerMonth} a month`
-        : `${selected.product.priceString} a month`) + ' · Cancel anytime'
-    : '';
+  const cta = trial ? 'Start my free week' : 'Continue';
   const legal = 'Payment is charged to your Apple ID. The subscription renews automatically unless you cancel at least 24 hours before the end of the current period'
     + (trial ? ' or free trial' : '') + '. Manage or cancel any time in your Apple ID settings.';
 
@@ -1393,51 +1515,56 @@ function ProScreen({ d, plans, onRetry, onClose, onPurchased }) {
   };
 
   return (
-    <View style={[s.shell, { backgroundColor: C.bg }]}>
+    <View style={[s.shell, { backgroundColor: '#fff' }]}>
       <View style={s.proTop}>
         <TouchableOpacity onPress={restore} accessibilityRole="button" style={{ paddingVertical: 8 }}>
           <Text style={s.proRestore}>Restore</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" style={s.proClose}>
-          <Ionicons name="close" size={22} color={C.ink500} />
+          <Ionicons name="close" size={18} color={C.ink500} />
         </TouchableOpacity>
       </View>
-      <ScrollView contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
-        <ProFeatureCarousel />
-        <View style={{ paddingHorizontal: 20 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.proBody} showsVerticalScrollIndicator={false}>
+        <View style={s.proHeadRow}>
           <Text style={s.proHeadline}>
-            {win
-              ? <>We'll help you reach <Text style={{ color: C.primary }}>{weightText(d.targetKg, d.unitW)}</Text> by <Text style={{ color: C.primary }}>{win.end}</Text>!</>
-              : <>Reach your goal faster with <Text style={{ color: C.primary }}>Logga Pro</Text></>}
+            {win ? `Reach ${weightText(d.targetKg, d.unitW)} by\n${win.end}.` : 'Reach your goal with\nLogga Pro.'}
           </Text>
-          {plans === undefined ? (
-            <ActivityIndicator color={C.primary} style={{ marginTop: 28 }} />
-          ) : !plans ? (
-            <TouchableOpacity style={s.proRetry} onPress={onRetry} accessibilityRole="button">
-              <Text style={s.proRetryTxt}>Prices couldn't load. Tap to try again.</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={s.planRow}>
-              <PlanCard id="yearly">
-                <View style={s.bestBadge}><Text style={s.bestBadgeTxt}>BEST VALUE</Text></View>
-                <Text style={s.planLen}>12 months</Text>
-                {twelveMonthly ? <Text style={s.planStrike}>{twelveMonthly}</Text> : null}
-                <Text style={s.planPrice}>{yp?.priceString || ''}</Text>
-                {yearlyPerMonth ? <Text style={s.planPer}>{yearlyPerMonth}/mo</Text> : null}
-                {plans?.trialYearly ? <Text style={s.trialChip}>7 days free</Text> : null}
-              </PlanCard>
-              <PlanCard id="monthly">
-                <Text style={s.planLen}>1 month</Text>
-                <Text style={s.planPrice}>{mp?.priceString || ''}</Text>
-                <Text style={s.planPer}>billed monthly</Text>
-                {plans?.trialMonthly ? <Text style={s.trialChip}>7 days free</Text> : null}
-              </PlanCard>
-            </View>
-          )}
+          <Image source={require('../../assets/logga-wordmark.png')} style={{ width: 84, height: 32 }} resizeMode="contain" accessibilityLabel="Logga" />
         </View>
+        <View style={s.proFeatures}>
+          {PRO_FEATURES.map(([icon, label]) => (
+            <View key={label} style={s.proFeature}>
+              <View style={s.proFeatureIcon}><Ionicons name={icon} size={19} color={C.ink} /></View>
+              <Text style={s.proFeatureTxt}>{label}</Text>
+            </View>
+          ))}
+        </View>
+        <View style={{ flex: 1, minHeight: 24 }} />
+        {plans === undefined ? (
+          <ActivityIndicator color={C.primary} style={{ marginVertical: 28 }} />
+        ) : !plans ? (
+          <TouchableOpacity style={s.proRetry} onPress={onRetry} accessibilityRole="button">
+            <Text style={s.proRetryTxt}>Prices couldn't load. Tap to try again.</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={s.planRow}>
+            <PlanCard id="yearly">
+              {saving > 0 ? <View style={s.bestBadge}><Text style={s.bestBadgeTxt}>Save {saving}%</Text></View> : null}
+              <Text style={s.planLen}>12 months</Text>
+              <Text style={s.planPrice}>{yp?.priceString || ''}</Text>
+              {yearlyPerMonth ? <Text style={s.planPer}>{yearlyPerMonth}/mo</Text> : null}
+              <Text style={[s.trialChip, !plans?.trialYearly && { color: 'transparent' }]}>7 days free</Text>
+            </PlanCard>
+            <PlanCard id="monthly">
+              <Text style={s.planLen}>1 month</Text>
+              <Text style={s.planPrice}>{mp?.priceString || ''}</Text>
+              <Text style={s.planPer}>billed monthly</Text>
+              <Text style={[s.trialChip, !plans?.trialMonthly && { color: 'transparent' }]}>7 days free</Text>
+            </PlanCard>
+          </View>
+        )}
       </ScrollView>
-      <View style={s.footer}>
-        <Text style={s.proTerms}>{terms}</Text>
+      <View style={[s.footer, { backgroundColor: '#fff', paddingTop: 14, paddingBottom: Platform.OS === 'ios' ? 22 : 16 }]}>
         <PrimaryBtn label={cta} onPress={buy} busy={busy} />
         <Text style={s.proLegal}>{legal}</Text>
         <View style={s.legalLinks}>
@@ -1648,7 +1775,7 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
   const skip = (id) => {
     if (id === 'health') return !(isIos && appleHealthSupported());
     if (id === 'pro') return !isIos || pro;
-    if (id === 'offer') return !offer || pro || !deadline || deadline <= Date.now();
+    if (id === 'offer' || id === 'wait') return !offer || pro || !deadline || deadline <= Date.now();
     if (id === 'widget' || id === 'widgetSteps') return !isIos;
     return false;
   };
@@ -1774,6 +1901,7 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
     case 'care':      return <CareScreen {...sharedProps} />;
     case 'reminders': return <RemindersScreen {...sharedProps} />;
     case 'health':    return <HealthScreen {...sharedProps} />;
+    case 'commit':    return <CommitScreen d={data} next={next} onBack={back} />;
     case 'building':  return <BuildingScreen d={data} set={set} next={next} />;
     case 'done':
       return waitingPlans
@@ -1789,6 +1917,7 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
           onPurchased={() => { setPro(true); setIdx(FLOW.indexOf('widget')); if (!isIos) finish(); }}
         />
       );
+    case 'wait':      return <WaitScreen d={data} onShow={next} />;
     case 'offer':
       return (
         <OfferScreen
@@ -2042,25 +2171,42 @@ const s = StyleSheet.create({
   planNote: { fontSize: 12, lineHeight: 17, color: C.ink400, marginTop: 8 },
 
   // Pro
-  proTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: Platform.OS === 'ios' ? 54 : 34, paddingHorizontal: 20, paddingBottom: 6 },
-  proRestore: { fontSize: 14, fontWeight: '700', color: C.ink500 },
-  proClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: C.sunken },
+  proTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: Platform.OS === 'ios' ? 52 : 32, paddingLeft: 24, paddingRight: 16 },
+  proRestore: { fontSize: 14, fontWeight: '600', color: '#8A938E' },
+  proClose: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F2' },
+  proBody: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 18 },
+  proHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  proFeatures: { marginTop: 28, gap: 15 },
+  proFeature: { flexDirection: 'row', gap: 12 },
+  proFeatureIcon: { width: 22, alignItems: 'center', paddingTop: 1 },
+  proFeatureTxt: { flex: 1, fontSize: 14.5, lineHeight: 21, fontWeight: '600', letterSpacing: -0.15, color: C.ink },
+  commitBar: { flex: 1, height: 5, borderRadius: 3, backgroundColor: C.primary },
+  commitBody: { flex: 1, paddingHorizontal: 28, paddingTop: 52 },
+  commitH1: { fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.8, color: C.ink },
+  commitSub: { marginTop: 14, fontSize: 15, lineHeight: 22, color: '#6c7872' },
+  commitMid: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 20 },
+  commitPledge: { marginBottom: 30, maxWidth: 260, textAlign: 'center', fontSize: 15, lineHeight: 22, fontWeight: '600', color: '#374151' },
+  commitRing: { width: 148, height: 148, alignItems: 'center', justifyContent: 'center' },
+  commitCore: { position: 'absolute', top: 12, left: 12, right: 12, bottom: 12, borderRadius: 62, alignItems: 'center', justifyContent: 'center', shadowColor: '#16201b', shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 10 }, elevation: 6 },
+  commitLabel: { marginTop: 18, minHeight: 20, fontSize: 14, fontWeight: '600', color: '#6c7872' },
+  waitMid: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingBottom: 40 },
+  waitH1: { marginTop: 28, fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -1, textAlign: 'center', color: C.ink },
+  waitSub: { marginTop: 10, fontSize: 17, lineHeight: 25, color: '#6c7872', textAlign: 'center' },
   proRetry: { marginTop: 22, padding: 16, borderRadius: 16, backgroundColor: C.mint, alignItems: 'center' },
   proRetryTxt: { fontSize: 14, fontWeight: '700', color: C.ink600 },
-  proHeadline: { marginTop: 18, fontSize: 24, lineHeight: 30, fontWeight: '800', textAlign: 'center', letterSpacing: -0.5, color: C.ink },
+  proHeadline: { flex: 1, fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.8, color: C.ink },
   planRow: { flexDirection: 'row', gap: 12, marginTop: 18 },
   planCard: {
-    flex: 1, minHeight: 178, alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: 26, paddingBottom: 20, paddingHorizontal: 10,
-    borderRadius: 18, backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.cardLine,
+    flex: 1, alignItems: 'center', paddingTop: 22, paddingBottom: 16, paddingHorizontal: 10,
+    borderRadius: 18, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E6E8E3',
   },
-  planCardOn: { backgroundColor: C.selBg, borderWidth: 2.5, borderColor: C.primary },
-  bestBadge: { position: 'absolute', top: -11, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: C.primary },
-  bestBadgeTxt: { fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: 0.6 },
-  planLen: { fontSize: 15, fontWeight: '800', color: C.ink },
-  planStrike: { fontSize: 13, fontWeight: '700', color: C.ink400, textDecorationLine: 'line-through' },
-  planPrice: { fontSize: 26, fontWeight: '800', color: C.ink, letterSpacing: -0.5 },
-  planPer: { fontSize: 13, fontWeight: '700', color: C.ink500 },
-  trialChip: { marginTop: 4, fontSize: 11.5, fontWeight: '800', color: C.primaryDark, backgroundColor: 'rgba(5,150,105,0.12)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
+  planCardOn: { borderWidth: 2, borderColor: C.ink },
+  bestBadge: { position: 'absolute', top: -11, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: C.primary },
+  bestBadgeTxt: { fontSize: 11.5, fontWeight: '700', color: '#fff' },
+  planLen: { fontSize: 14, fontWeight: '600', color: '#6c7872' },
+  planPrice: { marginTop: 6, fontSize: 26, lineHeight: 30, fontWeight: '800', color: C.ink, letterSpacing: -0.6 },
+  planPer: { marginTop: 2, fontSize: 13, color: '#6c7872' },
+  trialChip: { marginTop: 8, fontSize: 12.5, fontWeight: '600', color: C.primary },
   proTerms: { fontSize: 13, fontWeight: '700', color: C.ink600, textAlign: 'center', marginBottom: 10 },
   proLegal: { marginTop: 10, fontSize: 10.5, lineHeight: 14, color: C.ink400, textAlign: 'center' },
   legalLinks: { flexDirection: 'row', justifyContent: 'center', gap: 18, marginTop: 6 },
