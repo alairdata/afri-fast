@@ -245,8 +245,9 @@ const FoodNameField = ({ name, busy, onRename, textStyle }) => {
     );
   }
   return (
-    <TouchableOpacity disabled={busy} onPress={() => { setValue(name); setEditing(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityLabel={`Rename ${name}`}>
-      <Text style={textStyle}>{name}</Text>
+    <TouchableOpacity disabled={busy} onPress={() => { setValue(name); setEditing(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' }} accessibilityLabel={`Rename ${name}`}>
+      {/* A long name wraps instead of running under the calorie buttons */}
+      <Text style={[textStyle, { flexShrink: 1 }]}>{name}</Text>
       <Ionicons name="pencil" size={13} color="#9CA3AF" />
     </TouchableOpacity>
   );
