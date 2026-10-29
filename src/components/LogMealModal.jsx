@@ -214,7 +214,7 @@ const recalculateFoodPortionWithGemini = async (foodName, oldQty, newQty, curren
   }
 };
 
-// A detected food's name you can tap to rename (Scan, Say it, Write). The new name is kept exactly as typed
+// A detected food's name you can tap to rename (Scan, Say it, Write); no pencil, the name itself is the button. The new name is kept exactly as typed
 // and the calories are looked up again for it at the same amount.
 const FoodNameField = ({ name, busy, onRename, textStyle }) => {
   const [editing, setEditing] = useState(false);
@@ -248,7 +248,6 @@ const FoodNameField = ({ name, busy, onRename, textStyle }) => {
     <TouchableOpacity disabled={busy} onPress={() => { setValue(name); setEditing(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' }} accessibilityLabel={`Rename ${name}`}>
       {/* A long name wraps instead of running under the calorie buttons */}
       <Text style={[textStyle, { flexShrink: 1 }]}>{name}</Text>
-      <Ionicons name="pencil" size={13} color="#9CA3AF" />
     </TouchableOpacity>
   );
 };
