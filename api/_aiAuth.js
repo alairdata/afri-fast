@@ -11,7 +11,8 @@ export async function checkAiAuth(req, res, endpoint) {
   if (user) return true;
   const hadToken = /^Bearer\s+\S/i.test(req.headers.authorization || '');
   console.warn(`[ai-auth] ${endpoint}: ${hadToken ? 'invalid or expired token' : 'no token'} (type: ${req.body?.type || req.body?.action || '-'})`);
-  if (process.env.REQUIRE_AI_AUTH !== 'true') return true;
+  // Forgiving about how the value was typed in Vercel ("true", True, ' true ').
+  if (String(process.env.REQUIRE_AI_AUTH || '').replace(/["'\s]/g, '').toLowerCase() !== 'true') return true;
   res.status(401).json({ error: 'Please sign in again.' });
   return false;
 }
