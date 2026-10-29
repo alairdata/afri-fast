@@ -1237,6 +1237,22 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   // widget's "+" button back into the app's own logs. Runs on data changes and whenever the app
   // comes to the foreground; if widget water is waiting it is added first (which changes
   // waterLogs and re-runs this), and only then is the snapshot rewritten.
+  // Which device they use and when they last opened the app, on the account (admin portal: Users by store, Active
+  // now, Last active). Saved on open and on coming back to the app, at most every 5 minutes.
+  const lastSeenSaved = useRef(0);
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid) return undefined;
+    const save = () => {
+      if (Date.now() - lastSeenSaved.current < 5 * 60 * 1000) return;
+      lastSeenSaved.current = Date.now();
+      setAccountPref(uid, 'device', { platform: Platform.OS, lastSeenAt: new Date().toISOString() });
+    };
+    save();
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') save(); });
+    return () => sub.remove();
+  }, [session?.user?.id]);
+
   const [widgetTick, setWidgetTick] = useState(0);
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
