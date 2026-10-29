@@ -6,9 +6,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = 'logga_consent_v1';
+// Each account's answer on this device, so logging out (which wipes the device copy) and back in to the
+// same account doesn't ask again. Kept through log out; another account on the phone is still asked.
+const BY_USER_KEY = 'logga_consent_by_user_v1';
+export const CONSENT_KEYS_KEPT_ON_LOGOUT = [BY_USER_KEY];
 let state = { ai: null, analytics: null };
 let loaded = null;
+let userId = null;
 const listeners = new Set();
+const notify = () => listeners.forEach((fn) => { try { fn(state); } catch (_) {} });
+
+const readByUser = () => AsyncStorage.getItem(BY_USER_KEY).then((raw) => (raw ? JSON.parse(raw) : {})).catch(() => ({}));
+const rememberForUser = async () => {
+  if (!userId) return;
+  const all = await readByUser();
+  all[userId] = state;
+  AsyncStorage.setItem(BY_USER_KEY, JSON.stringify(all)).catch(() => {});
+};
 
 export const loadConsent = () => {
   if (!loaded) {
@@ -22,11 +36,38 @@ export const loadConsent = () => {
 
 export const getConsent = () => state;
 
+// Who is signed in. Brings back that account's earlier answer when this device has none (after a log out),
+// and remembers an answer given before the account was known.
+export const setConsentUser = async (id) => {
+  await loadConsent();
+  userId = id || null;
+  if (!userId) return state;
+  if (state.ai == null) {
+    const saved = (await readByUser())[userId];
+    if (saved && saved.ai != null) {
+      state = { ...state, ...saved };
+      AsyncStorage.setItem(KEY, JSON.stringify(state)).catch(() => {});
+      notify();
+    }
+  } else {
+    rememberForUser();
+  }
+  return state;
+};
+
+// On log out, after the device copy is wiped: forget the answer held in memory too.
+export const resetConsentMemory = () => {
+  state = { ai: null, analytics: null };
+  loaded = null;
+  userId = null;
+};
+
 export const saveConsent = async (patch) => {
   await loadConsent();
   state = { ...state, ...patch };
   AsyncStorage.setItem(KEY, JSON.stringify(state)).catch(() => {});
-  listeners.forEach((fn) => { try { fn(state); } catch (_) {} });
+  rememberForUser();
+  notify();
   return state;
 };
 

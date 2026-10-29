@@ -88,7 +88,7 @@ import CatchUpPrompts from './components/CatchUpPrompts';
 import FirstMealPrompt from './components/FirstMealPrompt';
 import { LinearGradient } from 'expo-linear-gradient';
 import { initSubscriptions, signOutSubscriptions, useSubscription, openPaywall, FREE_MEALS_PER_DAY } from './lib/subscription';
-import { ensureAiConsent } from './lib/consent';
+import { ensureAiConsent, CONSENT_KEYS_KEPT_ON_LOGOUT, resetConsentMemory } from './lib/consent';
 import { showAlert } from './lib/alert';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -3136,8 +3136,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
               // phone can never load them. Which accounts connected Apple Health is kept (ids only, no data),
               // and so is the widget's water bookkeeping.
               const healthUsers = await AsyncStorage.getItem(APPLE_HEALTH_KEY).catch(() => null);
-              const widgetKept = await AsyncStorage.multiGet(WIDGET_KEYS_KEPT_ON_LOGOUT).catch(() => []);
+              const widgetKept = await AsyncStorage.multiGet([...WIDGET_KEYS_KEPT_ON_LOGOUT, ...CONSENT_KEYS_KEPT_ON_LOGOUT]).catch(() => []);
               await AsyncStorage.clear().catch(() => {});
+              resetConsentMemory();
               if (healthUsers) await AsyncStorage.setItem(APPLE_HEALTH_KEY, healthUsers).catch(() => {});
               const keep = (widgetKept || []).filter(([, v]) => v != null);
               if (keep.length) await AsyncStorage.multiSet(keep).catch(() => {});
@@ -3343,7 +3344,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       />
 
       {/* === Chat (above everything incl. tab bar) === */}
-      <AiConsentModal signedIn={!!session?.user} />
+      <AiConsentModal signedIn={!!session?.user} userId={session?.user?.id} />
       <PaywallModal goal={{ targetWeight, weightUnit, goalDate }} />
       <CatchUpPrompts userId={session?.user?.id} name={userName} kcal={dailyCalorieGoal} newUser={!!pendingPreAuthData} busy={showFirstMeal} />
 

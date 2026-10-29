@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Switch, Platform, Linking } from 'react-native';
-import { loadConsent, saveConsent, setAiConsentAsker } from '../lib/consent';
+import { loadConsent, saveConsent, setAiConsentAsker, setConsentUser } from '../lib/consent';
 
 const INK = '#16201b';
 const INK500 = '#6c7872';
@@ -11,21 +11,21 @@ const LINE = '#e9e9e1';
 // "How Logga uses AI and your data" (App Store guideline 5.1.2(i): name the third-party AI, say what is sent,
 // and get explicit permission first). Shown once after sign-in; AI features also bring it back if they're
 // tapped while AI is off.
-const AiConsentModal = ({ signedIn }) => {
+const AiConsentModal = ({ signedIn, userId }) => {
   const [visible, setVisible] = useState(false);
   const [analytics, setAnalytics] = useState(true);
   const pending = useRef(null);
 
-  // First time after sign-in, ask once.
+  // First time after sign-in, ask once (per account: an answer given before on this phone comes back).
   useEffect(() => {
     if (!signedIn) return;
-    loadConsent().then((c) => {
+    setConsentUser(userId).then((c) => {
       if (c.ai == null) {
         setAnalytics(c.analytics !== false);
         setVisible(true);
       }
     });
-  }, [signedIn]);
+  }, [signedIn, userId]);
 
   // AI features call ensureAiConsent(), which opens this and waits for the answer.
   useEffect(() => {
