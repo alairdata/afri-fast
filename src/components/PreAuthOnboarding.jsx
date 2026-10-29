@@ -1160,7 +1160,7 @@ const QUICK = {
     field: 'waterHabit',
   },
   meals: {
-    lumi: 'think', at: [2, 80],
+    lumi: 'think', at: [2, 100],
     title: 'How many meals do you usually eat a day?',
     sub: 'So your reminders land at the right times.',
     opts: [['1-2', '1 or 2 meals'], ['3', '3 meals'], ['3+snacks', '3 meals and snacks'], ['varies', 'It changes every day']],
@@ -1210,7 +1210,7 @@ function QuickQuestion({ q, onAnswer }) {
 }
 
 // Four steps, each with its own bar. Two quick questions pop up on the way: water once step 1 is full,
-// meals near the end of step 3. Then it moves on to the plan by itself.
+// meals once step 3 is full. Then it moves on to the plan by itself.
 function BuildingScreen({ d, set, next }) {
   const first = firstName(d);
   const [prog, setProg] = useState([0, 0, 0, 0]);
