@@ -1950,7 +1950,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
           <ManualMealForm selectedMealDate={selectedMealDate} onSave={(meal) => { onSaveMeal && onSaveMeal(meal); handleClose(); }} />
         )}
 
-        <ScrollView style={[styles.weightPageContent, (scanPhase === 'shareCard' || logMealMethod === 'write' || logMealMethod === 'manual' || (logMealMethod === 'scan' && scanPhase === 'results')) && { display: 'none', flex: 0 }]}>
+        <ScrollView style={[styles.weightPageContent, (scanPhase === 'shareCard' || scanPhase === 'recipeConfirm' || logMealMethod === 'write' || logMealMethod === 'manual' || (logMealMethod === 'scan' && scanPhase === 'results')) && { display: 'none', flex: 0 }]}>
 
           {/* Say Method */}
           {logMealMethod === 'say' && (
