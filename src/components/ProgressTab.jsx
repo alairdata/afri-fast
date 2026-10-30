@@ -1601,7 +1601,8 @@ const ProgressTab = ({
       byWeekday[d.getDay()].count += 1;
     });
     const days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(now); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() + 1 + i);
+      // today first, then the next six days
+      const date = new Date(now); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() + i);
       const wd = date.getDay();
       const b = byWeekday[wd];
       const enough = b.count >= 2 && dailyCalorieGoal > 0;
@@ -1620,13 +1621,13 @@ const ProgressTab = ({
         date, level, text,
         name: date.toLocaleDateString('en-US', { weekday: 'short' }),
         num: date.getDate(),
-        title: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+        title: (i === 0 ? 'Today, ' : '') + date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
         height: level === 'none' ? 0.1 : Math.max(0.15, Math.min(1, 0.25 + ratio * 3)),
       };
     });
     return { days, toWatch: days.filter((d) => d.level === 'high').length };
   }, [recentMeals, ledgerMap, goalHistory, dailyCalorieGoal, now]);
-  const [weekAheadPick, setWeekAheadPick] = useState(() => Math.max(0, weekAhead.days.findIndex((d) => d.level === 'high')));
+  const [weekAheadPick, setWeekAheadPick] = useState(0); // today is selected first
   const [riveMomentumFailed, setRiveMomentumFailed] = useState(false);
 
   // ── Your movement: the last 4 weeks (Mon-Sun rows), full workout vs lighter activity ──
@@ -2023,13 +2024,14 @@ const ProgressTab = ({
               <View style={{ flexDirection: 'row', gap: 2, marginTop: 12 }}>
                 {weekAhead.days.map((d, i) => {
                   const on = i === weekAheadPick;
-                  const color = d.level === 'high' ? '#DC2626' : d.level === 'watch' ? '#FBBF24' : d.level === 'low' ? '#34D399' : colors.border;
+                  // the same softer red and green as the Calories chart above, with a soft yellow between
+                  const color = d.level === 'high' ? '#F87171' : d.level === 'watch' ? '#FCD34D' : d.level === 'low' ? '#34D399' : colors.border;
                   return (
                     <TouchableOpacity key={i} onPress={() => setWeekAheadPick(i)} style={[styles.aheadDay, on && styles.aheadDayOn]} accessibilityState={{ selected: on }} accessibilityLabel={`${d.title}, ${WEEK_AHEAD_LEVELS[d.level].label}`}>
                       <Text style={[styles.aheadDayName, on && { fontWeight: '700', color: colors.text }]}>{d.name}</Text>
                       <Text style={styles.aheadDayNum}>{d.num}</Text>
                       <View style={styles.aheadBarBox}><View style={{ width: '70%', height: `${Math.round(d.height * 100)}%`, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: color }} /></View>
-                      <View style={{ height: 14, justifyContent: 'center' }}>{d.level === 'high' ? <Text style={{ fontSize: 11, fontWeight: '800', color: '#DC2626' }}>!</Text> : null}</View>
+                      <View style={{ height: 14, justifyContent: 'center' }}>{d.level === 'high' ? <Text style={{ fontSize: 11, fontWeight: '800', color: '#F87171' }}>!</Text> : null}</View>
                     </TouchableOpacity>
                   );
                 })}
