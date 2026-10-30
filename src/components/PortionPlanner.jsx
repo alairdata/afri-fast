@@ -136,8 +136,12 @@ const recentsKey = (userId, mode) => `logga-${mode === 'fit' ? 'fit' : 'kitchen'
 const recentsPref = (mode) => (mode === 'fit' ? 'fitRecents' : 'kitchenRecents');
 const loadRecents = async (userId, mode) => {
   const onAccount = await getAccountPref(userId, recentsPref(mode));
-  if (Array.isArray(onAccount)) return onAccount;
-  try { const raw = await AsyncStorage.getItem(recentsKey(userId, mode)); return raw ? JSON.parse(raw) : []; } catch (_) { return []; }
+  if (Array.isArray(onAccount) && onAccount.length) return onAccount;
+  let local = [];
+  try { const raw = await AsyncStorage.getItem(recentsKey(userId, mode)); local = raw ? JSON.parse(raw) : []; } catch (_) {}
+  // Kept only on this phone (from before Recents were saved on the account): copy them up so they never get lost.
+  if (Array.isArray(local) && local.length) setAccountPref(userId, recentsPref(mode), local);
+  return Array.isArray(local) ? local : [];
 };
 const addRecent = async (userId, mode, entry) => {
   const list = (await loadRecents(userId, mode)).filter((r) => r.title !== entry.title);
