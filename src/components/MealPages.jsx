@@ -114,13 +114,22 @@ const swipeStyles = StyleSheet.create({
   deleteActionText: { color: '#fff', fontSize: 11, fontWeight: '600', marginTop: 2 },
 });
 
-// The meals someone logs most: the last 30 days, grouped by name, logged at least twice.
+// Two names count as the same meal when they share the same words, whatever the case, punctuation, "&" or
+// "and", little joining words, word order or plurals: "Jollof Rice & Chicken" = "chicken with jollof rice".
+const MEAL_NAME_FILLER = new Set(['and', 'with', 'of', 'the', 'a', 'an', 'plus', 'in', 'on', 'some']);
+const mealNameKey = (name) => [...new Set(
+  String(name || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+    .filter((w) => w && !MEAL_NAME_FILLER.has(w))
+    .map((w) => (w.length > 3 && w.endsWith('es') && !w.endsWith('ses') ? w.slice(0, -2) : w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w))
+)].sort().join(' ');
+
+// The meals someone logs most: the last 30 days, grouped by name (see mealNameKey), logged at least twice.
 const usualMealsFrom = (recentMeals) => {
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const groups = {};
   (recentMeals || []).forEach((m) => {
     const t = m.timestamp || new Date(m.date).getTime();
-    const key = (m.name || '').trim().toLowerCase();
+    const key = mealNameKey(m.name);
     if (!key || isNaN(t) || t < cutoff) return;
     const g = groups[key] || (groups[key] = { count: 0, latest: m, latestAt: 0 });
     g.count += 1;
