@@ -134,6 +134,7 @@ const ChatScreen = ({
   const keyboardOffset = Platform.OS === 'ios' ? safeInsets.top : 0;
 
   const [chatInput, setChatInput] = useState('');
+  const [inputH, setInputH] = useState(36); // the text box: one line (36) up to about four (112)
   const [photo, setPhoto] = useState(null);
   // When the keyboard opens, jump to the latest message so it stays in view above the keyboard.
   useEffect(() => {
@@ -446,32 +447,29 @@ const ChatScreen = ({
               </View>
             )}
             {voiceNote && voice === 'idle' && <Text style={styles.voiceNote}>{voiceNote}</Text>}
-            <TextInput
-              placeholder={isMeals ? 'What did you eat?' : 'Ask about your progress…'}
-              placeholderTextColor="#9CA3AF"
-              style={styles.composerInput}
-              value={chatInput}
-              onChangeText={setChatInput}
-              multiline
-              blurOnSubmit={false}
-              onKeyPress={(e) => {
-                // Enter sends on a keyboard; Shift+Enter makes a new line
-                if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) { e.preventDefault?.(); sendMessage(); }
-              }}
-              accessibilityLabel={isMeals ? 'Tell Logga what you ate' : 'Message your coach'}
-            />
-            <View style={styles.composerRow}>
+            {/* One slim row, as on the canvas: + | the text box | mic | send. The box grows a line at a time. */}
+            <View style={styles.slimRow}>
               {isMeals && (
                 <TouchableOpacity style={styles.composerBtnOutline} onPress={() => pickPhoto(false)} accessibilityLabel="Add a photo">
                   <Ionicons name="add" size={20} color={INK} />
                 </TouchableOpacity>
               )}
-              {isMeals && Platform.OS !== 'web' && (
-                <TouchableOpacity style={styles.composerBtn} onPress={() => pickPhoto(true)} accessibilityLabel="Take a photo">
-                  <Ionicons name="camera-outline" size={20} color={INK} />
-                </TouchableOpacity>
-              )}
-              <View style={{ flex: 1 }} />
+              <TextInput
+                placeholder={isMeals ? 'What did you eat?' : 'Ask about your progress…'}
+                placeholderTextColor="#9CA3AF"
+                style={[styles.slimInput, { height: chatInput ? inputH : 36 }]}
+                onContentSizeChange={(e) => setInputH(Math.min(112, Math.max(36, Math.ceil(e.nativeEvent.contentSize.height))))}
+                scrollEnabled={inputH >= 112}
+                value={chatInput}
+                onChangeText={setChatInput}
+                multiline
+                blurOnSubmit={false}
+                onKeyPress={(e) => {
+                  // Enter sends on a keyboard; Shift+Enter makes a new line
+                  if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) { e.preventDefault?.(); sendMessage(); }
+                }}
+                accessibilityLabel={isMeals ? 'Tell Logga what you ate' : 'Message your coach'}
+              />
               <TouchableOpacity
                 style={[styles.composerBtn, voice === 'listening' && styles.micOn]}
                 onPress={voice === 'listening' ? stopVoice : startVoice}
@@ -541,7 +539,9 @@ const styles = StyleSheet.create({
   chatSuggestionBtn: { paddingVertical: 9, paddingHorizontal: 15, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB' },
   chatSuggestionText: { fontSize: 13, color: '#047857', fontWeight: '600' },
   composerWrap: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: Platform.OS === 'web' ? 16 : 30, backgroundColor: '#F9FAFB' },
-  composer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 28, paddingTop: 12, paddingRight: 12, paddingBottom: 10, paddingLeft: 18, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  composer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 26, padding: 8, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  slimRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  slimInput: { flex: 1, minWidth: 0, fontSize: 16, color: INK, paddingTop: 8, paddingBottom: 8, paddingHorizontal: 4, textAlignVertical: 'top', ...(Platform.OS === 'web' ? { lineHeight: 20, outlineStyle: 'none', resize: 'none' } : {}) },
   composerInput: { fontSize: 16, lineHeight: 22, color: INK, minHeight: 26, maxHeight: 110, paddingVertical: 2, outlineStyle: 'none' },
   composerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   composerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
