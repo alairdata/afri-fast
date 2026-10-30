@@ -2,8 +2,10 @@
 //  - ai: sending their meal photos, voice notes, descriptions and log summaries to third-party AI
 //        providers. null = not asked yet.
 //  - analytics: anonymous usage events to Mixpanel. null = not asked yet (events wait, unsent).
-// Stored on the device; asked once after sign-in and changeable any time in Privacy Settings.
+// Stored on the device and on the account (app_prefs.consent); asked once per account, changeable any time in
+// Privacy Settings.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccountPref, setAccountPref } from './accountPrefs';
 
 const KEY = 'logga_consent_v1';
 // Each account's answer on this device, so logging out (which wipes the device copy) and back in to the
@@ -43,14 +45,21 @@ export const setConsentUser = async (id) => {
   userId = id || null;
   if (!userId) return state;
   if (state.ai == null) {
-    const saved = (await readByUser())[userId];
+    // This phone's earlier answer for the account, else the one kept on the account (any phone, any log out).
+    let saved = (await readByUser())[userId];
+    if (!saved || saved.ai == null) saved = await getAccountPref(userId, 'consent');
     if (saved && saved.ai != null) {
-      state = { ...state, ...saved };
+      state = { ...state, ai: saved.ai, analytics: saved.analytics ?? state.analytics };
       AsyncStorage.setItem(KEY, JSON.stringify(state)).catch(() => {});
+      rememberForUser();
       notify();
     }
   } else {
     rememberForUser();
+    // An answer given before it was kept on the account: copy it up once, so the next phone or log in has it.
+    getAccountPref(userId, 'consent').then((onAccount) => {
+      if (!onAccount || onAccount.ai == null) setAccountPref(userId, 'consent', { ai: state.ai, analytics: state.analytics });
+    });
   }
   return state;
 };
@@ -67,6 +76,7 @@ export const saveConsent = async (patch) => {
   state = { ...state, ...patch };
   AsyncStorage.setItem(KEY, JSON.stringify(state)).catch(() => {});
   rememberForUser();
+  if (userId) setAccountPref(userId, 'consent', { ai: state.ai, analytics: state.analytics }); // follows them to any phone
   notify();
   return state;
 };
