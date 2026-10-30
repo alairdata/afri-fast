@@ -18,12 +18,36 @@ async function isRestricted(userId) {
   }
 }
 
-/** Returns true when the request may go on; otherwise it has already answered (401 or 403). */
+// Counts this AI call for the account and returns today's total (null when it can't be counted: then it's let through).
+async function countAiCall(userId) {
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) return null;
+  try {
+    const r = await fetch(`${url}/rest/v1/rpc/bump_ai_usage`, {
+      method: 'POST', headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_user: userId }),
+    });
+    if (!r.ok) return null;
+    return Number(await r.json());
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Returns true when the request may go on; otherwise it has already answered (401, 403 or 429). */
 export async function checkAiAuth(req, res, endpoint) {
   let user = null;
   try { user = await userFromRequest(req); } catch (_) { /* Supabase unreachable: treat as unsigned */ }
   if (user) {
     if (await isRestricted(user.id)) { res.status(403).json({ error: 'This account is on hold.' }); return false; }
+    // Daily cap per account, so one account can't drain the AI credit (AI_DAILY_LIMIT in Vercel, default 300).
+    const calls = await countAiCall(user.id);
+    const cap = Number(process.env.AI_DAILY_LIMIT) > 0 ? Number(process.env.AI_DAILY_LIMIT) : 300;
+    if (calls != null && calls > cap) {
+      console.warn(`[ai-auth] ${endpoint}: daily cap reached for ${user.id} (${calls})`);
+      res.status(429).json({ error: "You've used Logga's AI a lot today. Please try again tomorrow." });
+      return false;
+    }
     req.aiUser = user; // the endpoint can tell whose request this is
     return true;
   }

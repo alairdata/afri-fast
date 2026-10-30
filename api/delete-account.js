@@ -51,6 +51,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, deleteAfter });
   } catch (e) {
     console.error('[delete-account] exception:', e);
-    return res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: 'Something went wrong. Please try again.' }); // the details are in the server log above
   }
 }

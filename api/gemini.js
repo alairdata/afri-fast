@@ -563,6 +563,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid type' });
   } catch (e) {
     console.error('[/api/gemini]', type, e);
-    return res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: 'Something went wrong. Please try again.' }); // the details are in the server log above
   }
 }
