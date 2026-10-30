@@ -94,6 +94,7 @@ import { showAlert } from './lib/alert';
 import { aiHeaders } from './lib/aiAuth';
 import { getAccountPref, setAccountPref } from './lib/accountPrefs';
 import { deliverNudges, savePushToken } from './lib/adminMessages';
+import { maybeAskForReview } from './lib/reviewPrompt';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -2947,6 +2948,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             if ([3, 10, 50].includes(totalMeals)) track(EVENTS.ACTIVATION_MILESTONE, { total_meals: totalMeals });
             countSessionLog();
             incrementUserProperty('total_meals');
+            maybeAskForReview(session.user.id, totalMeals); // the store's rating pop-up on the 2nd and 10th meal
           }
           const attemptInsert = async (mealToSave) => {
             setRecentMeals(prev => prev.some(m => m.id === mealToSave.id) ? prev : [mealToSave, ...prev]);
