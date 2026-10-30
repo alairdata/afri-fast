@@ -364,8 +364,8 @@ const ChatScreen = ({
                         accessibilityLabel={`Log ${m.name} again`}
                       >
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={styles.whenTitle} numberOfLines={1}>{m.name}</Text>
-                          <Text style={styles.whenSub}>{Math.round(m.calories || 0).toLocaleString()} cal</Text>
+                          <Text style={[styles.whenTitle, { fontSize: 13 }]} numberOfLines={1}>{m.name}</Text>
+                          <Text style={[styles.whenSub, { fontSize: 12 }]}>{Math.round(m.calories || 0).toLocaleString()} cal</Text>
                         </View>
                         <Text style={{ fontSize: 12.5, color: MUTED }}>{whenLabel(m.logged_at)}</Text>
                         <Ionicons name="chevron-forward" size={16} color="#C4C8CE" />
