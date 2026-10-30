@@ -547,8 +547,13 @@ const styles = StyleSheet.create({
   composerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   sendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' },
   micOn: { backgroundColor: '#DC2626' },
-  newChatBtn: { height: 54, borderRadius: 16, backgroundColor: INK, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  newChatText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  // A compact rounded pill at the bottom right (ChatGPT style), as on the canvas
+  newChatBtn: {
+    alignSelf: 'flex-end', height: 52, borderRadius: 26, paddingLeft: 18, paddingRight: 22, backgroundColor: INK,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 22, shadowOffset: { width: 0, height: 8 }, elevation: 6,
+  },
+  newChatText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   listeningRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   listeningDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#DC2626' },
   listeningText: { fontSize: 12.5, fontWeight: '600', color: '#B91C1C' },
