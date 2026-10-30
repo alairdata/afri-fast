@@ -31,15 +31,14 @@ export default async function handler(req, res) {
     if (!r.ok) return res.status(502).json({ error: 'Could not check right now.' });
     const rows = await r.json();
     const exists = Array.isArray(rows) && rows.length > 0;
-    if (!req.body?.sendLoginCode || !exists) return res.status(200).json({ exists });
-
-    // The admin portal (logga.space/admin) asks with adminOnly: a code goes only to emails on the admin list, and
-    // the answer is the same either way, so the portal can't be used to email codes to users or to probe the list.
-    if (req.body?.adminOnly) {
+    // The admin portal (logga.space/admin) asks with adminOnly: a code goes only to emails on the admin list
+    // (so the portal can't be used to email codes to users); anyone else is told they have no access.
+    if (req.body?.adminOnly && req.body?.sendLoginCode) {
       const a = await fetch(`${SUPABASE_URL}/rest/v1/admin_emails?select=email`, { headers: adminHeaders() });
       const admins = a.ok ? await a.json() : [];
-      if (!admins.some((x) => String(x.email).toLowerCase() === email)) return res.status(200).json({ sent: true });
+      if (!exists || !admins.some((x) => String(x.email).toLowerCase() === email)) return res.status(200).json({ notAdmin: true });
     }
+    if (!req.body?.sendLoginCode || !exists) return res.status(200).json({ exists });
 
     if (!configured()) return res.status(500).json({ error: 'Email is not set up yet. Please try again later.' });
     if (!rateLimit(`login-code:${email}`, 5, 60 * 60 * 1000)) {

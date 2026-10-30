@@ -176,6 +176,7 @@
       var r = await fetch('/api/account-exists', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, sendLoginCode: true, adminOnly: true }) });
       var j = await r.json().catch(function () { return {}; });
       if (!r.ok) throw new Error(j.error || 'Could not send the code.');
+      if (j.notAdmin) return setState({ phase: 'denied', busy: false, authError: email + " doesn't have access to the Logga admin portal." });
       setState({ phase: 'code', busy: false, code: '' });
     } catch (err) { setState({ busy: false, authError: err.message }); }
   }
@@ -735,7 +736,7 @@
         '<p style="margin:0;font-size:13px;color:#B9CDBC">Restricted area · admins only</p></div>' +
       '<div style="flex:1 1 420px;display:flex;align-items:center;justify-content:center;padding:48px 24px">' +
         '<form data-form="' + (codeStep ? 'verifyCode' : 'sendCode') + '" style="width:100%;max-width:380px;display:flex;flex-direction:column;gap:20px">' +
-          '<div><h2 class="display" style="margin:0;font-size:32px;letter-spacing:-.8px">Admin sign in</h2><p style="margin:6px 0 0;font-size:15px" class="muted">' + (codeStep ? 'If ' + esc(S.email) + ' is on the admin list, a sign-in code is on its way. Check spam too.' : 'Use your Logga account email. Only emails on the admin list get a code.') + '</p></div>' +
+          '<div><h2 class="display" style="margin:0;font-size:32px;letter-spacing:-.8px">Admin sign in</h2><p style="margin:6px 0 0;font-size:15px" class="muted">' + (codeStep ? 'We emailed a sign-in code to ' + esc(S.email) + '. Check spam too.' : 'Use your Logga account email. Only emails on the admin list can get in.') + '</p></div>' +
           (codeStep ?
             '<div class="stack"><label class="lbl" for="code" style="font-size:14px">Code from the email</label><input id="code" class="field" inputmode="numeric" autocomplete="one-time-code" maxlength="8" value="' + esc(S.code) + '" data-input="code" style="height:48px;letter-spacing:4px;font-size:20px"></div>' :
             '<div class="stack"><label class="lbl" for="email" style="font-size:14px">Email</label><input id="email" class="field" type="email" autocomplete="email" placeholder="you@example.com" value="' + esc(S.email) + '" data-input="email" style="height:48px"></div>') +
@@ -753,7 +754,13 @@
     var html;
     if (S.phase === 'loading') html = '<p style="padding:40px;text-align:center" class="muted">Loading…</p>';
     else if (S.phase === 'email' || S.phase === 'code') html = viewLogin();
-    else if (S.phase === 'denied') html = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px"><div class="card" style="max-width:440px;padding:28px;display:flex;flex-direction:column;gap:14px"><h1 class="display" style="margin:0;font-size:28px;letter-spacing:-.5px">No admin access</h1><p class="alert">' + esc(S.authError) + '</p><button type="button" class="btn btn-primary" data-act="backToEmail">Sign in with another email</button></div></div>';
+    else if (S.phase === 'denied') html = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#F6F3EC">' +
+      '<div class="card" style="max-width:440px;width:100%;padding:32px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px">' +
+        '<span style="width:64px;height:64px;border-radius:50%;background:#FBE5DC;display:flex;align-items:center;justify-content:center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8A2E10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>' +
+        '<h1 class="display" style="margin:0;font-size:30px;letter-spacing:-.6px">You don\'t have access</h1>' +
+        '<p style="margin:0;font-size:15px;line-height:1.55" class="muted">' + esc(S.authError) + ' This area is only for the Logga team. If you think you should be here, ask an admin to add your email.</p>' +
+        '<button type="button" class="btn btn-primary" style="align-self:stretch;height:50px;font-size:15px;margin-top:6px" data-act="backToEmail">Try another email</button>' +
+        '<a href="/" style="font-size:14px;font-weight:600">Go to logga.space</a></div></div>';
     else {
       var D = S.data, tab = TABS.filter(function (t) { return t[0] === S.tab; })[0];
       var open = D ? D.feedback.filter(function (f) { return !f.handled; }).length : 0;
