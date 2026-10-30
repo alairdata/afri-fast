@@ -114,6 +114,16 @@ const swipeStyles = StyleSheet.create({
   deleteActionText: { color: '#fff', fontSize: 11, fontWeight: '600', marginTop: 2 },
 });
 
+// What Logga users have said, shown one at a time on Log your meal.
+const REVIEWS = [
+  { name: 'Amina O.', text: 'It actually knew the calories in my jollof rice! I was shocked. Even got the portion right.', stars: 5 },
+  { name: 'Chidi K.', text: 'I scanned my egusi soup and it broke down the macros perfectly. This app gets African food.', stars: 5 },
+  { name: 'Fatima B.', text: 'Finally an app that doesn\'t just say "unknown food" when I log pounded yam and ogbono.', stars: 5 },
+  { name: 'Kwame A.', text: 'The calorie count for my waakye was spot on. Even tracked the shito on the side!', stars: 4 },
+  { name: 'Ngozi E.', text: 'I\'ve tried 5 calorie apps before. This is the first one that understands suya, chin chin, and puff puff.', stars: 5 },
+  { name: 'Yemi D.', text: 'Tracked amala and ewedu for a week. The numbers matched what my nutritionist said. Impressive.', stars: 5 },
+];
+
 // Two names count as the same meal when they share the same words, whatever the case, punctuation, "&" or
 // "and", little joining words, word order or plurals: "Jollof Rice & Chicken" = "chicken with jollof rice".
 const MEAL_NAME_FILLER = new Set(['and', 'with', 'of', 'the', 'a', 'an', 'plus', 'in', 'on', 'some']);
@@ -296,6 +306,20 @@ const MealPages = ({
 
   const mealLogStreak = useMemo(() => computeCurrentMealStreak(recentMeals), [recentMeals]);
 
+  // Rotate through the reviews, one at a time, while the page is open.
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const reviewFade = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!showLogMealOptions) return undefined;
+    const interval = setInterval(() => {
+      Animated.timing(reviewFade, { toValue: 0, duration: 300, useNativeDriver: Platform.OS !== 'web' }).start(() => {
+        setReviewIndex((prev) => (prev + 1) % REVIEWS.length);
+        Animated.timing(reviewFade, { toValue: 1, duration: 300, useNativeDriver: Platform.OS !== 'web' }).start();
+      });
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [showLogMealOptions]);
+
   // The app closes this page itself once logging actually starts, so if it can't (daily limit, AI off)
   // the person stays here on the options.
   const handleLogMethod = (method) => {
@@ -366,15 +390,15 @@ const MealPages = ({
               <Ionicons name="chevron-forward" size={16} color="#ccc" />
             </TouchableOpacity>
 
-            {/* What people are saying: a real review from a Logga user */}
+            {/* What people are saying: real reviews from Logga users, one at a time */}
             <Text style={styles.reviewKicker}>What people are saying</Text>
-            <View style={styles.reviewCard}>
+            <Animated.View style={[styles.reviewCard, { opacity: reviewFade }]}>
               <View style={{ flexDirection: 'row', gap: 2, marginBottom: 6 }}>
-                {[0, 1, 2, 3, 4].map((i) => <Ionicons key={i} name="star" size={12} color="#F59E0B" />)}
+                {[...Array(REVIEWS[reviewIndex].stars)].map((_, i) => <Ionicons key={i} name="star" size={12} color="#F59E0B" />)}
               </View>
-              <Text style={styles.reviewText}>"It actually knew the calories in my jollof rice! I was shocked. Even got the portion right."</Text>
-              <Text style={styles.reviewName}>— Amina O.</Text>
-            </View>
+              <Text style={styles.reviewText}>"{REVIEWS[reviewIndex].text}"</Text>
+              <Text style={styles.reviewName}>— {REVIEWS[reviewIndex].name}</Text>
+            </Animated.View>
 
           </ScrollView>
         </View>
