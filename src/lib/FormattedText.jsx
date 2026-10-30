@@ -73,6 +73,11 @@ export default function FormattedText({ text, bodyStyle, paragraphSpacing = 12, 
     return (
       <View key={`para-${pi}`} style={{ marginTop }}>
         {lines.map((line, li) => {
+          // a header line with text straight under it (no blank line between)
+          const h = line.match(/^(#{1,3}) (.*)$/);
+          if (h) {
+            return renderInline(h[2], [bodyStyle, { fontWeight: h[1].length === 1 ? '800' : '700', fontSize: (bodyStyle?.fontSize || 15) + (4 - h[1].length), marginTop: li > 0 ? 6 : 0 }], `mh-${li}`);
+          }
           if (line.startsWith('- ') || line.startsWith('• ')) {
             const content = line.slice(2);
             return (
