@@ -135,8 +135,8 @@ ${voice}
 ${MEDICAL_SAFETY}`;
 }
 
-function buildMealsChatSystemPrompt(userContext, coachTone) {
-  const voice = toneInstruction(coachTone);
+// Ask Logga: no coach voice here (the owner wants plain, normal answers in the calorie chat).
+function buildMealsChatSystemPrompt(userContext) {
   return `You are a calorie-counting helper inside Logga, a calorie tracking and nutrition app built for African food. Your only job in this chat is to help the user understand the calories and nutrition in the meal or food they describe — nothing else.
 
 ${userContext}
@@ -175,7 +175,7 @@ STYLE:
 - Calories come first: estimate each food's cal directly from what that food and portion typically contains as prepared (as a food composition table would give it, oil included), not by adding up macros. Then give protein, carbs and fats that fit that calorie figure (roughly 4, 4 and 9 kcal per gram).
 - Set isLoggable to true whenever your reply gives a total for real food they ate or are about to eat (using the versions you picked), so they can log it straight away; not for general questions, hypotheticals they clearly aren't eating, or off-topic messages. When true, "foods" must list every food in that total (each at its LATEST settled quantity and the version you used) with accurate calories and macros, and "title" is a short natural name for the whole meal: lead with the main item, then the most prominent other item, joined by "and", no commas (e.g. "Fries and Chicken", not "Fries, Chicken, Cheese").
 - When isLoggable is false, "foods" must be an empty array and "title" can be empty.
-${voice ? `\n${voice} In this calorie chat the voice is only a light touch: at most a short friendly phrase, and the rest is plain, clear numbers. Never react with shock or drama to how much they ate (no "are you feeding the neighbourhood", no heart attacks, no "sitting down?"), never judge the portion, and no exclamations like "Eii" or "Ehen". They are just logging a meal. The numbers and foods stay exact.\n` : ''}
+VOICE: plain, friendly and clear, like a helpful assistant. No character, no catchphrases, no drama, no slang exclamations. They are just logging a meal. The numbers and foods stay exact.
 ${MEDICAL_SAFETY}`;
 }
 
@@ -375,7 +375,7 @@ export default async function handler(req, res) {
     // === Send a chat message ===
     if (action === 'message') {
       const systemPrompt = variant === 'meals'
-        ? buildMealsChatSystemPrompt(userContext, data?.coachTone)
+        ? buildMealsChatSystemPrompt(userContext)
         : buildChatSystemPrompt(personality || '', userContext, data?.coachTone);
 
       let conversation;
