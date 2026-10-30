@@ -354,7 +354,7 @@ const ChatScreen = ({
               )}
               {askRecents.length > 0 && (
                 <>
-                  <Text style={[styles.kicker, { marginTop: 24 }]}>RECENTS</Text>
+                  <Text style={[styles.kicker, { marginTop: 22 }]}>RECENTS</Text>
                   <View style={styles.whenCard}>
                     {askRecents.map((m, i) => (
                       <TouchableOpacity
