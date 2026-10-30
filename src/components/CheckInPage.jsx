@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, Pressable, ScrollView, TextInput, StyleSh
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { CHECKIN_ICON_SECTIONS } from '../lib/checkinIcons';
+import { dc, themedStyles } from '../lib/theme';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -30,9 +31,9 @@ const HungerSlider = ({ value, onChange }) => (
       step={1}
       value={value || 1}
       onValueChange={onChange}
-      minimumTrackTintColor="#22C55E"
-      maximumTrackTintColor="#D1FAE5"
-      thumbTintColor="#22C55E"
+      minimumTrackTintColor={dc("#22C55E", 'border')}
+      maximumTrackTintColor={dc("#D1FAE5", 'border')}
+      thumbTintColor={dc("#22C55E", 'text')}
     />
   </View>
 );
@@ -132,7 +133,7 @@ const SwipeableNote = ({ entry, onDelete }) => {
         onPress={() => { close(); onDelete(); }}
         activeOpacity={0.8}
       >
-        <Ionicons name="trash-outline" size={19} color="#fff" />
+        <Ionicons name="trash-outline" size={19} color={dc("#fff", 'text')} />
       </TouchableOpacity>
       <Animated.View style={[ss.noteEntry, { transform: [{ translateX }] }]} {...panResponder.panHandlers}>
         <Text style={ss.noteEntryTime}>
@@ -144,7 +145,7 @@ const SwipeableNote = ({ entry, onDelete }) => {
   );
 };
 
-const sw = StyleSheet.create({
+const sw = themedStyles({
   deleteBtn: {
     position: 'absolute', right: 0, top: 0, bottom: 0, width: 68,
     backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center',
@@ -326,7 +327,7 @@ const CheckInPage = ({
           {source === 'meal' ? (
           <View style={[ss.header, { justifyContent: 'flex-start' }]}>
             <TouchableOpacity style={ss.navBtn} onPress={onClose} accessibilityLabel="Close">
-              <Ionicons name="close" size={22} color="#059669" />
+              <Ionicons name="close" size={22} color={dc("#059669", 'text')} />
             </TouchableOpacity>
           </View>
           ) : (
@@ -334,7 +335,7 @@ const CheckInPage = ({
             <TouchableOpacity style={ss.navBtn} onPress={() => {
               const prev = new Date(checkInDate); prev.setDate(prev.getDate() - 1); setCheckInDate(prev); onDayChange?.(prev);
             }}>
-              <Ionicons name="chevron-back" size={22} color="#059669" />
+              <Ionicons name="chevron-back" size={22} color={dc("#059669", 'text')} />
             </TouchableOpacity>
             <TouchableOpacity onPress={onClose} style={{ flex: 1, alignItems: 'center' }}>
               <Text style={ss.headerDate}>{formatCheckInDate()}</Text>
@@ -349,7 +350,7 @@ const CheckInPage = ({
               }}
               disabled={isToday}
             >
-              <Ionicons name="chevron-forward" size={22} color="#059669" />
+              <Ionicons name="chevron-forward" size={22} color={dc("#059669", 'text')} />
             </TouchableOpacity>
           </View>
           )}
@@ -362,8 +363,8 @@ const CheckInPage = ({
                 options={['Calm','Anxious','Happy','Irritable','Sad','Tired','Overwhelmed','Energized','Stressed','Content','Hopeful','Lonely','Proud','Frustrated','Indifferent','Distracted']}
                 selected={emotionalMoods}
                 onToggle={v => toggle(v, emotionalMoods, setEmotionalMoods)}
-                chipStyle={{ backgroundColor: '#FFFBEB', borderColor: 'transparent' }}
-                selectedChipStyle={{ backgroundColor: '#FFFBEB', borderColor: '#F59E0B', borderWidth: 1.5 }}
+                chipStyle={{ backgroundColor: dc('#FFFBEB', 'bg'), borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: dc('#FFFBEB', 'bg'), borderColor: dc('#F59E0B', 'border'), borderWidth: 1.5 }}
                 showCheckmark
                 largeEmoji
                 iconMap={CHECKIN_ICON_SECTIONS.emotionalMoods.icons}
@@ -377,8 +378,8 @@ const CheckInPage = ({
                 options={['Full','Guilty','Uncomfortable','Bad','Really good','Energized','Refreshed','Motivated','Numb','Restless']}
                 selected={satietyMoods}
                 onToggle={v => toggle(v, satietyMoods, setSatietyMoods)}
-                chipStyle={{ backgroundColor: '#F0FDF4', borderColor: 'transparent' }}
-                selectedChipStyle={{ backgroundColor: '#F0FDF4', borderColor: '#22C55E', borderWidth: 1.5 }}
+                chipStyle={{ backgroundColor: dc('#F0FDF4', 'bg'), borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: dc('#F0FDF4', 'bg'), borderColor: dc('#22C55E', 'border'), borderWidth: 1.5 }}
                 showCheckmark
                 checkmarkColor="#22C55E"
                 largeEmoji
@@ -394,8 +395,8 @@ const CheckInPage = ({
                 options={['Headache','Dizziness','Nausea','Fatigue','Muscle weakness','Feeling cold','Dry mouth','Brain fog','Slow thinking','Irritability','Mood swings','Anxiety','Mental clarity','Feeling light','Improved focus','Sense of control']}
                 selected={fastingSymptoms}
                 onToggle={v => toggle(v, fastingSymptoms, setFastingSymptoms)}
-                chipStyle={{ backgroundColor: '#FAF5FF', borderColor: 'transparent' }}
-                selectedChipStyle={{ backgroundColor: '#FAF5FF', borderColor: '#9333EA', borderWidth: 1.5 }}
+                chipStyle={{ backgroundColor: dc('#FAF5FF', 'bg'), borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: dc('#FAF5FF', 'bg'), borderColor: dc('#9333EA', 'border'), borderWidth: 1.5 }}
                 showCheckmark
                 checkmarkColor="#9333EA"
                 largeEmoji
@@ -411,8 +412,8 @@ const CheckInPage = ({
                 options={['Home','Work/school','Commuting','Outdoors','Social setting','Other']}
                 selected={currentLocation}
                 onToggle={v => toggle(v, currentLocation, setCurrentLocation)}
-                chipStyle={{ backgroundColor: '#EFF6FF', borderColor: 'transparent' }}
-                selectedChipStyle={{ backgroundColor: '#EFF6FF', borderColor: '#3B82F6', borderWidth: 1.5 }}
+                chipStyle={{ backgroundColor: dc('#EFF6FF', 'bg'), borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: dc('#EFF6FF', 'bg'), borderColor: dc('#3B82F6', 'border'), borderWidth: 1.5 }}
                 showCheckmark checkmarkColor="#3B82F6" largeEmoji
                 iconMap={CHECKIN_ICON_SECTIONS.currentLocation.icons}
                 iconColor={CHECKIN_ICON_SECTIONS.currentLocation.color}
@@ -423,8 +424,8 @@ const CheckInPage = ({
                 options={['Alone','With family','With friends','In a public setting','At work/class']}
                 selected={currentCompany}
                 onToggle={v => toggle(v, currentCompany, setCurrentCompany)}
-                chipStyle={{ backgroundColor: '#FFF7ED', borderColor: 'transparent' }}
-                selectedChipStyle={{ backgroundColor: '#FFF7ED', borderColor: '#F97316', borderWidth: 1.5 }}
+                chipStyle={{ backgroundColor: dc('#FFF7ED', 'bg'), borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: dc('#FFF7ED', 'bg'), borderColor: dc('#F97316', 'border'), borderWidth: 1.5 }}
                 showCheckmark checkmarkColor="#F97316" largeEmoji
                 iconMap={CHECKIN_ICON_SECTIONS.currentCompany.icons}
                 iconColor={CHECKIN_ICON_SECTIONS.currentCompany.color}
@@ -435,8 +436,8 @@ const CheckInPage = ({
                 options={['Yes, fairly normal','Busier than usual','More relaxed than usual','Unusual/disrupted day']}
                 selected={typicalDay}
                 onToggle={v => toggle(v, typicalDay, setTypicalDay)}
-                chipStyle={{ backgroundColor: '#FFF1F2', borderColor: 'transparent' }}
-                selectedChipStyle={{ backgroundColor: '#FFF1F2', borderColor: '#EF4444', borderWidth: 1.5 }}
+                chipStyle={{ backgroundColor: dc('#FFF1F2', 'bg'), borderColor: 'transparent' }}
+                selectedChipStyle={{ backgroundColor: dc('#FFF1F2', 'bg'), borderColor: dc('#EF4444', 'border'), borderWidth: 1.5 }}
                 showCheckmark checkmarkColor="#EF4444" largeEmoji
                 iconMap={CHECKIN_ICON_SECTIONS.typicalDay.icons}
                 iconColor={CHECKIN_ICON_SECTIONS.typicalDay.color}
@@ -470,14 +471,14 @@ const CheckInPage = ({
               <View style={ss.waterCard}>
                 <View style={ss.waterCounter}>
                   <TouchableOpacity style={ss.waterBtn} onPress={() => setWaterCount(Math.max(0, waterCount - 1))}>
-                    <Text style={{ color: '#059669', fontSize: 20, fontWeight: '700' }}>−</Text>
+                    <Text style={{ color: dc('#059669', 'text'), fontSize: 20, fontWeight: '700' }}>−</Text>
                   </TouchableOpacity>
                   <View style={ss.waterDisplay}>
                     <Text style={ss.waterAmount}>{waterCount}</Text>
                     <Text style={ss.waterUnit}>{volumeUnit}</Text>
                   </View>
                   <TouchableOpacity style={ss.waterBtn} onPress={() => setWaterCount(waterCount + 1)}>
-                    <Text style={{ color: '#059669', fontSize: 20, fontWeight: '700' }}>+</Text>
+                    <Text style={{ color: dc('#059669', 'text'), fontSize: 20, fontWeight: '700' }}>+</Text>
                   </TouchableOpacity>
                 </View>
                 {waterEntries.length > 0 && (
@@ -522,7 +523,7 @@ const CheckInPage = ({
                     multiline
                     style={ss.notesInput}
                     placeholder={(noteEntries || []).length > 0 ? 'Add another note...' : 'Add notes about your meals, hunger, energy, or anything unusual today.'}
-                    placeholderTextColor="#999"
+                    placeholderTextColor={dc("#999", 'text')}
                     value={newNoteText}
                     onChangeText={setNewNoteText}
                   />
@@ -559,7 +560,7 @@ const CheckInPage = ({
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const ss = StyleSheet.create({
+const ss = themedStyles({
   overlay: { flex: 1, backgroundColor: '#F8FAFC' },
   page: { flex: 1, flexDirection: 'column' },
 

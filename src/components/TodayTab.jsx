@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { quickWaterLabel } from '../lib/waterQuickAdd';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, Animated, RefreshControl } from 'react-native';
-import { useTheme } from '../lib/theme';
+import { useTheme, dc, themedStyles } from '../lib/theme';
 import { getJustForYou, getCachedJustForYou, getProJustForYou, getCachedProJustForYou, LENS_LABELS } from '../lib/claudeInsights';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSubscription } from '../lib/subscription';
@@ -247,7 +247,7 @@ const InsightSkeletonCard = () => {
   );
 };
 
-const skeletonStyles = StyleSheet.create({
+const skeletonStyles = themedStyles({
   card: {
     width: 140,
     minHeight: 90,
@@ -322,7 +322,7 @@ const JfyCard = ({ palette, label, text, onPress, width, cta = 'See why' }) => (
       <View style={jfyStyles.footer}>
         <View style={[jfyStyles.btnSolid, { backgroundColor: palette.ink }]}>
           <Text style={jfyStyles.btnSolidTxt} numberOfLines={1}>{cta}</Text>
-          <Ionicons name="chevron-forward" size={14} color="#fff" />
+          <Ionicons name="chevron-forward" size={14} color={dc("#fff", 'text')} />
         </View>
         {label ? <View style={[jfyStyles.chip, { backgroundColor: palette.chip }]}><Text style={[jfyStyles.chipTxt, { color: palette.ink }]} numberOfLines={1}>{label}</Text></View> : null}
       </View>
@@ -357,7 +357,7 @@ const LOCKED_LENSES = ['MOOD_AND_FOOD', 'MOVEMENT', 'WEIGHT_TREND'];
 // One-word tags for the locked cards (the words are hidden, so there's no finding to tease).
 const LOCKED_TAGS = { MOOD_AND_FOOD: 'Mood', MOVEMENT: 'Movement', WEIGHT_TREND: 'Weight' };
 
-const jfyStyles = StyleSheet.create({
+const jfyStyles = themedStyles({
   card: { borderRadius: 16, padding: 16, minHeight: 196, justifyContent: 'space-between' },
   chip: { flexShrink: 1, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
   chipTxt: { fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
@@ -392,7 +392,7 @@ const JfySkeletonCard = ({ style }) => {
   );
 };
 
-const jfySkeletonStyles = StyleSheet.create({
+const jfySkeletonStyles = themedStyles({
   card: {
     borderRadius: 16,
     minHeight: 160,
@@ -786,10 +786,10 @@ const TodayTab = ({
         : ratio > 0.85
         ? `${remaining.toLocaleString()} cal to go — you're doing great`
         : `${remaining.toLocaleString()} cal remaining — stay on track`,
-      color: '#E8F5E9', accent: '#4CAF50',
+      color: dc('#E8F5E9', 'text'), accent: '#4CAF50',
     });
   } else {
-    insights.push({ title: "Track your first meal", subtitle: "Start logging to see your progress here", color: '#E8F5E9', accent: '#4CAF50' });
+    insights.push({ title: "Track your first meal", subtitle: "Start logging to see your progress here", color: dc('#E8F5E9', 'text'), accent: '#4CAF50' });
   }
 
   // Card 2: Meal quality nudge
@@ -802,10 +802,10 @@ const TodayTab = ({
       subtitle: over ? 'You may have gone a bit heavy — keep it light next time'
                : under ? 'Under-eating can slow your progress just like overeating'
                : 'Your body is getting what it needs',
-      color: over ? '#FFF3E0' : '#E3F2FD', accent: over ? '#FF9800' : '#2196F3',
+      color: over ? dc('#FFF3E0', 'text') : dc('#E3F2FD', 'text'), accent: over ? '#FF9800' : '#2196F3',
     });
   } else {
-    insights.push({ title: "Log your meals", subtitle: "Tracking what you eat is the first step", color: '#FFF3E0', accent: '#FF9800' });
+    insights.push({ title: "Log your meals", subtitle: "Tracking what you eat is the first step", color: dc('#FFF3E0', 'text'), accent: '#FF9800' });
   }
 
   // Card 3: Hydration nudge
@@ -817,10 +817,10 @@ const TodayTab = ({
       subtitle: hitGoal ? 'Great job — hydration reduces hunger and boosts energy'
                : low ? "You haven't had any water yet today — that matters"
                : "You're on your way — don't stop now",
-      color: '#E3F2FD', accent: '#2196F3',
+      color: dc('#E3F2FD', 'text'), accent: '#2196F3',
     });
   } else {
-    insights.push({ title: "Hydration tip", subtitle: "Stay energized today", color: '#E3F2FD', accent: '#2196F3' });
+    insights.push({ title: "Hydration tip", subtitle: "Stay energized today", color: dc('#E3F2FD', 'text'), accent: '#2196F3' });
   }
 
   // Card 4: Motivation — streak or weight progress
@@ -829,16 +829,16 @@ const TodayTab = ({
       title: streak >= 7 ? 'You are unstoppable' : 'You are building a habit',
       subtitle: streak >= 7 ? 'A full week of consistency — that is rare and powerful'
                : 'Every day you show up makes the next one easier',
-      color: '#FCE4EC', accent: '#E91E63',
+      color: dc('#FCE4EC', 'text'), accent: '#E91E63',
     });
   } else if (weightLostVal != null && weightLostVal > 0) {
     insights.push({
       title: 'Your body is changing',
       subtitle: 'The scale is moving — what you are doing is working. Stay the course.',
-      color: '#FCE4EC', accent: '#E91E63',
+      color: dc('#FCE4EC', 'text'), accent: '#E91E63',
     });
   } else {
-    insights.push({ title: "Stay motivated", subtitle: "Log your meals to build a streak", color: '#FCE4EC', accent: '#E91E63' });
+    insights.push({ title: "Stay motivated", subtitle: "Log your meals to build a streak", color: dc('#FCE4EC', 'text'), accent: '#E91E63' });
   }
 
   // === Alert card — real observation from user data ===
@@ -1022,7 +1022,7 @@ const TodayTab = ({
               >
                 <Text style={[styles.weekDayName, d.selected && styles.weekDayNameSelected]}>{d.name}</Text>
                 <View style={[styles.weekDayNum, d.selected && styles.weekDayNumSelected]}>
-                  <Text style={[styles.weekDayNumText, d.future && { color: '#9CA3AF' }, d.selected && { color: '#059669' }]}>{d.num}</Text>
+                  <Text style={[styles.weekDayNumText, d.future && { color: dc('#9CA3AF', 'text') }, d.selected && { color: dc('#059669', 'text') }]}>{d.num}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -1039,13 +1039,13 @@ const TodayTab = ({
             <View style={{ width: GAUGE_W, height: GAUGE_W / 2 }}>
               <CalorieGauge ratio={selRatio} over={selOver} width={GAUGE_W} />
               <View style={styles.gaugeCenter}>
-                <Ionicons name="flame" size={24} color={selOver ? '#EF4444' : '#FB923C'} />
+                <Ionicons name="flame" size={24} color={selOver ? dc('#EF4444', 'text') : dc('#FB923C', 'text')} />
                 <Text style={styles.gaugeNumber}>
                   {selOver
                     ? `+${(selCalories - selGoal).toLocaleString()}`
                     : selGoal ? selRemaining.toLocaleString() : '--'}
                 </Text>
-                <Text style={[styles.gaugeLabel, selOver && { color: '#EF4444' }]}>
+                <Text style={[styles.gaugeLabel, selOver && { color: dc('#EF4444', 'text') }]}>
                   {selOver ? 'Over goal' : selRemaining === 0 && selGoal ? 'Goal met' : 'Remaining'}
                 </Text>
               </View>
@@ -1056,7 +1056,7 @@ const TodayTab = ({
               <Text style={styles.goalChipText}>
                 {selGoal ? `${selGoal.toLocaleString()} cal goal` : 'Set a calorie goal'}
               </Text>
-              <Ionicons name="chevron-forward" size={13} color="#047857" />
+              <Ionicons name="chevron-forward" size={13} color={dc("#047857", 'text')} />
             </TouchableOpacity>
 
             <View style={styles.dayNutrition}>
@@ -1084,10 +1084,10 @@ const TodayTab = ({
               {onOpenWaterLog && (
                 <TouchableOpacity style={styles.waterLogBtn} onPress={onOpenWaterLog} activeOpacity={0.8} accessibilityLabel="Log water">
                   <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-                    <Path d="M7.3 12.5c1.6-.9 3.1-.9 4.7 0s3.1.9 4.7 0l-.7 7.3a1.8 1.8 0 0 1-1.8 1.6H9.8A1.8 1.8 0 0 1 8 19.8z" fill="#93C5FD" />
-                    <Path d="M6 3.5h12l-1.6 16.3a1.8 1.8 0 0 1-1.8 1.6H9.4a1.8 1.8 0 0 1-1.8-1.6z" stroke="#2563EB" strokeWidth={1.8} strokeLinejoin="round" />
+                    <Path d="M7.3 12.5c1.6-.9 3.1-.9 4.7 0s3.1.9 4.7 0l-.7 7.3a1.8 1.8 0 0 1-1.8 1.6H9.8A1.8 1.8 0 0 1 8 19.8z" fill={dc("#93C5FD", 'bg')} />
+                    <Path d="M6 3.5h12l-1.6 16.3a1.8 1.8 0 0 1-1.8 1.6H9.4a1.8 1.8 0 0 1-1.8-1.6z" stroke={dc("#2563EB", 'border')} strokeWidth={1.8} strokeLinejoin="round" />
                   </Svg>
-                  <View style={styles.waterLogPlus}><Ionicons name="add" size={11} color="#fff" /></View>
+                  <View style={styles.waterLogPlus}><Ionicons name="add" size={11} color={dc("#fff", 'text')} /></View>
                 </TouchableOpacity>
               )}
             </View>
@@ -1124,7 +1124,7 @@ const TodayTab = ({
               <Text style={[styles.sectionTitleTight, { marginBottom: 0 }]}>Just for {userName || 'You'}</Text>
             </View>
             {jfyRefreshing ? (
-              <Text style={{ fontSize: 12, color: '#059669', fontWeight: '500' }}>Refreshing...</Text>
+              <Text style={{ fontSize: 12, color: dc('#059669', 'text'), fontWeight: '500' }}>Refreshing...</Text>
             ) : (
               <TouchableOpacity
                 // Refreshing the insights on demand is Logga Pro (unlimited insights); Free gets the day's insight
@@ -1134,13 +1134,13 @@ const TodayTab = ({
                 accessibilityRole="button"
                 accessibilityLabel={isPro ? 'Refresh insights' : 'Refresh insights with Logga Pro'}
               >
-                {!isPro && <Ionicons name="lock-closed" size={11} color="#059669" />}
-                <Text style={{ fontSize: 18, color: '#059669' }}>↻</Text>
+                {!isPro && <Ionicons name="lock-closed" size={11} color={dc("#059669", 'text')} />}
+                <Text style={{ fontSize: 18, color: dc('#059669', 'text') }}>↻</Text>
               </TouchableOpacity>
             )}
             {!jfyRefreshing && jfyFreshReady && (
-              <View style={{ backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
-                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>New</Text>
+              <View style={{ backgroundColor: dc('#059669', 'bg'), borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+                <Text style={{ color: dc('#fff', 'text'), fontSize: 11, fontWeight: '700' }}>New</Text>
               </View>
             )}
           </View>
@@ -1193,7 +1193,7 @@ const TodayTab = ({
             </View>
             <TouchableOpacity onPress={onNavigateToProgress} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.activitySeeAll}>See all</Text>
-              <Ionicons name="arrow-forward" size={13} color="#047857" />
+              <Ionicons name="arrow-forward" size={13} color={dc("#047857", 'text')} />
             </TouchableOpacity>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -1213,7 +1213,7 @@ const TodayTab = ({
             {weekDays.map((letter, i) => (
               <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
                 <View style={[styles.activityDot, calHistory[i] === true && styles.loggedDotOn, calHistory[i] === null && { opacity: 0.5 }]}>
-                  {calHistory[i] === true && <Ionicons name="checkmark" size={13} color="#fff" />}
+                  {calHistory[i] === true && <Ionicons name="checkmark" size={13} color={dc("#fff", 'text')} />}
                 </View>
                 <Text style={styles.activityDayLetter}>{letter}</Text>
               </View>
@@ -1230,7 +1230,7 @@ const TodayTab = ({
             </View>
             <TouchableOpacity onPress={onShowActivityLog} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.activitySeeAll}>See all</Text>
-              <Ionicons name="arrow-forward" size={13} color="#047857" />
+              <Ionicons name="arrow-forward" size={13} color={dc("#047857", 'text')} />
             </TouchableOpacity>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -1250,7 +1250,7 @@ const TodayTab = ({
             {weekActivity.days.map((d, i) => (
               <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
                 <View style={[styles.activityDot, d.active && styles.activityDotOn, d.future && { opacity: 0.5 }]}>
-                  {d.active && <Ionicons name="checkmark" size={13} color="#fff" />}
+                  {d.active && <Ionicons name="checkmark" size={13} color={dc("#fff", 'text')} />}
                 </View>
                 <Text style={styles.activityDayLetter}>{d.letter}</Text>
               </View>
@@ -1345,60 +1345,60 @@ const makeStyles = (c) => StyleSheet.create({
   greetHeader: { paddingTop: 14, paddingHorizontal: 20, paddingBottom: 8 },
   greetRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   greetAvatar: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: '#059669', borderWidth: 2, borderColor: '#fff',
+    width: 48, height: 48, borderRadius: 24, backgroundColor: dc('#059669', 'bg'), borderWidth: 2, borderColor: dc('#fff', 'border'),
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
     shadowColor: '#059669', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12, elevation: 4,
   },
   greetAvatarImg: { width: 48, height: 48, borderRadius: 24 },
-  greetAvatarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  greetAvatarText: { color: dc('#fff', 'text'), fontSize: 15, fontWeight: '700' },
   greetHello: { fontSize: 13, color: c.textSecondary },
   greetName: { fontSize: 18, fontWeight: '700', color: c.text, letterSpacing: -0.3 },
   greetIconBtn: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
   },
-  greetBellDot: { position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#fff' },
+  greetBellDot: { position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: dc('#EF4444', 'bg'), borderWidth: 1.5, borderColor: dc('#fff', 'border') },
   weekStrip: {
     marginTop: 16, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 24, flexDirection: 'row', justifyContent: 'space-between',
     backgroundColor: 'rgba(255,255,255,0.75)', borderWidth: 1, borderColor: 'rgba(5,150,105,0.08)',
   },
-  weekDay: { width: 42, paddingTop: 9, paddingBottom: 6, borderRadius: 22, backgroundColor: '#F1F6F3', alignItems: 'center', gap: 7 },
-  weekDaySelected: { backgroundColor: '#059669', shadowColor: '#059669', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 14, elevation: 4 },
-  weekDayName: { fontSize: 11, fontWeight: '500', color: '#9CA3AF' },
-  weekDayNameSelected: { fontWeight: '600', color: '#fff' },
+  weekDay: { width: 42, paddingTop: 9, paddingBottom: 6, borderRadius: 22, backgroundColor: dc('#F1F6F3', 'bg'), alignItems: 'center', gap: 7 },
+  weekDaySelected: { backgroundColor: dc('#059669', 'bg'), shadowColor: '#059669', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 14, elevation: 4 },
+  weekDayName: { fontSize: 11, fontWeight: '500', color: dc('#9CA3AF', 'text') },
+  weekDayNameSelected: { fontWeight: '600', color: dc('#fff', 'text') },
   weekDayNum: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    width: 30, height: 30, borderRadius: 15, backgroundColor: dc('#fff', 'bg'), alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1,
   },
   weekDayNumSelected: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)' },
-  weekDayNumText: { fontSize: 13, fontWeight: '700', color: '#1F1F1F' },
+  weekDayNumText: { fontSize: 13, fontWeight: '700', color: dc('#1F1F1F', 'text') },
   gaugeCenter: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' },
   gaugeNumber: { fontSize: 36, fontWeight: '700', color: c.text, letterSpacing: -1, lineHeight: 40, marginTop: 2 },
   gaugeLabel: { fontSize: 14, color: c.textSecondary, marginTop: 2 },
   activityCard: { marginTop: 16, marginHorizontal: 20, padding: 14, backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
   activityHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   activityTitle: { fontSize: 15, fontWeight: '700', color: c.text },
-  activitySeeAll: { fontSize: 13, fontWeight: '600', color: '#047857' },
-  activityStat: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 10, backgroundColor: c.cardAlt === '#F3F4F6' ? '#F7F7F8' : c.cardAlt },
+  activitySeeAll: { fontSize: 13, fontWeight: '600', color: dc('#047857', 'text') },
+  activityStat: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 10, backgroundColor: c.cardAlt === '#F3F4F6' ? dc('#F7F7F8', 'bg') : c.cardAlt },
   activityStatValue: { fontSize: 17, fontWeight: '600', color: c.text },
   activityStatLabel: { fontSize: 11, color: c.textSecondary },
   activityWeekLabel: { fontSize: 12, color: c.textSecondary, marginTop: 14, marginBottom: 8 },
-  activityDot: { width: '100%', aspectRatio: 1, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: c.cardAlt === '#F3F4F6' ? '#F7F7F8' : c.cardAlt, alignItems: 'center', justifyContent: 'center' },
-  activityDotOn: { backgroundColor: '#F97316', borderColor: '#F97316' },
-  loggedDotOn: { backgroundColor: '#059669', borderColor: '#059669' },
+  activityDot: { width: '100%', aspectRatio: 1, borderRadius: 8, borderWidth: 1, borderColor: dc('#E5E7EB', 'border'), backgroundColor: c.cardAlt === '#F3F4F6' ? dc('#F7F7F8', 'bg') : c.cardAlt, alignItems: 'center', justifyContent: 'center' },
+  activityDotOn: { backgroundColor: dc('#F97316', 'bg'), borderColor: dc('#F97316', 'border') },
+  loggedDotOn: { backgroundColor: dc('#059669', 'bg'), borderColor: dc('#059669', 'border') },
   activityDayLetter: { fontSize: 11, color: c.textSecondary },
-  activityLogBtn: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 999, borderWidth: 1, borderColor: '#D1D5DB', backgroundColor: c.card },
+  activityLogBtn: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 999, borderWidth: 1, borderColor: dc('#D1D5DB', 'border'), backgroundColor: c.card },
   activityLogBtnText: { fontSize: 14, fontWeight: '600', color: c.text },
-  waterLogBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
-  waterLogPlus: { position: 'absolute', top: 5, right: 4, width: 15, height: 15, borderRadius: 8, backgroundColor: '#2563EB', borderWidth: 2, borderColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
+  waterLogBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: dc('#DBEAFE', 'bg'), alignItems: 'center', justifyContent: 'center' },
+  waterLogPlus: { position: 'absolute', top: 5, right: 4, width: 15, height: 15, borderRadius: 8, backgroundColor: dc('#2563EB', 'bg'), borderWidth: 2, borderColor: dc('#DBEAFE', 'border'), alignItems: 'center', justifyContent: 'center' },
   goalChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, marginBottom: 14,
-    backgroundColor: '#D1FAE5', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20,
+    backgroundColor: dc('#D1FAE5', 'bg'), paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20,
   },
-  goalChipText: { fontSize: 12, fontWeight: '700', color: '#047857' },
+  goalChipText: { fontSize: 12, fontWeight: '700', color: dc('#047857', 'text') },
   dayNutrition: {
     alignSelf: 'stretch', marginHorizontal: -12, paddingVertical: 16, paddingHorizontal: 16, borderRadius: 20,
-    backgroundColor: c.cardAlt === '#F3F4F6' ? '#F6F8F7' : c.cardAlt, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: c.cardAlt === '#F3F4F6' ? dc('#F6F8F7', 'bg') : c.cardAlt, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)',
   },
   dayNutritionTitle: { fontSize: 13, fontWeight: '600', color: c.textSecondary, marginBottom: 12 },
   dayNutritionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -1423,7 +1423,7 @@ const makeStyles = (c) => StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#059669',
@@ -1447,9 +1447,9 @@ const makeStyles = (c) => StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(5,150,105,0.1)',
   },
-  waterAddText: { color: '#059669', fontSize: 12, fontWeight: '700' },
+  waterAddText: { color: dc('#059669', 'text'), fontSize: 12, fontWeight: '700' },
   avatarTextSmall: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
     fontSize: 12,
     fontWeight: '600',
   },
@@ -1491,7 +1491,7 @@ const makeStyles = (c) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: '#D1FAE5',
+    backgroundColor: dc('#D1FAE5', 'bg'),
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
@@ -1501,11 +1501,11 @@ const makeStyles = (c) => StyleSheet.create({
   fastTypeBadgeText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   fastTypeBadgeArrow: {
     fontSize: 14,
-    color: '#059669',
+    color: dc('#059669', 'text'),
     fontWeight: '700',
   },
   heroContent: {
@@ -1540,7 +1540,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   progressRingFill: {
     height: 4,
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
     borderRadius: 2,
   },
   progressInnerSmall: {
@@ -1552,7 +1552,7 @@ const makeStyles = (c) => StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 2,
-    color: '#059669',
+    color: dc('#059669', 'text'),
     marginBottom: 2,
   },
   timeDisplayCompact: {
@@ -1565,7 +1565,7 @@ const makeStyles = (c) => StyleSheet.create({
   stageTextSmall: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#059669',
+    color: dc('#059669', 'text'),
     marginTop: 6,
   },
   refiningIconSmall: {
@@ -1575,7 +1575,7 @@ const makeStyles = (c) => StyleSheet.create({
   refiningTextSmall: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#10B981',
+    color: dc('#10B981', 'text'),
   },
   checkInBtnIntegrated: {
     flexDirection: 'row',
@@ -1594,12 +1594,12 @@ const makeStyles = (c) => StyleSheet.create({
   checkInIcon: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   checkInText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   fastingControlsContainer: {
     alignItems: 'center',
@@ -1620,7 +1620,7 @@ const makeStyles = (c) => StyleSheet.create({
   fastActionBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   fastTimesRow: {
     flexDirection: 'row',
@@ -1672,7 +1672,7 @@ const makeStyles = (c) => StyleSheet.create({
     marginHorizontal: 0,
   },
   fastTimeDash: {
-    color: '#ccc',
+    color: dc('#ccc', 'text'),
   },
   fastTimeEditBadge: {
     position: 'absolute',
@@ -1687,7 +1687,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   fastTimeEditIcon: {
     fontSize: 8,
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   sectionTight: {
     marginTop: 12,
@@ -1746,12 +1746,12 @@ const makeStyles = (c) => StyleSheet.create({
     marginTop: 32,
     paddingVertical: 14,
     paddingHorizontal: 24,
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
     borderRadius: 14,
     alignItems: 'center',
   },
   insightCoachBtnText: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: -0.2,
@@ -1763,7 +1763,7 @@ const makeStyles = (c) => StyleSheet.create({
   educationCard: {
     width: 280,
     height: 220,
-    backgroundColor: '#1D4ED8',
+    backgroundColor: dc('#1D4ED8', 'bg'),
     borderRadius: 24,
     overflow: 'hidden',
     padding: 24,
@@ -1777,7 +1777,7 @@ const makeStyles = (c) => StyleSheet.create({
   eduTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#fff',
+    color: dc('#fff', 'text'),
     marginBottom: 8,
     lineHeight: 26,
     letterSpacing: -0.3,
@@ -1806,7 +1806,7 @@ const makeStyles = (c) => StyleSheet.create({
     alignSelf: 'flex-start',
   },
   eduBtnText: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1848,7 +1848,7 @@ const makeStyles = (c) => StyleSheet.create({
     marginBottom: 8,
   },
   seeAllBtn: {
-    color: '#059669',
+    color: dc('#059669', 'text'),
     fontSize: 13,
     fontWeight: '600',
   },
@@ -1904,7 +1904,7 @@ const makeStyles = (c) => StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 8,
-    backgroundColor: '#D1FAE5',
+    backgroundColor: dc('#D1FAE5', 'bg'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1917,7 +1917,7 @@ const makeStyles = (c) => StyleSheet.create({
   mealCal: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   recipeCard: {
     width: 150,
@@ -1956,7 +1956,7 @@ const makeStyles = (c) => StyleSheet.create({
     justifyContent: 'center',
   },
   dotCheck: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1995,12 +1995,12 @@ const makeStyles = (c) => StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 6,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: dc('#EDE9FE', 'bg'),
   },
   statBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   wellnessCard: {
     flexDirection: 'row',
@@ -2040,14 +2040,14 @@ const makeStyles = (c) => StyleSheet.create({
   wellnessActionBtn: {
     flex: 1,
     paddingVertical: 10,
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
     borderRadius: 10,
     alignItems: 'center',
   },
   wellnessActionBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#fff',
+    color: dc('#fff', 'text'),
   },
   wellnessActionLink: {
     flex: 1,
@@ -2059,7 +2059,7 @@ const makeStyles = (c) => StyleSheet.create({
   wellnessActionLinkText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   wellnessDivider: {
     width: 1,
@@ -2067,7 +2067,7 @@ const makeStyles = (c) => StyleSheet.create({
     marginHorizontal: 20,
   },
   premiumCard: {
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
     borderRadius: 20,
     paddingVertical: 20,
     paddingHorizontal: 18,
@@ -2087,13 +2087,13 @@ const makeStyles = (c) => StyleSheet.create({
   premiumBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#fff',
+    color: dc('#fff', 'text'),
     letterSpacing: 1,
   },
   premiumTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
+    color: dc('#fff', 'text'),
     marginBottom: 10,
     lineHeight: 22,
     letterSpacing: -0.3,
@@ -2121,7 +2121,7 @@ const makeStyles = (c) => StyleSheet.create({
   premiumBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   bottomSpacer: {
     height: 90,

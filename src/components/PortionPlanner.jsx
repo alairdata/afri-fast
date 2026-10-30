@@ -20,6 +20,7 @@ import { fillMethodStep } from '../lib/recipeMethod';
 import { uploadMealPhoto } from '../lib/mealPhotoUpload';
 import { aiHeaders } from '../lib/aiAuth';
 import { getAccountPref, setAccountPref } from '../lib/accountPrefs';
+import { dc, themedStyles } from '../lib/theme';
 
 // The recipe's AI photo (a data URI) uploaded to storage, so a saved recipe keeps it. Null if it can't be uploaded.
 async function uploadRecipeImage(dataUri) {
@@ -119,8 +120,8 @@ const SpinRing = () => {
   return (
     <Animated.View style={{ width: 20, height: 20, transform: [{ rotate }] }}>
       <Svg width={20} height={20} viewBox="0 0 24 24">
-        <Circle cx={12} cy={12} r={9} stroke="#D1FAE5" strokeWidth={3} fill="none" />
-        <Path d="M12 3a9 9 0 0 1 9 9" stroke={GREEN} strokeWidth={3} strokeLinecap="round" fill="none" />
+        <Circle cx={12} cy={12} r={9} stroke={dc("#D1FAE5", 'border')} strokeWidth={3} fill="none" />
+        <Path d="M12 3a9 9 0 0 1 9 9" stroke={dc(GREEN, 'border')} strokeWidth={3} strokeLinecap="round" fill="none" />
       </Svg>
     </Animated.View>
   );
@@ -552,28 +553,28 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const plateButtons = (
     <>
       <TouchableOpacity onPress={logPlate} activeOpacity={0.85} disabled={total <= 0}>
-        <LinearGradient colors={['#34D399', GREEN]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.primaryBtn, styles.logBtn, total <= 0 && { opacity: 0.5 }]}>
-          <Ionicons name="checkmark" size={20} color="#fff" />
+        <LinearGradient colors={[dc('#34D399', 'bg'), dc(GREEN, 'bg')]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.primaryBtn, styles.logBtn, total <= 0 && { opacity: 0.5 }]}>
+          <Ionicons name="checkmark" size={20} color={dc("#fff", 'text')} />
           <Text style={styles.primaryBtnText}>{kitchen ? 'Log this meal' : 'Log this plate'}</Text>
         </LinearGradient>
       </TouchableOpacity>
       {kitchen && (
         <TouchableOpacity style={styles.secondaryBtn} onPress={saveRecipe} disabled={savedRecipe}>
-          <Ionicons name={savedRecipe ? 'bookmark' : 'bookmark-outline'} size={17} color={savedRecipe ? GREEN : INK} />
-          <Text style={[styles.secondaryBtnText, savedRecipe && { color: GREEN }]}>{savedRecipe === 'saving' ? 'Saving…' : savedRecipe ? 'Saved to your recipes' : 'Save recipe'}</Text>
+          <Ionicons name={savedRecipe ? 'bookmark' : 'bookmark-outline'} size={17} color={savedRecipe ? dc(GREEN, 'text') : dc(INK, 'text')} />
+          <Text style={[styles.secondaryBtnText, savedRecipe && { color: dc(GREEN, 'text') }]}>{savedRecipe === 'saving' ? 'Saving…' : savedRecipe ? 'Saved to your recipes' : 'Save recipe'}</Text>
         </TouchableOpacity>
       )}
       <TouchableOpacity style={styles.textBtn} onPress={() => setStep('input')}>
-        <Ionicons name="refresh" size={17} color={INK} />
+        <Ionicons name="refresh" size={17} color={dc(INK, 'text')} />
         <Text style={styles.secondaryBtnText}>{kitchen ? 'Try another recipe' : 'Try another combo'}</Text>
       </TouchableOpacity>
     </>
   );
 
   return (
-    <View style={[styles.overlay, kitchenLoadingWhite && { backgroundColor: '#fff' }]}>
+    <View style={[styles.overlay, kitchenLoadingWhite && { backgroundColor: dc('#fff', 'bg') }]}>
       {(step === 'input' || step === 'budget' || step === 'plate') && (
-        <LinearGradient colors={['#CFF3DE', '#E9F8EF', '#F9FAFB']} locations={[0, 0.6, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: step === 'plate' ? safeTop + 140 : safeTop + 210 }} pointerEvents="none" />
+        <LinearGradient colors={[dc('#CFF3DE', 'bg'), dc('#E9F8EF', 'bg'), dc('#F9FAFB', 'bg')]} locations={[0, 0.6, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: step === 'plate' ? safeTop + 140 : safeTop + 210 }} pointerEvents="none" />
       )}
       <HeaderFade bg={kitchenLoadingWhite ? '#fff' : '#F9FAFB'} scrollY={pageFade.scrollY} />
 
@@ -583,10 +584,10 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
           {/* Header: its own row above the page, so the page scrolls beneath it instead of under the buttons */}
           <View style={styles.headerRow}>
             <TouchableOpacity style={styles.roundBtn} onPress={() => onClose && onClose(true)} accessibilityLabel="Back">
-              <Ionicons name="chevron-back" size={22} color={INK} />
+              <Ionicons name="chevron-back" size={22} color={dc(INK, 'text')} />
             </TouchableOpacity>
             <View style={styles.leftChip}>
-              <Ionicons name="flame" size={14} color="#FB923C" />
+              <Ionicons name="flame" size={14} color={dc("#FB923C", 'text')} />
               <Text style={styles.leftChipText}>{lowBudget ? 'At your goal today' : `${Math.round(caloriesLeft).toLocaleString()} cal left today`}</Text>
             </View>
           </View>
@@ -596,7 +597,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
             <View style={styles.whenCard}>
               {copy.when.map(([icon, title, sub], i) => (
                 <View key={title} style={[styles.whenRow, i < 2 && styles.rowDivider]}>
-                  <View style={styles.whenIcon}><Ionicons name={icon} size={16} color={INK} /></View>
+                  <View style={styles.whenIcon}><Ionicons name={icon} size={16} color={dc(INK, 'text')} /></View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.whenTitle}>{title}</Text>
                     <Text style={styles.whenSub}>{sub}</Text>
@@ -625,7 +626,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                         <Text style={styles.whenSub}>{r.cal.toLocaleString()} cal</Text>
                       </View>
                       <Text style={styles.recentWhen}>{whenLabel(r.at)}</Text>
-                      <Ionicons name="chevron-forward" size={16} color="#C4C8CE" />
+                      <Ionicons name="chevron-forward" size={16} color={dc("#C4C8CE", 'text')} />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -639,7 +640,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 <View style={styles.photoChip}>
                   <Image source={{ uri: photo }} style={styles.photoThumb} />
                   <TouchableOpacity onPress={() => setPhoto(null)} style={styles.photoRemove} accessibilityLabel="Remove photo">
-                    <Ionicons name="close" size={12} color="#fff" />
+                    <Ionicons name="close" size={12} color={dc("#fff", 'text')} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -655,14 +656,14 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 // time as they type, up to about four lines, then scrolls inside.
                 <View style={styles.slimRow}>
                   <TouchableOpacity style={styles.composerBtnOutline} onPress={() => pickPhoto(false)} accessibilityLabel="Add a photo">
-                    <Ionicons name="add" size={20} color={INK} />
+                    <Ionicons name="add" size={20} color={dc(INK, 'text')} />
                   </TouchableOpacity>
                   <TextInput
                     style={[styles.slimInput, { height: text ? inputH : 36 }]}
                     onContentSizeChange={(e) => setInputH(Math.min(112, Math.max(36, Math.ceil(e.nativeEvent.contentSize.height))))}
                     scrollEnabled={inputH >= 112}
                     placeholder="What do you have?"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={dc("#9CA3AF", 'text')}
                     value={text}
                     onChangeText={setText}
                     multiline
@@ -674,7 +675,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                     disabled={voice === 'transcribing'}
                     accessibilityLabel={voice === 'listening' ? 'Stop recording' : 'Say it'}
                   >
-                    <Ionicons name={voice === 'listening' ? 'stop' : 'mic-outline'} size={voice === 'listening' ? 16 : 20} color={voice === 'listening' ? '#fff' : INK} />
+                    <Ionicons name={voice === 'listening' ? 'stop' : 'mic-outline'} size={voice === 'listening' ? 16 : 20} color={voice === 'listening' ? dc('#fff', 'text') : dc(INK, 'text')} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.sendBtn, (!canSend || voice !== 'idle') && { opacity: 0.35 }]}
@@ -682,7 +683,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                     onPress={() => { Keyboard.dismiss(); setStep('budget'); }}
                     accessibilityLabel="Send"
                   >
-                    <Ionicons name="arrow-up" size={18} color="#fff" />
+                    <Ionicons name="arrow-up" size={18} color={dc("#fff", 'text')} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -695,11 +696,11 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
       {step === 'budget' && (
         <View style={styles.sheetBackdrop}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setStep('input')} accessibilityLabel="Cancel" />
-          <LinearGradient colors={['#DDF6E7', '#E9F8EF', '#F4FBF7', '#FFFFFF']} locations={[0, 0.12, 0.3, 0.5]} style={styles.sheet}>
+          <LinearGradient colors={[dc('#DDF6E7', 'bg'), dc('#E9F8EF', 'bg'), dc('#F4FBF7', 'bg'), dc('#FFFFFF', 'bg')]} locations={[0, 0.12, 0.3, 0.5]} style={styles.sheet}>
             <View style={styles.grabber} />
             <Text style={styles.sheetTitle}>{copy.sheetTitle}</Text>
             <Text style={styles.sheetSub}>
-              {lowBudget ? 'You’ve reached today’s calories. Pick an amount and you’ll see how it fits.' : <>You have <Text style={{ color: INK, fontWeight: '700' }}>{Math.round(caloriesLeft).toLocaleString()} cal</Text> left today.{kitchen ? ' We’ll build the recipe to fit.' : ''}</>}
+              {lowBudget ? 'You’ve reached today’s calories. Pick an amount and you’ll see how it fits.' : <>You have <Text style={{ color: dc(INK, 'text'), fontWeight: '700' }}>{Math.round(caloriesLeft).toLocaleString()} cal</Text> left today.{kitchen ? ' We’ll build the recipe to fit.' : ''}</>}
             </Text>
 
             {!lowBudget && (
@@ -733,15 +734,15 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                     step={10}
                     value={Math.min(amount, sliderMax)}
                     onValueChange={(v) => setAmount(Math.round(v))}
-                    minimumTrackTintColor={GREEN}
-                    maximumTrackTintColor="#E5E7EB"
-                    thumbTintColor={GREEN}
+                    minimumTrackTintColor={dc(GREEN, 'border')}
+                    maximumTrackTintColor={dc("#E5E7EB", 'border')}
+                    thumbTintColor={dc(GREEN, 'text')}
                     accessibilityLabel="Calories for this meal"
                   />
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     {[300, 450, 600].filter((v) => v <= sliderMax).map((v) => (
                       <TouchableOpacity key={v} style={[styles.quick, amount === v && styles.quickOn]} onPress={() => setAmount(v)}>
-                        <Text style={[styles.quickText, amount === v && { color: '#fff' }]}>{v} cal</Text>
+                        <Text style={[styles.quickText, amount === v && { color: dc('#fff', 'text') }]}>{v} cal</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -756,11 +757,11 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                   <Text style={styles.optionSub}>Calories above are per person</Text>
                 </View>
                 <TouchableOpacity style={styles.stepBtnRound} onPress={() => setServings((n) => Math.max(1, n - 1))} accessibilityLabel="Fewer servings">
-                  <Ionicons name="remove" size={16} color={INK} />
+                  <Ionicons name="remove" size={16} color={dc(INK, 'text')} />
                 </TouchableOpacity>
                 <Text style={styles.servingsNum}>{servings}</Text>
                 <TouchableOpacity style={styles.stepBtnRound} onPress={() => setServings((n) => Math.min(8, n + 1))} accessibilityLabel="More servings">
-                  <Ionicons name="add" size={16} color={INK} />
+                  <Ionicons name="add" size={16} color={dc(INK, 'text')} />
                 </TouchableOpacity>
               </View>
             )}
@@ -782,12 +783,12 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
             <View style={{ width: 140, height: 140 }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: pct }}>
               {(
                 <Svg width={140} height={140} viewBox="0 0 140 140" style={StyleSheet.absoluteFill}>
-                  <Circle cx={70} cy={70} r={62} fill="none" stroke="#EEF0EC" strokeWidth={7} />
-                  <Circle cx={70} cy={70} r={62} fill="none" stroke={GREEN} strokeWidth={7} strokeLinecap="round" strokeDasharray={`${(C62 * pct) / 100} ${C62}`} transform="rotate(-90 70 70)" />
+                  <Circle cx={70} cy={70} r={62} fill="none" stroke={dc("#EEF0EC", 'border')} strokeWidth={7} />
+                  <Circle cx={70} cy={70} r={62} fill="none" stroke={dc(GREEN, 'border')} strokeWidth={7} strokeLinecap="round" strokeDasharray={`${(C62 * pct) / 100} ${C62}`} transform="rotate(-90 70 70)" />
                 </Svg>
               )}
               <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-                <Text style={[styles.kitchenNum, ready && { color: GREEN }]}>{pct}</Text>
+                <Text style={[styles.kitchenNum, ready && { color: dc(GREEN, 'text') }]}>{pct}</Text>
               </View>
             </View>
             <Text style={styles.loadingTitle}>{error ? copy.errorTitle : ready ? copy.readyTitle : copy.loadingTitle}</Text>
@@ -801,7 +802,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                   <View key={label} style={[styles.stepRow, i < shown.length - 1 && styles.rowDivider]}>
                     <View style={{ width: 24, alignItems: 'center' }}>
                       {done
-                        ? <View style={styles.stepDone}><Ionicons name="checkmark" size={13} color="#fff" /></View>
+                        ? <View style={styles.stepDone}><Ionicons name="checkmark" size={13} color={dc("#fff", 'text')} /></View>
                         : <SpinRing />}
                     </View>
                     <Text style={styles.stepText}>{label}</Text>
@@ -819,7 +820,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
             ) : ready ? (
               <TouchableOpacity style={styles.primaryBtn} onPress={() => { resetEditing(); setStep('plate'); }}>
                 <Text style={styles.primaryBtnText}>{copy.seeBtn}</Text>
-                <Ionicons name="arrow-forward" size={18} color="#fff" />
+                <Ionicons name="arrow-forward" size={18} color={dc("#fff", 'text')} />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -831,7 +832,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
         <View style={{ flex: 1 }}>
           <View style={[styles.headerRow, { justifyContent: 'flex-start', gap: 12 }]}>
             <TouchableOpacity style={styles.roundBtn} onPress={() => setStep('input')} accessibilityLabel="Back">
-              <Ionicons name="chevron-back" size={22} color={INK} />
+              <Ionicons name="chevron-back" size={22} color={dc(INK, 'text')} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
               <Text style={styles.plateSmall}>{kitchen ? 'Built from your kitchen' : (plan.title || 'Your plate')}</Text>
@@ -846,11 +847,11 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                   {recipeImage && recipeImage !== 'failed'
                     ? <Image source={{ uri: recipeImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                     : recipeImage === 'failed'
-                      ? <LinearGradient colors={['#FDE7C8', '#F6C38B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><Text style={{ fontSize: 40 }}>🍲</Text></LinearGradient>
-                      : <View style={[StyleSheet.absoluteFill, styles.heroShimmer]}><ActivityIndicator color={GREEN} /></View>}
+                      ? <LinearGradient colors={[dc('#FDE7C8', 'bg'), dc('#F6C38B', 'bg')]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><Text style={{ fontSize: 40 }}>🍲</Text></LinearGradient>
+                      : <View style={[StyleSheet.absoluteFill, styles.heroShimmer]}><ActivityIndicator color={dc(GREEN, 'text')} /></View>}
                   {recipeImage && recipeImage !== 'failed' && (
                     <View style={styles.aiBadge}>
-                      <Ionicons name="sparkles-outline" size={11} color="#fff" />
+                      <Ionicons name="sparkles-outline" size={11} color={dc("#fff", 'text')} />
                       <Text style={styles.aiBadgeText}>AI image · how it could look</Text>
                     </View>
                   )}
@@ -884,32 +885,32 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                     <Svg width="100%" height={128} viewBox={`0 0 ${KSAT.W} 128`} preserveAspectRatio="none" accessibilityLabel={`Estimated fullness over the next 6 hours: hungry again after about ${formatHalfHours(satEst.hours)}`}>
                       <Defs>
                         <SvgGradient id="kSatFill" x1="0" y1="0" x2="0" y2="1">
-                          <Stop offset="0" stopColor="#34D399" stopOpacity="0.45" />
-                          <Stop offset="1" stopColor="#34D399" stopOpacity="0" />
+                          <Stop offset="0" stopColor={dc("#34D399", 'bg')} stopOpacity="0.45" />
+                          <Stop offset="1" stopColor={dc("#34D399", 'bg')} stopOpacity="0" />
                         </SvgGradient>
                       </Defs>
-                      <Path d={`M0 18H${KSAT.W}M0 63H${KSAT.W}M0 108H${KSAT.W}`} stroke="#F0F1F3" strokeWidth={1} />
-                      <Path d={`M0 ${ks.hungerY}H${KSAT.W}`} stroke="#F59E0B" strokeWidth={1.5} strokeDasharray="4 4" />
+                      <Path d={`M0 18H${KSAT.W}M0 63H${KSAT.W}M0 108H${KSAT.W}`} stroke={dc("#F0F1F3", 'border')} strokeWidth={1} />
+                      <Path d={`M0 ${ks.hungerY}H${KSAT.W}`} stroke={dc("#F59E0B", 'border')} strokeWidth={1.5} strokeDasharray="4 4" />
                       <Path d={ks.area} fill="url(#kSatFill)" />
-                      <Path d={ks.curve} fill="none" stroke={GREEN} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
-                      <Circle cx={ks.dotX} cy={ks.hungerY} r={6} fill="#fff" stroke="#F59E0B" strokeWidth={3} />
+                      <Path d={ks.curve} fill="none" stroke={dc(GREEN, 'border')} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+                      <Circle cx={ks.dotX} cy={ks.hungerY} r={6} fill={dc("#fff", 'bg')} stroke={dc("#F59E0B", 'border')} strokeWidth={3} />
                     </Svg>
                     <Text style={[styles.hungryTag, { top: ks.hungerY - 22 }]}>Hungry again</Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-                    {['Now', '2h', '4h', '6h'].map((l) => <Text key={l} style={{ fontSize: 11, color: MUTED }}>{l}</Text>)}
+                    {['Now', '2h', '4h', '6h'].map((l) => <Text key={l} style={{ fontSize: 11, color: dc(MUTED, 'text') }}>{l}</Text>)}
                   </View>
                   <View style={{ marginTop: 16 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                       <Text style={styles.budgetText}>{total} of {chosen} cal</Text>
-                      <Text style={[styles.budgetText, { fontWeight: '700', color: total > chosen ? '#B91C1C' : '#047857' }]}>
+                      <Text style={[styles.budgetText, { fontWeight: '700', color: total > chosen ? dc('#B91C1C', 'text') : dc('#047857', 'text') }]}>
                         {total > chosen ? `${total - chosen} cal over` : `${chosen - total} to spare`}
                       </Text>
                     </View>
                     <View style={styles.budgetTrack}>
                       {total > chosen
-                        ? <View style={[styles.budgetFill, { width: '100%', backgroundColor: '#DC2626' }]} />
-                        : <LinearGradient colors={['#6EE7B7', GREEN]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.budgetFill, { width: `${Math.min(100, Math.round((total / chosen) * 100))}%` }]} />}
+                        ? <View style={[styles.budgetFill, { width: '100%', backgroundColor: dc('#DC2626', 'bg') }]} />
+                        : <LinearGradient colors={[dc('#6EE7B7', 'bg'), dc(GREEN, 'bg')]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.budgetFill, { width: `${Math.min(100, Math.round((total / chosen) * 100))}%` }]} />}
                     </View>
                   </View>
                 </View>
@@ -923,7 +924,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <Text style={styles.foodCardCount}>{foods.length} items</Text>
                   <TouchableOpacity onPress={() => { setIsFoodEditMode((v) => !v); setShowAddItem(false); }}>
-                    <Text style={[styles.foodCardEditBtn, isFoodEditMode && { color: GREEN }]}>{isFoodEditMode ? 'Done' : 'Edit'}</Text>
+                    <Text style={[styles.foodCardEditBtn, isFoodEditMode && { color: dc(GREEN, 'text') }]}>{isFoodEditMode ? 'Done' : 'Edit'}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -931,13 +932,13 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                 <View key={i} style={styles.foodRow}>
                   {isFoodEditMode && (
                     <TouchableOpacity style={styles.foodDeleteBtn} onPress={() => setFoods((prev) => refit(prev.filter((_, idx) => idx !== i)))} accessibilityLabel={`Remove ${food.name}`}>
-                      <Ionicons name="remove-circle" size={22} color="#ef4444" />
+                      <Ionicons name="remove-circle" size={22} color={dc("#ef4444", 'text')} />
                     </TouchableOpacity>
                   )}
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={styles.foodName}>{food.name}</Text>
-                      {food.locked && <View style={styles.yoursTag}><Ionicons name="lock-closed" size={9} color="#047857" /><Text style={styles.yoursTagText}>Yours</Text></View>}
+                      {food.locked && <View style={styles.yoursTag}><Ionicons name="lock-closed" size={9} color={dc("#047857", 'text')} /><Text style={styles.yoursTagText}>Yours</Text></View>}
                     </View>
                     {editingQtyIdx === i ? (
                       <View style={styles.editQtyRow}>
@@ -959,7 +960,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                       </TouchableOpacity>
                       <View style={{ alignItems: 'center', minWidth: 50 }}>
                         {updatingQtyIdx === i ? (
-                          <ActivityIndicator size="small" color={GREEN} />
+                          <ActivityIndicator size="small" color={dc(GREEN, 'text')} />
                         ) : isFoodEditMode && editingCalIdx === i ? (
                           <TextInput
                             style={styles.calInlineInput}
@@ -976,7 +977,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                           />
                         ) : (
                           <TouchableOpacity disabled={!isFoodEditMode} onPress={() => { setEditingCalIdx(i); setEditCalInputValue(String(food.cal)); editCalInputRef.current = String(food.cal); }}>
-                            <Text style={[styles.foodCal, isFoodEditMode && { textDecorationLine: 'underline', color: GREEN }]}>{food.cal}</Text>
+                            <Text style={[styles.foodCal, isFoodEditMode && { textDecorationLine: 'underline', color: dc(GREEN, 'text') }]}>{food.cal}</Text>
                           </TouchableOpacity>
                         )}
                         <Text style={styles.foodCalLabel}>CAL</Text>
@@ -990,14 +991,14 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               ))}
               {isFoodEditMode && (showAddItem ? (
                 <View style={styles.addItemRow}>
-                  <TextInput style={styles.addItemNameInput} placeholder="Item name" placeholderTextColor="#aaa" value={newItemName} onChangeText={setNewItemName} autoFocus />
+                  <TextInput style={styles.addItemNameInput} placeholder="Item name" placeholderTextColor={dc("#aaa", 'text')} value={newItemName} onChangeText={setNewItemName} autoFocus />
                   <TouchableOpacity style={[styles.addItemConfirm, addItemDetecting && { opacity: 0.6 }]} disabled={addItemDetecting} onPress={addItem}>
-                    {addItemDetecting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.addItemConfirmText}>Add</Text>}
+                    {addItemDetecting ? <ActivityIndicator size="small" color={dc("#fff", 'text')} /> : <Text style={styles.addItemConfirmText}>Add</Text>}
                   </TouchableOpacity>
                 </View>
               ) : (
                 <TouchableOpacity style={styles.addItemBtn} onPress={() => setShowAddItem(true)}>
-                  <Ionicons name="add-circle-outline" size={18} color={GREEN} />
+                  <Ionicons name="add-circle-outline" size={18} color={dc(GREEN, 'text')} />
                   <Text style={styles.addItemBtnText}>Add item</Text>
                 </TouchableOpacity>
               ))}
@@ -1020,8 +1021,8 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
             )}
 
             {!!plan.tip && (
-              <LinearGradient colors={['#EAF9F1', '#C7EEDA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tip}>
-                <Ionicons name="bulb-outline" size={18} color="#0B3D2E" />
+              <LinearGradient colors={[dc('#EAF9F1', 'bg'), dc('#C7EEDA', 'bg')]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tip}>
+                <Ionicons name="bulb-outline" size={18} color={dc("#0B3D2E", 'text')} />
                 <Text style={styles.tipText}>{plan.tip}</Text>
               </LinearGradient>
             )}
@@ -1034,7 +1035,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,

@@ -11,7 +11,7 @@ import { installErrorTracking } from './src/lib/analytics';
 import { clearWidgetSnapshot } from './src/lib/widgetSync';
 import AccountDeletedModal from './src/components/AccountDeletedModal';
 import LoggedOutModal from './src/components/LoggedOutModal';
-import { ThemeContext, COLORS, DARK_MODE_AVAILABLE } from './src/lib/theme';
+import { ThemeContext, COLORS, DARK_MODE_AVAILABLE, setThemeDark } from './src/lib/theme';
 import { takeAuthIntent } from './src/lib/authIntent';
 import AccountNotFoundScreen from './src/components/AccountNotFoundScreen';
 import RestoreAccountScreen from './src/components/RestoreAccountScreen';
@@ -93,7 +93,19 @@ export default function App() {
     setDarkMode(!!on);
     AsyncStorage.setItem(DARK_MODE_KEY, on ? '1' : '0').catch(() => {});
   };
-  const effectiveDark = DARK_MODE_AVAILABLE && darkMode; // stays light while dark mode is hidden
+  // While dark mode is being built it stays hidden; on the website, ?dark=1 previews it (remembered in this browser,
+  // ?dark=0 turns it off) so the owner can check each screen.
+  const [darkPreview] = useState(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
+    try {
+      const q = new URLSearchParams(window.location.search).get('dark');
+      if (q === '1') window.localStorage.setItem('logga-dark-preview', '1');
+      if (q === '0') window.localStorage.removeItem('logga-dark-preview');
+      return window.localStorage.getItem('logga-dark-preview') === '1';
+    } catch (_) { return false; }
+  });
+  const effectiveDark = (DARK_MODE_AVAILABLE && darkMode) || darkPreview; // stays light while dark mode is hidden
+  setThemeDark(effectiveDark); // screens with fixed light colours read this (theme.js dc / themedStyles)
   const themeValue = React.useMemo(() => ({ isDark: effectiveDark, colors: effectiveDark ? COLORS.dark : COLORS.light }), [effectiveDark]);
 
   useEffect(() => {
@@ -338,7 +350,7 @@ export default function App() {
           <FastingApp
             // A different account gets a completely fresh app: nothing the previous person had on screen
             // (profile photo, name, numbers) can carry over, however the switch happened.
-            key={session.user.id}
+            key={`${session.user.id}-${effectiveDark ? "dark" : "light"}`} // redrawn when dark mode changes
             session={session}
             onAccountDeleted={(deleteAfter) => setAccountDeleted(deleteAfter || true)}
             onLoggedOut={() => setLoggedOut(true)}

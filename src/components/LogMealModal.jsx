@@ -20,6 +20,7 @@ import { computeCurrentMealStreak } from '../lib/mealStreak';
 import LumiRive from './LumiRive';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 import { aiHeaders } from '../lib/aiAuth';
+import { dc, themedStyles } from '../lib/theme';
 
 // Web-safe helper: convert a URI (blob URL or data URL) to base64 string
 const readUriAsBase64 = async (uri) => {
@@ -235,11 +236,11 @@ const FoodNameField = ({ name, busy, onRename, textStyle }) => {
           returnKeyType="done"
           onSubmitEditing={commit}
           onBlur={commit}
-          style={[textStyle, { flex: 1, borderBottomWidth: 1.5, borderBottomColor: '#059669', paddingVertical: 2 }]}
+          style={[textStyle, { flex: 1, borderBottomWidth: 1.5, borderBottomColor: dc('#059669', 'border'), paddingVertical: 2 }]}
           accessibilityLabel="Food name"
         />
         <TouchableOpacity onPress={commit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Save name">
-          <Text style={{ color: '#059669', fontWeight: '700', fontSize: 14 }}>Done</Text>
+          <Text style={{ color: dc('#059669', 'text'), fontWeight: '700', fontSize: 14 }}>Done</Text>
         </TouchableOpacity>
       </View>
     );
@@ -257,8 +258,8 @@ const ShareCardImage = ({ uri, height, style }) => {
   return (
     <View style={{ width: '100%', height }}>
       {!loaded && (
-        <View style={[style, { height, backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }]}>
-          <ActivityIndicator size="large" color="#059669" />
+        <View style={[style, { height, backgroundColor: dc('#E5E7EB', 'bg'), alignItems: 'center', justifyContent: 'center' }]}>
+          <ActivityIndicator size="large" color={dc("#059669", 'text')} />
         </View>
       )}
       <Image
@@ -325,9 +326,9 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
     return (
       <View style={{ marginHorizontal: 20, marginBottom: 12, marginTop: 20 }}>
-        <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: '#111', marginBottom: 10, paddingHorizontal: 20 }}>CHECK-IN</Text>
+        <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: dc('#111', 'text'), marginBottom: 10, paddingHorizontal: 20 }}>CHECK-IN</Text>
         {hasMealCheckIn ? (
-          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' }}>
+          <View style={{ backgroundColor: dc('#fff', 'bg'), borderRadius: 16, padding: 14, borderWidth: 1, borderColor: dc('#E5E7EB', 'border') }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 8 }}>
                 {checkInIcons.map((item, i) => (
@@ -336,19 +337,19 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   </View>
                 ))}
               </ScrollView>
-              <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }} onPress={openMiniCheckIn}>
-                <Ionicons name="add" size={22} color="#fff" />
+              <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: dc('#059669', 'bg'), alignItems: 'center', justifyContent: 'center', marginLeft: 10 }} onPress={openMiniCheckIn}>
+                <Ionicons name="add" size={22} color={dc("#fff", 'text')} />
               </TouchableOpacity>
             </View>
           </View>
         ) : (
-          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' }} onPress={openMiniCheckIn} activeOpacity={0.7}>
+          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: dc('#fff', 'bg'), borderRadius: 16, padding: 14, borderWidth: 1, borderColor: dc('#E5E7EB', 'border') }} onPress={openMiniCheckIn} activeOpacity={0.7}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Ionicons name="clipboard-outline" size={24} color="#D1D5DB" />
-              <Text style={{ fontSize: 14, color: '#9CA3AF', fontWeight: '500' }}>How did this meal feel?</Text>
+              <Ionicons name="clipboard-outline" size={24} color={dc("#D1D5DB", 'text')} />
+              <Text style={{ fontSize: 14, color: dc('#9CA3AF', 'text'), fontWeight: '500' }}>How did this meal feel?</Text>
             </View>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="add" size={22} color="#fff" />
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: dc('#059669', 'bg'), alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="add" size={22} color={dc("#fff", 'text')} />
             </View>
           </TouchableOpacity>
         )}
@@ -778,7 +779,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         const canvas = await h2c(node, {
           useCORS: true,
           allowTaint: false,
-          backgroundColor: '#111111',
+          backgroundColor: dc('#111111', 'bg'),
           scale: 2,
         });
         const dataUrl = canvas.toDataURL('image/png');
@@ -1104,12 +1105,12 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
             onPress={() => setSelectedMealType(type)}
             style={{
               flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', gap: 4,
-              backgroundColor: selectedMealType === type ? '#059669' : '#F9FAFB',
-              borderWidth: 1.5, borderColor: selectedMealType === type ? '#059669' : 'transparent',
+              backgroundColor: selectedMealType === type ? dc('#059669', 'bg') : dc('#F9FAFB', 'bg'),
+              borderWidth: 1.5, borderColor: selectedMealType === type ? dc('#059669', 'border') : 'transparent',
             }}
           >
-            <Ionicons name={icon} size={16} color={selectedMealType === type ? '#fff' : '#9CA3AF'} />
-            <Text style={{ fontSize: 10, fontWeight: '700', color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>{type}</Text>
+            <Ionicons name={icon} size={16} color={selectedMealType === type ? dc('#fff', 'text') : dc('#9CA3AF', 'text')} />
+            <Text style={{ fontSize: 10, fontWeight: '700', color: selectedMealType === type ? dc('#fff', 'text') : dc('#9CA3AF', 'text') }}>{type}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -1124,7 +1125,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
             onPress={logMealMethod === 'write' && writePhase === 'results' ? resetWrite : handleClose}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name="chevron-back" size={24} color="#1F1F1F" />
+            <Ionicons name="chevron-back" size={24} color={dc("#1F1F1F", 'text')} />
           </TouchableOpacity>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.headerSubtitle}>LOG FOOD</Text>
@@ -1146,18 +1147,18 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                 <View style={styles.detectSection}>
                   {scanError ? (
                     <View style={{ alignItems: 'center', paddingVertical: 16, gap: 12 }}>
-                      <Ionicons name="cloud-offline-outline" size={36} color="#EF4444" />
-                      <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 15, textAlign: 'center' }}>{scanError}</Text>
-                      <TouchableOpacity onPress={resetScan} style={{ marginTop: 4, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#059669', borderRadius: 20 }}>
-                        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Try again</Text>
+                      <Ionicons name="cloud-offline-outline" size={36} color={dc("#EF4444", 'text')} />
+                      <Text style={{ color: dc('#EF4444', 'text'), fontWeight: '600', fontSize: 15, textAlign: 'center' }}>{scanError}</Text>
+                      <TouchableOpacity onPress={resetScan} style={{ marginTop: 4, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: dc('#059669', 'bg'), borderRadius: 20 }}>
+                        <Text style={{ color: dc('#fff', 'text'), fontWeight: '600', fontSize: 14 }}>Try again</Text>
                       </TouchableOpacity>
                     </View>
                   ) : scanProgress >= 100 ? (
                     <View style={{ alignItems: 'center', paddingVertical: 16, gap: 12 }}>
-                      <Ionicons name="search-outline" size={36} color="#9CA3AF" />
-                      <Text style={{ color: '#6B7280', fontWeight: '600', fontSize: 15, textAlign: 'center' }}>Couldn't identify any food items.{'\n'}Try a clearer photo.</Text>
-                      <TouchableOpacity onPress={resetScan} style={{ marginTop: 4, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#059669', borderRadius: 20 }}>
-                        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Try again</Text>
+                      <Ionicons name="search-outline" size={36} color={dc("#9CA3AF", 'text')} />
+                      <Text style={{ color: dc('#6B7280', 'text'), fontWeight: '600', fontSize: 15, textAlign: 'center' }}>Couldn't identify any food items.{'\n'}Try a clearer photo.</Text>
+                      <TouchableOpacity onPress={resetScan} style={{ marginTop: 4, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: dc('#059669', 'bg'), borderRadius: 20 }}>
+                        <Text style={{ color: dc('#fff', 'text'), fontWeight: '600', fontSize: 14 }}>Try again</Text>
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -1178,7 +1179,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   <View style={styles.reRecordRow}>
                     <View style={styles.reRecordLine} />
                     <TouchableOpacity style={styles.reRecordBtn} onPress={resetScan}>
-                      <Ionicons name="refresh-outline" size={18} color="#fff" />
+                      <Ionicons name="refresh-outline" size={18} color={dc("#fff", 'text')} />
                     </TouchableOpacity>
                     <View style={styles.reRecordLine} />
                   </View>
@@ -1186,7 +1187,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   {/* Food List Card — same as say page */}
                   {scanFromScreen && (
                     <View style={styles.screenScanBanner}>
-                      <Ionicons name="monitor-outline" size={16} color="#92400e" />
+                      <Ionicons name="monitor-outline" size={16} color={dc("#92400e", 'text')} />
                       <Text style={styles.screenScanBannerText}>
                         Looks like this was scanned from a screen. Portions may not be accurate — good idea to rescan when you have the actual meal in front of you.
                       </Text>
@@ -1199,7 +1200,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <Text style={styles.foodCardCount}>{detectedFoods.length} items</Text>
                         <TouchableOpacity onPress={() => { setIsFoodEditMode(p => !p); setShowAddItem(false); }}>
-                          <Text style={[styles.foodCardEditBtn, isFoodEditMode && { color: '#059669' }]}>
+                          <Text style={[styles.foodCardEditBtn, isFoodEditMode && { color: dc('#059669', 'text') }]}>
                             {isFoodEditMode ? 'Done' : 'Edit'}
                           </Text>
                         </TouchableOpacity>
@@ -1209,7 +1210,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <View key={i} style={styles.foodRow}>
                         {isFoodEditMode && (
                           <TouchableOpacity style={styles.foodDeleteBtn} onPress={() => setDetectedFoods(prev => prev.filter((_, idx) => idx !== i))}>
-                            <Ionicons name="remove-circle" size={22} color="#ef4444" />
+                            <Ionicons name="remove-circle" size={22} color={dc("#ef4444", 'text')} />
                           </TouchableOpacity>
                         )}
                         <View style={{ flex: 1, marginRight: 12 }}>
@@ -1272,7 +1273,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             </TouchableOpacity>
                             <View style={{ alignItems: 'center', minWidth: 50 }}>
                               {updatingQtyIdx === i ? (
-                                <ActivityIndicator size="small" color="#059669" />
+                                <ActivityIndicator size="small" color={dc("#059669", 'text')} />
                               ) : isFoodEditMode && editingCalIdx === i ? (
                                 <TextInput
                                   style={styles.calInlineInput}
@@ -1304,7 +1305,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                   disabled={!isFoodEditMode}
                                   onPress={() => { setEditingCalIdx(i); setEditCalInputValue(String(food.cal)); editCalInputRef.current = String(food.cal); }}
                                 >
-                                  <Text style={[styles.foodCal, isFoodEditMode && { textDecorationLine: 'underline', color: '#059669' }]}>{food.cal}</Text>
+                                  <Text style={[styles.foodCal, isFoodEditMode && { textDecorationLine: 'underline', color: dc('#059669', 'text') }]}>{food.cal}</Text>
                                 </TouchableOpacity>
                               )}
                               <Text style={styles.foodCalLabel}>CAL</Text>
@@ -1324,7 +1325,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                           <TextInput
                             style={styles.addItemNameInput}
                             placeholder="Item name"
-                            placeholderTextColor="#aaa"
+                            placeholderTextColor={dc("#aaa", 'text')}
                             value={newItemName}
                             onChangeText={setNewItemName}
                             autoFocus
@@ -1348,14 +1349,14 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             }}
                           >
                             {addItemDetecting
-                              ? <ActivityIndicator size="small" color="#fff" />
+                              ? <ActivityIndicator size="small" color={dc("#fff", 'text')} />
                               : <Text style={styles.addItemConfirmText}>Add</Text>
                             }
                           </TouchableOpacity>
                         </View>
                       ) : (
                         <TouchableOpacity style={styles.addItemBtn} onPress={() => setShowAddItem(true)}>
-                          <Ionicons name="add-circle-outline" size={18} color="#059669" />
+                          <Ionicons name="add-circle-outline" size={18} color={dc("#059669", 'text')} />
                           <Text style={styles.addItemBtnText}>Add item</Text>
                         </TouchableOpacity>
                       )
@@ -1388,13 +1389,13 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             borderRadius: 10,
                             alignItems: 'center',
                             gap: 4,
-                            backgroundColor: selectedMealType === type ? '#059669' : '#F9FAFB',
+                            backgroundColor: selectedMealType === type ? dc('#059669', 'bg') : dc('#F9FAFB', 'bg'),
                             borderWidth: 1.5,
-                            borderColor: selectedMealType === type ? '#059669' : 'transparent',
+                            borderColor: selectedMealType === type ? dc('#059669', 'border') : 'transparent',
                           }}
                         >
-                          <Ionicons name={icon} size={16} color={selectedMealType === type ? '#fff' : '#9CA3AF'} />
-                          <Text style={{ fontSize: 10, fontWeight: '700', color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>
+                          <Ionicons name={icon} size={16} color={selectedMealType === type ? dc('#fff', 'text') : dc('#9CA3AF', 'text')} />
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: selectedMealType === type ? dc('#fff', 'text') : dc('#9CA3AF', 'text') }}>
                             {type}
                           </Text>
                         </TouchableOpacity>
@@ -1423,7 +1424,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   multiline
                   style={styles.writeInput}
                   placeholder={"e.g. Two wraps of fufu with light soup and fish, plus a bottle of water..."}
-                  placeholderTextColor="#9dbfab"
+                  placeholderTextColor={dc("#9dbfab", 'text')}
                   value={mealInput}
                   onChangeText={(t) => { setMealInput(t); setWriteError(null); }}
                   cursorColor="#059669"
@@ -1448,7 +1449,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
             {/* Error banner */}
             {writeError && writePhase === 'idle' && (
               <View style={styles.writeErrorBanner}>
-                <Ionicons name="warning-outline" size={18} color="#fff" />
+                <Ionicons name="warning-outline" size={18} color={dc("#fff", 'text')} />
                 <Text style={styles.writeErrorText}>
                   That doesn't look like a food. Try something like "Jollof Rice" or "Fufu and Egusi".
                 </Text>
@@ -1494,13 +1495,13 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
             <View style={[styles.reRecordRow, { marginHorizontal: 20 }]}>
               <View style={styles.reRecordLine} />
               <TouchableOpacity style={styles.reRecordBtn} onPress={resetWrite}>
-                <Ionicons name="create-outline" size={18} color="#fff" />
+                <Ionicons name="create-outline" size={18} color={dc("#fff", 'text')} />
               </TouchableOpacity>
               <View style={styles.reRecordLine} />
             </View>
 
             {correctedInput && (
-              <Text style={{ fontSize: 12, color: '#059669', marginBottom: 8, marginHorizontal: 20 }}>
+              <Text style={{ fontSize: 12, color: dc('#059669', 'text'), marginBottom: 8, marginHorizontal: 20 }}>
                 Showing results for "{correctedInput}"
               </Text>
             )}
@@ -1513,7 +1514,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <Text style={styles.foodCardCount}>{detectedFoods.length} items</Text>
                         <TouchableOpacity onPress={() => { setIsFoodEditMode(p => !p); setShowAddItem(false); }}>
-                          <Text style={[styles.foodCardEditBtn, isFoodEditMode && { color: '#059669' }]}>
+                          <Text style={[styles.foodCardEditBtn, isFoodEditMode && { color: dc('#059669', 'text') }]}>
                             {isFoodEditMode ? 'Done' : 'Edit'}
                           </Text>
                         </TouchableOpacity>
@@ -1523,7 +1524,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <View key={i} style={styles.foodRow}>
                         {isFoodEditMode && (
                           <TouchableOpacity style={styles.foodDeleteBtn} onPress={() => setDetectedFoods(prev => prev.filter((_, idx) => idx !== i))}>
-                            <Ionicons name="remove-circle" size={22} color="#ef4444" />
+                            <Ionicons name="remove-circle" size={22} color={dc("#ef4444", 'text')} />
                           </TouchableOpacity>
                         )}
                         <View style={{ flex: 1, marginRight: 12 }}>
@@ -1579,7 +1580,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             </TouchableOpacity>
                             <View style={{ alignItems: 'center', minWidth: 50 }}>
                               {updatingQtyIdx === i ? (
-                                <ActivityIndicator size="small" color="#059669" />
+                                <ActivityIndicator size="small" color={dc("#059669", 'text')} />
                               ) : isFoodEditMode && editingCalIdx === i ? (
                                 <TextInput
                                   style={styles.calInlineInput}
@@ -1611,7 +1612,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                   disabled={!isFoodEditMode}
                                   onPress={() => { setEditingCalIdx(i); setEditCalInputValue(String(food.cal)); editCalInputRef.current = String(food.cal); }}
                                 >
-                                  <Text style={[styles.foodCal, isFoodEditMode && { textDecorationLine: 'underline', color: '#059669' }]}>{food.cal}</Text>
+                                  <Text style={[styles.foodCal, isFoodEditMode && { textDecorationLine: 'underline', color: dc('#059669', 'text') }]}>{food.cal}</Text>
                                 </TouchableOpacity>
                               )}
                               <Text style={styles.foodCalLabel}>CAL</Text>
@@ -1631,7 +1632,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                           <TextInput
                             style={styles.addItemNameInput}
                             placeholder="Item name"
-                            placeholderTextColor="#aaa"
+                            placeholderTextColor={dc("#aaa", 'text')}
                             value={newItemName}
                             onChangeText={setNewItemName}
                             autoFocus
@@ -1650,14 +1651,14 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             }}
                           >
                             {addItemDetecting
-                              ? <ActivityIndicator size="small" color="#fff" />
+                              ? <ActivityIndicator size="small" color={dc("#fff", 'text')} />
                               : <Text style={styles.addItemConfirmText}>Add</Text>
                             }
                           </TouchableOpacity>
                         </View>
                       ) : (
                         <TouchableOpacity style={styles.addItemBtn} onPress={() => setShowAddItem(true)}>
-                          <Ionicons name="add-circle-outline" size={18} color="#059669" />
+                          <Ionicons name="add-circle-outline" size={18} color={dc("#059669", 'text')} />
                           <Text style={styles.addItemBtnText}>Add item</Text>
                         </TouchableOpacity>
                       )
@@ -1689,13 +1690,13 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             borderRadius: 10,
                             alignItems: 'center',
                             gap: 4,
-                            backgroundColor: selectedMealType === type ? '#059669' : '#F9FAFB',
+                            backgroundColor: selectedMealType === type ? dc('#059669', 'bg') : dc('#F9FAFB', 'bg'),
                             borderWidth: 1.5,
-                            borderColor: selectedMealType === type ? '#059669' : 'transparent',
+                            borderColor: selectedMealType === type ? dc('#059669', 'border') : 'transparent',
                           }}
                         >
-                          <Ionicons name={icon} size={16} color={selectedMealType === type ? '#fff' : '#9CA3AF'} />
-                          <Text style={{ fontSize: 10, fontWeight: '700', color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>
+                          <Ionicons name={icon} size={16} color={selectedMealType === type ? dc('#fff', 'text') : dc('#9CA3AF', 'text')} />
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: selectedMealType === type ? dc('#fff', 'text') : dc('#9CA3AF', 'text') }}>
                             {type}
                           </Text>
                         </TouchableOpacity>
@@ -1716,9 +1717,9 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
           <ScrollView style={styles.scanResultsContainer} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
             {capturedPhoto ? <Image source={{ uri: capturedPhoto }} style={styles.scanResultImage} /> : null}
             <View style={{ marginHorizontal: 20, marginTop: 16 }}>
-              <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB' }}>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: '#111' }}>{recipeToLog.name}</Text>
-                <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
+              <View style={{ backgroundColor: dc('#fff', 'bg'), borderRadius: 16, padding: 16, borderWidth: 1, borderColor: dc('#E5E7EB', 'border') }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: dc('#111', 'text') }}>{recipeToLog.name}</Text>
+                <Text style={{ fontSize: 13, color: dc('#6B7280', 'text'), marginTop: 2 }}>
                   {recipeToLog.servings ? `${recipeToLog.servings} ${recipeToLog.servings === 1 ? 'serving' : 'servings'}` : '1 serving'}
                 </Text>
                 <View style={{ flexDirection: 'row', marginTop: 14, gap: 8 }}>
@@ -1728,9 +1729,9 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     { label: 'Carbs', val: Math.round(recipeToLog.carbs || 0), unit: 'g' },
                     { label: 'Fats', val: Math.round(recipeToLog.fats || 0), unit: 'g' },
                   ].map((m) => (
-                    <View key={m.label} style={{ flex: 1, backgroundColor: '#F9FAFB', borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 17, fontWeight: '800', color: '#111' }}>{m.val}<Text style={{ fontSize: 11, fontWeight: '600', color: '#9CA3AF' }}> {m.unit}</Text></Text>
-                      <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{m.label}</Text>
+                    <View key={m.label} style={{ flex: 1, backgroundColor: dc('#F9FAFB', 'bg'), borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 17, fontWeight: '800', color: dc('#111', 'text') }}>{m.val}<Text style={{ fontSize: 11, fontWeight: '600', color: dc('#9CA3AF', 'text') }}> {m.unit}</Text></Text>
+                      <Text style={{ fontSize: 11, color: dc('#6B7280', 'text'), marginTop: 2 }}>{m.label}</Text>
                     </View>
                   ))}
                 </View>
@@ -1753,7 +1754,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
               {/* Success label */}
               <View style={styles.shareCardSuccessRow}>
                 <View style={styles.shareCardSuccessBadge}>
-                  <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                  <Ionicons name="checkmark-circle" size={16} color={dc("#059669", 'text')} />
                   <Text style={styles.shareCardSuccessText}>Meal logged!</Text>
                 </View>
               </View>
@@ -1778,10 +1779,10 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                           activeOpacity={0.8}
                         >
                           {addingPhoto ? (
-                            <ActivityIndicator size="small" color="#059669" />
+                            <ActivityIndicator size="small" color={dc("#059669", 'text')} />
                           ) : (
                             <>
-                              <Ionicons name="camera-outline" size={26} color="#059669" />
+                              <Ionicons name="camera-outline" size={26} color={dc("#059669", 'text')} />
                               <Text style={styles.addPhotoBtnText}>Add photo</Text>
                             </>
                           )}
@@ -1799,7 +1800,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       const over = cardDayTotal > cardGoal;
                       return (
                         <View style={[styles.shareCardTrackBadge, over && { backgroundColor: 'rgba(249,115,22,0.2)', borderColor: 'rgba(249,115,22,0.35)' }]}>
-                          <Text style={[styles.shareCardTrackText, over && { color: '#f97316' }]}>
+                          <Text style={[styles.shareCardTrackText, over && { color: dc('#f97316', 'text') }]}>
                             {over ? 'Over Goal ✕' : 'On Track ✓'}
                           </Text>
                         </View>
@@ -1834,7 +1835,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <View style={{ marginTop: 14, gap: 8 }}>
                         <View style={styles.shareCardProgressMeta}>
                           <Text style={styles.shareCardProgressLabel}>Deficit target</Text>
-                          <Text style={[styles.shareCardProgressPct, isOver && { color: '#f97316' }]}>{Math.round(rawPct * 100)}%</Text>
+                          <Text style={[styles.shareCardProgressPct, isOver && { color: dc('#f97316', 'text') }]}>{Math.round(rawPct * 100)}%</Text>
                         </View>
                         <View style={styles.shareCardProgressBar}>
                           <LinearGradient
@@ -1858,7 +1859,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <Text style={styles.shareCardFooterDate}>
                         {dateStr} · <Text style={styles.shareCardFooterMealType}>{mealType}</Text>
                       </Text>
-                      <LinearGradient colors={['#22c55e', '#16a34a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.shareCardCtaBtn}>
+                      <LinearGradient colors={[dc('#22c55e', 'bg'), dc('#16a34a', 'bg')]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.shareCardCtaBtn}>
                         <Text style={styles.shareCardCtaText}>Made with Logga →</Text>
                       </LinearGradient>
                     </View>
@@ -1872,7 +1873,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   <Text style={styles.shareCardFoodsTitle}>Detected Foods</Text>
                   {detectedFoods.map((food, i) => (
                     <View key={i} style={styles.shareCardFoodRow}>
-                      <View style={[styles.shareCardFoodDot, { backgroundColor: '#1F1F1F' }]} />
+                      <View style={[styles.shareCardFoodDot, { backgroundColor: dc('#1F1F1F', 'bg') }]} />
                       <Text style={styles.shareCardFoodName} numberOfLines={1}>{food.name}{food.qty ? <Text style={styles.shareCardFoodQty}>  {food.qty}</Text> : null}</Text>
                       <Text style={styles.shareCardFoodCal}>{food.cal} cal</Text>
                     </View>
@@ -1900,16 +1901,16 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     <Text style={styles.shareCardFoodsTitle}>Macro Distribution</Text>
                     {/* Bar */}
                     <View style={styles.macroBar}>
-                      {pPct > 0 && <View style={[styles.macroBarSeg, { flex: pPct, backgroundColor: '#60a5fa' }]} />}
-                      {cPct > 0 && <View style={[styles.macroBarSeg, { flex: cPct, backgroundColor: '#f59e0b' }]} />}
-                      {fPct > 0 && <View style={[styles.macroBarSeg, { flex: fPct, backgroundColor: '#f87171' }]} />}
+                      {pPct > 0 && <View style={[styles.macroBarSeg, { flex: pPct, backgroundColor: dc('#60a5fa', 'bg') }]} />}
+                      {cPct > 0 && <View style={[styles.macroBarSeg, { flex: cPct, backgroundColor: dc('#f59e0b', 'bg') }]} />}
+                      {fPct > 0 && <View style={[styles.macroBarSeg, { flex: fPct, backgroundColor: dc('#f87171', 'bg') }]} />}
                     </View>
                     {/* Legend */}
                     <View style={styles.macroLegend}>
                       {[
-                        { label: 'Protein', g: p, pct: pPct, color: '#60a5fa' },
-                        { label: 'Carbs',   g: c, pct: cPct, color: '#f59e0b' },
-                        { label: 'Fats',    g: fa, pct: fPct, color: '#f87171' },
+                        { label: 'Protein', g: p, pct: pPct, color: dc('#60a5fa', 'text') },
+                        { label: 'Carbs',   g: c, pct: cPct, color: dc('#f59e0b', 'text') },
+                        { label: 'Fats',    g: fa, pct: fPct, color: dc('#f87171', 'text') },
                       ].map(({ label, g, pct, color }) => (
                         <View key={label} style={styles.macroLegendItem}>
                           <View style={[styles.macroLegendDot, { backgroundColor: color }]} />
@@ -1931,10 +1932,10 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   onPress={() => setShowSharePrompt(true)}
                 >
                   {isSharing ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={dc("#fff", 'text')} />
                   ) : (
                     <>
-                      <Ionicons name="share-social-outline" size={20} color="#fff" />
+                      <Ionicons name="share-social-outline" size={20} color={dc("#fff", 'text')} />
                       <Text style={styles.shareCardShareBtnText}>Share</Text>
                     </>
                   )}
@@ -2002,7 +2003,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   <View style={styles.reRecordRow}>
                     <View style={styles.reRecordLine} />
                     <TouchableOpacity style={styles.reRecordBtn} onPress={resetSay}>
-                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={dc("white", 'border')} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                         <Polyline points="1 4 1 10 7 10" />
                         <Path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                       </Svg>
@@ -2017,7 +2018,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <Text style={styles.foodCardCount}>{detectedFoods.length} items</Text>
                         <TouchableOpacity onPress={() => { setIsFoodEditMode(p => !p); setShowAddItem(false); }}>
-                          <Text style={[styles.foodCardEditBtn, isFoodEditMode && { color: '#059669' }]}>
+                          <Text style={[styles.foodCardEditBtn, isFoodEditMode && { color: dc('#059669', 'text') }]}>
                             {isFoodEditMode ? 'Done' : 'Edit'}
                           </Text>
                         </TouchableOpacity>
@@ -2027,7 +2028,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <View key={i} style={styles.foodRow}>
                         {isFoodEditMode && (
                           <TouchableOpacity style={styles.foodDeleteBtn} onPress={() => setDetectedFoods(prev => prev.filter((_, idx) => idx !== i))}>
-                            <Ionicons name="remove-circle" size={22} color="#ef4444" />
+                            <Ionicons name="remove-circle" size={22} color={dc("#ef4444", 'text')} />
                           </TouchableOpacity>
                         )}
                         <View style={{ flex: 1, marginRight: 12 }}>
@@ -2086,7 +2087,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             </TouchableOpacity>
                             <View style={{ alignItems: 'center', minWidth: 50 }}>
                               {updatingQtyIdx === i ? (
-                                <ActivityIndicator size="small" color="#059669" />
+                                <ActivityIndicator size="small" color={dc("#059669", 'text')} />
                               ) : isFoodEditMode && editingCalIdx === i ? (
                                 <TextInput
                                   style={styles.calInlineInput}
@@ -2118,7 +2119,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                                   disabled={!isFoodEditMode}
                                   onPress={() => { setEditingCalIdx(i); setEditCalInputValue(String(food.cal)); editCalInputRef.current = String(food.cal); }}
                                 >
-                                  <Text style={[styles.foodCal, isFoodEditMode && { textDecorationLine: 'underline', color: '#059669' }]}>{food.cal}</Text>
+                                  <Text style={[styles.foodCal, isFoodEditMode && { textDecorationLine: 'underline', color: dc('#059669', 'text') }]}>{food.cal}</Text>
                                 </TouchableOpacity>
                               )}
                               <Text style={styles.foodCalLabel}>CAL</Text>
@@ -2138,7 +2139,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                           <TextInput
                             style={styles.addItemNameInput}
                             placeholder="Item name"
-                            placeholderTextColor="#aaa"
+                            placeholderTextColor={dc("#aaa", 'text')}
                             value={newItemName}
                             onChangeText={setNewItemName}
                             autoFocus
@@ -2162,14 +2163,14 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             }}
                           >
                             {addItemDetecting
-                              ? <ActivityIndicator size="small" color="#fff" />
+                              ? <ActivityIndicator size="small" color={dc("#fff", 'text')} />
                               : <Text style={styles.addItemConfirmText}>Add</Text>
                             }
                           </TouchableOpacity>
                         </View>
                       ) : (
                         <TouchableOpacity style={styles.addItemBtn} onPress={() => setShowAddItem(true)}>
-                          <Ionicons name="add-circle-outline" size={18} color="#059669" />
+                          <Ionicons name="add-circle-outline" size={18} color={dc("#059669", 'text')} />
                           <Text style={styles.addItemBtnText}>Add item</Text>
                         </TouchableOpacity>
                       )
@@ -2201,13 +2202,13 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                             borderRadius: 10,
                             alignItems: 'center',
                             gap: 4,
-                            backgroundColor: selectedMealType === type ? '#059669' : '#F9FAFB',
+                            backgroundColor: selectedMealType === type ? dc('#059669', 'bg') : dc('#F9FAFB', 'bg'),
                             borderWidth: 1.5,
-                            borderColor: selectedMealType === type ? '#059669' : 'transparent',
+                            borderColor: selectedMealType === type ? dc('#059669', 'border') : 'transparent',
                           }}
                         >
-                          <Ionicons name={icon} size={16} color={selectedMealType === type ? '#fff' : '#9CA3AF'} />
-                          <Text style={{ fontSize: 10, fontWeight: '700', color: selectedMealType === type ? '#fff' : '#9CA3AF' }}>
+                          <Ionicons name={icon} size={16} color={selectedMealType === type ? dc('#fff', 'text') : dc('#9CA3AF', 'text')} />
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: selectedMealType === type ? dc('#fff', 'text') : dc('#9CA3AF', 'text') }}>
                             {type}
                           </Text>
                         </TouchableOpacity>
@@ -2232,7 +2233,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   <View style={styles.sayMicOuter}>
                     <View style={styles.sayMicInner}>
                       <TouchableOpacity style={styles.sayMicButton} onPress={startRec} activeOpacity={0.75}>
-                        <Svg width={34} height={34} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+                        <Svg width={34} height={34} viewBox="0 0 24 24" fill="none" stroke={dc("white", 'border')} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
                           <Path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                           <Path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                           <Line x1="12" y1="19" x2="12" y2="23" />
@@ -2248,7 +2249,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
               {showSuccess && (
                 <View style={styles.successOverlay}>
                   <View style={styles.successCheck}>
-                    <Text style={{ fontSize: 28, color: '#fff' }}>✓</Text>
+                    <Text style={{ fontSize: 28, color: dc('#fff', 'text') }}>✓</Text>
                   </View>
                   <Text style={styles.successTitle}>Meal logged</Text>
                   <Text style={styles.successSub}>{getTotalCal()} cal added</Text>
@@ -2262,7 +2263,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       {/* Quick check-in before logging */}
       {quickCheckIn && (
         <View style={styles.qcBackdrop}>
-          <LinearGradient colors={['#DDF6E7', '#E9F8EF', '#F4FBF7', '#FFFFFF']} locations={[0, 0.12, 0.3, 0.5]} style={styles.qcSheet}>
+          <LinearGradient colors={[dc('#DDF6E7', 'bg'), dc('#E9F8EF', 'bg'), dc('#F4FBF7', 'bg'), dc('#FFFFFF', 'bg')]} locations={[0, 0.12, 0.3, 0.5]} style={styles.qcSheet}>
             <View style={styles.qcGrabber} />
             <Text style={styles.qcKicker}>QUICK CHECK-IN</Text>
             <Text style={styles.qcTitle}>How are you feeling about this meal?</Text>
@@ -2296,7 +2297,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
               </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.qcPrimary} onPress={() => finishQuickCheckIn(true)} activeOpacity={0.85}>
-              <Ionicons name="checkmark" size={18} color="#fff" />
+              <Ionicons name="checkmark" size={18} color={dc("#fff", 'text')} />
               <Text style={styles.qcPrimaryText}>{quickPicks.stomach.length || quickPicks.mood.length ? 'Save feelings & log meal' : 'Log meal'}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => finishQuickCheckIn(false)} style={{ alignSelf: 'center', padding: 8, marginTop: 6 }}>
@@ -2311,7 +2312,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         <View style={styles.cameraAbsolute}>
           {!permission?.granted ? (
             <View style={styles.cameraPermission}>
-              <Ionicons name="camera-outline" size={48} color="#D1D5DB" />
+              <Ionicons name="camera-outline" size={48} color={dc("#D1D5DB", 'text')} />
               <Text style={styles.cameraPermissionText}>Camera access is required to scan your meal</Text>
               <Text style={[styles.cameraPermissionText, { fontSize: 13, marginTop: -8 }]}>Please enable it in your device Settings</Text>
             </View>
@@ -2328,12 +2329,12 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
               </CameraView>
               {/* Back button */}
               <TouchableOpacity style={styles.cameraBackBtn} onPress={handleClose}>
-                <Ionicons name="chevron-back" size={26} color="#fff" />
+                <Ionicons name="chevron-back" size={26} color={dc("#fff", 'text')} />
               </TouchableOpacity>
               {/* Not-food error banner */}
               {scanError && (
                 <View style={styles.scanErrorBanner}>
-                  <Ionicons name="warning-outline" size={18} color="#fff" />
+                  <Ionicons name="warning-outline" size={18} color={dc("#fff", 'text')} />
                   <Text style={styles.scanErrorText}>
                     That's a <Text style={{ fontWeight: '800' }}>{scanError}</Text>, not food. Point your camera at your meal and try again.
                   </Text>
@@ -2345,7 +2346,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
               </TouchableOpacity>
               {/* Gallery picker */}
               <TouchableOpacity style={styles.galleryBtn} onPress={pickFromGallery}>
-                <Ionicons name="image-outline" size={26} color="#fff" />
+                <Ionicons name="image-outline" size={26} color={dc("#fff", 'text')} />
               </TouchableOpacity>
             </>
           )}
@@ -2362,24 +2363,24 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
 
             <TouchableOpacity style={styles.sharePromptOption} activeOpacity={0.6} onPress={() => handleShareChoice(false)}>
               <View style={[styles.sharePromptIcon, { backgroundColor: 'rgba(5,150,105,0.1)' }]}>
-                <Ionicons name="fast-food-outline" size={20} color="#059669" />
+                <Ionicons name="fast-food-outline" size={20} color={dc("#059669", 'text')} />
               </View>
               <View style={styles.sharePromptOptionText}>
                 <Text style={styles.sharePromptOptionTitle}>This meal only</Text>
                 <Text style={styles.sharePromptOptionSub}>Photo, calories and today's progress</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
+              <Ionicons name="chevron-forward" size={18} color={dc("#D1D5DB", 'text')} />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.sharePromptOption} activeOpacity={0.6} onPress={() => handleShareChoice(true)}>
               <View style={[styles.sharePromptIcon, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
-                <Ionicons name="list-outline" size={20} color="#3B82F6" />
+                <Ionicons name="list-outline" size={20} color={dc("#3B82F6", 'text')} />
               </View>
               <View style={styles.sharePromptOptionText}>
                 <Text style={styles.sharePromptOptionTitle}>Meal + ingredients</Text>
                 <Text style={styles.sharePromptOptionSub}>Adds the detected foods and macro breakdown</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
+              <Ionicons name="chevron-forward" size={18} color={dc("#D1D5DB", 'text')} />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.sharePromptCancel} onPress={() => setShowSharePrompt(false)}>
@@ -2393,7 +2394,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   weightPageOverlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0,

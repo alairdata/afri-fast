@@ -95,6 +95,7 @@ import { aiHeaders } from './lib/aiAuth';
 import { getAccountPref, setAccountPref } from './lib/accountPrefs';
 import { deliverNudges, savePushToken } from './lib/adminMessages';
 import { maybeAskForReview } from './lib/reviewPrompt';
+import { dc, themedStyles } from './lib/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -3110,7 +3111,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             </Text>
             <Text style={[styles.modalDesc, { marginBottom: 6 }]}>
               You've been away for{' '}
-              <Text style={{ fontWeight: '700', color: '#059669' }}>
+              <Text style={{ fontWeight: '700', color: dc('#059669', 'text') }}>
                 {(() => {
                   const days = Math.floor((welcomeBackInfo?.awayMs || 0) / 86400000);
                   if (days < 14) return `${days} days`;
@@ -3138,10 +3139,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       {/* Shown while the account is being deleted */}
       <Modal visible={deletingAccount} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 20, paddingVertical: 28, paddingHorizontal: 34, alignItems: 'center' }}>
-            <ActivityIndicator size="large" color="#16201b" />
-            <Text style={{ marginTop: 14, fontSize: 16, fontWeight: '700', color: '#16201b' }}>Deleting your account...</Text>
-            <Text style={{ marginTop: 4, fontSize: 13, color: '#6c7872' }}>This takes a few seconds.</Text>
+          <View style={{ backgroundColor: dc('#fff', 'bg'), borderRadius: 20, paddingVertical: 28, paddingHorizontal: 34, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={dc("#16201b", 'text')} />
+            <Text style={{ marginTop: 14, fontSize: 16, fontWeight: '700', color: dc('#16201b', 'text') }}>Deleting your account...</Text>
+            <Text style={{ marginTop: 4, fontSize: 13, color: dc('#6c7872', 'text') }}>This takes a few seconds.</Text>
           </View>
         </View>
       </Modal>
@@ -3149,9 +3150,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       {/* Shown while logging out */}
       <Modal visible={loggingOut} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 20, paddingVertical: 28, paddingHorizontal: 34, alignItems: 'center' }}>
-            <ActivityIndicator size="large" color="#16201b" />
-            <Text style={{ marginTop: 14, fontSize: 16, fontWeight: '700', color: '#16201b' }}>Logging you out...</Text>
+          <View style={{ backgroundColor: dc('#fff', 'bg'), borderRadius: 20, paddingVertical: 28, paddingHorizontal: 34, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={dc("#16201b", 'text')} />
+            <Text style={{ marginTop: 14, fontSize: 16, fontWeight: '700', color: dc('#16201b', 'text') }}>Logging you out...</Text>
           </View>
         </View>
       </Modal>
@@ -3197,7 +3198,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
               onLoggedOut?.();
               await supabase.auth.signOut().catch(() => {});
             }}>
-              <Text style={[styles.modalSecondaryBtnText, { color: '#ef4444' }]}>Log Out</Text>
+              <Text style={[styles.modalSecondaryBtnText, { color: dc('#ef4444', 'text') }]}>Log Out</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -3236,17 +3237,17 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         return (
           <Modal visible={showEndFastSummary} transparent animationType="slide">
             <View style={styles.modalOverlay}>
-              <View style={{ backgroundColor: '#fff', borderRadius: 24, width: '92%', maxWidth: 400, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 10 }}>
+              <View style={{ backgroundColor: dc('#fff', 'bg'), borderRadius: 24, width: '92%', maxWidth: 400, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 10 }}>
 
                 {/* Hero header */}
-                <View style={{ backgroundColor: '#F0FDF4', paddingTop: 28, paddingBottom: 24, paddingHorizontal: 24, alignItems: 'center' }}>
+                <View style={{ backgroundColor: dc('#F0FDF4', 'bg'), paddingTop: 28, paddingBottom: 24, paddingHorizontal: 24, alignItems: 'center' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                    <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="checkmark" size={11} color="#fff" />
+                    <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: dc('#059669', 'bg'), alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="checkmark" size={11} color={dc("#fff", 'text')} />
                     </View>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#059669', letterSpacing: 1 }}>FAST COMPLETE</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: dc('#059669', 'text'), letterSpacing: 1 }}>FAST COMPLETE</Text>
                   </View>
-                  <Text style={{ fontSize: 54, fontWeight: '800', color: '#059669', letterSpacing: -2, lineHeight: 62 }}>
+                  <Text style={{ fontSize: 54, fontWeight: '800', color: dc('#059669', 'text'), letterSpacing: -2, lineHeight: 62 }}>
                     {durationHrs > 0 ? `${durationHrs}h ` : ''}{durationMins}m
                   </Text>
                 </View>
@@ -3255,46 +3256,46 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
                   {/* Time cards */}
                   <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-                    <View style={{ flex: 1, backgroundColor: '#F9FAFB', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
+                    <View style={{ flex: 1, backgroundColor: dc('#F9FAFB', 'bg'), borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
                       <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(0,0,0,0.3)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 }}>Started</Text>
                       <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.38)', marginBottom: 3 }}>{startDateFmt}</Text>
-                      <Text style={{ fontSize: 19, fontWeight: '800', color: '#111' }}>{startFmt}</Text>
+                      <Text style={{ fontSize: 19, fontWeight: '800', color: dc('#111', 'text') }}>{startFmt}</Text>
                     </View>
 
                     <TouchableOpacity
                       onPress={() => setShowSummaryTimeEdit(true)}
                       activeOpacity={0.75}
-                      style={{ flex: 1, backgroundColor: '#F0FDF4', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(5,150,105,0.25)' }}
+                      style={{ flex: 1, backgroundColor: dc('#F0FDF4', 'bg'), borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(5,150,105,0.25)' }}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                         <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(5,150,105,0.55)', letterSpacing: 0.8, textTransform: 'uppercase' }}>Ended</Text>
-                        <View style={{ backgroundColor: '#059669', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                          <Text style={{ fontSize: 8, fontWeight: '800', color: '#fff', letterSpacing: 0.5 }}>EDIT</Text>
+                        <View style={{ backgroundColor: dc('#059669', 'bg'), borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                          <Text style={{ fontSize: 8, fontWeight: '800', color: dc('#fff', 'text'), letterSpacing: 0.5 }}>EDIT</Text>
                         </View>
                       </View>
                       <Text style={{ fontSize: 11, color: 'rgba(5,150,105,0.45)', marginBottom: 3 }}>{endDateFmt}</Text>
-                      <Text style={{ fontSize: 19, fontWeight: '800', color: '#059669' }}>{endFmt}</Text>
+                      <Text style={{ fontSize: 19, fontWeight: '800', color: dc('#059669', 'text') }}>{endFmt}</Text>
                     </TouchableOpacity>
                   </View>
 
                   {/* Stats strip */}
-                  <View style={{ flexDirection: 'row', backgroundColor: '#F9FAFB', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', marginBottom: 20, overflow: 'hidden' }}>
+                  <View style={{ flexDirection: 'row', backgroundColor: dc('#F9FAFB', 'bg'), borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', marginBottom: 20, overflow: 'hidden' }}>
                     <View style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 12, alignItems: 'center' }}>
                       <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(0,0,0,0.3)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Stage</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669', textAlign: 'center', lineHeight: 17 }}>{stage}</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: dc('#059669', 'text'), textAlign: 'center', lineHeight: 17 }}>{stage}</Text>
                     </View>
                     <View style={{ width: 1, backgroundColor: 'rgba(0,0,0,0.07)', marginVertical: 12 }} />
                     <View style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 12, alignItems: 'center' }}>
                       <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(0,0,0,0.3)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Fast count</Text>
-                      <Text style={{ fontSize: 22, fontWeight: '800', color: '#7C3AED' }}>{fastNumber}</Text>
+                      <Text style={{ fontSize: 22, fontWeight: '800', color: dc('#7C3AED', 'text') }}>{fastNumber}</Text>
                     </View>
                   </View>
 
                   <TouchableOpacity
-                    style={[styles.modalPrimaryBtn, { backgroundColor: '#059669', marginBottom: 0 }]}
+                    style={[styles.modalPrimaryBtn, { backgroundColor: dc('#059669', 'bg'), marginBottom: 0 }]}
                     onPress={() => confirmEndFast(true, summaryEndTs)}
                   >
-                    <Text style={[styles.modalPrimaryBtnText, { color: '#fff' }]}>Finish Fast</Text>
+                    <Text style={[styles.modalPrimaryBtnText, { color: dc('#fff', 'text') }]}>Finish Fast</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modalSecondaryBtn, { marginTop: 10 }]}
@@ -3485,10 +3486,10 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             end={{ x: 1, y: 1 }}
             style={[styles.toast, { borderColor: toastType === 'error' ? 'rgba(220,38,38,0.18)' : 'rgba(5,150,105,0.18)' }]}
           >
-            <View style={[styles.toastIconCircle, { backgroundColor: toastType === 'error' ? '#F43F5E' : '#10B981' }]}>
-              <Ionicons name={toastType === 'error' ? 'alert' : 'checkmark'} size={15} color="#fff" />
+            <View style={[styles.toastIconCircle, { backgroundColor: toastType === 'error' ? dc('#F43F5E', 'bg') : dc('#10B981', 'bg') }]}>
+              <Ionicons name={toastType === 'error' ? 'alert' : 'checkmark'} size={15} color={dc("#fff", 'text')} />
             </View>
-            <Text style={[styles.toastTitle, { color: toastType === 'error' ? '#881337' : '#064E3B' }]} numberOfLines={3}>{toastMessage}</Text>
+            <Text style={[styles.toastTitle, { color: toastType === 'error' ? dc('#881337', 'text') : dc('#064E3B', 'text') }]} numberOfLines={3}>{toastMessage}</Text>
           </LinearGradient>
         </Animated.View>
       )}
@@ -3496,7 +3497,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   container: {
     flex: 1,
     backgroundColor: '#FAFBFF',

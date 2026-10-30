@@ -12,6 +12,7 @@ import { coachGreeting } from '../lib/lumiVoice';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 import { useVoiceInput } from '../lib/useVoiceInput';
 import { aiHeaders } from '../lib/aiAuth';
+import { dc, themedStyles } from '../lib/theme';
 
 const INK = '#1F1F1F';
 const MUTED = '#6B7280';
@@ -59,7 +60,7 @@ function TypingDots() {
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingVertical: 6, gap: 5 }}>
       {dots.map((dot, i) => (
         <Animated.View key={i} style={{
-          width: 7, height: 7, borderRadius: 4, backgroundColor: '#059669',
+          width: 7, height: 7, borderRadius: 4, backgroundColor: dc('#059669', 'bg'),
           opacity: dot,
           transform: [{ scale: dot.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.1] }) }],
         }} />
@@ -317,10 +318,10 @@ const ChatScreen = ({
         {/* Header: its own row above the chat, so the chat scrolls beneath it instead of under the buttons */}
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.roundBtn} onPress={onClose} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={INK} />
+            <Ionicons name="chevron-back" size={22} color={dc(INK, 'text')} />
           </TouchableOpacity>
           <View style={styles.leftChip}>
-            <Ionicons name={isMeals ? 'leaf-outline' : 'sparkles-outline'} size={14} color="#047857" />
+            <Ionicons name={isMeals ? 'leaf-outline' : 'sparkles-outline'} size={14} color={dc("#047857", 'text')} />
             <Text style={styles.leftChipText}>{isMeals ? `${Math.round(caloriesLeft).toLocaleString()} cal left today` : 'Knows your data'}</Text>
           </View>
         </View>
@@ -339,7 +340,7 @@ const ChatScreen = ({
               <View style={styles.whenCard}>
                 {ASK_WHEN.map(([icon, title, sub], i) => (
                   <View key={title} style={[styles.whenRow, i < ASK_WHEN.length - 1 && styles.rowDivider]}>
-                    <View style={styles.whenIcon}><Ionicons name={icon} size={16} color={INK} /></View>
+                    <View style={styles.whenIcon}><Ionicons name={icon} size={16} color={dc(INK, 'text')} /></View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.whenTitle}>{title}</Text>
                       <Text style={styles.whenSub}>{sub}</Text>
@@ -349,7 +350,7 @@ const ChatScreen = ({
               </View>
               {hasConversation && (
                 <TouchableOpacity onPress={() => setStarted(true)} style={{ marginTop: 14 }} accessibilityRole="button">
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#047857' }}>Continue your chat ›</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: dc('#047857', 'text') }}>Continue your chat ›</Text>
                 </TouchableOpacity>
               )}
               {askRecents.length > 0 && (
@@ -367,8 +368,8 @@ const ChatScreen = ({
                           <Text style={[styles.whenTitle, { fontSize: 13 }]} numberOfLines={1}>{m.name}</Text>
                           <Text style={[styles.whenSub, { fontSize: 12 }]}>{Math.round(m.calories || 0).toLocaleString()} cal</Text>
                         </View>
-                        <Text style={{ fontSize: 12.5, color: MUTED }}>{whenLabel(m.logged_at)}</Text>
-                        <Ionicons name="chevron-forward" size={16} color="#C4C8CE" />
+                        <Text style={{ fontSize: 12.5, color: dc(MUTED, 'text') }}>{whenLabel(m.logged_at)}</Text>
+                        <Ionicons name="chevron-forward" size={16} color={dc("#C4C8CE", 'text')} />
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -385,18 +386,18 @@ const ChatScreen = ({
                 {msg.role === 'user' ? (
                   <View style={[styles.chatBubble, styles.chatBubbleUser]}>
                     {msg.photo ? <Image source={{ uri: msg.photo }} style={styles.bubblePhoto} /> : null}
-                    <Text style={[styles.chatBubbleText, { color: '#fff' }]}>{msg.content}</Text>
+                    <Text style={[styles.chatBubbleText, { color: dc('#fff', 'text') }]}>{msg.content}</Text>
                   </View>
                 ) : (
                   <View style={[styles.chatBubble, styles.chatBubbleAssistant]}>
-                    <FormattedText text={msg.content} bodyStyle={[styles.chatBubbleText, { color: INK }]} paragraphSpacing={10} />
+                    <FormattedText text={msg.content} bodyStyle={[styles.chatBubbleText, { color: dc(INK, 'text') }]} paragraphSpacing={10} />
                   </View>
                 )}
               </View>
               {isMeals && msg.role === 'assistant' && msg.loggableMeal && (
                 <TouchableOpacity activeOpacity={0.85} onPress={() => onLogMealFromChat && onLogMealFromChat(msg.loggableMeal)}>
-                  <LinearGradient colors={['#34D399', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.logMealPill}>
-                    <Ionicons name="checkmark" size={16} color="#fff" />
+                  <LinearGradient colors={[dc('#34D399', 'bg'), dc('#059669', 'bg')]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.logMealPill}>
+                    <Ionicons name="checkmark" size={16} color={dc("#fff", 'text')} />
                     <Text style={styles.logMealPillText}>Log this meal</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -416,7 +417,7 @@ const ChatScreen = ({
         {!started ? (
           <View style={styles.composerWrap}>
             <TouchableOpacity style={styles.newChatBtn} onPress={() => startChat()} activeOpacity={0.85} accessibilityRole="button">
-              <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
+              <Ionicons name="chatbubble-ellipses-outline" size={18} color={dc("#fff", 'text')} />
               <Text style={styles.newChatText}>New chat</Text>
             </TouchableOpacity>
           </View>
@@ -436,7 +437,7 @@ const ChatScreen = ({
               <View style={styles.photoChip}>
                 <Image source={{ uri: photo }} style={styles.photoThumb} />
                 <TouchableOpacity onPress={() => setPhoto(null)} style={styles.photoRemove} accessibilityLabel="Remove photo">
-                  <Ionicons name="close" size={12} color="#fff" />
+                  <Ionicons name="close" size={12} color={dc("#fff", 'text')} />
                 </TouchableOpacity>
               </View>
             )}
@@ -451,12 +452,12 @@ const ChatScreen = ({
             <View style={styles.slimRow}>
               {isMeals && (
                 <TouchableOpacity style={styles.composerBtnOutline} onPress={() => pickPhoto(false)} accessibilityLabel="Add a photo">
-                  <Ionicons name="add" size={20} color={INK} />
+                  <Ionicons name="add" size={20} color={dc(INK, 'text')} />
                 </TouchableOpacity>
               )}
               <TextInput
                 placeholder={isMeals ? 'What did you eat?' : 'Ask about your progress…'}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={dc("#9CA3AF", 'text')}
                 style={[styles.slimInput, { height: chatInput ? inputH : 36 }]}
                 onContentSizeChange={(e) => setInputH(Math.min(112, Math.max(36, Math.ceil(e.nativeEvent.contentSize.height))))}
                 scrollEnabled={inputH >= 112}
@@ -476,7 +477,7 @@ const ChatScreen = ({
                 disabled={voice === 'transcribing'}
                 accessibilityLabel={voice === 'listening' ? 'Stop recording' : 'Say it'}
               >
-                <Ionicons name={voice === 'listening' ? 'stop' : 'mic-outline'} size={voice === 'listening' ? 16 : 20} color={voice === 'listening' ? '#fff' : INK} />
+                <Ionicons name={voice === 'listening' ? 'stop' : 'mic-outline'} size={voice === 'listening' ? 16 : 20} color={voice === 'listening' ? dc('#fff', 'text') : dc(INK, 'text')} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.sendBtn, ((!chatInput.trim() && !photo) || isTyping || voice !== 'idle') && { opacity: 0.35 }]}
@@ -484,7 +485,7 @@ const ChatScreen = ({
                 disabled={(!chatInput.trim() && !photo) || isTyping || voice !== 'idle'}
                 accessibilityLabel="Send"
               >
-                <Ionicons name="arrow-up" size={18} color="#fff" />
+                <Ionicons name="arrow-up" size={18} color={dc("#fff", 'text')} />
               </TouchableOpacity>
             </View>
           </View>
@@ -495,7 +496,7 @@ const ChatScreen = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,

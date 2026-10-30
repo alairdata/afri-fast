@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, Animated, PanResponder, Image, Modal } from 'react-native';
-import { useTheme } from '../lib/theme';
+import { useTheme, dc, themedStyles } from '../lib/theme';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
 import { getConsent, loadConsent, onConsentChange } from '../lib/consent';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,13 +28,13 @@ export const ShimmerLogButton = ({ onPress, label = 'Log Meal', compact = false 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[shimmerStyles.touch, compact && shimmerStyles.touchCompact]} accessibilityRole="button" accessibilityLabel={label}>
       <LinearGradient
-        colors={['#34D399', '#059669']}
+        colors={[dc('#34D399', 'bg'), dc('#059669', 'bg')]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[shimmerStyles.btn, compact && shimmerStyles.btnCompact]}
         onLayout={(e) => setW(e.nativeEvent.layout.width)}
       >
-        <View style={[shimmerStyles.iconWrap, compact && shimmerStyles.iconWrapCompact]}><Ionicons name="add" size={compact ? 14 : 17} color="#fff" /></View>
+        <View style={[shimmerStyles.iconWrap, compact && shimmerStyles.iconWrapCompact]}><Ionicons name="add" size={compact ? 14 : 17} color={dc("#fff", 'text')} /></View>
         <Text style={[shimmerStyles.txt, compact && shimmerStyles.txtCompact]}>{label}</Text>
         <Animated.View pointerEvents="none" style={[shimmerStyles.sweep, { transform: [{ translateX }, { rotate: '18deg' }] }]}>
           <LinearGradient colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.45)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ flex: 1 }} />
@@ -44,7 +44,7 @@ export const ShimmerLogButton = ({ onPress, label = 'Log Meal', compact = false 
   );
 };
 
-const shimmerStyles = StyleSheet.create({
+const shimmerStyles = themedStyles({
   touch: {
     marginTop: 16, borderRadius: 16,
     shadowColor: '#059669', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 18, elevation: 8,
@@ -94,7 +94,7 @@ const SwipeableMealRow = ({ onDelete, itemStyle, baseBackground, children }) => 
     <View style={{ width: '100%', borderRadius: 12, overflow: 'hidden' }}>
       <View style={swipeStyles.deleteBackground}>
         <TouchableOpacity style={swipeStyles.deleteAction} onPress={() => { closeSwipe(); onDelete(); }}>
-          <Ionicons name="trash-outline" size={18} color="#fff" />
+          <Ionicons name="trash-outline" size={18} color={dc("#fff", 'text')} />
           <Text style={swipeStyles.deleteActionText}>Delete</Text>
         </TouchableOpacity>
       </View>
@@ -108,7 +108,7 @@ const SwipeableMealRow = ({ onDelete, itemStyle, baseBackground, children }) => 
   );
 };
 
-const swipeStyles = StyleSheet.create({
+const swipeStyles = themedStyles({
   deleteBackground: { position: 'absolute', top: 0, right: 0, bottom: 0, width: SWIPE_DELETE_WIDTH, backgroundColor: '#EF4444', alignItems: 'stretch', justifyContent: 'center' },
   deleteAction: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   deleteActionText: { color: '#fff', fontSize: 11, fontWeight: '600', marginTop: 2 },
@@ -210,7 +210,7 @@ export const DayMealsCard = ({ date, recentMeals, onViewMeal, onRequestDelete, o
                   onPress={() => onLogAgain && onLogAgain(m)}
                   accessibilityLabel={`Log ${name} again`}
                 >
-                  <Ionicons name="add-circle-outline" size={24} color="#16A34A" />
+                  <Ionicons name="add-circle-outline" size={24} color={dc("#16A34A", 'text')} />
                 </TouchableOpacity>
               </View>
             );
@@ -273,7 +273,7 @@ export const DayMealsCard = ({ date, recentMeals, onViewMeal, onRequestDelete, o
       )}
       <TouchableOpacity onPress={onOpenHistory} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={styles.mealHistoryLink}>
         <Text style={styles.mealHistoryLinkTxt}>Meal history</Text>
-        <Ionicons name="chevron-forward" size={14} color="#059669" />
+        <Ionicons name="chevron-forward" size={14} color={dc("#059669", 'text')} />
       </TouchableOpacity>
     </View>
   );
@@ -335,7 +335,7 @@ const MealPages = ({
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }} {...logFade.scrollProps}>
             <View style={styles.logMealPageHeader}>
               <TouchableOpacity onPress={() => setShowLogMealOptions(false)} accessibilityLabel="Back" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="chevron-back" size={24} color="#1F1F1F" />
+                <Ionicons name="chevron-back" size={24} color={dc("#1F1F1F", 'text')} />
               </TouchableOpacity>
             </View>
 
@@ -360,8 +360,8 @@ const MealPages = ({
                 meal through) side by side under it */}
             <TouchableOpacity style={styles.scanCard} onPress={() => handleLogMethod('scan')} activeOpacity={0.85} accessibilityLabel="Scan your food">
               <View style={styles.scanCardTop}>
-                <Ionicons name="camera-outline" size={24} color="#16A34A" />
-                <Ionicons name="arrow-forward" size={15} color="#16A34A" style={{ transform: [{ rotate: '-45deg' }] }} />
+                <Ionicons name="camera-outline" size={24} color={dc("#16A34A", 'text')} />
+                <Ionicons name="arrow-forward" size={15} color={dc("#16A34A", 'text')} style={{ transform: [{ rotate: '-45deg' }] }} />
               </View>
               <Text style={styles.scanCardTitle}>Scan your food</Text>
               <Text style={styles.scanCardDesc}>Take a photo and let Logga estimate your meal.</Text>
@@ -369,12 +369,12 @@ const MealPages = ({
 
             <View style={[styles.optionRow, { alignItems: 'stretch' }]}>
               <TouchableOpacity style={styles.optionCard} onPress={() => handleLogMethod('fit')} activeOpacity={0.85} accessibilityLabel="Fit it in, portions that fit your calories">
-                <Ionicons name="pie-chart-outline" size={22} color="#059669" />
+                <Ionicons name="pie-chart-outline" size={22} color={dc("#059669", 'text')} />
                 <Text style={styles.optionTitle}>Fit it in</Text>
                 <Text style={styles.optionDesc}>Portions that fit your calories</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.optionCard} onPress={() => { onShowChat && onShowChat(); }} activeOpacity={0.85} accessibilityLabel="Ask Logga">
-                <Ionicons name="chatbubble-outline" size={22} color="#9333EA" />
+                <Ionicons name="chatbubble-outline" size={22} color={dc("#9333EA", 'text')} />
                 <Text style={styles.optionTitle}>Ask Logga</Text>
                 <Text style={styles.optionDesc}>Chat to log or clarify a meal</Text>
               </TouchableOpacity>
@@ -387,14 +387,14 @@ const MealPages = ({
                 <Text style={[styles.manualTitle, { color: colors.text }]}>Enter it yourself</Text>
                 <Text style={styles.manualSub}>Type a food and its calories, no AI</Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#ccc" />
+              <Ionicons name="chevron-forward" size={16} color={dc("#ccc", 'text')} />
             </TouchableOpacity>
 
             {/* What people are saying: real reviews from Logga users, one at a time */}
             <Text style={styles.reviewKicker}>What people are saying</Text>
             <Animated.View style={[styles.reviewCard, { opacity: reviewFade }]}>
               <View style={{ flexDirection: 'row', gap: 2, marginBottom: 6 }}>
-                {[...Array(REVIEWS[reviewIndex].stars)].map((_, i) => <Ionicons key={i} name="star" size={12} color="#F59E0B" />)}
+                {[...Array(REVIEWS[reviewIndex].stars)].map((_, i) => <Ionicons key={i} name="star" size={12} color={dc("#F59E0B", 'text')} />)}
               </View>
               <Text style={styles.reviewText}>"{REVIEWS[reviewIndex].text}"</Text>
               <Text style={styles.reviewName}>— {REVIEWS[reviewIndex].name}</Text>
@@ -487,7 +487,7 @@ const MealPages = ({
         <View style={styles.deleteOverlay}>
           <View style={styles.deleteModal}>
             <View style={styles.deleteIconWrap}>
-              <Ionicons name="trash" size={28} color="#EF4444" />
+              <Ionicons name="trash" size={28} color={dc("#EF4444", 'text')} />
             </View>
             <Text style={styles.deleteTitle}>Delete this meal?</Text>
             <Text style={styles.deleteSubtitle}>This can't be undone. The meal will be removed from your log permanently.</Text>
@@ -511,75 +511,75 @@ const MealPages = ({
 };
 
 const makeStyles = (c) => StyleSheet.create({
-  logMealPage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#F2F2F2', zIndex: 9999 },
+  logMealPage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: dc('#F2F2F2', 'bg'), zIndex: 9999 },
   logMealPageHeader: { paddingTop: 20, paddingBottom: 16 },
-  logMealPageTitle: { fontSize: 26, fontWeight: '800', color: '#1F1F1F', marginBottom: 4 },
-  logMealPageSub: { fontSize: 14, color: '#9CA3AF', marginBottom: 16 },
+  logMealPageTitle: { fontSize: 26, fontWeight: '800', color: dc('#1F1F1F', 'text'), marginBottom: 4 },
+  logMealPageSub: { fontSize: 14, color: dc('#9CA3AF', 'text'), marginBottom: 16 },
   streakBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#FFF7ED', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16,
-    marginBottom: 24, borderWidth: 1, borderColor: '#FED7AA',
+    backgroundColor: dc('#FFF7ED', 'bg'), borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16,
+    marginBottom: 24, borderWidth: 1, borderColor: dc('#FED7AA', 'border'),
   },
   streakLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   streakFire: { fontSize: 28 },
-  streakNum: { fontSize: 16, fontWeight: '800', color: '#EA580C' },
-  streakLabel: { fontSize: 11, color: '#9A3412', fontWeight: '500', marginTop: 1 },
-  streakMotivation: { fontSize: 11, color: '#EA580C', fontWeight: '600', maxWidth: 90, textAlign: 'right' },
-  scanCard: { borderRadius: 16, paddingTop: 20, paddingHorizontal: 18, paddingBottom: 28, backgroundColor: '#E2E9E4' },
+  streakNum: { fontSize: 16, fontWeight: '800', color: dc('#EA580C', 'text') },
+  streakLabel: { fontSize: 11, color: dc('#9A3412', 'text'), fontWeight: '500', marginTop: 1 },
+  streakMotivation: { fontSize: 11, color: dc('#EA580C', 'text'), fontWeight: '600', maxWidth: 90, textAlign: 'right' },
+  scanCard: { borderRadius: 16, paddingTop: 20, paddingHorizontal: 18, paddingBottom: 28, backgroundColor: dc('#E2E9E4', 'bg') },
   scanCardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  scanCardTitle: { fontSize: 18, fontWeight: '600', color: '#1F1F1F', marginTop: 36 },
-  scanCardDesc: { fontSize: 13, color: '#4B5563', marginTop: 12 },
+  scanCardTitle: { fontSize: 18, fontWeight: '600', color: dc('#1F1F1F', 'text'), marginTop: 36 },
+  scanCardDesc: { fontSize: 13, color: dc('#4B5563', 'text'), marginTop: 12 },
   optionRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
   heroTile: { flex: 1, borderRadius: 20, padding: 16, gap: 10 },
   heroTileIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  heroTileTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  heroTileTitle: { fontSize: 15, fontWeight: '700', color: dc('#fff', 'text') },
   heroTileDesc: { fontSize: 12, lineHeight: 17, color: 'rgba(255,255,255,0.92)' },
-  optionCard: { flex: 1, borderRadius: 14, paddingTop: 18, paddingHorizontal: 14, paddingBottom: 22, backgroundColor: '#FCFCFC' },
-  optionTitle: { fontSize: 16, fontWeight: '600', color: '#1F1F1F', marginTop: 24 },
-  optionDesc: { fontSize: 12, lineHeight: 17, color: '#4B5563', marginTop: 6 },
+  optionCard: { flex: 1, borderRadius: 14, paddingTop: 18, paddingHorizontal: 14, paddingBottom: 22, backgroundColor: dc('#FCFCFC', 'bg') },
+  optionTitle: { fontSize: 16, fontWeight: '600', color: dc('#1F1F1F', 'text'), marginTop: 24 },
+  optionDesc: { fontSize: 12, lineHeight: 17, color: dc('#4B5563', 'text'), marginTop: 6 },
   // Scan across the top, as on the canvas: soft green, camera and ↗ arrow, title and line below
-  scanCard: { borderRadius: 16, paddingTop: 18, paddingHorizontal: 18, paddingBottom: 22, backgroundColor: '#E2E9E4' },
+  scanCard: { borderRadius: 16, paddingTop: 18, paddingHorizontal: 18, paddingBottom: 22, backgroundColor: dc('#E2E9E4', 'bg') },
   scanCardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  scanCardTitle: { fontSize: 18, fontWeight: '600', color: '#1F1F1F', marginTop: 28 },
-  scanCardDesc: { fontSize: 13, color: '#4B5563', marginTop: 8 },
-  manualRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#FCFCFC' },
+  scanCardTitle: { fontSize: 18, fontWeight: '600', color: dc('#1F1F1F', 'text'), marginTop: 28 },
+  scanCardDesc: { fontSize: 13, color: dc('#4B5563', 'text'), marginTop: 8 },
+  manualRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16, backgroundColor: dc('#FCFCFC', 'bg') },
   manualTitle: { fontSize: 15, fontWeight: '700' },
   manualSub: { fontSize: 12.5, color: c.textMuted, marginTop: 2 },
-  reviewKicker: { fontSize: 13, fontWeight: '600', color: '#BDBDBD', marginTop: 22, marginBottom: 10 },
-  reviewCard: { backgroundColor: '#FCFCFC', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16 },
-  reviewText: { fontSize: 13.5, lineHeight: 19, fontStyle: 'italic', color: '#1F1F1F' },
-  reviewName: { fontSize: 12, fontWeight: '600', color: '#9CA3AF', marginTop: 6 },
+  reviewKicker: { fontSize: 13, fontWeight: '600', color: dc('#BDBDBD', 'text'), marginTop: 22, marginBottom: 10 },
+  reviewCard: { backgroundColor: dc('#FCFCFC', 'bg'), borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16 },
+  reviewText: { fontSize: 13.5, lineHeight: 19, fontStyle: 'italic', color: dc('#1F1F1F', 'text') },
+  reviewName: { fontSize: 12, fontWeight: '600', color: dc('#9CA3AF', 'text'), marginTop: 6 },
 
   recentMealsSectionClean: {
     backgroundColor: c.card, borderRadius: 20, paddingTop: 14, paddingHorizontal: 16, paddingBottom: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2,
   },
   mealTabsWrap: { alignItems: 'center', marginBottom: 14 },
-  mealTabs: { flexDirection: 'row', gap: 2, padding: 4, borderRadius: 999, backgroundColor: c.cardAlt === '#F3F4F6' ? '#F1F5F3' : c.cardAlt },
+  mealTabs: { flexDirection: 'row', gap: 2, padding: 4, borderRadius: 999, backgroundColor: c.cardAlt === '#F3F4F6' ? dc('#F1F5F3', 'bg') : c.cardAlt },
   mealTab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999 },
   mealTabOn: { backgroundColor: c.card, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 1 },
-  mealTabTxt: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
-  mealTabTxtOn: { color: '#047857' },
+  mealTabTxt: { fontSize: 13, fontWeight: '600', color: dc('#6B7280', 'text') },
+  mealTabTxtOn: { color: dc('#047857', 'text') },
   usualRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   usualRowDivider: { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' },
   usualName: { fontSize: 15, fontWeight: '600', color: c.text },
-  usualSub: { fontSize: 12, color: '#6B7280' },
+  usualSub: { fontSize: 12, color: dc('#6B7280', 'text') },
   usualAddBtn: { width: 44, height: 44, marginRight: -10, alignItems: 'center', justifyContent: 'center' },
   mealHistoryLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', gap: 2, marginTop: 10, paddingVertical: 6, paddingHorizontal: 8 },
-  mealHistoryLinkTxt: { fontSize: 13, fontWeight: '600', color: '#059669' },
+  mealHistoryLinkTxt: { fontSize: 13, fontWeight: '600', color: dc('#059669', 'text') },
   recentMealsListClean: { gap: 8 },
   recentMealItemClean: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, backgroundColor: 'rgba(5, 150, 105, 0.04)', borderRadius: 12 },
   recentMealLeftClean: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 },
-  recentMealIconClean: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' },
+  recentMealIconClean: { width: 44, height: 44, borderRadius: 10, backgroundColor: dc('#059669', 'bg'), alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' },
   recentMealIconPlain: { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border },
   recentMealPhoto: { width: 44, height: 44, borderRadius: 10 },
   recentMealInfoClean: { gap: 3, flex: 1, minHeight: 44, justifyContent: 'center' },
   recentMealNameClean: { fontSize: 13, fontWeight: '600', color: c.text },
   recentMealMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   recentMealTimeClean: { fontSize: 10, color: c.textMuted },
-  recentMealMoreTag: { backgroundColor: '#ECFDF5', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
-  recentMealMoreText: { fontSize: 9, fontWeight: '600', color: '#059669' },
-  recentMealCaloriesClean: { fontSize: 13, fontWeight: '600', color: '#059669' },
+  recentMealMoreTag: { backgroundColor: dc('#ECFDF5', 'bg'), borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
+  recentMealMoreText: { fontSize: 9, fontWeight: '600', color: dc('#059669', 'text') },
+  recentMealCaloriesClean: { fontSize: 13, fontWeight: '600', color: dc('#059669', 'text') },
 
   historyPage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: c.bg, zIndex: 9999 },
   historyTopBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 16, paddingBottom: 12, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
@@ -601,12 +601,12 @@ const makeStyles = (c) => StyleSheet.create({
 
   deleteOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 },
   deleteModal: { backgroundColor: c.card, borderRadius: 20, padding: 28, width: '100%', alignItems: 'center' },
-  deleteIconWrap: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  deleteIconWrap: { width: 56, height: 56, borderRadius: 28, backgroundColor: dc('#FEF2F2', 'bg'), alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   deleteTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 8 },
   deleteSubtitle: { fontSize: 14, color: c.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  deleteConfirmBtn: { width: '100%', backgroundColor: '#EF4444', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
-  deleteConfirmText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  deleteCancelBtn: { width: '100%', borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  deleteConfirmBtn: { width: '100%', backgroundColor: dc('#EF4444', 'bg'), borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
+  deleteConfirmText: { color: dc('#fff', 'text'), fontSize: 15, fontWeight: '700' },
+  deleteCancelBtn: { width: '100%', borderWidth: 1.5, borderColor: dc('#E5E7EB', 'border'), borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   deleteCancelText: { color: c.text, fontSize: 15, fontWeight: '600' },
 });
 
