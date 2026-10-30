@@ -1161,7 +1161,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     </View>
                   ) : (
                     <>
-                      <View style={styles.detectLumi}><LumiRive name="eating" width={120} height={120} /></View>
                       <View style={styles.detectLabelRow}>
                         <Text style={styles.detectLabel}>{SCAN_MESSAGES[scanMsgIndex]}</Text>
                         <Text style={styles.detectPct}>{Math.round(scanProgress)}%</Text>
