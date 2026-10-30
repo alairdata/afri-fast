@@ -33,6 +33,14 @@ export default async function handler(req, res) {
     const exists = Array.isArray(rows) && rows.length > 0;
     if (!req.body?.sendLoginCode || !exists) return res.status(200).json({ exists });
 
+    // The admin portal (logga.space/admin) asks with adminOnly: a code goes only to emails on the admin list, and
+    // the answer is the same either way, so the portal can't be used to email codes to users or to probe the list.
+    if (req.body?.adminOnly) {
+      const a = await fetch(`${SUPABASE_URL}/rest/v1/admin_emails?select=email`, { headers: adminHeaders() });
+      const admins = a.ok ? await a.json() : [];
+      if (!admins.some((x) => String(x.email).toLowerCase() === email)) return res.status(200).json({ sent: true });
+    }
+
     if (!configured()) return res.status(500).json({ error: 'Email is not set up yet. Please try again later.' });
     if (!rateLimit(`login-code:${email}`, 5, 60 * 60 * 1000)) {
       return res.status(429).json({ error: 'Too many codes asked for. Please try again later.' });
