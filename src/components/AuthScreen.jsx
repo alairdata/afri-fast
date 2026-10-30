@@ -471,7 +471,7 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
   // Step 2: the code from the email logs them in; the app moves on by itself once there's a session.
   const handleVerifyCode = async (entered) => {
     const token = String(entered || '').replace(/\D/g, '');
-    if (token.length !== 6 || loading) return;
+    if (token.length < 6 || token.length > 8 || loading) return; // Supabase's code length is set in its Auth settings (6 to 8)
     setLoading(true); setError(''); setMessage('');
     const { error: otpError } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token, type: 'email' });
     setLoading(false);
@@ -912,23 +912,23 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
         ) : (
           <>
             <Text style={lg.h1}>Check your email</Text>
-            <Text style={lg.sub}>Enter the 6-digit code we sent to <Text style={{ color: '#16201b', fontWeight: '700' }}>{email.trim().toLowerCase()}</Text>. Can't find it? Check your spam folder.</Text>
+            <Text style={lg.sub}>Enter the code we sent to <Text style={{ color: '#16201b', fontWeight: '700' }}>{email.trim().toLowerCase()}</Text>. Can't find it? Check your spam folder.</Text>
             <View style={lg.field}>
               <TextInput
                 style={[lg.fieldInput, lg.codeInput]}
-                placeholder="000000"
+                placeholder="Code"
                 placeholderTextColor="#C9D0CC"
                 value={code}
                 onChangeText={(v) => {
-                  const digits = v.replace(/\D/g, '').slice(0, 6);
+                  const digits = v.replace(/\D/g, '').slice(0, 8);
                   setCode(digits); setError('');
-                  if (digits.length === 6) handleVerifyCode(digits);
+                  if (digits.length === 8) handleVerifyCode(digits); // a 6-digit code: tap Log in
                 }}
                 autoFocus
                 keyboardType="number-pad"
                 textContentType="oneTimeCode"
                 autoComplete="one-time-code"
-                maxLength={6}
+                maxLength={8}
                 accessibilityLabel="Login code"
               />
             </View>
@@ -946,8 +946,8 @@ export default function AuthScreen({ preAuthData, onSavePreAuthData }) {
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={[lg.primaryTxt, !emailValid && { color: '#A3ACA7' }]}>Send my code</Text>}
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={[lg.primary, codeDigits.length !== 6 && lg.primaryOff]} onPress={() => handleVerifyCode(codeDigits)} disabled={codeDigits.length !== 6 || loading} activeOpacity={0.85}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={[lg.primaryTxt, codeDigits.length !== 6 && { color: '#A3ACA7' }]}>Log in</Text>}
+          <TouchableOpacity style={[lg.primary, codeDigits.length < 6 && lg.primaryOff]} onPress={() => handleVerifyCode(codeDigits)} disabled={codeDigits.length < 6 || loading} activeOpacity={0.85}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={[lg.primaryTxt, codeDigits.length < 6 && { color: '#A3ACA7' }]}>Log in</Text>}
           </TouchableOpacity>
         )}
       </View>
