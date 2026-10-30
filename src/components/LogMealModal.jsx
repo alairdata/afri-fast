@@ -526,7 +526,8 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
         time: timeStr,
         date: mealDate.toDateString(),
         photo: null,
-        method: 'chat',
+        // where the meal came from: 'chat' (Ask Logga), or 'fit' / 'kitchen' when Fit it in or the kitchen sent it here
+        method: meal.source || 'chat',
         items: foods.map(f => `${f.name} (${f.qty})`),
         foods,
       });

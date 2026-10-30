@@ -2878,7 +2878,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           if (!canLogMealOn(selectedMealDate)) return;
           setShowKitchen(false);
           setActiveTab('today');
-          setChatMealToLog(meal);
+          setChatMealToLog({ ...meal, source: 'kitchen' });
           setLogMealMethod('chat');
           setLogMealOpenedFromOptions(false);
           setShowLogMealModal(true);
@@ -2897,7 +2897,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         onLogPlate={(meal) => {
           if (!canLogMealOn(selectedMealDate)) return;
           setShowPortionPlanner(false);
-          setChatMealToLog(meal);
+          setChatMealToLog({ ...meal, source: 'fit' });
           setLogMealMethod('chat');
           setLogMealOpenedFromOptions(false);
           setShowLogMealModal(true);
