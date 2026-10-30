@@ -325,24 +325,25 @@ const MealPages = ({
 
             {/* Scan across the top; Fit it in (portions of food you have that fit your calories) and Ask Logga (talk a
                 meal through) side by side under it */}
-            <TouchableOpacity onPress={() => handleLogMethod('scan')} activeOpacity={0.85} accessibilityLabel="Scan your food" style={{ marginBottom: 12 }}>
-              <LinearGradient colors={['#34D399', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroTile}>
-                <View style={[styles.heroTileIcon, { backgroundColor: 'rgba(255,255,255,0.22)' }]}><Ionicons name="camera-outline" size={20} color="#fff" /></View>
-                <Text style={styles.heroTileTitle}>Scan your food</Text>
-                <Text style={styles.heroTileDesc}>Snap it and Logga estimates it</Text>
-              </LinearGradient>
+            <TouchableOpacity style={styles.scanCard} onPress={() => handleLogMethod('scan')} activeOpacity={0.85} accessibilityLabel="Scan your food">
+              <View style={styles.scanCardTop}>
+                <Ionicons name="camera-outline" size={24} color="#16A34A" />
+                <Ionicons name="arrow-forward" size={15} color="#16A34A" style={{ transform: [{ rotate: '-45deg' }] }} />
+              </View>
+              <Text style={styles.scanCardTitle}>Scan your food</Text>
+              <Text style={styles.scanCardDesc}>Take a photo and let Logga estimate your meal.</Text>
             </TouchableOpacity>
 
             <View style={[styles.optionRow, { alignItems: 'stretch' }]}>
-              <TouchableOpacity style={[styles.heroTile, { flex: 1, backgroundColor: '#064E3B' }]} onPress={() => handleLogMethod('fit')} activeOpacity={0.85} accessibilityLabel="Fit it in, get portions that fit your calories">
-                <View style={[styles.heroTileIcon, { backgroundColor: 'rgba(255,255,255,0.14)' }]}><Ionicons name="pie-chart-outline" size={20} color="#fff" /></View>
-                <Text style={styles.heroTileTitle}>Fit it in</Text>
-                <Text style={[styles.heroTileDesc, { color: 'rgba(255,255,255,0.85)' }]}>Get portions that fit your calories</Text>
+              <TouchableOpacity style={styles.optionCard} onPress={() => handleLogMethod('fit')} activeOpacity={0.85} accessibilityLabel="Fit it in, portions that fit your calories">
+                <Ionicons name="pie-chart-outline" size={22} color="#059669" />
+                <Text style={styles.optionTitle}>Fit it in</Text>
+                <Text style={styles.optionDesc}>Portions that fit your calories</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.optionCard} onPress={() => { onShowChat && onShowChat(); }} activeOpacity={0.85} accessibilityLabel="Ask Logga">
-                <View style={[styles.heroTileIcon, { backgroundColor: "#F3E8FF" }]}><Ionicons name="chatbubble-outline" size={20} color="#9333EA" /></View>
+                <Ionicons name="chatbubble-outline" size={22} color="#9333EA" />
                 <Text style={styles.optionTitle}>Ask Logga</Text>
-                <Text style={styles.optionDesc}>Not sure what you ate? Talk it through</Text>
+                <Text style={styles.optionDesc}>Chat to log or clarify a meal</Text>
               </TouchableOpacity>
             </View>
 
@@ -492,7 +493,12 @@ const makeStyles = (c) => StyleSheet.create({
   heroTileDesc: { fontSize: 12, lineHeight: 17, color: 'rgba(255,255,255,0.92)' },
   optionCard: { flex: 1, borderRadius: 14, paddingTop: 18, paddingHorizontal: 14, paddingBottom: 22, backgroundColor: '#FCFCFC' },
   optionTitle: { fontSize: 16, fontWeight: '600', color: '#1F1F1F', marginTop: 24 },
-  optionDesc: { fontSize: 12, color: '#4B5563', marginTop: 10 },
+  optionDesc: { fontSize: 12, lineHeight: 17, color: '#4B5563', marginTop: 6 },
+  // Scan across the top, as on the canvas: soft green, camera and ↗ arrow, title and line below
+  scanCard: { borderRadius: 16, paddingTop: 18, paddingHorizontal: 18, paddingBottom: 22, backgroundColor: '#E2E9E4' },
+  scanCardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  scanCardTitle: { fontSize: 18, fontWeight: '600', color: '#1F1F1F', marginTop: 28 },
+  scanCardDesc: { fontSize: 13, color: '#4B5563', marginTop: 8 },
   manualRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#FCFCFC' },
   manualTitle: { fontSize: 15, fontWeight: '700' },
   manualSub: { fontSize: 12.5, color: c.textMuted, marginTop: 2 },
