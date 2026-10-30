@@ -346,15 +346,14 @@ const ChatScreen = ({
                   </View>
                 ))}
               </View>
-              <Text style={styles.chatDisclaimer}>Calories here are AI estimates.</Text>
               {hasConversation && (
-                <TouchableOpacity onPress={() => setStarted(true)} style={{ marginTop: -10, marginBottom: 18 }} accessibilityRole="button">
+                <TouchableOpacity onPress={() => setStarted(true)} style={{ marginTop: 14 }} accessibilityRole="button">
                   <Text style={{ fontSize: 14, fontWeight: '700', color: '#047857' }}>Continue your chat ›</Text>
                 </TouchableOpacity>
               )}
               {askRecents.length > 0 && (
                 <>
-                  <Text style={[styles.kicker, { marginTop: 0 }]}>RECENTS</Text>
+                  <Text style={[styles.kicker, { marginTop: 24 }]}>RECENTS</Text>
                   <View style={styles.whenCard}>
                     {askRecents.map((m, i) => (
                       <TouchableOpacity
