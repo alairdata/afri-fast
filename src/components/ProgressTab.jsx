@@ -1851,15 +1851,15 @@ const ProgressTab = ({
                   <Text style={styles.mutedBody}>Log a couple of weigh-ins to see your trend here.</Text>
                 )}
                 <View style={[styles.weightStatsCompact, { marginTop: 12 }]}>
-                  <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(99, 102, 241, 0.08)' }]}>
+                  <View style={[styles.weightStatCompact, { backgroundColor: dc('rgba(99, 102, 241, 0.08)', 'bg') }]}>
                     <Text style={[styles.weightStatValueCompact, { color: dc('#4F46E5', 'text') }]}>{chart && chart.weekOnly ? `${chart.todayVal.toFixed(1)} ${weightUnit}` : '--'}</Text>
                     <Text style={styles.weightStatLabelCompact}>Today's prediction</Text>
                   </View>
-                  <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(16, 185, 129, 0.08)' }]}>
+                  <View style={[styles.weightStatCompact, { backgroundColor: dc('rgba(16, 185, 129, 0.08)', 'bg') }]}>
                     <Text style={[styles.weightStatValueCompact, { color: dc('#10B981', 'text') }]}>{weightData.hasLoggedWeight && weightData.uniqueWeights.length >= 2 ? weightData.weightChange : '--'}</Text>
                     <Text style={styles.weightStatLabelCompact}>This period</Text>
                   </View>
-                  <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(5, 150, 105, 0.08)' }]}>
+                  <View style={[styles.weightStatCompact, { backgroundColor: dc('rgba(5, 150, 105, 0.08)', 'bg') }]}>
                     <Text style={[styles.weightStatValueCompact, { color: dc('#059669', 'text') }]}>{monthWeightChange == null ? '--' : `${monthWeightChange >= 0 ? '+' : ''}${monthWeightChange} kg`}</Text>
                     <Text style={styles.weightStatLabelCompact}>This month</Text>
                   </View>
@@ -2308,8 +2308,8 @@ const makeStyles = (c) => StyleSheet.create({
   rangeDropdownBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingVertical: 6, paddingHorizontal: 12,
-    backgroundColor: 'rgba(5,150,105,0.08)',
-    borderWidth: 1, borderColor: 'rgba(5,150,105,0.15)',
+    backgroundColor: dc('rgba(5,150,105,0.08)', 'bg'),
+    borderWidth: 1, borderColor: dc('rgba(5,150,105,0.15)', 'border'),
     borderRadius: 8,
   },
   rangeDropdownBtnText: { color: dc('#059669', 'text'), fontSize: 12, fontWeight: '600' },
@@ -2318,11 +2318,11 @@ const makeStyles = (c) => StyleSheet.create({
     backgroundColor: c.card, borderRadius: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15, shadowRadius: 24, elevation: 10,
-    borderWidth: 1, borderColor: 'rgba(5,150,105,0.1)',
+    borderWidth: 1, borderColor: dc('rgba(5,150,105,0.1)', 'border'),
     minWidth: 120,
   },
   rangeDropdownItem: { paddingVertical: 10, paddingHorizontal: 16 },
-  rangeDropdownItemActive: { backgroundColor: 'rgba(5,150,105,0.08)' },
+  rangeDropdownItemActive: { backgroundColor: dc('rgba(5,150,105,0.08)', 'bg') },
   rangeDropdownItemText: { fontSize: 13, color: c.textSecondary },
   rangeDropdownItemTextActive: { color: dc('#059669', 'text'), fontWeight: '700' },
 
@@ -2330,7 +2330,7 @@ const makeStyles = (c) => StyleSheet.create({
   activityCheckInRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: c.cardAlt, borderRadius: 14, padding: 12,
-    borderWidth: 1, borderColor: 'rgba(249,115,22,0.15)', marginBottom: 14,
+    borderWidth: 1, borderColor: dc('rgba(249,115,22,0.15)', 'border'), marginBottom: 14,
   },
   activityCheckInText: { fontSize: 13.5, color: c.text, fontWeight: '600' },
   activityCheckInAddBtn: {
@@ -2346,7 +2346,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   activityIconWrap: {
     width: 32, height: 32, borderRadius: 10,
-    backgroundColor: 'rgba(249,115,22,0.1)', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: dc('rgba(249,115,22,0.1)', 'bg'), alignItems: 'center', justifyContent: 'center',
   },
   activityName: { fontSize: 13, fontWeight: '700', color: c.text },
   activityMeta: { fontSize: 11.5, color: c.textMuted, marginTop: 1 },
@@ -2381,13 +2381,13 @@ const makeStyles = (c) => StyleSheet.create({
   },
   healthOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   cardTitle15: { fontSize: 15, fontWeight: '700', color: c.text },
-  greyPill: { borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9, backgroundColor: 'rgba(0,0,0,0.06)' },
+  greyPill: { borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9, backgroundColor: dc('rgba(0,0,0,0.06)', 'bg') },
   greyPillText: { fontSize: 12, fontWeight: '600', color: c.text },
   battery: { flex: 1, height: 56, padding: 4, borderWidth: 2, borderRadius: 8, flexDirection: 'row', gap: 3 },
   batteryCell: { flex: 1, borderRadius: 3 },
   batteryCap: { width: 5, height: 20, borderTopRightRadius: 3, borderBottomRightRadius: 3 },
   momentumLine: { fontSize: 14, fontWeight: '600', color: c.text },
-  statCardBig: { marginHorizontal: 16, marginTop: 12, paddingTop: 16, paddingHorizontal: 16, paddingBottom: 14, backgroundColor: c.card, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
+  statCardBig: { marginHorizontal: 16, marginTop: 12, paddingTop: 16, paddingHorizontal: 16, paddingBottom: 14, backgroundColor: c.card, borderRadius: 18, borderWidth: 1, borderColor: dc('rgba(0,0,0,0.04)', 'border') },
   statCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   statCardTitle: { fontSize: 18, fontWeight: '700', color: c.text },
   statCardBody: { flexDirection: 'row', alignItems: 'center', gap: 16 },
@@ -2439,7 +2439,7 @@ const makeStyles = (c) => StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.08)',
+    borderColor: dc('rgba(5, 150, 105, 0.08)', 'border'),
   },
   chartTooltip: {
     position: 'absolute',
@@ -2517,7 +2517,7 @@ const makeStyles = (c) => StyleSheet.create({
   bmiCategoryBadge: {
     paddingVertical: 4,
     paddingHorizontal: 10,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: dc('rgba(16, 185, 129, 0.1)', 'bg'),
     borderRadius: 6,
   },
   bmiCategory: {
@@ -2591,7 +2591,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   weightStatCompact: {
     flex: 1,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    backgroundColor: dc('rgba(16, 185, 129, 0.08)', 'bg'),
     borderRadius: 10,
     padding: 10,
     alignItems: 'center',
@@ -2626,7 +2626,7 @@ const makeStyles = (c) => StyleSheet.create({
   weightActionLinkCompact: {
     flex: 1,
     paddingVertical: 8,
-    backgroundColor: 'rgba(5, 150, 105, 0.08)',
+    backgroundColor: dc('rgba(5, 150, 105, 0.08)', 'bg'),
     borderRadius: 8,
     alignItems: 'center',
   },
@@ -2639,7 +2639,7 @@ const makeStyles = (c) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(5, 150, 105, 0.04)',
+    backgroundColor: dc('rgba(5, 150, 105, 0.04)', 'bg'),
     borderRadius: 10,
     padding: 10,
     marginTop: 10,
@@ -2660,7 +2660,7 @@ const makeStyles = (c) => StyleSheet.create({
   calorieStatDivider: {
     width: 1,
     height: 28,
-    backgroundColor: 'rgba(5, 150, 105, 0.15)',
+    backgroundColor: dc('rgba(5, 150, 105, 0.15)', 'bg'),
   },
 });
 

@@ -215,7 +215,7 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
                         <Stop offset="100%" stopColor={dc("#FB923C", 'bg')} />
                       </LinearGradient>
                     </Defs>
-                    <Circle cx="90" cy="90" r={RING_R} stroke="rgba(249,115,22,0.12)" strokeWidth="8" fill="none" />
+                    <Circle cx="90" cy="90" r={RING_R} stroke={dc("rgba(249,115,22,0.12)", 'border')} strokeWidth="8" fill="none" />
                     <Circle
                       cx="90" cy="90" r={RING_R}
                       stroke="url(#stepsGrad)"
@@ -362,7 +362,7 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
                 return (
                   <View key={`${log.date}-${index}`} style={styles.logItem}>
                     <View style={styles.logLeft}>
-                      <View style={[styles.logDateBadge, { backgroundColor: goalMet ? 'rgba(249,115,22,0.1)' : 'rgba(0,0,0,0.04)' }]}>
+                      <View style={[styles.logDateBadge, { backgroundColor: goalMet ? dc('rgba(249,115,22,0.1)', 'bg') : dc('rgba(0,0,0,0.04)', 'bg') }]}>
                         <Text style={[styles.logDateDay, { color: accent }]}>{dayNum}</Text>
                         <Text style={[styles.logDateMonth, { color: accent }]}>{monthAbbr}</Text>
                       </View>
@@ -370,7 +370,7 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
                     </View>
                     <View style={styles.logRight}>
                       <Text style={styles.logDayName}>{dayAbbr}</Text>
-                      <View style={[styles.logBadge, { backgroundColor: goalMet ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)' }]}>
+                      <View style={[styles.logBadge, { backgroundColor: goalMet ? dc('rgba(16,185,129,0.1)', 'bg') : dc('rgba(245,158,11,0.1)', 'bg') }]}>
                         <Text style={{ color: goalMet ? dc('#10B981', 'text') : dc('#F59E0B', 'text'), fontSize: 10, fontWeight: '600' }}>
                           {goalMet ? '✓ Goal' : `${Math.round((log.steps / stepGoal) * 100)}%`}
                         </Text>

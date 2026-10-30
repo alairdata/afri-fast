@@ -811,7 +811,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
               })}
             </View>
           )}
-          <View style={[styles.bottomCta, { backgroundColor: 'rgba(255,255,255,0.96)' }]}>
+          <View style={[styles.bottomCta, { backgroundColor: dc('rgba(255,255,255,0.96)', 'bg') }]}>
             {error ? (
               <>
                 <TouchableOpacity style={styles.primaryBtn} onPress={run}><Text style={styles.primaryBtnText}>Try again</Text></TouchableOpacity>

@@ -1799,7 +1799,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     {(() => {
                       const over = cardDayTotal > cardGoal;
                       return (
-                        <View style={[styles.shareCardTrackBadge, over && { backgroundColor: 'rgba(249,115,22,0.2)', borderColor: 'rgba(249,115,22,0.35)' }]}>
+                        <View style={[styles.shareCardTrackBadge, over && { backgroundColor: dc('rgba(249,115,22,0.2)', 'bg'), borderColor: dc('rgba(249,115,22,0.35)', 'border') }]}>
                           <Text style={[styles.shareCardTrackText, over && { color: dc('#f97316', 'text') }]}>
                             {over ? 'Over Goal ✕' : 'On Track ✓'}
                           </Text>
@@ -1878,7 +1878,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                       <Text style={styles.shareCardFoodCal}>{food.cal} cal</Text>
                     </View>
                   ))}
-                  <View style={[styles.shareCardFoodRow, { justifyContent: 'space-between', borderTopColor: 'rgba(0,0,0,0.08)' }]}>
+                  <View style={[styles.shareCardFoodRow, { justifyContent: 'space-between', borderTopColor: dc('rgba(0,0,0,0.08)', 'border') }]}>
                     <Text style={styles.shareCardFoodsTotalLabel}>Total detected food calories</Text>
                     <Text style={styles.shareCardFoodsTotalValue}>{detectedFoods.reduce((s, f) => s + (f.cal || 0), 0).toLocaleString()} cal</Text>
                   </View>
@@ -2362,7 +2362,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
             <Text style={styles.sharePromptSub}>Choose what shows up on the card</Text>
 
             <TouchableOpacity style={styles.sharePromptOption} activeOpacity={0.6} onPress={() => handleShareChoice(false)}>
-              <View style={[styles.sharePromptIcon, { backgroundColor: 'rgba(5,150,105,0.1)' }]}>
+              <View style={[styles.sharePromptIcon, { backgroundColor: dc('rgba(5,150,105,0.1)', 'bg') }]}>
                 <Ionicons name="fast-food-outline" size={20} color={dc("#059669", 'text')} />
               </View>
               <View style={styles.sharePromptOptionText}>
@@ -2373,7 +2373,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.sharePromptOption} activeOpacity={0.6} onPress={() => handleShareChoice(true)}>
-              <View style={[styles.sharePromptIcon, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
+              <View style={[styles.sharePromptIcon, { backgroundColor: dc('rgba(59,130,246,0.1)', 'bg') }]}>
                 <Ionicons name="list-outline" size={20} color={dc("#3B82F6", 'text')} />
               </View>
               <View style={styles.sharePromptOptionText}>

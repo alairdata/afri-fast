@@ -98,11 +98,23 @@ const KEY_KIND = (key) => {
   return null;
 };
 
+// See-through light colours (rgba with near-white red, green and blue) as backgrounds or borders: the same
+// see-through-ness over the dark page or card colour. White ones become the card colour, off-whites the page colour.
+const darkRgba = (c, kind) => {
+  if (kind === 'text') return null;
+  const m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/i.exec(c);
+  if (!m) return null;
+  const [r, g, b] = [m[1], m[2], m[3]].map(Number);
+  if (Math.min(r, g, b) < 225) return null;
+  const a = m[4] != null ? m[4] : '1';
+  return r === 255 && g === 255 && b === 255 ? `rgba(31,41,55,${a})` : `rgba(17,24,39,${a})`;
+};
+const mapColor = (c, kind) => DARK_MAP[kind]?.[norm(c)] || darkRgba(String(c).trim(), kind) || c;
+
 /** One colour for the current theme: dc('#FFFFFF', 'bg'). In light mode it's returned unchanged. */
 export function dc(color, kind = 'bg') {
   if (!currentDark || typeof color !== 'string') return color;
-  const mapped = DARK_MAP[kind]?.[norm(color)];
-  return mapped || color;
+  return mapColor(color, kind);
 }
 
 // A style object for dark mode: every colour swapped by what its property is for.
@@ -113,7 +125,7 @@ function darkenStyle(style) {
   Object.keys(style).forEach((k) => {
     const v = style[k];
     const kind = KEY_KIND(k);
-    if (kind && typeof v === 'string') out[k] = DARK_MAP[kind]?.[norm(v)] || v;
+    if (kind && typeof v === 'string') out[k] = mapColor(v, kind);
     else if (v && typeof v === 'object') out[k] = darkenStyle(v);
     else out[k] = v;
   });

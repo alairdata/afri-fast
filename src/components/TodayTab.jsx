@@ -343,7 +343,7 @@ const LockedJfyCard = ({ palette, label, onPress, width }) => (
         ))}
       </View>
       <View style={jfyStyles.footer}>
-        <View style={[jfyStyles.btn, { borderColor: palette.chip, backgroundColor: 'rgba(255,255,255,0.55)', flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+        <View style={[jfyStyles.btn, { borderColor: palette.chip, backgroundColor: dc('rgba(255,255,255,0.55)', 'bg'), flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
           <Ionicons name="lock-closed" size={11} color={palette.ink} />
           <Text style={[jfyStyles.btnTxt, { color: palette.ink }]}>See more</Text>
         </View>
@@ -1360,7 +1360,7 @@ const makeStyles = (c) => StyleSheet.create({
   greetBellDot: { position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: dc('#EF4444', 'bg'), borderWidth: 1.5, borderColor: dc('#fff', 'border') },
   weekStrip: {
     marginTop: 16, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 24, flexDirection: 'row', justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.75)', borderWidth: 1, borderColor: 'rgba(5,150,105,0.08)',
+    backgroundColor: dc('rgba(255,255,255,0.75)', 'bg'), borderWidth: 1, borderColor: dc('rgba(5,150,105,0.08)', 'border'),
   },
   weekDay: { width: 42, paddingTop: 9, paddingBottom: 6, borderRadius: 22, backgroundColor: dc('#F1F6F3', 'bg'), alignItems: 'center', gap: 7 },
   weekDaySelected: { backgroundColor: dc('#059669', 'bg'), shadowColor: '#059669', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 14, elevation: 4 },
@@ -1370,12 +1370,12 @@ const makeStyles = (c) => StyleSheet.create({
     width: 30, height: 30, borderRadius: 15, backgroundColor: dc('#fff', 'bg'), alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1,
   },
-  weekDayNumSelected: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)' },
+  weekDayNumSelected: { borderWidth: 2, borderColor: dc('rgba(255,255,255,0.5)', 'border') },
   weekDayNumText: { fontSize: 13, fontWeight: '700', color: dc('#1F1F1F', 'text') },
   gaugeCenter: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' },
   gaugeNumber: { fontSize: 36, fontWeight: '700', color: c.text, letterSpacing: -1, lineHeight: 40, marginTop: 2 },
   gaugeLabel: { fontSize: 14, color: c.textSecondary, marginTop: 2 },
-  activityCard: { marginTop: 16, marginHorizontal: 20, padding: 14, backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  activityCard: { marginTop: 16, marginHorizontal: 20, padding: 14, backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: dc('rgba(0,0,0,0.05)', 'border') },
   activityHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   activityTitle: { fontSize: 15, fontWeight: '700', color: c.text },
   activitySeeAll: { fontSize: 13, fontWeight: '600', color: dc('#047857', 'text') },
@@ -1398,14 +1398,14 @@ const makeStyles = (c) => StyleSheet.create({
   goalChipText: { fontSize: 12, fontWeight: '700', color: dc('#047857', 'text') },
   dayNutrition: {
     alignSelf: 'stretch', marginHorizontal: -12, paddingVertical: 16, paddingHorizontal: 16, borderRadius: 20,
-    backgroundColor: c.cardAlt === '#F3F4F6' ? dc('#F6F8F7', 'bg') : c.cardAlt, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: c.cardAlt === '#F3F4F6' ? dc('#F6F8F7', 'bg') : c.cardAlt, borderWidth: 1, borderColor: dc('rgba(0,0,0,0.05)', 'border'),
   },
   dayNutritionTitle: { fontSize: 13, fontWeight: '600', color: c.textSecondary, marginBottom: 12 },
   dayNutritionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dayNutritionStat: { flex: 1, alignItems: 'center', gap: 3 },
   dayNutritionValue: { fontSize: 18, fontWeight: '700', color: c.text },
   dayNutritionLabel: { fontSize: 11, color: c.textSecondary },
-  dayNutritionDivider: { width: 1, height: 30, backgroundColor: 'rgba(0,0,0,0.07)' },
+  dayNutritionDivider: { width: 1, height: 30, backgroundColor: dc('rgba(0,0,0,0.07)', 'bg') },
   headerCompact: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1416,7 +1416,7 @@ const makeStyles = (c) => StyleSheet.create({
     backgroundColor: c.appBg,
     zIndex: 100,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(5, 150, 105, 0.08)',
+    borderBottomColor: dc('rgba(5, 150, 105, 0.08)', 'border'),
     ...(Platform.OS === 'web' ? { position: 'fixed', top: 0, left: 0, right: 0 } : {}),
   },
   avatarSmall: {
@@ -1445,7 +1445,7 @@ const makeStyles = (c) => StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(5,150,105,0.1)',
+    backgroundColor: dc('rgba(5,150,105,0.1)', 'bg'),
   },
   waterAddText: { color: dc('#059669', 'text'), fontSize: 12, fontWeight: '700' },
   avatarTextSmall: {
@@ -1466,7 +1466,7 @@ const makeStyles = (c) => StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: 'rgba(5, 150, 105, 0.08)',
+    backgroundColor: dc('rgba(5, 150, 105, 0.08)', 'bg'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1483,7 +1483,7 @@ const makeStyles = (c) => StyleSheet.create({
     backgroundColor: c.card,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.1)',
+    borderColor: dc('rgba(5, 150, 105, 0.1)', 'border'),
   },
   fastTypeBadge: {
     position: 'relative',
@@ -1525,7 +1525,7 @@ const makeStyles = (c) => StyleSheet.create({
     height: 160,
     borderRadius: 80,
     borderWidth: 8,
-    borderColor: 'rgba(5, 150, 105, 0.12)',
+    borderColor: dc('rgba(5, 150, 105, 0.12)', 'border'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1535,7 +1535,7 @@ const makeStyles = (c) => StyleSheet.create({
     left: 0,
     right: 0,
     height: 4,
-    backgroundColor: 'rgba(5, 150, 105, 0.1)',
+    backgroundColor: dc('rgba(5, 150, 105, 0.1)', 'bg'),
     borderRadius: 2,
   },
   progressRingFill: {
@@ -1586,8 +1586,8 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: 'rgba(5, 150, 105, 0.2)',
-    backgroundColor: 'rgba(5, 150, 105, 0.06)',
+    borderColor: dc('rgba(5, 150, 105, 0.2)', 'border'),
+    backgroundColor: dc('rgba(5, 150, 105, 0.06)', 'bg'),
     marginTop: 8,
     marginBottom: 8,
   },
@@ -1614,8 +1614,8 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 28,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: 'rgba(5, 150, 105, 0.2)',
-    backgroundColor: 'rgba(5, 150, 105, 0.06)',
+    borderColor: dc('rgba(5, 150, 105, 0.2)', 'border'),
+    backgroundColor: dc('rgba(5, 150, 105, 0.06)', 'bg'),
   },
   fastActionBtnText: {
     fontSize: 14,
@@ -1668,7 +1668,7 @@ const makeStyles = (c) => StyleSheet.create({
   fastTimeDivider: {
     width: 1,
     height: 38,
-    backgroundColor: 'rgba(5, 150, 105, 0.10)',
+    backgroundColor: dc('rgba(5, 150, 105, 0.10)', 'bg'),
     marginHorizontal: 0,
   },
   fastTimeDash: {
@@ -1681,7 +1681,7 @@ const makeStyles = (c) => StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: 'rgba(5, 150, 105, 0.06)',
+    backgroundColor: dc('rgba(5, 150, 105, 0.06)', 'bg'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1785,23 +1785,23 @@ const makeStyles = (c) => StyleSheet.create({
   eduFeeling: {
     fontSize: 15,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.92)',
+    color: dc('rgba(255,255,255,0.92)', 'text'),
     lineHeight: 22,
     flex: 1,
     marginBottom: 16,
   },
   eduDesc: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: dc('rgba(255, 255, 255, 0.7)', 'text'),
     lineHeight: 21,
     marginBottom: 16,
   },
   eduBtn: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: dc('rgba(255, 255, 255, 0.15)', 'bg'),
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: dc('rgba(255, 255, 255, 0.2)', 'border'),
     borderRadius: 12,
     alignSelf: 'flex-start',
   },
@@ -1857,7 +1857,7 @@ const makeStyles = (c) => StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.08)',
+    borderColor: dc('rgba(5, 150, 105, 0.08)', 'border'),
   },
   historyCardSubtitle: {
     fontSize: 12,
@@ -1871,7 +1871,7 @@ const makeStyles = (c) => StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.1)',
+    borderColor: dc('rgba(5, 150, 105, 0.1)', 'border'),
     borderStyle: 'dashed',
   },
   emptyMealsText: {
@@ -1888,7 +1888,7 @@ const makeStyles = (c) => StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.08)',
+    borderColor: dc('rgba(5, 150, 105, 0.08)', 'border'),
     gap: 4,
   },
   mealRow: {
@@ -1897,7 +1897,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.04)',
+    borderBottomColor: dc('rgba(0,0,0,0.04)', 'border'),
     gap: 10,
   },
   mealIconWrap: {
@@ -1976,7 +1976,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.08)',
+    borderColor: dc('rgba(5, 150, 105, 0.08)', 'border'),
     gap: 2,
   },
   statValue: {
@@ -2008,7 +2008,7 @@ const makeStyles = (c) => StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.08)',
+    borderColor: dc('rgba(5, 150, 105, 0.08)', 'border'),
   },
   wellnessItem: {
     flex: 1,
@@ -2052,7 +2052,7 @@ const makeStyles = (c) => StyleSheet.create({
   wellnessActionLink: {
     flex: 1,
     paddingVertical: 10,
-    backgroundColor: 'rgba(5, 150, 105, 0.08)',
+    backgroundColor: dc('rgba(5, 150, 105, 0.08)', 'bg'),
     borderRadius: 10,
     alignItems: 'center',
   },
@@ -2063,7 +2063,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   wellnessDivider: {
     width: 1,
-    backgroundColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: dc('rgba(0,0,0,0.08)', 'bg'),
     marginHorizontal: 20,
   },
   premiumCard: {
@@ -2080,7 +2080,7 @@ const makeStyles = (c) => StyleSheet.create({
     alignSelf: 'flex-start',
     paddingVertical: 4,
     paddingHorizontal: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: dc('rgba(255, 255, 255, 0.2)', 'bg'),
     borderRadius: 6,
     marginBottom: 8,
   },
@@ -2103,7 +2103,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   premiumItem: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: dc('rgba(255, 255, 255, 0.9)', 'text'),
     marginBottom: 4,
   },
   premiumBtn: {

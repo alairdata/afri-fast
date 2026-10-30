@@ -1322,7 +1322,7 @@ const makeStyles = (c) => StyleSheet.create({
     backgroundColor: c.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
+    borderColor: dc('rgba(0,0,0,0.06)', 'border'),
     overflow: 'hidden',
     zIndex: 100,
     shadowColor: '#000',
@@ -1338,7 +1338,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.04)',
+    borderBottomColor: dc('rgba(0,0,0,0.04)', 'border'),
   },
   postMenuItemText: {
     fontSize: 13,
@@ -1372,7 +1372,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   pageImageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    backgroundColor: dc('rgba(0, 0, 0, 0.35)', 'bg'),
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -1422,7 +1422,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
+    borderColor: dc('rgba(0,0,0,0.06)', 'border'),
     marginBottom: 8,
     position: 'relative',
     overflow: 'hidden',
@@ -1457,7 +1457,7 @@ const makeStyles = (c) => StyleSheet.create({
     marginTop: 14,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
+    borderTopColor: dc('rgba(0,0,0,0.05)', 'border'),
   },
   topCommentAvatar: {
     width: 36,
@@ -1574,7 +1574,7 @@ const makeStyles = (c) => StyleSheet.create({
   categoryCardOverlay: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.38)',
+    backgroundColor: dc('rgba(0,0,0,0.38)', 'bg'),
   },
   categoryCardText: {
     color: dc('#fff', 'text'),
@@ -1628,7 +1628,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
+    borderBottomColor: dc('rgba(0,0,0,0.06)', 'border'),
   },
   newPostBtn: {
     backgroundColor: dc('#059669', 'bg'),
@@ -1722,7 +1722,7 @@ const makeStyles = (c) => StyleSheet.create({
     backgroundColor: c.card,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
+    borderColor: dc('rgba(0,0,0,0.06)', 'border'),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
@@ -1738,7 +1738,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.04)',
+    borderBottomColor: dc('rgba(0,0,0,0.04)', 'border'),
   },
   newPostDropdownText: {
     fontSize: 13,
@@ -1805,7 +1805,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   commentDivider: {
     height: 1,
-    backgroundColor: 'rgba(0,0,0,0.06)',
+    backgroundColor: dc('rgba(0,0,0,0.06)', 'bg'),
     marginVertical: 12,
   },
   commentFilterRow: {
@@ -1818,7 +1818,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
+    borderColor: dc('rgba(0,0,0,0.1)', 'border'),
   },
   commentFilterPillActive: {
     backgroundColor: c.cardAlt,
@@ -1932,7 +1932,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.06)',
+    borderTopColor: dc('rgba(0,0,0,0.06)', 'border'),
     backgroundColor: c.card,
   },
   commentInput: {

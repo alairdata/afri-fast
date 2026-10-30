@@ -16,7 +16,7 @@ export const unlock = (reason) => {
 
 // Body of a Pro-only card for Free users: what they'd see, and a button to the upgrade screen.
 export const ProLockedBody = ({ reason, text, colors, style }) => (
-  <TouchableOpacity style={[styles.body, { backgroundColor: colors?.cardAlt || 'rgba(5,150,105,0.05)' }, style]} onPress={() => unlock(reason)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={`${text}. Unlock with Logga Pro`}>
+  <TouchableOpacity style={[styles.body, { backgroundColor: colors?.cardAlt || dc('rgba(5,150,105,0.05)', 'bg') }, style]} onPress={() => unlock(reason)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={`${text}. Unlock with Logga Pro`}>
     <View style={styles.lockCircle}><Ionicons name="lock-closed" size={15} color={dc(GREEN, 'text')} /></View>
     <View style={{ flex: 1 }}>
       <Text style={[styles.text, { color: colors?.text || dc('#16201b', 'text') }]}>{text}</Text>

@@ -37,7 +37,7 @@ export const ShimmerLogButton = ({ onPress, label = 'Log Meal', compact = false 
         <View style={[shimmerStyles.iconWrap, compact && shimmerStyles.iconWrapCompact]}><Ionicons name="add" size={compact ? 14 : 17} color={dc("#fff", 'text')} /></View>
         <Text style={[shimmerStyles.txt, compact && shimmerStyles.txtCompact]}>{label}</Text>
         <Animated.View pointerEvents="none" style={[shimmerStyles.sweep, { transform: [{ translateX }, { rotate: '18deg' }] }]}>
-          <LinearGradient colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.45)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ flex: 1 }} />
+          <LinearGradient colors={[dc('rgba(255,255,255,0)', 'bg'), dc('rgba(255,255,255,0.45)', 'bg'), dc('rgba(255,255,255,0)', 'bg')]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ flex: 1 }} />
         </Animated.View>
       </LinearGradient>
     </TouchableOpacity>
@@ -533,7 +533,7 @@ const makeStyles = (c) => StyleSheet.create({
   heroTile: { flex: 1, borderRadius: 20, padding: 16, gap: 10 },
   heroTileIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   heroTileTitle: { fontSize: 15, fontWeight: '700', color: dc('#fff', 'text') },
-  heroTileDesc: { fontSize: 12, lineHeight: 17, color: 'rgba(255,255,255,0.92)' },
+  heroTileDesc: { fontSize: 12, lineHeight: 17, color: dc('rgba(255,255,255,0.92)', 'text') },
   optionCard: { flex: 1, borderRadius: 14, paddingTop: 18, paddingHorizontal: 14, paddingBottom: 22, backgroundColor: dc('#FCFCFC', 'bg') },
   optionTitle: { fontSize: 16, fontWeight: '600', color: dc('#1F1F1F', 'text'), marginTop: 24 },
   optionDesc: { fontSize: 12, lineHeight: 17, color: dc('#4B5563', 'text'), marginTop: 6 },
@@ -561,14 +561,14 @@ const makeStyles = (c) => StyleSheet.create({
   mealTabTxt: { fontSize: 13, fontWeight: '600', color: dc('#6B7280', 'text') },
   mealTabTxtOn: { color: dc('#047857', 'text') },
   usualRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
-  usualRowDivider: { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' },
+  usualRowDivider: { borderBottomWidth: 1, borderBottomColor: dc('rgba(0,0,0,0.06)', 'border') },
   usualName: { fontSize: 15, fontWeight: '600', color: c.text },
   usualSub: { fontSize: 12, color: dc('#6B7280', 'text') },
   usualAddBtn: { width: 44, height: 44, marginRight: -10, alignItems: 'center', justifyContent: 'center' },
   mealHistoryLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', gap: 2, marginTop: 10, paddingVertical: 6, paddingHorizontal: 8 },
   mealHistoryLinkTxt: { fontSize: 13, fontWeight: '600', color: dc('#059669', 'text') },
   recentMealsListClean: { gap: 8 },
-  recentMealItemClean: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, backgroundColor: 'rgba(5, 150, 105, 0.04)', borderRadius: 12 },
+  recentMealItemClean: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, backgroundColor: dc('rgba(5, 150, 105, 0.04)', 'bg'), borderRadius: 12 },
   recentMealLeftClean: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 },
   recentMealIconClean: { width: 44, height: 44, borderRadius: 10, backgroundColor: dc('#059669', 'bg'), alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' },
   recentMealIconPlain: { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border },
@@ -599,7 +599,7 @@ const makeStyles = (c) => StyleSheet.create({
   historyTime: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   historyCal: { fontSize: 14, fontWeight: '700', color: c.text },
 
-  deleteOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  deleteOverlay: { flex: 1, backgroundColor: dc('rgba(0,0,0,0.5)', 'bg'), justifyContent: 'center', alignItems: 'center', padding: 32 },
   deleteModal: { backgroundColor: c.card, borderRadius: 20, padding: 28, width: '100%', alignItems: 'center' },
   deleteIconWrap: { width: 56, height: 56, borderRadius: 28, backgroundColor: dc('#FEF2F2', 'bg'), alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   deleteTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 8 },

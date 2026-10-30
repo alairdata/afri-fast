@@ -3138,7 +3138,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       {/* === End Fast Warning Modal === */}
       {/* Shown while the account is being deleted */}
       <Modal visible={deletingAccount} transparent animationType="fade">
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ flex: 1, backgroundColor: dc('rgba(0,0,0,0.5)', 'bg'), alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ backgroundColor: dc('#fff', 'bg'), borderRadius: 20, paddingVertical: 28, paddingHorizontal: 34, alignItems: 'center' }}>
             <ActivityIndicator size="large" color={dc("#16201b", 'text')} />
             <Text style={{ marginTop: 14, fontSize: 16, fontWeight: '700', color: dc('#16201b', 'text') }}>Deleting your account...</Text>
@@ -3149,7 +3149,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
       {/* Shown while logging out */}
       <Modal visible={loggingOut} transparent animationType="fade">
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ flex: 1, backgroundColor: dc('rgba(0,0,0,0.5)', 'bg'), alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ backgroundColor: dc('#fff', 'bg'), borderRadius: 20, paddingVertical: 28, paddingHorizontal: 34, alignItems: 'center' }}>
             <ActivityIndicator size="large" color={dc("#16201b", 'text')} />
             <Text style={{ marginTop: 14, fontSize: 16, fontWeight: '700', color: dc('#16201b', 'text') }}>Logging you out...</Text>
@@ -3256,37 +3256,37 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
                   {/* Time cards */}
                   <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-                    <View style={{ flex: 1, backgroundColor: dc('#F9FAFB', 'bg'), borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(0,0,0,0.3)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 }}>Started</Text>
-                      <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.38)', marginBottom: 3 }}>{startDateFmt}</Text>
+                    <View style={{ flex: 1, backgroundColor: dc('#F9FAFB', 'bg'), borderRadius: 14, padding: 14, borderWidth: 1, borderColor: dc('rgba(0,0,0,0.06)', 'border') }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: dc('rgba(0,0,0,0.3)', 'text'), letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 }}>Started</Text>
+                      <Text style={{ fontSize: 11, color: dc('rgba(0,0,0,0.38)', 'text'), marginBottom: 3 }}>{startDateFmt}</Text>
                       <Text style={{ fontSize: 19, fontWeight: '800', color: dc('#111', 'text') }}>{startFmt}</Text>
                     </View>
 
                     <TouchableOpacity
                       onPress={() => setShowSummaryTimeEdit(true)}
                       activeOpacity={0.75}
-                      style={{ flex: 1, backgroundColor: dc('#F0FDF4', 'bg'), borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(5,150,105,0.25)' }}
+                      style={{ flex: 1, backgroundColor: dc('#F0FDF4', 'bg'), borderRadius: 14, padding: 14, borderWidth: 1, borderColor: dc('rgba(5,150,105,0.25)', 'border') }}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(5,150,105,0.55)', letterSpacing: 0.8, textTransform: 'uppercase' }}>Ended</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: dc('rgba(5,150,105,0.55)', 'text'), letterSpacing: 0.8, textTransform: 'uppercase' }}>Ended</Text>
                         <View style={{ backgroundColor: dc('#059669', 'bg'), borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
                           <Text style={{ fontSize: 8, fontWeight: '800', color: dc('#fff', 'text'), letterSpacing: 0.5 }}>EDIT</Text>
                         </View>
                       </View>
-                      <Text style={{ fontSize: 11, color: 'rgba(5,150,105,0.45)', marginBottom: 3 }}>{endDateFmt}</Text>
+                      <Text style={{ fontSize: 11, color: dc('rgba(5,150,105,0.45)', 'text'), marginBottom: 3 }}>{endDateFmt}</Text>
                       <Text style={{ fontSize: 19, fontWeight: '800', color: dc('#059669', 'text') }}>{endFmt}</Text>
                     </TouchableOpacity>
                   </View>
 
                   {/* Stats strip */}
-                  <View style={{ flexDirection: 'row', backgroundColor: dc('#F9FAFB', 'bg'), borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', marginBottom: 20, overflow: 'hidden' }}>
+                  <View style={{ flexDirection: 'row', backgroundColor: dc('#F9FAFB', 'bg'), borderRadius: 14, borderWidth: 1, borderColor: dc('rgba(0,0,0,0.06)', 'border'), marginBottom: 20, overflow: 'hidden' }}>
                     <View style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 12, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(0,0,0,0.3)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Stage</Text>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: dc('rgba(0,0,0,0.3)', 'text'), letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Stage</Text>
                       <Text style={{ fontSize: 12, fontWeight: '700', color: dc('#059669', 'text'), textAlign: 'center', lineHeight: 17 }}>{stage}</Text>
                     </View>
-                    <View style={{ width: 1, backgroundColor: 'rgba(0,0,0,0.07)', marginVertical: 12 }} />
+                    <View style={{ width: 1, backgroundColor: dc('rgba(0,0,0,0.07)', 'bg'), marginVertical: 12 }} />
                     <View style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 12, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(0,0,0,0.3)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Fast count</Text>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: dc('rgba(0,0,0,0.3)', 'text'), letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 5 }}>Fast count</Text>
                       <Text style={{ fontSize: 22, fontWeight: '800', color: dc('#7C3AED', 'text') }}>{fastNumber}</Text>
                     </View>
                   </View>
@@ -3484,7 +3484,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             colors={toastType === 'error' ? ['#FFF1F2', '#FFE0E4'] : ['#F0FDF7', '#D5F7E6']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[styles.toast, { borderColor: toastType === 'error' ? 'rgba(220,38,38,0.18)' : 'rgba(5,150,105,0.18)' }]}
+            style={[styles.toast, { borderColor: toastType === 'error' ? dc('rgba(220,38,38,0.18)', 'border') : dc('rgba(5,150,105,0.18)', 'border') }]}
           >
             <View style={[styles.toastIconCircle, { backgroundColor: toastType === 'error' ? dc('#F43F5E', 'bg') : dc('#10B981', 'bg') }]}>
               <Ionicons name={toastType === 'error' ? 'alert' : 'checkmark'} size={15} color={dc("#fff", 'text')} />

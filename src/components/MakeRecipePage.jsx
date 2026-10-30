@@ -253,7 +253,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
                 </View>
               ) : null}
               {recipe.cookTime ? (
-                <View style={[detail.chip, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                <View style={[detail.chip, { backgroundColor: dc('rgba(239,68,68,0.12)', 'bg') }]}>
                   <Text style={detail.chipIcon}>🔥</Text>
                   <Text style={[detail.chipText, { color: dc('#EF4444', 'text') }]}>{recipe.cookTime} cook</Text>
                 </View>

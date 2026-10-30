@@ -192,7 +192,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
                 return (
                   <TouchableOpacity
                     key={ds}
-                    style={[styles.calCell, hasLog && { backgroundColor: 'rgba(37,99,235,0.12)' }, isSelected && styles.calCellSelected, isFuture && { opacity: 0.3 }]}
+                    style={[styles.calCell, hasLog && { backgroundColor: dc('rgba(37,99,235,0.12)', 'bg') }, isSelected && styles.calCellSelected, isFuture && { opacity: 0.3 }]}
                     onPress={() => { if (!isFuture) { setSelectedDate(day); setShowCalendar(false); } }}
                     disabled={isFuture}
                   >
