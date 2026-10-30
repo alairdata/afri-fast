@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
+import { dc, themedStyles } from '../lib/theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -30,7 +31,7 @@ const BMIDetailsPage = ({ show, onClose, onShowWeightModal, weightLogs = [], hei
         {/* Header */}
         <View style={styles.weightPageHeader}>
           <TouchableOpacity style={styles.weightBackBtn} onPress={onClose}>
-            <Ionicons name="chevron-back" size={24} color="#059669" />
+            <Ionicons name="chevron-back" size={24} color={dc("#059669", 'text')} />
           </TouchableOpacity>
           <Text style={styles.weightPageTitle}>BMI & Weight</Text>
           <View style={{ width: 40 }} />
@@ -75,13 +76,13 @@ const BMIDetailsPage = ({ show, onClose, onShowWeightModal, weightLogs = [], hei
                 </View>
                 <View style={styles.bmiLabelsLarge}>
                   <Text style={styles.bmiLabelLarge}>Underweight</Text>
-                  <Text style={[styles.bmiLabelLarge, { color: '#10B981' }]}>Normal</Text>
+                  <Text style={[styles.bmiLabelLarge, { color: dc('#10B981', 'text') }]}>Normal</Text>
                   <Text style={styles.bmiLabelLarge}>Overweight</Text>
                   <Text style={styles.bmiLabelLarge}>Obese</Text>
                 </View>
               </View>
               {!bmi && (
-                <Text style={{ marginTop: 12, fontSize: 13, color: '#888', textAlign: 'center' }}>
+                <Text style={{ marginTop: 12, fontSize: 13, color: dc('#888', 'text'), textAlign: 'center' }}>
                   Log your weight and set your height in Settings to see your BMI.
                 </Text>
               )}
@@ -99,8 +100,8 @@ const BMIDetailsPage = ({ show, onClose, onShowWeightModal, weightLogs = [], hei
                   const diffColor = diff === null ? '#888' : parseFloat(diff) < 0 ? '#10B981' : parseFloat(diff) > 0 ? '#EF4444' : '#888';
                   return (
                     <View key={i} style={[styles.bmiInfoRow, i === recentLogs.length - 1 && { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]}>
-                      <Text style={[styles.bmiInfoLabel, { color: '#888', fontSize: 12 }]}>{fmtDate(log.date)}</Text>
-                      <Text style={[styles.bmiInfoRange, { fontWeight: '700', fontSize: 15, color: '#1F1F1F' }]}>{log.weight} {log.unit}</Text>
+                      <Text style={[styles.bmiInfoLabel, { color: dc('#888', 'text'), fontSize: 12 }]}>{fmtDate(log.date)}</Text>
+                      <Text style={[styles.bmiInfoRange, { fontWeight: '700', fontSize: 15, color: dc('#1F1F1F', 'text') }]}>{log.weight} {log.unit}</Text>
                       {diff !== null && <Text style={{ fontSize: 12, fontWeight: '600', color: diffColor, marginLeft: 8 }}>{parseFloat(diff) > 0 ? '+' : ''}{diff}</Text>}
                     </View>
                   );
@@ -114,11 +115,11 @@ const BMIDetailsPage = ({ show, onClose, onShowWeightModal, weightLogs = [], hei
             <View style={styles.bmiActionsRow}>
               <TouchableOpacity style={styles.bmiActionBtn} onPress={onShowWeightModal}>
                 <Text style={styles.bmiActionIcon}>{'\u2696\uFE0F'}</Text>
-                <Text style={[styles.bmiActionText, { color: '#fff' }]}>Log weight</Text>
+                <Text style={[styles.bmiActionText, { color: dc('#fff', 'text') }]}>Log weight</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.bmiActionBtnOutline} onPress={onShowWeightModal}>
                 <Text style={styles.bmiActionIcon}>{'\u{1F4CB}'}</Text>
-                <Text style={[styles.bmiActionText, { color: '#059669' }]}>View all logs</Text>
+                <Text style={[styles.bmiActionText, { color: dc('#059669', 'text') }]}>View all logs</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -128,22 +129,22 @@ const BMIDetailsPage = ({ show, onClose, onShowWeightModal, weightLogs = [], hei
             <Text style={styles.detailSectionTitle}>BMI Categories</Text>
             <View style={styles.detailCardFull}>
               <View style={styles.bmiInfoRow}>
-                <View style={[styles.bmiInfoDot, { backgroundColor: '#3B82F6' }]} />
+                <View style={[styles.bmiInfoDot, { backgroundColor: dc('#3B82F6', 'bg') }]} />
                 <Text style={styles.bmiInfoLabel}>Underweight</Text>
                 <Text style={styles.bmiInfoRange}>{'< 18.5'}</Text>
               </View>
               <View style={styles.bmiInfoRow}>
-                <View style={[styles.bmiInfoDot, { backgroundColor: '#10B981' }]} />
+                <View style={[styles.bmiInfoDot, { backgroundColor: dc('#10B981', 'bg') }]} />
                 <Text style={styles.bmiInfoLabel}>Normal</Text>
                 <Text style={styles.bmiInfoRange}>18.5 - 24.9</Text>
               </View>
               <View style={styles.bmiInfoRow}>
-                <View style={[styles.bmiInfoDot, { backgroundColor: '#F59E0B' }]} />
+                <View style={[styles.bmiInfoDot, { backgroundColor: dc('#F59E0B', 'bg') }]} />
                 <Text style={styles.bmiInfoLabel}>Overweight</Text>
                 <Text style={styles.bmiInfoRange}>25 - 29.9</Text>
               </View>
               <View style={[styles.bmiInfoRow, { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]}>
-                <View style={[styles.bmiInfoDot, { backgroundColor: '#EF4444' }]} />
+                <View style={[styles.bmiInfoDot, { backgroundColor: dc('#EF4444', 'bg') }]} />
                 <Text style={styles.bmiInfoLabel}>Obese</Text>
                 <Text style={styles.bmiInfoRange}>{'\u2265'} 30</Text>
               </View>
@@ -155,7 +156,7 @@ const BMIDetailsPage = ({ show, onClose, onShowWeightModal, weightLogs = [], hei
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   weightPageOverlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0,

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '../lib/supabase';
-import { useTheme } from '../lib/theme';
+import { useTheme, dc, themedStyles } from '../lib/theme';
 import { loadConsent, saveConsent } from '../lib/consent';
 
 const APP_VERSION = '1.0.0';
@@ -22,7 +22,7 @@ function Sheet({ visible, onClose, title, children }) {
             <View style={st.header}>
               <Text style={[st.title, { color: colors.text }]}>{title}</Text>
               <TouchableOpacity style={st.close} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close" size={18} color="#374151" />
+                <Ionicons name="close" size={18} color={dc("#374151", 'text')} />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 28 }}>
@@ -56,7 +56,7 @@ export function FaqSheet({ visible, onClose }) {
         <View key={item.q} style={[st.faqItem, { borderTopColor: colors.border }, i === 0 && { borderTopWidth: 0 }]}>
           <TouchableOpacity style={st.faqRow} onPress={() => setOpen(open === i ? null : i)} activeOpacity={0.7}>
             <Text style={[st.faqQ, { color: colors.text }]}>{item.q}</Text>
-            <Ionicons name={open === i ? 'chevron-up' : 'chevron-down'} size={18} color="#9CA3AF" />
+            <Ionicons name={open === i ? 'chevron-up' : 'chevron-down'} size={18} color={dc("#9CA3AF", 'text')} />
           </TouchableOpacity>
           {open === i && <Text style={[st.faqA, { color: colors.textSecondary }]}>{item.a}</Text>}
         </View>
@@ -109,7 +109,7 @@ export function ContactSheet({
     <Sheet visible={visible} onClose={onClose} title={title}>
       {sent ? (
         <View style={st.centerBlock}>
-          <Ionicons name="checkmark-circle" size={44} color={GREEN} />
+          <Ionicons name="checkmark-circle" size={44} color={dc(GREEN, 'text')} />
           <Text style={[st.bigText, { color: colors.text }]}>Message sent</Text>
           <Text style={[st.body, { color: colors.textSecondary, textAlign: 'center' }]}>
             Thanks for reaching out. We'll reply to {userEmail || 'your email'}.
@@ -126,14 +126,14 @@ export function ContactSheet({
             value={message}
             onChangeText={setMessage}
             placeholder="What's on your mind?"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={dc("#9CA3AF", 'text')}
             multiline
             textAlignVertical="top"
             maxLength={2000}
           />
           {error ? <Text style={st.error}>{error}</Text> : null}
           <TouchableOpacity style={[st.primaryBtn, sending && { opacity: 0.6 }]} onPress={send} disabled={sending}>
-            {sending ? <ActivityIndicator color="#fff" /> : <Text style={st.primaryTxt}>{sendLabel}</Text>}
+            {sending ? <ActivityIndicator color={dc("#fff", 'text')} /> : <Text style={st.primaryTxt}>{sendLabel}</Text>}
           </TouchableOpacity>
         </>
       )}
@@ -166,7 +166,7 @@ export function RateSheet({ visible, onClose, userId, userEmail }) {
     <Sheet visible={visible} onClose={onClose} title="Rate Logga">
       {sent ? (
         <View style={st.centerBlock}>
-          <Ionicons name="heart" size={44} color={GREEN} />
+          <Ionicons name="heart" size={44} color={dc(GREEN, 'text')} />
           <Text style={[st.bigText, { color: colors.text }]}>Thank you!</Text>
           <Text style={[st.body, { color: colors.textSecondary, textAlign: 'center' }]}>Your feedback helps us make Logga better.</Text>
           <TouchableOpacity style={st.primaryBtn} onPress={onClose}><Text style={st.primaryTxt}>Done</Text></TouchableOpacity>
@@ -177,7 +177,7 @@ export function RateSheet({ visible, onClose, userId, userEmail }) {
           <View style={st.stars}>
             {[1, 2, 3, 4, 5].map((n) => (
               <TouchableOpacity key={n} onPress={() => { setRating(n); setError(''); }} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
-                <Ionicons name={n <= rating ? 'star' : 'star-outline'} size={38} color={n <= rating ? '#F59E0B' : '#D1D5DB'} />
+                <Ionicons name={n <= rating ? 'star' : 'star-outline'} size={38} color={n <= rating ? dc('#F59E0B', 'text') : dc('#D1D5DB', 'text')} />
               </TouchableOpacity>
             ))}
           </View>
@@ -186,14 +186,14 @@ export function RateSheet({ visible, onClose, userId, userEmail }) {
             value={comment}
             onChangeText={setComment}
             placeholder="Anything you'd like to add? (optional)"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={dc("#9CA3AF", 'text')}
             multiline
             textAlignVertical="top"
             maxLength={1000}
           />
           {error ? <Text style={st.error}>{error}</Text> : null}
           <TouchableOpacity style={[st.primaryBtn, sending && { opacity: 0.6 }]} onPress={send} disabled={sending}>
-            {sending ? <ActivityIndicator color="#fff" /> : <Text style={st.primaryTxt}>Submit</Text>}
+            {sending ? <ActivityIndicator color={dc("#fff", 'text')} /> : <Text style={st.primaryTxt}>Submit</Text>}
           </TouchableOpacity>
         </>
       )}
@@ -243,14 +243,14 @@ export function PrivacySheet({ visible, onClose, shareCommunityPhotos, onToggleS
         />
       </View>
       <View style={[st.infoBox, { backgroundColor: colors.bg }]}>
-        <Ionicons name="lock-closed-outline" size={18} color={GREEN} />
+        <Ionicons name="lock-closed-outline" size={18} color={dc(GREEN, 'text')} />
         <Text style={[st.infoTxt, { color: colors.textSecondary }]}>
           Your meals, weight, water and check-ins are only visible to you. You can ask for a copy of your data or delete everything at any time under Data & Privacy.
         </Text>
       </View>
       <View style={{ flexDirection: 'row', gap: 18, marginTop: 14 }}>
-        <TouchableOpacity onPress={() => openUrl('privacy')}><Text style={{ color: GREEN, fontWeight: '700', fontSize: 14 }}>Privacy Policy</Text></TouchableOpacity>
-        <TouchableOpacity onPress={() => openUrl('terms')}><Text style={{ color: GREEN, fontWeight: '700', fontSize: 14 }}>Terms of Service</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => openUrl('privacy')}><Text style={{ color: dc(GREEN, 'text'), fontWeight: '700', fontSize: 14 }}>Privacy Policy</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => openUrl('terms')}><Text style={{ color: dc(GREEN, 'text'), fontWeight: '700', fontSize: 14 }}>Terms of Service</Text></TouchableOpacity>
       </View>
     </Sheet>
   );
@@ -282,7 +282,7 @@ export function ClearHistorySheet({ visible, onClose, onConfirm }) {
         This permanently deletes your logged meals, weigh-ins, water, check-ins, steps and activities. Your account, details and goals stay. This cannot be undone.
       </Text>
       <Text style={[st.body, { color: colors.textSecondary, marginBottom: 8 }]}>
-        Type <Text style={{ fontWeight: '800', color: '#DC2626' }}>CLEAR</Text> to confirm.
+        Type <Text style={{ fontWeight: '800', color: dc('#DC2626', 'text') }}>CLEAR</Text> to confirm.
       </Text>
       <TextInput
         style={[st.input, { color: colors.text, borderColor: colors.border }]}
@@ -291,18 +291,18 @@ export function ClearHistorySheet({ visible, onClose, onConfirm }) {
         autoCapitalize="characters"
         autoCorrect={false}
         placeholder="CLEAR"
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor={dc("#9CA3AF", 'text')}
       />
       {error ? <Text style={st.error}>{error}</Text> : null}
       <TouchableOpacity style={[st.dangerBtn, !ready && { opacity: 0.35 }]} disabled={!ready} onPress={go}>
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={st.primaryTxt}>Yes, clear my history</Text>}
+        {busy ? <ActivityIndicator color={dc("#fff", 'text')} /> : <Text style={st.primaryTxt}>Yes, clear my history</Text>}
       </TouchableOpacity>
       <TouchableOpacity style={st.cancel} onPress={onClose}><Text style={st.cancelTxt}>Cancel</Text></TouchableOpacity>
     </Sheet>
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, maxHeight: '88%' },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', marginBottom: 12 },

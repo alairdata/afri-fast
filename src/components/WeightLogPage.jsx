@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform, Keyboard, Alert, Share } from 'react-native';
 import InfoTip from './InfoTip';
 import { showAlert } from '../lib/alert';
+import { dc, themedStyles } from '../lib/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CELL_SIZE = Math.floor((SCREEN_WIDTH - 40 - 24) / 7);
@@ -21,10 +22,10 @@ const convert = (w, from, to) => {
 const round1 = (n) => Math.round(n * 10) / 10;
 
 const BMI_BANDS = [
-  { max: 18.5, label: 'Underweight', color: '#3B82F6' },
-  { max: 25, label: 'Normal', color: '#10B981' },
-  { max: 30, label: 'Overweight', color: '#F59E0B' },
-  { max: Infinity, label: 'Obese', color: '#EF4444' },
+  { max: 18.5, label: 'Underweight', color: dc('#3B82F6', 'text') },
+  { max: 25, label: 'Normal', color: dc('#10B981', 'text') },
+  { max: 30, label: 'Overweight', color: dc('#F59E0B', 'text') },
+  { max: Infinity, label: 'Obese', color: dc('#EF4444', 'text') },
 ];
 
 const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, setWeightUnit, onWeightSaved, onWeightDeleted, height, heightUnit }) => {
@@ -144,11 +145,11 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerBtn} onPress={onClose} accessibilityLabel="Back">
-            <Ionicons name="arrow-back" size={20} color="#1F1F1F" />
+            <Ionicons name="arrow-back" size={20} color={dc("#1F1F1F", 'text')} />
           </TouchableOpacity>
           <Text style={styles.title}>Weight Log</Text>
           <TouchableOpacity style={styles.headerBtn} onPress={() => setShowCalendar((v) => !v)} accessibilityLabel="Pick a day">
-            <Ionicons name={showCalendar ? 'calendar' : 'calendar-outline'} size={20} color="#059669" />
+            <Ionicons name={showCalendar ? 'calendar' : 'calendar-outline'} size={20} color={dc("#059669", 'text')} />
           </TouchableOpacity>
         </View>
 
@@ -159,11 +160,11 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
             <View style={styles.calendarCard}>
               <View style={styles.calMonthRow}>
                 <TouchableOpacity onPress={() => setCalendarMonth(new Date(year, month - 1, 1))}>
-                  <Ionicons name="chevron-back" size={18} color="#059669" />
+                  <Ionicons name="chevron-back" size={18} color={dc("#059669", 'text')} />
                 </TouchableOpacity>
                 <Text style={styles.calMonthLabel}>{FULL_MONTHS[month]} {year}</Text>
                 <TouchableOpacity onPress={() => setCalendarMonth(new Date(year, month + 1, 1))}>
-                  <Ionicons name="chevron-forward" size={18} color="#059669" />
+                  <Ionicons name="chevron-forward" size={18} color={dc("#059669", 'text')} />
                 </TouchableOpacity>
               </View>
               <View style={styles.calDayLabels}>
@@ -203,7 +204,7 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
             <View style={styles.inputRow}>
               <TextInput
                 placeholder={latest ? String(round1(convert(latest.weight, latest.unit, unit))) : unit === 'kg' ? '72' : '160'}
-                placeholderTextColor="#C4C8CC"
+                placeholderTextColor={dc("#C4C8CC", 'text')}
                 value={newWeight}
                 onChangeText={(t) => { setNewWeight(t); setConfirm(null); }}
                 onSubmitEditing={() => saveWeight()}
@@ -214,7 +215,7 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
               />
               <TouchableOpacity style={styles.unitBtn} onPress={() => setWeightUnit(unit === 'kg' ? 'lb' : 'kg')} accessibilityLabel={`Change unit, ${unit === 'kg' ? 'kilograms' : 'pounds'} selected`}>
                 <Text style={styles.unitText}>{unit}</Text>
-                <Ionicons name="chevron-down" size={16} color="#4B5563" />
+                <Ionicons name="chevron-down" size={16} color={dc("#4B5563", 'text')} />
               </TouchableOpacity>
             </View>
             <Text style={styles.hint}>Enter your current weight</Text>
@@ -257,10 +258,10 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
                 </View>
               </View>
               <View style={styles.bmiBar}>
-                <View style={{ width: '17.5%', backgroundColor: '#3B82F6' }} />
-                <View style={{ width: '32.5%', backgroundColor: '#10B981' }} />
-                <View style={{ width: '25%', backgroundColor: '#F59E0B' }} />
-                <View style={{ width: '25%', backgroundColor: '#EF4444' }} />
+                <View style={{ width: '17.5%', backgroundColor: dc('#3B82F6', 'bg') }} />
+                <View style={{ width: '32.5%', backgroundColor: dc('#10B981', 'bg') }} />
+                <View style={{ width: '25%', backgroundColor: dc('#F59E0B', 'bg') }} />
+                <View style={{ width: '25%', backgroundColor: dc('#EF4444', 'bg') }} />
               </View>
               {bmi && <View style={{ height: 0 }}><View style={[styles.bmiMarker, { left: `${bmiPos}%` }]} /></View>}
               <View style={{ flexDirection: 'row', marginTop: 6 }}>
@@ -323,7 +324,7 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
                       <Text style={styles.logDiffNote}>{diff == null ? 'First log' : 'vs. previous log'}</Text>
                     </View>
                     <TouchableOpacity style={styles.moreBtn} onPress={() => askDelete(log)} accessibilityLabel={`Remove the ${round1(w)} ${unit} weigh-in`}>
-                      <Ionicons name="trash-outline" size={16} color="#1F1F1F" />
+                      <Ionicons name="trash-outline" size={16} color={dc("#1F1F1F", 'text')} />
                     </TouchableOpacity>
                   </View>
                   {pendingDelete === log && (
@@ -348,7 +349,7 @@ const WeightLogPage = ({ show, onClose, weightLogs, setWeightLogs, weightUnit, s
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   deleteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 4 },
   deleteText: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#1F1F1F' },
   deleteCancel: { minHeight: 40, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', justifyContent: 'center' },

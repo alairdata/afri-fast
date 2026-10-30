@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef } from 'react';
 import { SourcesLink } from './HealthSourcesPage';
+import { dc, themedStyles } from '../lib/theme';
 import {
   View,
   Text,
@@ -502,7 +503,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
             <View style={s.headerSide} />
             <View style={s.headerCenter} />
             <TouchableOpacity onPress={() => { resetQuiz(); onClose(); }} style={s.headerSide} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-              <Ionicons name="close" size={22} color="#999" />
+              <Ionicons name="close" size={22} color={dc("#999", 'text')} />
             </TouchableOpacity>
           </View>
           <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled"
@@ -511,7 +512,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
             showsVerticalScrollIndicator={false}
           >
             <View style={s.doctorIconCircle}>
-              <Ionicons name="shield-checkmark" size={36} color="#D97706" />
+              <Ionicons name="shield-checkmark" size={36} color={dc("#D97706", 'text')} />
             </View>
             <Text style={s.doctorTitle}>Your health comes first</Text>
             <Text style={s.doctorSubtitle}>
@@ -546,7 +547,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
             <View style={s.headerSide} />
             <View style={s.headerCenter} />
             <TouchableOpacity onPress={() => { resetQuiz(); onClose(); }} style={s.headerSide} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-              <Ionicons name="close" size={22} color="#999" />
+              <Ionicons name="close" size={22} color={dc("#999", 'text')} />
             </TouchableOpacity>
           </View>
           <ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled"
@@ -558,7 +559,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
 
             {result.suppressCalories ? (
               <View style={s.resultSuppressedCard}>
-                <Ionicons name="heart-outline" size={28} color="#059669" style={{ marginBottom: 12 }} />
+                <Ionicons name="heart-outline" size={28} color={dc("#059669", 'text')} style={{ marginBottom: 12 }} />
                 <Text style={s.resultSuppressedText}>
                   We recommend speaking with a registered dietitian to determine a calorie target that is right for you.
                 </Text>
@@ -573,23 +574,23 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
             {!result.suppressCalories && (
               <View style={s.macroContainer}>
                 <View style={s.macroBarRow}>
-                  <View style={[s.macroBarSegment, { flex: result.protein * 4, backgroundColor: '#3B82F6' }]} />
-                  <View style={[s.macroBarSegment, { flex: result.carbs * 4, backgroundColor: '#F59E0B' }]} />
-                  <View style={[s.macroBarSegment, { flex: result.fats * 9, backgroundColor: '#EF4444' }]} />
+                  <View style={[s.macroBarSegment, { flex: result.protein * 4, backgroundColor: dc('#3B82F6', 'bg') }]} />
+                  <View style={[s.macroBarSegment, { flex: result.carbs * 4, backgroundColor: dc('#F59E0B', 'bg') }]} />
+                  <View style={[s.macroBarSegment, { flex: result.fats * 9, backgroundColor: dc('#EF4444', 'bg') }]} />
                 </View>
                 <View style={s.macroLabelsRow}>
                   <View style={s.macroLabel}>
-                    <View style={[s.macroDot, { backgroundColor: '#3B82F6' }]} />
+                    <View style={[s.macroDot, { backgroundColor: dc('#3B82F6', 'bg') }]} />
                     <Text style={s.macroLabelText}>Protein</Text>
                     <Text style={s.macroGrams}>{result.protein}g</Text>
                   </View>
                   <View style={s.macroLabel}>
-                    <View style={[s.macroDot, { backgroundColor: '#F59E0B' }]} />
+                    <View style={[s.macroDot, { backgroundColor: dc('#F59E0B', 'bg') }]} />
                     <Text style={s.macroLabelText}>Carbs</Text>
                     <Text style={s.macroGrams}>{result.carbs}g</Text>
                   </View>
                   <View style={s.macroLabel}>
-                    <View style={[s.macroDot, { backgroundColor: '#EF4444' }]} />
+                    <View style={[s.macroDot, { backgroundColor: dc('#EF4444', 'bg') }]} />
                     <Text style={s.macroLabelText}>Fats</Text>
                     <Text style={s.macroGrams}>{result.fats}g</Text>
                   </View>
@@ -660,7 +661,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
               style={s.stepperBtn}
               onPress={() => setAgeValue(Math.max(18, ageValue - 1))}
             >
-              <Ionicons name="remove" size={28} color="#1F1F1F" />
+              <Ionicons name="remove" size={28} color={dc("#1F1F1F", 'text')} />
             </TouchableOpacity>
             <View style={s.numericDisplay}>
               <TextInput
@@ -677,7 +678,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
               style={s.stepperBtn}
               onPress={() => setAgeValue(Math.min(100, ageValue + 1))}
             >
-              <Ionicons name="add" size={28} color="#1F1F1F" />
+              <Ionicons name="add" size={28} color={dc("#1F1F1F", 'text')} />
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={[s.greenPill, { marginTop: 32 }]} onPress={goNext}>
@@ -696,7 +697,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
               style={s.stepperBtn}
               onPress={() => setWeightValue(Math.max(30, weightValue - 1))}
             >
-              <Ionicons name="remove" size={28} color="#1F1F1F" />
+              <Ionicons name="remove" size={28} color={dc("#1F1F1F", 'text')} />
             </TouchableOpacity>
             <View style={s.numericDisplay}>
               <TextInput
@@ -713,7 +714,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
               style={s.stepperBtn}
               onPress={() => setWeightValue(Math.min(300, weightValue + 1))}
             >
-              <Ionicons name="add" size={28} color="#1F1F1F" />
+              <Ionicons name="add" size={28} color={dc("#1F1F1F", 'text')} />
             </TouchableOpacity>
           </View>
           <View style={s.unitToggleRow}>
@@ -760,7 +761,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
                     style={s.stepperBtnSmall}
                     onPress={() => setHeightFeet(Math.max(3, heightFeet - 1))}
                   >
-                    <Ionicons name="remove" size={22} color="#1F1F1F" />
+                    <Ionicons name="remove" size={22} color={dc("#1F1F1F", 'text')} />
                   </TouchableOpacity>
                   <View style={s.numericDisplaySmall}>
                     <Text style={s.numericValueSmall}>{heightFeet}</Text>
@@ -770,7 +771,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
                     style={s.stepperBtnSmall}
                     onPress={() => setHeightFeet(Math.min(8, heightFeet + 1))}
                   >
-                    <Ionicons name="add" size={22} color="#1F1F1F" />
+                    <Ionicons name="add" size={22} color={dc("#1F1F1F", 'text')} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -781,7 +782,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
                     style={s.stepperBtnSmall}
                     onPress={() => setHeightInches(Math.max(0, heightInches - 1))}
                   >
-                    <Ionicons name="remove" size={22} color="#1F1F1F" />
+                    <Ionicons name="remove" size={22} color={dc("#1F1F1F", 'text')} />
                   </TouchableOpacity>
                   <View style={s.numericDisplaySmall}>
                     <Text style={s.numericValueSmall}>{heightInches}</Text>
@@ -791,7 +792,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
                     style={s.stepperBtnSmall}
                     onPress={() => setHeightInches(Math.min(11, heightInches + 1))}
                   >
-                    <Ionicons name="add" size={22} color="#1F1F1F" />
+                    <Ionicons name="add" size={22} color={dc("#1F1F1F", 'text')} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -828,7 +829,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
               style={s.stepperBtn}
               onPress={() => setHeightValue(Math.max(100, heightValue - 1))}
             >
-              <Ionicons name="remove" size={28} color="#1F1F1F" />
+              <Ionicons name="remove" size={28} color={dc("#1F1F1F", 'text')} />
             </TouchableOpacity>
             <View style={s.numericDisplay}>
               <TextInput
@@ -845,7 +846,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
               style={s.stepperBtn}
               onPress={() => setHeightValue(Math.min(250, heightValue + 1))}
             >
-              <Ionicons name="add" size={28} color="#1F1F1F" />
+              <Ionicons name="add" size={28} color={dc("#1F1F1F", 'text')} />
             </TouchableOpacity>
           </View>
           <View style={s.unitToggleRow}>
@@ -893,11 +894,11 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
         {/* Header: back arrow left, close X right */}
         <View style={s.headerRow}>
           <TouchableOpacity onPress={goBack} style={s.headerSide} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Ionicons name="chevron-back" size={24} color="#1F1F1F" />
+            <Ionicons name="chevron-back" size={24} color={dc("#1F1F1F", 'text')} />
           </TouchableOpacity>
           <View style={s.headerCenter} />
           <TouchableOpacity onPress={() => { resetQuiz(); onClose(); }} style={s.headerSide} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Ionicons name="close" size={22} color="#999" />
+            <Ionicons name="close" size={22} color={dc("#999", 'text')} />
           </TouchableOpacity>
         </View>
 
@@ -930,7 +931,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
                     onPress={() => selectOption(idx)}
                   >
                     {isMulti && selected && (
-                      <Ionicons name="checkmark" size={18} color="#fff" style={s.pillCheck} />
+                      <Ionicons name="checkmark" size={18} color={dc("#fff", 'text')} style={s.pillCheck} />
                     )}
                     <Text style={[s.pillText, selected && s.pillTextSelected]}>
                       {opt.label}
@@ -966,7 +967,7 @@ const NutritionQuizPage = ({ show, onClose, onSaveGoals }) => {
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
-const s = StyleSheet.create({
+const s = themedStyles({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0,

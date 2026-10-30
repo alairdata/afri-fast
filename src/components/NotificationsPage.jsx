@@ -1,21 +1,21 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, SafeAreaView } from 'react-native';
-import { useTheme } from '../lib/theme';
+import { useTheme, dc, themedStyles } from '../lib/theme';
 import { getInbox, onInboxChange, markAllSeen } from '../lib/notificationInbox';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 
 const ICONS = {
-  meal: { name: 'restaurant-outline', color: '#059669', bg: '#ECFDF5' },
-  water: { name: 'water-outline', color: '#2563EB', bg: '#EFF6FF' },
-  streak: { name: 'flame-outline', color: '#EA580C', bg: '#FFF7ED' },
-  movement: { name: 'walk-outline', color: '#7C3AED', bg: '#F5F3FF' },
-  burnout: { name: 'heart-outline', color: '#DB2777', bg: '#FDF2F8' },
-  insight: { name: 'bulb-outline', color: '#CA8A04', bg: '#FEFCE8' },
-  prediction: { name: 'bulb-outline', color: '#CA8A04', bg: '#FEFCE8' },
-  nudge: { name: 'sparkles-outline', color: '#059669', bg: '#ECFDF5' }, // a message from the Logga team (admin portal)
+  meal: { name: 'restaurant-outline', color: dc('#059669', 'text'), bg: '#ECFDF5' },
+  water: { name: 'water-outline', color: dc('#2563EB', 'text'), bg: '#EFF6FF' },
+  streak: { name: 'flame-outline', color: dc('#EA580C', 'text'), bg: '#FFF7ED' },
+  movement: { name: 'walk-outline', color: dc('#7C3AED', 'text'), bg: '#F5F3FF' },
+  burnout: { name: 'heart-outline', color: dc('#DB2777', 'text'), bg: '#FDF2F8' },
+  insight: { name: 'bulb-outline', color: dc('#CA8A04', 'text'), bg: '#FEFCE8' },
+  prediction: { name: 'bulb-outline', color: dc('#CA8A04', 'text'), bg: '#FEFCE8' },
+  nudge: { name: 'sparkles-outline', color: dc('#059669', 'text'), bg: '#ECFDF5' }, // a message from the Logga team (admin portal)
 };
-const DEFAULT_ICON = { name: 'notifications-outline', color: '#059669', bg: '#ECFDF5' };
+const DEFAULT_ICON = { name: 'notifications-outline', color: dc('#059669', 'text'), bg: '#ECFDF5' };
 
 const timeAgo = (at) => {
   const mins = Math.round((Date.now() - at) / 60000);
@@ -93,7 +93,7 @@ const NotificationsPage = ({ visible, onClose, onOpenItem }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   page: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12 },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },

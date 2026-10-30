@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { themedStyles } from '../lib/theme';
 
 // What Pro unlocks, as edge-to-edge cards that slide on their own. Shared by the Pro screen at the end
 // of onboarding and the in-app upgrade screen, so the two always match.
@@ -47,7 +48,7 @@ export default function ProFeatureCarousel() {
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles({
   card: { height: 210, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, gap: 6 },
   title: { fontSize: 21, lineHeight: 26, fontWeight: '800', color: '#16201b' },
   sub: { marginTop: 6, fontSize: 13, lineHeight: 18, fontWeight: '600', color: '#4b5a52' },

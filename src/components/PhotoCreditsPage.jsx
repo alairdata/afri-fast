@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, Platform, Linking } from 'react-native';
 import { PHOTO_CREDITS } from '../lib/photoCredits';
+import { dc, themedStyles } from '../lib/theme';
 
 const INK = '#16201b';
 const INK500 = '#6c7872';
@@ -23,7 +24,7 @@ const PhotoCreditsPage = ({ visible, onClose }) => (
     <View style={[styles.page, Platform.OS === 'android' && { paddingTop: 44 }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.closeBtn} accessibilityLabel="Close">
-          <Ionicons name="close" size={22} color={INK} />
+          <Ionicons name="close" size={22} color={dc(INK, 'text')} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Photo credits</Text>
         <View style={{ width: 40 }} />
@@ -53,7 +54,7 @@ const PhotoCreditsPage = ({ visible, onClose }) => (
                   {c.license}
                 </Text>
               </View>
-              <Ionicons name="open-outline" size={16} color={GREEN} />
+              <Ionicons name="open-outline" size={16} color={dc(GREEN, 'text')} />
             </TouchableOpacity>
           ))}
         </View>
@@ -63,7 +64,7 @@ const PhotoCreditsPage = ({ visible, onClose }) => (
   </Modal>
 );
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   page: { flex: 1, backgroundColor: '#F8FAFC' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

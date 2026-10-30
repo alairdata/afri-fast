@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { dc, themedStyles } from '../lib/theme';
 import {
   GoalScreen, StruggleScreen, GenderScreen, AgeScreen, HeightScreen, TargetScreen,
   PaceScreen, ActivityScreen, EatingScreen, FoodScreen, WhyScreen, AccountabilityScreen, ToneScreen,
@@ -204,7 +205,7 @@ export default function YourDetails({
                   <TouchableOpacity style={st.rowMain} activeOpacity={0.6} onPress={() => open(row)}>
                     <Text style={[st.rowLabel, { color: colors.text }]}>{row.label}</Text>
                     {!row.long && (
-                      <Text style={[st.rowValue, !summary && { color: '#9CA3AF' }]} numberOfLines={1}>{summary || 'Not set'}</Text>
+                      <Text style={[st.rowValue, !summary && { color: dc('#9CA3AF', 'text') }]} numberOfLines={1}>{summary || 'Not set'}</Text>
                     )}
                   </TouchableOpacity>
                   {row.long ? (
@@ -213,15 +214,15 @@ export default function YourDetails({
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       onPress={() => setExpanded((prev) => ({ ...prev, [row.key]: !prev[row.key] }))}
                     >
-                      <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#9CA3AF" />
+                      <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color={dc("#9CA3AF", 'text')} />
                     </TouchableOpacity>
                   ) : (
-                    <Ionicons name="chevron-forward" size={16} color="#ccc" />
+                    <Ionicons name="chevron-forward" size={16} color={dc("#ccc", 'text')} />
                   )}
                 </View>
                 {row.long && isOpen && (
                   <View style={st.detailBox}>
-                    <Text style={[st.detailTxt, !summary && { color: '#9CA3AF' }]}>{summary || 'Not set'}</Text>
+                    <Text style={[st.detailTxt, !summary && { color: dc('#9CA3AF', 'text') }]}>{summary || 'Not set'}</Text>
                     <TouchableOpacity onPress={() => open(row)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                       <Text style={st.detailEdit}>Edit</Text>
                     </TouchableOpacity>
@@ -237,7 +238,7 @@ export default function YourDetails({
         <View style={st.modal}>
           <View style={st.modalHeader}>
             <TouchableOpacity style={st.modalBack} onPress={close}>
-              <Ionicons name="chevron-back" size={20} color="#3a4640" />
+              <Ionicons name="chevron-back" size={20} color={dc("#3a4640", 'text')} />
             </TouchableOpacity>
             <Text style={st.modalTitle}>{editingRow?.label}</Text>
             <View style={{ width: 34 }} />
@@ -261,7 +262,7 @@ export default function YourDetails({
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles({
   card: { borderRadius: 16, borderWidth: 1, padding: 16, marginTop: 16 },
   cardTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
   cardSub: { fontSize: 12, marginTop: 4, marginBottom: 6 },

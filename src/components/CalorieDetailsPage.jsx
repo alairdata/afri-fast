@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platf
 import { SourcesLink } from './HealthSourcesPage';
 import { LineChart } from 'react-native-chart-kit';
 import { Rect } from 'react-native-svg';
+import { dc, themedStyles } from '../lib/theme';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -108,7 +109,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
         width={SCREEN_WIDTH - 16}
         height={190}
         chartConfig={{
-          backgroundColor: '#fff',
+          backgroundColor: dc('#fff', 'bg'),
           backgroundGradientFrom: '#fff',
           backgroundGradientTo: '#fff',
           decimalPlaces: 0,
@@ -148,7 +149,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
         {/* Header */}
         <View style={styles.weightPageHeader}>
           <TouchableOpacity style={styles.weightBackBtn} onPress={onClose}>
-            <Ionicons name="chevron-back" size={24} color="#059669" />
+            <Ionicons name="chevron-back" size={24} color={dc("#059669", 'text')} />
           </TouchableOpacity>
           <Text style={styles.weightPageTitle}>Calorie Details</Text>
           <View style={{ width: 40 }} />
@@ -179,22 +180,22 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
             <Text style={styles.detailSectionTitle}>Calorie Statistics</Text>
             <View style={styles.calorieStatsGridCompact}>
               <View style={styles.calorieStatCardCompact}>
-                <Ionicons name="flame-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
+                <Ionicons name="flame-outline" size={16} color={dc("#1F1F1F", 'text')} style={{ marginBottom: 4 }} />
                 <Text style={styles.calorieStatCardValueSmall}>{hasData ? avg(totals.calories).toLocaleString() : '--'}</Text>
                 <Text style={styles.calorieStatCardLabelSmall}>Avg daily</Text>
               </View>
               <View style={styles.calorieStatCardCompact}>
-                <Ionicons name="bar-chart-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
+                <Ionicons name="bar-chart-outline" size={16} color={dc("#1F1F1F", 'text')} style={{ marginBottom: 4 }} />
                 <Text style={styles.calorieStatCardValueSmall}>{hasData ? (totals.calories >= 1000 ? `${(totals.calories / 1000).toFixed(1)}k` : totals.calories) : '--'}</Text>
                 <Text style={styles.calorieStatCardLabelSmall}>Total cal</Text>
               </View>
               <View style={styles.calorieStatCardCompact}>
-                <Ionicons name="trending-up-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
+                <Ionicons name="trending-up-outline" size={16} color={dc("#1F1F1F", 'text')} style={{ marginBottom: 4 }} />
                 <Text style={styles.calorieStatCardValueSmall}>{hasData ? highest.toLocaleString() : '--'}</Text>
                 <Text style={styles.calorieStatCardLabelSmall}>Highest</Text>
               </View>
               <View style={styles.calorieStatCardCompact}>
-                <Ionicons name="trending-down-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
+                <Ionicons name="trending-down-outline" size={16} color={dc("#1F1F1F", 'text')} style={{ marginBottom: 4 }} />
                 <Text style={styles.calorieStatCardValueSmall}>{hasData ? lowest.toLocaleString() : '--'}</Text>
                 <Text style={styles.calorieStatCardLabelSmall}>Lowest</Text>
               </View>
@@ -206,9 +207,9 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
             <Text style={styles.detailSectionTitle}>Macro Distribution</Text>
             <View style={styles.macroCardCompact}>
               <View style={styles.macroDistBarCompact}>
-                <View style={{ width: hasData ? `${pct(totals.protein, 4)}%` : '33%', height: '100%', backgroundColor: '#EF4444', borderTopLeftRadius: 6, borderBottomLeftRadius: 6 }} />
-                <View style={{ width: hasData ? `${pct(totals.carbs, 4)}%` : '34%', height: '100%', backgroundColor: '#F59E0B' }} />
-                <View style={{ width: hasData ? `${pct(totals.fats, 9)}%` : '33%', height: '100%', backgroundColor: '#8B5CF6', borderTopRightRadius: 6, borderBottomRightRadius: 6 }} />
+                <View style={{ width: hasData ? `${pct(totals.protein, 4)}%` : '33%', height: '100%', backgroundColor: dc('#EF4444', 'bg'), borderTopLeftRadius: 6, borderBottomLeftRadius: 6 }} />
+                <View style={{ width: hasData ? `${pct(totals.carbs, 4)}%` : '34%', height: '100%', backgroundColor: dc('#F59E0B', 'bg') }} />
+                <View style={{ width: hasData ? `${pct(totals.fats, 9)}%` : '33%', height: '100%', backgroundColor: dc('#8B5CF6', 'bg'), borderTopRightRadius: 6, borderBottomRightRadius: 6 }} />
               </View>
               <View style={styles.macroDistLegendCompact}>
                 {[['Protein', '#EF4444', pct(totals.protein, 4), avg(totals.protein)], ['Carbs', '#F59E0B', pct(totals.carbs, 4), avg(totals.carbs)], ['Fats', '#8B5CF6', pct(totals.fats, 9), avg(totals.fats)]].map(([label, color, p, g]) => (
@@ -231,7 +232,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
                   ['Sodium', hasSugarData ? `${avgOver('sodium').toLocaleString()}mg` : '--', hasSugarData ? avgOver('sodium') > SODIUM_REF_MG : null],
                 ].map(([label, value, over]) => (
                   <View key={label} style={styles.extraCol}>
-                    <Text style={[styles.extraValue, over === true && { color: '#D97706' }, over === false && { color: '#059669' }]}>{value}</Text>
+                    <Text style={[styles.extraValue, over === true && { color: dc('#D97706', 'text') }, over === false && { color: dc('#059669', 'text') }]}>{value}</Text>
                     <Text style={styles.extraLabel}>{label}</Text>
                   </View>
                 ))}
@@ -250,7 +251,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
                   style={[styles.trendTab, trendKey === t.key && { backgroundColor: t.hex, borderColor: t.hex }]}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.trendTabTxt, trendKey === t.key && { color: '#fff' }]}>{t.label}</Text>
+                  <Text style={[styles.trendTabTxt, trendKey === t.key && { color: dc('#fff', 'text') }]}>{t.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -296,14 +297,14 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
             })()}
           </View>
 
-          <SourcesLink topic="food" only label="Estimates · Sources" color="#6B7280" style={{ marginTop: 4, marginBottom: 24 }} />
+          <SourcesLink topic="food" only label="Estimates · Sources" color={dc("#6B7280", 'text')} style={{ marginTop: 4, marginBottom: 24 }} />
         </ScrollView>
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   distCol: { flex: 1, alignItems: 'center' },
   distLabel: { fontSize: 12, color: '#6B7280', fontWeight: '600' },
   distValue: { fontSize: 18, fontWeight: '800', color: '#1F1F1F', marginTop: 4 },

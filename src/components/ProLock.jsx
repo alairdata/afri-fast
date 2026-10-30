@@ -5,6 +5,7 @@ import Svg, { Path, Rect, Defs, Stop, LinearGradient as SvgGradient } from 'reac
 import { BlurView } from 'expo-blur';
 import { openPaywall } from '../lib/subscription';
 import { track, EVENTS } from '../lib/analytics';
+import { dc, themedStyles } from '../lib/theme';
 
 const GREEN = '#059669';
 
@@ -16,12 +17,12 @@ export const unlock = (reason) => {
 // Body of a Pro-only card for Free users: what they'd see, and a button to the upgrade screen.
 export const ProLockedBody = ({ reason, text, colors, style }) => (
   <TouchableOpacity style={[styles.body, { backgroundColor: colors?.cardAlt || 'rgba(5,150,105,0.05)' }, style]} onPress={() => unlock(reason)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={`${text}. Unlock with Logga Pro`}>
-    <View style={styles.lockCircle}><Ionicons name="lock-closed" size={15} color={GREEN} /></View>
+    <View style={styles.lockCircle}><Ionicons name="lock-closed" size={15} color={dc(GREEN, 'text')} /></View>
     <View style={{ flex: 1 }}>
-      <Text style={[styles.text, { color: colors?.text || '#16201b' }]}>{text}</Text>
+      <Text style={[styles.text, { color: colors?.text || dc('#16201b', 'text') }]}>{text}</Text>
       <Text style={styles.cta}>Unlock with Pro</Text>
     </View>
-    <Ionicons name="chevron-forward" size={16} color={GREEN} />
+    <Ionicons name="chevron-forward" size={16} color={dc(GREEN, 'text')} />
   </TouchableOpacity>
 );
 
@@ -55,12 +56,12 @@ export const LockedChartPreview = ({ reason, kind = 'line', caption, height = 15
           <>
             <Defs>
               <SvgGradient id="fakeFill" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor="#10B981" stopOpacity="0.35" />
-                <Stop offset="1" stopColor="#10B981" stopOpacity="0" />
+                <Stop offset="0" stopColor={dc("#10B981", 'bg')} stopOpacity="0.35" />
+                <Stop offset="1" stopColor={dc("#10B981", 'bg')} stopOpacity="0" />
               </SvgGradient>
             </Defs>
             <Path d={`${path} L ${W} ${H} L 0 ${H} Z`} fill="url(#fakeFill)" />
-            <Path d={path} stroke="#059669" strokeWidth={3.5} fill="none" strokeLinecap="round" />
+            <Path d={path} stroke={dc("#059669", 'border')} strokeWidth={3.5} fill="none" strokeLinecap="round" />
           </>
         ) : (
           FAKE_BARS.map(([v, c], i) => {
@@ -74,7 +75,7 @@ export const LockedChartPreview = ({ reason, kind = 'line', caption, height = 15
       <BlurView intensity={Platform.OS === 'android' ? 30 : 14} tint="light" style={StyleSheet.absoluteFill} />
       <View style={styles.previewOverlay} pointerEvents="none">
         <View style={styles.unlockPill}>
-          <Ionicons name="lock-closed" size={13} color={GREEN} />
+          <Ionicons name="lock-closed" size={13} color={dc(GREEN, 'text')} />
           <Text style={styles.unlockTxt}>Unlock with Pro</Text>
         </View>
         {caption ? <Text style={styles.previewCaption}>{caption}</Text> : null}
@@ -86,12 +87,12 @@ export const LockedChartPreview = ({ reason, kind = 'line', caption, height = 15
 // Small "PRO" tag for headers and buttons.
 export const ProTag = ({ style }) => (
   <View style={[styles.tag, style]}>
-    <Ionicons name="lock-closed" size={9} color="#fff" />
+    <Ionicons name="lock-closed" size={9} color={dc("#fff", 'text')} />
     <Text style={styles.tagTxt}>PRO</Text>
   </View>
 );
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   preview: { marginTop: 12, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(5,150,105,0.04)' },
   previewOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   unlockPill: {

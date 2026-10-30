@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
+import { dc, themedStyles } from '../lib/theme';
 
 const INK = '#16201b';
 const INK500 = '#6c7872';
@@ -54,7 +55,7 @@ const ManualMealForm = ({ selectedMealDate, onSave }) => {
         value={value}
         onChangeText={set}
         placeholder={opts.placeholder || ''}
-        placeholderTextColor={INK400}
+        placeholderTextColor={dc(INK400, 'text')}
         keyboardType={opts.numeric ? 'decimal-pad' : 'default'}
         maxLength={opts.numeric ? 6 : 80}
         returnKeyType="done"
@@ -74,13 +75,13 @@ const ManualMealForm = ({ selectedMealDate, onSave }) => {
         {field('Fat (g)', fats, setFats, { numeric: true, half: true })}
       </View>
       <TouchableOpacity style={[styles.btn, !canSave && styles.btnOff]} disabled={!canSave} onPress={save} activeOpacity={0.85}>
-        <Text style={[styles.btnTxt, !canSave && { color: INK400 }]}>Log meal</Text>
+        <Text style={[styles.btnTxt, !canSave && { color: dc(INK400, 'text') }]}>Log meal</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   content: { padding: 20, paddingBottom: 40 },
   intro: { fontSize: 14, lineHeight: 20, color: INK500, marginBottom: 18 },
   label: { fontSize: 13, fontWeight: '700', color: INK, marginBottom: 6, marginTop: 12 },

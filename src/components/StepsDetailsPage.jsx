@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { SourcesLink } from './HealthSourcesPage';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Platform } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { dc, themedStyles } from '../lib/theme';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -85,20 +86,20 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={onClose}>
-            <Ionicons name="chevron-back" size={24} color={ACCENT} />
+            <Ionicons name="chevron-back" size={24} color={dc(ACCENT, 'text')} />
           </TouchableOpacity>
           <Text style={styles.title}>Steps Log</Text>
           <TouchableOpacity
             style={[styles.calIconBtn, showCalendar && styles.calIconBtnActive]}
             onPress={() => setShowCalendar(v => !v)}
           >
-            <Ionicons name="calendar-outline" size={20} color={showCalendar ? '#fff' : ACCENT} />
+            <Ionicons name="calendar-outline" size={20} color={showCalendar ? dc('#fff', 'text') : dc(ACCENT, 'text')} />
           </TouchableOpacity>
         </View>
 
         {/* Always-visible selected date strip */}
         <View style={styles.selectedStrip}>
-          <Ionicons name="footsteps-outline" size={12} color={ACCENT} />
+          <Ionicons name="footsteps-outline" size={12} color={dc(ACCENT, 'text')} />
           <Text style={styles.selectedStripText}>Logging for: <Text style={styles.selectedStripDate}>{selectedLabel}</Text></Text>
         </View>
 
@@ -109,11 +110,11 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
           {/* Month nav */}
           <View style={styles.calMonthRow}>
             <TouchableOpacity style={styles.calNavBtn} onPress={prevMonth}>
-              <Ionicons name="chevron-back" size={18} color={ACCENT} />
+              <Ionicons name="chevron-back" size={18} color={dc(ACCENT, 'text')} />
             </TouchableOpacity>
             <Text style={styles.calMonthLabel}>{MONTHS[month]} {year}</Text>
             <TouchableOpacity style={[styles.calNavBtn, isNextDisabled && styles.calNavBtnDisabled]} onPress={nextMonth} disabled={isNextDisabled}>
-              <Ionicons name="chevron-forward" size={18} color={isNextDisabled ? '#ccc' : ACCENT} />
+              <Ionicons name="chevron-forward" size={18} color={isNextDisabled ? dc('#ccc', 'text') : dc(ACCENT, 'text')} />
             </TouchableOpacity>
           </View>
 
@@ -168,7 +169,7 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
           {appleHealthAvailable && (
             appleHealthOn ? (
               <View style={styles.healthLine}>
-                <Ionicons name="heart" size={13} color="#FF2D55" />
+                <Ionicons name="heart" size={13} color={dc("#FF2D55", 'text')} />
                 <Text style={styles.healthLineTxt}>Steps from Apple Health</Text>
                 <TouchableOpacity
                   disabled={connecting}
@@ -181,7 +182,7 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
             ) : (
               <View style={styles.healthCard}>
                 <View style={styles.healthIcon}>
-                  <Ionicons name="heart" size={18} color="#FF2D55" />
+                  <Ionicons name="heart" size={18} color={dc("#FF2D55", 'text')} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.healthTitle}>Get your steps automatically</Text>
@@ -210,8 +211,8 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
                   <Svg width={180} height={180} viewBox="0 0 180 180" style={{ position: 'absolute' }}>
                     <Defs>
                       <LinearGradient id="stepsGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <Stop offset="0%" stopColor="#F97316" />
-                        <Stop offset="100%" stopColor="#FB923C" />
+                        <Stop offset="0%" stopColor={dc("#F97316", 'bg')} />
+                        <Stop offset="100%" stopColor={dc("#FB923C", 'bg')} />
                       </LinearGradient>
                     </Defs>
                     <Circle cx="90" cy="90" r={RING_R} stroke="rgba(249,115,22,0.12)" strokeWidth="8" fill="none" />
@@ -232,7 +233,7 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
                     ) : (
                       <TextInput
                         placeholder="8000"
-                        placeholderTextColor="#ccc"
+                        placeholderTextColor={dc("#ccc", 'text')}
                         value={newSteps}
                         onChangeText={setNewSteps}
                         style={styles.inputValue}
@@ -272,7 +273,7 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
                   onPress={() => setShowStepsStatsDropdown(!showStepsStatsDropdown)}
                 >
                   <Text style={styles.dropdownBtnText}>{stepsStatsRange}</Text>
-                  <Text style={{ color: ACCENT, fontSize: 10 }}>▼</Text>
+                  <Text style={{ color: dc(ACCENT, 'text'), fontSize: 10 }}>▼</Text>
                 </TouchableOpacity>
                 {showStepsStatsDropdown && (
                   <View style={styles.dropdownMenu}>
@@ -304,22 +305,22 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
                 <>
                   <View style={styles.statsGrid}>
                     <View style={styles.statCard}>
-                      <Ionicons name="footsteps-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
+                      <Ionicons name="footsteps-outline" size={16} color={dc("#1F1F1F", 'text')} style={{ marginBottom: 4 }} />
                       <Text style={styles.statCardValue}>{hasData ? avgSteps.toLocaleString() : '--'}</Text>
                       <Text style={styles.statCardLabel}>Avg daily</Text>
                     </View>
                     <View style={styles.statCard}>
-                      <Ionicons name="checkmark-circle-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
+                      <Ionicons name="checkmark-circle-outline" size={16} color={dc("#1F1F1F", 'text')} style={{ marginBottom: 4 }} />
                       <Text style={styles.statCardValue}>{hasData ? `${goalMetCount}/${rangeLogs.length}` : '--'}</Text>
                       <Text style={styles.statCardLabel}>Goal met</Text>
                     </View>
                     <View style={styles.statCard}>
-                      <Ionicons name="trending-up-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
+                      <Ionicons name="trending-up-outline" size={16} color={dc("#1F1F1F", 'text')} style={{ marginBottom: 4 }} />
                       <Text style={styles.statCardValue}>{hasData ? bestSteps.toLocaleString() : '--'}</Text>
                       <Text style={styles.statCardLabel}>Best day</Text>
                     </View>
                     <View style={styles.statCard}>
-                      <Ionicons name="bar-chart-outline" size={16} color="#1F1F1F" style={{ marginBottom: 4 }} />
+                      <Ionicons name="bar-chart-outline" size={16} color={dc("#1F1F1F", 'text')} style={{ marginBottom: 4 }} />
                       <Text style={styles.statCardValue}>{hasData ? totalSteps.toLocaleString() : '--'}</Text>
                       <Text style={styles.statCardLabel}>Total</Text>
                     </View>
@@ -365,17 +366,17 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
                         <Text style={[styles.logDateDay, { color: accent }]}>{dayNum}</Text>
                         <Text style={[styles.logDateMonth, { color: accent }]}>{monthAbbr}</Text>
                       </View>
-                      <Text style={[styles.logAmount, { color: goalMet ? ACCENT : '#1F1F1F' }]}>{log.steps.toLocaleString()} steps</Text>
+                      <Text style={[styles.logAmount, { color: goalMet ? dc(ACCENT, 'text') : dc('#1F1F1F', 'text') }]}>{log.steps.toLocaleString()} steps</Text>
                     </View>
                     <View style={styles.logRight}>
                       <Text style={styles.logDayName}>{dayAbbr}</Text>
                       <View style={[styles.logBadge, { backgroundColor: goalMet ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)' }]}>
-                        <Text style={{ color: goalMet ? '#10B981' : '#F59E0B', fontSize: 10, fontWeight: '600' }}>
+                        <Text style={{ color: goalMet ? dc('#10B981', 'text') : dc('#F59E0B', 'text'), fontSize: 10, fontWeight: '600' }}>
                           {goalMet ? '✓ Goal' : `${Math.round((log.steps / stepGoal) * 100)}%`}
                         </Text>
                       </View>
                       <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteStepLog(index)}>
-                        <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                        <Ionicons name="trash-outline" size={14} color={dc("#EF4444", 'text')} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -392,7 +393,7 @@ const StepsDetailsPage = ({ show, onClose, stepLogs, setStepLogs, stepGoal = 100
 
 const CELL_SIZE = Math.floor((SCREEN_WIDTH - 40 - 24) / 7);
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   healthCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     marginHorizontal: 16, marginTop: 12, padding: 14, borderRadius: 16,

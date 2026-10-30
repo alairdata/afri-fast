@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { dc, themedStyles } from '../lib/theme';
 
 // Shown when someone taps Apple / Google on the LOG IN screen but has no Logga account. Apple and Google
 // quietly create a new, empty account in that case; here the person chooses to keep going (create the
@@ -15,7 +16,7 @@ export default function AccountNotFoundScreen({ email, provider, onCreate, onBac
     <View style={s.page}>
       <View style={s.card}>
         <View style={s.icon}>
-          <Ionicons name="person-add-outline" size={30} color="#059669" />
+          <Ionicons name="person-add-outline" size={30} color={dc("#059669", 'text')} />
         </View>
         <Text style={s.title}>We couldn't find your account</Text>
         <Text style={s.body}>
@@ -31,14 +32,14 @@ export default function AccountNotFoundScreen({ email, provider, onCreate, onBac
           onPress={async () => { setLeaving(true); await onBack(); }}
           disabled={leaving}
         >
-          {leaving ? <ActivityIndicator color="#059669" /> : <Text style={s.linkTxt}>Back to log in</Text>}
+          {leaving ? <ActivityIndicator color={dc("#059669", 'text')} /> : <Text style={s.linkTxt}>Back to log in</Text>}
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles({
   page: { flex: 1, backgroundColor: '#F4F1EA', alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { width: '100%', maxWidth: 400, backgroundColor: '#fff', borderRadius: 24, padding: 26, alignItems: 'center' },
   icon: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(5,150,105,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },

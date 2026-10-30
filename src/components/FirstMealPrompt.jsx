@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform, Image } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path } from 'react-native-svg';
+import { dc, themedStyles } from '../lib/theme';
 
 const INK = '#16201b';
 const INK500 = '#6c7872';
@@ -10,7 +11,7 @@ const GREEN = '#059669';
 
 const Sparkle = ({ size, style }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" style={[{ position: 'absolute' }, style]}>
-    <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill="#34D399" />
+    <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={dc("#34D399", 'bg')} />
   </Svg>
 );
 
@@ -39,7 +40,7 @@ export default function FirstMealPrompt({ visible, name, onPick, onLater }) {
           <View style={st.row}>
             {WAYS.map((w) => (
               <TouchableOpacity key={w.method} style={st.tile} onPress={() => onPick(w.method)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`${w.label} your meal`}>
-                <View style={st.tileIcon}><Ionicons name={w.icon} size={26} color={GREEN} /></View>
+                <View style={st.tileIcon}><Ionicons name={w.icon} size={26} color={dc(GREEN, 'text')} /></View>
                 <Text style={st.tileTxt}>{w.label}</Text>
               </TouchableOpacity>
             ))}
@@ -53,7 +54,7 @@ export default function FirstMealPrompt({ visible, name, onPick, onLater }) {
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles({
   page: { flex: 1, backgroundColor: '#F7F8F5', paddingHorizontal: 24, paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingBottom: Platform.OS === 'ios' ? 34 : 22 },
   mid: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { marginTop: 12, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: GREEN },

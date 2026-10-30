@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Switch, Platform, Linking } from 'react-native';
 import { loadConsent, saveConsent, setAiConsentAsker, setConsentUser } from '../lib/consent';
+import { dc, themedStyles } from '../lib/theme';
 
 const INK = '#16201b';
 const INK500 = '#6c7872';
@@ -46,7 +47,7 @@ const AiConsentModal = ({ signedIn, userId }) => {
     <Modal visible={visible} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'} onRequestClose={() => finish(false)}>
       <View style={[styles.page, Platform.OS === 'android' && { paddingTop: 44 }]}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.iconWrap}><Ionicons name="sparkles-outline" size={26} color={GREEN} /></View>
+          <View style={styles.iconWrap}><Ionicons name="sparkles-outline" size={26} color={dc(GREEN, 'text')} /></View>
           <Text style={styles.title}>How Logga uses AI</Text>
           <Text style={styles.body}>
             To estimate the calories in your meals and write your insights, Logga sends some of your data to trusted third-party AI providers, only to create a response for you. Logga never uses your data for advertising.
@@ -90,7 +91,7 @@ const AiConsentModal = ({ signedIn, userId }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   page: { flex: 1, backgroundColor: '#F8FAFC' },
   content: { padding: 24, paddingTop: 32, width: '100%', maxWidth: 560, alignSelf: 'center' },
   iconWrap: { width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(5,150,105,0.1)', alignItems: 'center', justifyContent: 'center' },

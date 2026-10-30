@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, Platform, Linking } from 'react-native';
 import { TOPICS, HEALTH_DISCLAIMER, sourcesFor } from '../lib/healthSources';
+import { dc, themedStyles } from '../lib/theme';
 
 const INK = '#16201b';
 const INK500 = '#6c7872';
@@ -24,7 +25,7 @@ export const SourceItem = ({ source, last }) => (
       <Text style={styles.sourceTitle}>{source.title}</Text>
       <Text style={styles.sourceBy}>{source.by}</Text>
     </View>
-    <Ionicons name="open-outline" size={16} color={GREEN} />
+    <Ionicons name="open-outline" size={16} color={dc(GREEN, 'text')} />
   </TouchableOpacity>
 );
 
@@ -57,7 +58,7 @@ const HealthSourcesPage = ({ visible, onClose, topic, only = false }) => {
       <View style={[styles.page, Platform.OS === 'android' && { paddingTop: 44 }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeBtn} accessibilityLabel="Close">
-            <Ionicons name="close" size={22} color={INK} />
+            <Ionicons name="close" size={22} color={dc(INK, 'text')} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Health info & sources</Text>
           <View style={{ width: 40 }} />
@@ -79,7 +80,7 @@ const HealthSourcesPage = ({ visible, onClose, topic, only = false }) => {
             );
           })}
           <View style={styles.disclaimer}>
-            <Ionicons name="medkit-outline" size={18} color={INK500} style={{ marginTop: 1 }} />
+            <Ionicons name="medkit-outline" size={18} color={dc(INK500, 'text')} style={{ marginTop: 1 }} />
             <Text style={styles.disclaimerTxt}>{HEALTH_DISCLAIMER}</Text>
           </View>
           <View style={{ height: 40 }} />
@@ -110,7 +111,7 @@ export const SourcesLink = ({ topic, label = 'Sources', style, color = GREEN, on
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   page: { flex: 1, backgroundColor: '#F8FAFC' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

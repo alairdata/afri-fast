@@ -5,6 +5,7 @@ import { setPaywallPresenter, loadPlans, purchasePlan, restorePurchases, getSubs
 import { track, EVENTS } from '../lib/analytics';
 import ProFeatureCarousel from './ProFeatureCarousel';
 import { showAlert } from '../lib/alert';
+import { dc, themedStyles } from '../lib/theme';
 
 const INK = '#16201b';
 const INK500 = '#6c7872';
@@ -165,7 +166,7 @@ const PaywallModal = ({ goal }) => {
             {!canPurchase ? (
               <Text style={styles.small}>Logga Pro is available in the Logga iPhone app.</Text>
             ) : loading ? (
-              <ActivityIndicator color={GREEN} style={{ marginTop: 28 }} />
+              <ActivityIndicator color={dc(GREEN, 'text')} style={{ marginTop: 28 }} />
             ) : !plans ? (
               <Text style={styles.small}>Plans couldn't load right now. Check your connection and try again.</Text>
             ) : (
@@ -208,7 +209,7 @@ const PaywallModal = ({ goal }) => {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 22, marginHorizontal: -22 }} contentContainerStyle={{ paddingHorizontal: 22, gap: 10 }}>
               {TESTIMONIALS.map((t) => (
                 <View key={t.quote} style={styles.quoteCard}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={16} color={GREEN} />
+                  <Ionicons name="chatbubble-ellipses-outline" size={16} color={dc(GREEN, 'text')} />
                   <Text style={styles.quoteTxt}>“{t.quote}”</Text>
                   <Text style={styles.quoteBy}>— {t.by}</Text>
                 </View>
@@ -219,7 +220,7 @@ const PaywallModal = ({ goal }) => {
             <View style={styles.benefits}>
               {BENEFITS.map((b) => (
                 <View key={b} style={styles.benefit}>
-                  <Ionicons name="checkmark-circle" size={16} color={GREEN} />
+                  <Ionicons name="checkmark-circle" size={16} color={dc(GREEN, 'text')} />
                   <Text style={styles.benefitTxt}>{b}</Text>
                 </View>
               ))}
@@ -235,14 +236,14 @@ const PaywallModal = ({ goal }) => {
         </ScrollView>
 
         <TouchableOpacity onPress={close} style={styles.closeBtn} accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="close" size={20} color={INK} />
+          <Ionicons name="close" size={20} color={dc(INK, 'text')} />
         </TouchableOpacity>
 
         {canPurchase && plans && selected && (
           <View style={styles.footer}>
             <Text style={styles.cancelAny}>{trial ? `7 days free, then ${selected.product.priceString}/${choice === 'yearly' ? 'year' : 'month'} · ` : ''}Cancel anytime</Text>
             <TouchableOpacity style={[styles.cta, busy && { opacity: 0.6 }]} onPress={buy} disabled={busy} activeOpacity={0.85}>
-              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaTxt}>{trial ? 'Start my free week' : 'Continue'}</Text>}
+              {busy ? <ActivityIndicator color={dc("#fff", 'text')} /> : <Text style={styles.ctaTxt}>{trial ? 'Start my free week' : 'Continue'}</Text>}
             </TouchableOpacity>
           </View>
         )}
@@ -251,7 +252,7 @@ const PaywallModal = ({ goal }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   page: { flex: 1, backgroundColor: '#fff' },
   hero: { paddingTop: Platform.OS === 'android' ? 84 : 60 },
   closeBtn: { position: 'absolute', top: Platform.OS === 'android' ? 44 : 14, right: 16, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.8)', alignItems: 'center', justifyContent: 'center' },

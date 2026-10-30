@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { dc, themedStyles } from '../lib/theme';
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -96,13 +97,13 @@ const TimeEditModal = ({
           {/* Hour */}
           <View style={s.timeCol}>
             <TouchableOpacity style={s.chevron} onPress={() => setHour((hour + 1) % 24)}>
-              <Ionicons name="chevron-up" size={20} color="#059669" />
+              <Ionicons name="chevron-up" size={20} color={dc("#059669", 'text')} />
             </TouchableOpacity>
             <View style={s.numBox}>
               <Text style={s.timeNum}>{fmtNum(display12)}</Text>
             </View>
             <TouchableOpacity style={s.chevron} onPress={() => setHour((hour + 23) % 24)}>
-              <Ionicons name="chevron-down" size={20} color="#059669" />
+              <Ionicons name="chevron-down" size={20} color={dc("#059669", 'text')} />
             </TouchableOpacity>
           </View>
 
@@ -111,13 +112,13 @@ const TimeEditModal = ({
           {/* Minute */}
           <View style={s.timeCol}>
             <TouchableOpacity style={s.chevron} onPress={() => setMin((minute + 1) % 60)}>
-              <Ionicons name="chevron-up" size={20} color="#059669" />
+              <Ionicons name="chevron-up" size={20} color={dc("#059669", 'text')} />
             </TouchableOpacity>
             <View style={s.numBox}>
               <Text style={s.timeNum}>{fmtNum(minute)}</Text>
             </View>
             <TouchableOpacity style={s.chevron} onPress={() => setMin((minute + 59) % 60)}>
-              <Ionicons name="chevron-down" size={20} color="#059669" />
+              <Ionicons name="chevron-down" size={20} color={dc("#059669", 'text')} />
             </TouchableOpacity>
           </View>
 
@@ -151,7 +152,7 @@ const TimeEditModal = ({
   );
 };
 
-const s = StyleSheet.create({
+const s = themedStyles({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,

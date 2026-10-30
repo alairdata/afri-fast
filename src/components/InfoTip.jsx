@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { INSIGHT_HELP } from '../lib/insightHelp';
+import { dc, themedStyles } from '../lib/theme';
 
 // Small (i) next to a card title. Tapping it opens a short plain-language explanation of the card.
 const InfoTip = ({ id, color = '#9CA3AF', size = 15, style }) => {
@@ -23,7 +24,7 @@ const InfoTip = ({ id, color = '#9CA3AF', size = 15, style }) => {
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <Pressable style={styles.sheet} onPress={() => {}}>
             <View style={styles.headRow}>
-              <Ionicons name="information-circle" size={20} color="#059669" />
+              <Ionicons name="information-circle" size={20} color={dc("#059669", 'text')} />
               <Text style={styles.title}>{help.title}</Text>
             </View>
             <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
@@ -39,7 +40,7 @@ const InfoTip = ({ id, color = '#9CA3AF', size = 15, style }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   btn: { justifyContent: 'center', alignItems: 'center' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   sheet: { width: '100%', maxWidth: 400, backgroundColor: '#fff', borderRadius: 20, padding: 20 },

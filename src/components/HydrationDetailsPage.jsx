@@ -5,6 +5,7 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimens
 import Svg, { Path, Rect, Ellipse, Defs, LinearGradient, Stop, ClipPath, G } from 'react-native-svg';
 import { showAlert } from '../lib/alert';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
+import { dc, themedStyles } from '../lib/theme';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -40,20 +41,20 @@ const WaterGlass = ({ fill }) => {
     <Svg width={52} height={58} viewBox="0 0 80 90">
       <Defs>
         <ClipPath id="glassInside"><Path d="M11 8 A29 5 0 0 0 69 8 L63.5 76 Q62.8 80 58 80 L22 80 Q17.2 80 16.5 76 Z" /></ClipPath>
-        <LinearGradient id="waterFill" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#38BDF8" /><Stop offset="1" stopColor="#0284C7" /></LinearGradient>
-        <LinearGradient id="glassTint" x1="0" y1="0" x2="1" y2="0"><Stop offset="0" stopColor="#E0F2FE" stopOpacity="0.9" /><Stop offset="0.5" stopColor="#F0F9FF" stopOpacity="0.5" /><Stop offset="1" stopColor="#E0F2FE" stopOpacity="0.9" /></LinearGradient>
+        <LinearGradient id="waterFill" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={dc("#38BDF8", 'bg')} /><Stop offset="1" stopColor={dc("#0284C7", 'bg')} /></LinearGradient>
+        <LinearGradient id="glassTint" x1="0" y1="0" x2="1" y2="0"><Stop offset="0" stopColor={dc("#E0F2FE", 'bg')} stopOpacity="0.9" /><Stop offset="0.5" stopColor={dc("#F0F9FF", 'bg')} stopOpacity="0.5" /><Stop offset="1" stopColor={dc("#E0F2FE", 'bg')} stopOpacity="0.9" /></LinearGradient>
       </Defs>
       <Path d="M10 8 L16 78 Q17 85 24 85 L56 85 Q63 85 64 78 L70 8 A30 5 0 0 0 10 8 Z" fill="url(#glassTint)" />
       {f > 0 && (
         <G clipPath="url(#glassInside)">
           <Rect x="0" y={waterY} width="80" height="90" fill="url(#waterFill)" />
-          <Ellipse cx="40" cy={waterY} rx={rx} ry="3.2" fill="#7DD3FC" />
+          <Ellipse cx="40" cy={waterY} rx={rx} ry="3.2" fill={dc("#7DD3FC", 'bg')} />
         </G>
       )}
-      <Path d="M10 8 L16 78 Q17 85 24 85 L56 85 Q63 85 64 78 L70 8" fill="none" stroke="#7FB8D9" strokeWidth="2" strokeLinejoin="round" />
-      <Ellipse cx="40" cy="8" rx="30" ry="5" fill="none" stroke="#7FB8D9" strokeWidth="2" />
-      <Path d="M18.5 16 L23 70" stroke="#fff" strokeWidth="3" strokeLinecap="round" opacity="0.75" />
-      <Path d="M61 18 L59.5 36" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+      <Path d="M10 8 L16 78 Q17 85 24 85 L56 85 Q63 85 64 78 L70 8" fill="none" stroke={dc("#7FB8D9", 'border')} strokeWidth="2" strokeLinejoin="round" />
+      <Ellipse cx="40" cy="8" rx="30" ry="5" fill="none" stroke={dc("#7FB8D9", 'border')} strokeWidth="2" />
+      <Path d="M18.5 16 L23 70" stroke={dc("#fff", 'border')} strokeWidth="3" strokeLinecap="round" opacity="0.75" />
+      <Path d="M61 18 L59.5 36" stroke={dc("#fff", 'border')} strokeWidth="2" strokeLinecap="round" opacity="0.5" />
     </Svg>
   );
 };
@@ -157,11 +158,11 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerBtn} onPress={onClose} accessibilityLabel="Back">
-            <Ionicons name="arrow-back" size={20} color="#1F1F1F" />
+            <Ionicons name="arrow-back" size={20} color={dc("#1F1F1F", 'text')} />
           </TouchableOpacity>
           <Text style={styles.title}>Hydration</Text>
           <TouchableOpacity style={styles.headerBtn} onPress={() => setShowCalendar((v) => !v)} accessibilityLabel="Pick a day">
-            <Ionicons name={showCalendar ? 'calendar' : 'calendar-outline'} size={20} color="#2563EB" />
+            <Ionicons name={showCalendar ? 'calendar' : 'calendar-outline'} size={20} color={dc("#2563EB", 'text')} />
           </TouchableOpacity>
         </View>
 
@@ -171,11 +172,11 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
           <View style={styles.calendarCard}>
             <View style={styles.calMonthRow}>
               <TouchableOpacity style={styles.calNavBtn} onPress={() => setCalendarMonth(new Date(year, month - 1, 1))}>
-                <Ionicons name="chevron-back" size={18} color="#2563EB" />
+                <Ionicons name="chevron-back" size={18} color={dc("#2563EB", 'text')} />
               </TouchableOpacity>
               <Text style={styles.calMonthLabel}>{MONTHS[month]} {year}</Text>
               <TouchableOpacity style={[styles.calNavBtn, isNextDisabled && styles.calNavBtnDisabled]} onPress={() => !isNextDisabled && setCalendarMonth(new Date(year, month + 1, 1))} disabled={isNextDisabled}>
-                <Ionicons name="chevron-forward" size={18} color={isNextDisabled ? '#ccc' : '#2563EB'} />
+                <Ionicons name="chevron-forward" size={18} color={isNextDisabled ? dc('#ccc', 'text') : dc('#2563EB', 'text')} />
               </TouchableOpacity>
             </View>
             <View style={styles.calWeekRow}>
@@ -195,7 +196,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
                     onPress={() => { if (!isFuture) { setSelectedDate(day); setShowCalendar(false); } }}
                     disabled={isFuture}
                   >
-                    <Text style={[styles.calDayText, isSelected && { color: '#fff', fontWeight: '700' }, ds === todayStr && !isSelected && { color: '#2563EB', fontWeight: '700' }]}>{day.getDate()}</Text>
+                    <Text style={[styles.calDayText, isSelected && { color: dc('#fff', 'text'), fontWeight: '700' }, ds === todayStr && !isSelected && { color: dc('#2563EB', 'text'), fontWeight: '700' }]}>{day.getDate()}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -213,7 +214,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
             </View>
             <View style={{ alignItems: 'center', gap: 6, marginRight: 8 }} accessible accessibilityLabel={`${pct}% of your daily goal`}>
               <WaterGlass fill={dayMl / goalMl} />
-              <Text style={styles.dayGoal}><Text style={{ fontWeight: '700', color: '#0284C7' }}>{pct}%</Text> of goal</Text>
+              <Text style={styles.dayGoal}><Text style={{ fontWeight: '700', color: dc('#0284C7', 'text') }}>{pct}%</Text> of goal</Text>
             </View>
           </View>
           <View style={styles.banner}><Text style={styles.bannerText}>{banner}</Text></View>
@@ -225,7 +226,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
               const on = choice === t.id;
               return (
                 <TouchableOpacity key={t.id} style={[styles.tile, on && styles.tileOn]} onPress={() => setChoice(t.id)} accessibilityState={{ selected: on }} accessibilityLabel={`${t.name}, ${t.sub}`}>
-                  <Ionicons name="water-outline" size={16} color="#2563EB" />
+                  <Ionicons name="water-outline" size={16} color={dc("#2563EB", 'text')} />
                   <Text style={styles.tileName}>{t.name}</Text>
                   <Text style={styles.tileSub}>{t.sub}</Text>
                 </TouchableOpacity>
@@ -242,13 +243,13 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
                 style={styles.bottleInput}
                 accessibilityLabel="Bottle size in millilitres"
                 placeholder="750"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={dc("#9CA3AF", 'text')}
               />
               <Text style={styles.bottleLabel}>mL</Text>
             </View>
           )}
           <TouchableOpacity style={styles.logBtn} onPress={logWater} activeOpacity={0.85}>
-            <Ionicons name="add" size={16} color="#fff" />
+            <Ionicons name="add" size={16} color={dc("#fff", 'text')} />
             <Text style={styles.logBtnText}>Log water</Text>
           </TouchableOpacity>
 
@@ -289,13 +290,13 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
             {shown.length === 0 && <Text style={styles.empty}>No water logged yet.</Text>}
             {shown.map((log, i) => (
               <View key={`${log.id}-${i}`} style={[styles.entryRow, i < shown.length - 1 && styles.entryDivider]}>
-                <Ionicons name="water-outline" size={16} color="#2563EB" />
+                <Ionicons name="water-outline" size={16} color={dc("#2563EB", 'text')} />
                 <View style={{ flex: 1, gap: 4 }}>
                   <Text style={styles.entryName}>{entryName(log)}</Text>
                   <Text style={styles.entrySub}>{fmtL(toMl(log.amount, log.unit))} · {whenText(log)}</Text>
                 </View>
                 <TouchableOpacity style={styles.moreBtn} onPress={() => askDelete(log)} accessibilityLabel={`More options for ${entryName(log)}`}>
-                  <Ionicons name="ellipsis-horizontal" size={18} color="#1F1F1F" />
+                  <Ionicons name="ellipsis-horizontal" size={18} color={dc("#1F1F1F", 'text')} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -309,7 +310,7 @@ const HydrationDetailsPage = ({ show, onClose, waterLogs, setWaterLogs, waterUni
 
 const CELL_SIZE = Math.floor((SCREEN_WIDTH - 40 - 24) / 7);
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,

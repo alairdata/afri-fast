@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Platform, Modal, KeyboardAvoidingView } from 'react-native';
 import HeaderFade from './HeaderFade';
+import { dc, themedStyles } from '../lib/theme';
 
 const INK = '#16201b';
 const MUTED = '#6c7872';
@@ -11,13 +12,13 @@ const ACCENT = '#F97316';
 
 // Each activity gets its own colour so the grid is easy to scan.
 const ACTIVITY_TYPES = [
-  { id: 'walking', label: 'Walking', sub: 'Walks, errands', icon: 'walk-outline', color: '#059669', needsDistance: 'optional' },
-  { id: 'running', label: 'Running', sub: 'Jogs, runs', icon: 'body-outline', color: '#F97316', needsDistance: 'required' },
-  { id: 'cycling', label: 'Cycling', sub: 'Bike, spin', icon: 'bicycle-outline', color: '#2563EB', needsDistance: 'required' },
-  { id: 'swimming', label: 'Swimming', sub: 'Laps, pool', icon: 'water-outline', color: '#0891B2', needsDistance: 'optional' },
-  { id: 'strength', label: 'Strength', sub: 'Gym, weights', icon: 'barbell-outline', color: '#7C3AED', needsDistance: 'none' },
-  { id: 'sports', label: 'Sports', sub: 'Football, tennis…', icon: 'football-outline', color: '#D97706', needsDistance: 'none' },
-  { id: 'other', label: 'Other', sub: 'Dance, yoga…', icon: 'sparkles-outline', color: '#64748B', needsDistance: 'optional' },
+  { id: 'walking', label: 'Walking', sub: 'Walks, errands', icon: 'walk-outline', color: dc('#059669', 'text'), needsDistance: 'optional' },
+  { id: 'running', label: 'Running', sub: 'Jogs, runs', icon: 'body-outline', color: dc('#F97316', 'text'), needsDistance: 'required' },
+  { id: 'cycling', label: 'Cycling', sub: 'Bike, spin', icon: 'bicycle-outline', color: dc('#2563EB', 'text'), needsDistance: 'required' },
+  { id: 'swimming', label: 'Swimming', sub: 'Laps, pool', icon: 'water-outline', color: dc('#0891B2', 'text'), needsDistance: 'optional' },
+  { id: 'strength', label: 'Strength', sub: 'Gym, weights', icon: 'barbell-outline', color: dc('#7C3AED', 'text'), needsDistance: 'none' },
+  { id: 'sports', label: 'Sports', sub: 'Football, tennis…', icon: 'football-outline', color: dc('#D97706', 'text'), needsDistance: 'none' },
+  { id: 'other', label: 'Other', sub: 'Dance, yoga…', icon: 'sparkles-outline', color: dc('#64748B', 'text'), needsDistance: 'optional' },
 ];
 
 const DURATION_PRESETS = [15, 30, 45, 60, 90];
@@ -97,12 +98,12 @@ const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null, hideW
             <View style={styles.header}>
               {step === 2 ? (
                 <TouchableOpacity style={styles.iconBtn} onPress={() => setStep(1)} accessibilityLabel="Back">
-                  <Ionicons name="chevron-back" size={22} color={INK} />
+                  <Ionicons name="chevron-back" size={22} color={dc(INK, 'text')} />
                 </TouchableOpacity>
               ) : <View style={styles.iconBtn} />}
               <Text style={styles.title}>{step === 1 ? 'Log an activity' : type?.label}</Text>
               <TouchableOpacity style={styles.iconBtn} onPress={close} accessibilityLabel="Close">
-                <Ionicons name="close" size={22} color={MUTED} />
+                <Ionicons name="close" size={22} color={dc(MUTED, 'text')} />
               </TouchableOpacity>
             </View>
 
@@ -137,7 +138,7 @@ const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null, hideW
                   {type.id === 'other' && (
                     <View style={styles.section}>
                       <Text style={styles.label}>What was it?</Text>
-                      <TextInput style={styles.input} placeholder="e.g. Dancing" placeholderTextColor="#aab3ae" value={name} onChangeText={setName} returnKeyType="done" />
+                      <TextInput style={styles.input} placeholder="e.g. Dancing" placeholderTextColor={dc("#aab3ae", 'text')} value={name} onChangeText={setName} returnKeyType="done" />
                     </View>
                   )}
 
@@ -146,7 +147,7 @@ const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null, hideW
                     <Text style={styles.label}>How long?</Text>
                     <View style={styles.durationRow}>
                       <TouchableOpacity style={styles.stepBtn} onPress={() => bumpDuration(-5)} accessibilityLabel="5 minutes less">
-                        <Ionicons name="remove" size={22} color={INK} />
+                        <Ionicons name="remove" size={22} color={dc(INK, 'text')} />
                       </TouchableOpacity>
                       <View style={styles.durationValue}>
                         <TextInput
@@ -155,13 +156,13 @@ const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null, hideW
                           onChangeText={(v) => setDuration(v.replace(/[^0-9]/g, '').slice(0, 3))}
                           keyboardType="number-pad"
                           placeholder="0"
-                          placeholderTextColor="#c4ccc8"
+                          placeholderTextColor={dc("#c4ccc8", 'text')}
                           maxLength={3}
                         />
                         <Text style={styles.durationUnit}>min</Text>
                       </View>
                       <TouchableOpacity style={styles.stepBtn} onPress={() => bumpDuration(5)} accessibilityLabel="5 minutes more">
-                        <Ionicons name="add" size={22} color={INK} />
+                        <Ionicons name="add" size={22} color={dc(INK, 'text')} />
                       </TouchableOpacity>
                     </View>
                     <View style={styles.chipRow}>
@@ -183,7 +184,7 @@ const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null, hideW
                         <TextInput
                           style={[styles.input, { flex: 1 }]}
                           placeholder="2.5"
-                          placeholderTextColor="#aab3ae"
+                          placeholderTextColor={dc("#aab3ae", 'text')}
                           value={distance}
                           onChangeText={(v) => setDistance(v.replace(/[^0-9.]/g, ''))}
                           keyboardType="decimal-pad"
@@ -223,7 +224,7 @@ const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null, hideW
                         const label = daysAgo === 0 ? 'Today' : daysAgo === 1 ? 'Yesterday' : d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
                         const on = when.toDateString() === d.toDateString();
                         return (
-                          <TouchableOpacity key={daysAgo} style={[styles.chip, styles.chipWide, on && { backgroundColor: INK, borderColor: INK }]} onPress={() => setWhen(d)}>
+                          <TouchableOpacity key={daysAgo} style={[styles.chip, styles.chipWide, on && { backgroundColor: dc(INK, 'bg'), borderColor: dc(INK, 'border') }]} onPress={() => setWhen(d)}>
                             <Text style={[styles.chipTxt, on && styles.chipTxtOn]}>{label}</Text>
                           </TouchableOpacity>
                         );
@@ -256,7 +257,7 @@ const AddActivityModal = ({ show, onClose, onSave, currentWeightKg = null, hideW
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheet: {
     width: '100%', maxWidth: 430, alignSelf: 'center',

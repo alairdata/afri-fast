@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
+import { dc, themedStyles } from '../lib/theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const ACCENT = '#F97316';
@@ -31,7 +32,7 @@ const ActivityLogPage = ({ show, onClose, activities, setActivities, onActivityD
       <View style={styles.page}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={onClose}>
-            <Ionicons name="chevron-back" size={24} color={ACCENT} />
+            <Ionicons name="chevron-back" size={24} color={dc(ACCENT, 'text')} />
           </TouchableOpacity>
           <Text style={styles.title}>Activity Log</Text>
           <View style={{ width: 40 }} />
@@ -40,7 +41,7 @@ const ActivityLogPage = ({ show, onClose, activities, setActivities, onActivityD
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false} {...pageFade.scrollProps}>
           {sorted.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="barbell-outline" size={28} color="#ccc" />
+              <Ionicons name="barbell-outline" size={28} color={dc("#ccc", 'text')} />
               <Text style={styles.emptyStateText}>No activities logged yet.</Text>
             </View>
           ) : (
@@ -64,7 +65,7 @@ const ActivityLogPage = ({ show, onClose, activities, setActivities, onActivityD
                       </View>
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Ionicons name={icon} size={14} color={ACCENT} />
+                          <Ionicons name={icon} size={14} color={dc(ACCENT, 'text')} />
                           <Text style={styles.logName}>{a.name}{a.sessionType ? ` · ${a.sessionType}` : ''}</Text>
                         </View>
                         <Text style={styles.logMeta}>{parts.join(' · ')}</Text>
@@ -73,7 +74,7 @@ const ActivityLogPage = ({ show, onClose, activities, setActivities, onActivityD
                     <View style={styles.logRight}>
                       <Text style={styles.logDayName}>{dayAbbr}</Text>
                       <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteActivity(a.id)}>
-                        <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                        <Ionicons name="trash-outline" size={14} color={dc("#EF4444", 'text')} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -87,7 +88,7 @@ const ActivityLogPage = ({ show, onClose, activities, setActivities, onActivityD
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,

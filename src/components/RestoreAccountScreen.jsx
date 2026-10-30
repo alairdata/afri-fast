@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { dc, themedStyles } from '../lib/theme';
 
 // Shown when someone logs in to an account they deleted less than 7 days ago (see api/delete-account.js).
 // Everything is still there: they can restore it, erase it right now, or just log out.
@@ -20,7 +21,7 @@ export default function RestoreAccountScreen({ deleteAfter, onRestore, onDeleteN
     <View style={s.page}>
       <View style={s.card}>
         <View style={s.icon}>
-          <Ionicons name="refresh-outline" size={30} color="#059669" />
+          <Ionicons name="refresh-outline" size={30} color={dc("#059669", 'text')} />
         </View>
         <Text style={s.title}>Welcome back</Text>
         <Text style={s.body}>
@@ -32,10 +33,10 @@ export default function RestoreAccountScreen({ deleteAfter, onRestore, onDeleteN
         {!confirmDelete ? (
           <>
             <TouchableOpacity style={s.btn} onPress={() => run('restore', onRestore)} disabled={!!busy} activeOpacity={0.85}>
-              {busy === 'restore' ? <ActivityIndicator color="#fff" /> : <Text style={s.btnTxt}>Restore my account</Text>}
+              {busy === 'restore' ? <ActivityIndicator color={dc("#fff", 'text')} /> : <Text style={s.btnTxt}>Restore my account</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={s.link} onPress={() => run('logout', onLogOut)} disabled={!!busy}>
-              {busy === 'logout' ? <ActivityIndicator color="#059669" /> : <Text style={s.linkTxt}>Log out</Text>}
+              {busy === 'logout' ? <ActivityIndicator color={dc("#059669", 'text')} /> : <Text style={s.linkTxt}>Log out</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={s.linkSmall} onPress={() => setConfirmDelete(true)} disabled={!!busy}>
               <Text style={s.dangerTxt}>Delete everything now</Text>
@@ -45,7 +46,7 @@ export default function RestoreAccountScreen({ deleteAfter, onRestore, onDeleteN
           <>
             <Text style={s.warn}>This erases your account and all your data right away. It cannot be undone.</Text>
             <TouchableOpacity style={[s.btn, s.dangerBtn]} onPress={() => run('delete', onDeleteNow)} disabled={!!busy} activeOpacity={0.85}>
-              {busy === 'delete' ? <ActivityIndicator color="#fff" /> : <Text style={s.btnTxt}>Yes, delete everything now</Text>}
+              {busy === 'delete' ? <ActivityIndicator color={dc("#fff", 'text')} /> : <Text style={s.btnTxt}>Yes, delete everything now</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={s.link} onPress={() => setConfirmDelete(false)} disabled={!!busy}>
               <Text style={s.linkTxt}>Go back</Text>
@@ -57,7 +58,7 @@ export default function RestoreAccountScreen({ deleteAfter, onRestore, onDeleteN
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles({
   page: { flex: 1, backgroundColor: '#F4F1EA', alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { width: '100%', maxWidth: 400, backgroundColor: '#fff', borderRadius: 24, padding: 26, alignItems: 'center' },
   icon: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(5,150,105,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },

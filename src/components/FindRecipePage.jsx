@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { useSubscription } from '../lib/subscription';
 import { unlock } from './ProLock';
+import { dc, themedStyles } from '../lib/theme';
 
 const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }) => {
   const { isPro } = useSubscription();
@@ -290,7 +291,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
         {/* Header */}
         <View style={styles.recipePageHeader}>
           <TouchableOpacity style={styles.recipeBackBtn} onPress={onClose}>
-            <Ionicons name="chevron-back" size={24} color="#059669" />
+            <Ionicons name="chevron-back" size={24} color={dc("#059669", 'text')} />
           </TouchableOpacity>
           <Text style={styles.recipePageTitle}>Find Your Meal</Text>
           <View style={{ width: 40 }} />
@@ -317,7 +318,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
               style={[styles.filterBtn, selectedCountryFilter && styles.filterBtnActive]}
               onPress={() => setShowAllCountries(true)}
             >
-              <Text style={selectedCountryFilter ? { fontSize: 18, color: '#fff' } : { fontSize: 18 }}>🌍</Text>
+              <Text style={selectedCountryFilter ? { fontSize: 18, color: dc('#fff', 'text') } : { fontSize: 18 }}>🌍</Text>
             </TouchableOpacity>
           </View>
           {selectedCountryFilter && (
@@ -336,7 +337,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
             <SafeAreaView style={styles.mealDetailModal}>
               <View style={styles.mealDetailHeader}>
                 <TouchableOpacity onPress={() => setShowAllCountries(false)}>
-                  <Text style={{ fontSize: 20, color: '#1F1F1F' }}>✕</Text>
+                  <Text style={{ fontSize: 20, color: dc('#1F1F1F', 'text') }}>✕</Text>
                 </TouchableOpacity>
                 <Text style={styles.mealDetailHeaderTitle}>Select Country</Text>
                 <View style={{ width: 20 }} />
@@ -344,9 +345,9 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
               <ScrollView style={{ flex: 1, paddingHorizontal: 20 }} showsVerticalScrollIndicator={false}>
                 <View style={styles.allCountriesGrid}>
                   {allAfricanCountries.map((c, i) => (
-                    <TouchableOpacity key={i} style={[styles.allCountriesItem, selectedCountryFilter === c.name && { backgroundColor: '#059669' }]} onPress={() => { setSelectedCountryFilter(c.name); setShowAllCountries(false); }}>
+                    <TouchableOpacity key={i} style={[styles.allCountriesItem, selectedCountryFilter === c.name && { backgroundColor: dc('#059669', 'bg') }]} onPress={() => { setSelectedCountryFilter(c.name); setShowAllCountries(false); }}>
                       <Text style={styles.countryFlag}>{c.flag}</Text>
-                      <Text style={[styles.allCountriesName, selectedCountryFilter === c.name && { color: '#fff' }]}>{c.name}</Text>
+                      <Text style={[styles.allCountriesName, selectedCountryFilter === c.name && { color: dc('#fff', 'text') }]}>{c.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -365,7 +366,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
             <SafeAreaView style={styles.filterModal}>
               <View style={styles.filterModalHeader}>
                 <TouchableOpacity onPress={() => setShowFilters(false)}>
-                  <Text style={{ fontSize: 20, color: '#1F1F1F' }}>✕</Text>
+                  <Text style={{ fontSize: 20, color: dc('#1F1F1F', 'text') }}>✕</Text>
                 </TouchableOpacity>
                 <Text style={styles.filterModalTitle}>Filters</Text>
                 <TouchableOpacity onPress={() => { setCalMin(0); setCalMax(4000); setSelectedMealType(null); setSelectedCountry(null); }}>
@@ -387,9 +388,9 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
                       step={50}
                       value={calMin}
                       onValueChange={(val) => { if (val <= calMax) setCalMin(val); }}
-                      minimumTrackTintColor="#059669"
-                      maximumTrackTintColor="#E5E7EB"
-                      thumbTintColor="#059669"
+                      minimumTrackTintColor={dc("#059669", 'border')}
+                      maximumTrackTintColor={dc("#E5E7EB", 'border')}
+                      thumbTintColor={dc("#059669", 'text')}
                     />
                   </View>
                   <View style={styles.sliderRow}>
@@ -401,9 +402,9 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
                       step={50}
                       value={calMax}
                       onValueChange={(val) => { if (val >= calMin) setCalMax(val); }}
-                      minimumTrackTintColor="#059669"
-                      maximumTrackTintColor="#E5E7EB"
-                      thumbTintColor="#059669"
+                      minimumTrackTintColor={dc("#059669", 'border')}
+                      maximumTrackTintColor={dc("#E5E7EB", 'border')}
+                      thumbTintColor={dc("#059669", 'text')}
                     />
                   </View>
                 </View>
@@ -470,14 +471,14 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
                     <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(item.name))}>
                       <View>
                         <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" blurRadius={lockedAt(i) ? 18 : 0} />
-                        {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View></View>}
+                        {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color={dc("#fff", 'text')} /></View></View>}
                       </View>
                       <Text style={styles.trendingCardTitle}>{item.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
               ) : (
-                <Text style={{ color: '#888', fontSize: 14 }}>No meals found for "{recipeSearchInput}"</Text>
+                <Text style={{ color: dc('#888', 'text'), fontSize: 14 }}>No meals found for "{recipeSearchInput}"</Text>
               )}
             </View>
           )}
@@ -494,7 +495,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
                     <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(meal.name))}>
                       <View>
                         <Image source={meal.image} style={styles.trendingCardImage} resizeMode="cover" blurRadius={lockedAt(i) ? 18 : 0} />
-                        {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View></View>}
+                        {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color={dc("#fff", 'text')} /></View></View>}
                       </View>
                       <Text style={styles.trendingCardTitle}>{meal.name}</Text>
                     </TouchableOpacity>
@@ -510,7 +511,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <Text style={styles.recipeSectionTitle}>{selectedCategory}</Text>
                 <TouchableOpacity onPress={() => setSelectedCategory(null)}>
-                  <Text style={{ color: '#059669', fontWeight: '600', fontSize: 14 }}>Clear</Text>
+                  <Text style={{ color: dc('#059669', 'text'), fontWeight: '600', fontSize: 14 }}>Clear</Text>
                 </TouchableOpacity>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -518,7 +519,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
                   <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(item.name))}>
                     <View>
                       <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" blurRadius={lockedAt(i) ? 18 : 0} />
-                      {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View></View>}
+                      {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color={dc("#fff", 'text')} /></View></View>}
                     </View>
                     <Text style={styles.trendingCardTitle}>{item.name}</Text>
                   </TouchableOpacity>
@@ -541,7 +542,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
                 <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(item.name))}>
                   <View>
                     <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" blurRadius={lockedAt(i) ? 18 : 0} />
-                    {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View></View>}
+                    {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color={dc("#fff", 'text')} /></View></View>}
                   </View>
                   <Text style={styles.trendingCardTitle}>{item.name}</Text>
                 </TouchableOpacity>
@@ -561,7 +562,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
                 <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(item.name))}>
                   <View>
                     <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" blurRadius={lockedAt(i) ? 18 : 0} />
-                    {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View></View>}
+                    {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color={dc("#fff", 'text')} /></View></View>}
                   </View>
                   <Text style={styles.trendingCardTitle}>{item.name}</Text>
                 </TouchableOpacity>
@@ -595,7 +596,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <Text style={styles.recipeSectionTitle}>{selectedCountryFilter} Meals</Text>
                 <TouchableOpacity onPress={() => setSelectedCountryFilter(null)}>
-                  <Text style={{ color: '#059669', fontWeight: '600', fontSize: 14 }}>Clear</Text>
+                  <Text style={{ color: dc('#059669', 'text'), fontWeight: '600', fontSize: 14 }}>Clear</Text>
                 </TouchableOpacity>
               </View>
               {getMealsForCountry(selectedCountryFilter).length > 0 ? (
@@ -604,14 +605,14 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
                     <TouchableOpacity key={i} style={styles.trendingCard} onPress={() => (lockedAt(i) ? unlock('recipe') : openMealDetail(item.name))}>
                       <View>
                         <Image source={item.image} style={styles.trendingCardImage} resizeMode="cover" blurRadius={lockedAt(i) ? 18 : 0} />
-                        {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color="#fff" /></View></View>}
+                        {lockedAt(i) && <View style={styles.lockOverlay}><View style={styles.lockBadge}><Ionicons name="lock-closed" size={14} color={dc("#fff", 'text')} /></View></View>}
                       </View>
                       <Text style={styles.trendingCardTitle}>{item.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
               ) : (
-                <Text style={{ color: '#888', fontSize: 14 }}>No meals yet for {selectedCountryFilter}. Coming soon!</Text>
+                <Text style={{ color: dc('#888', 'text'), fontSize: 14 }}>No meals yet for {selectedCountryFilter}. Coming soon!</Text>
               )}
             </View>
           )}
@@ -655,7 +656,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
         <SafeAreaView style={styles.mealDetailModal}>
           <View style={styles.mealDetailHeader}>
             <TouchableOpacity onPress={() => setSelectedMeal(null)}>
-              <Text style={{ fontSize: 20, color: '#1F1F1F' }}>✕</Text>
+              <Text style={{ fontSize: 20, color: dc('#1F1F1F', 'text') }}>✕</Text>
             </TouchableOpacity>
             <Text style={styles.mealDetailHeaderTitle}>Meal Details</Text>
             {mealMode ? (
@@ -671,7 +672,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
                   });
                 }
               }}>
-                <Text style={{ fontSize: 14, color: savedRecipes.find(r => r.name === selectedMeal) ? '#888' : '#059669', fontWeight: '600' }}>
+                <Text style={{ fontSize: 14, color: savedRecipes.find(r => r.name === selectedMeal) ? dc('#888', 'text') : dc('#059669', 'text'), fontWeight: '600' }}>
                   {savedRecipes.find(r => r.name === selectedMeal) ? 'Saved' : 'Save'}
                 </Text>
               </TouchableOpacity>
@@ -758,7 +759,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
                                   setEditingCalIdx(null);
                                 }}
                               >
-                                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>Save</Text>
+                                <Text style={{ color: dc('#fff', 'text'), fontWeight: '700', fontSize: 12 }}>Save</Text>
                               </TouchableOpacity>
                             </View>
                           ) : (
@@ -812,7 +813,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
                                   setEditingCalIdx(null);
                                 }}
                               >
-                                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>Save</Text>
+                                <Text style={{ color: dc('#fff', 'text'), fontWeight: '700', fontSize: 12 }}>Save</Text>
                               </TouchableOpacity>
                             </View>
                           ) : (
@@ -863,7 +864,7 @@ const FindRecipePage = ({ show, onClose, savedRecipes, onSaveMeal, onWriteMeal }
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   recipePageOverlay: {
     position: 'absolute',
     top: 0,

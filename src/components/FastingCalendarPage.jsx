@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
+import { dc, themedStyles } from '../lib/theme';
 import {
   View,
   Text,
@@ -197,10 +198,10 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
     const insights = [];
 
     if (isFuture) {
-      insights.push({ title: 'Plan your meals', desc: 'Pre-logging meals helps you stay within your calorie goal', color: '#ECFDF5', accent: '#059669' });
-      insights.push({ title: 'Protein first', desc: 'Start with protein-rich foods — they keep you fuller longer', color: '#FFF7ED', accent: '#F59E0B' });
-      insights.push({ title: 'Stay hydrated', desc: 'Aim for 2-3L of water — thirst is often mistaken for hunger', color: '#EFF6FF', accent: '#3B82F6' });
-      insights.push({ title: 'Fibre focus', desc: 'High-fibre foods like beans and vegetables slow digestion and reduce cravings', color: '#F5F3FF', accent: '#8B5CF6' });
+      insights.push({ title: 'Plan your meals', desc: 'Pre-logging meals helps you stay within your calorie goal', color: dc('#ECFDF5', 'text'), accent: '#059669' });
+      insights.push({ title: 'Protein first', desc: 'Start with protein-rich foods — they keep you fuller longer', color: dc('#FFF7ED', 'text'), accent: '#F59E0B' });
+      insights.push({ title: 'Stay hydrated', desc: 'Aim for 2-3L of water — thirst is often mistaken for hunger', color: dc('#EFF6FF', 'text'), accent: '#3B82F6' });
+      insights.push({ title: 'Fibre focus', desc: 'High-fibre foods like beans and vegetables slow digestion and reduce cravings', color: dc('#F5F3FF', 'text'), accent: '#8B5CF6' });
       return insights;
     }
 
@@ -208,27 +209,27 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
       const { totalCal, meals } = dayData;
       const diff = totalCal - dayData.goal;
       if (diff > 300) {
-        insights.push({ title: `${diff} cal over goal`, desc: 'Tomorrow, aim for a slightly lighter day to balance it out', color: '#FEF2F2', accent: '#EF4444' });
+        insights.push({ title: `${diff} cal over goal`, desc: 'Tomorrow, aim for a slightly lighter day to balance it out', color: dc('#FEF2F2', 'text'), accent: '#EF4444' });
       } else if (diff > 0) {
-        insights.push({ title: `${diff} cal over goal`, desc: 'Just slightly over — a short walk can close the gap', color: '#FFF7ED', accent: '#F59E0B' });
+        insights.push({ title: `${diff} cal over goal`, desc: 'Just slightly over — a short walk can close the gap', color: dc('#FFF7ED', 'text'), accent: '#F59E0B' });
       } else if (totalCal > 0) {
-        insights.push({ title: 'Goal reached!', desc: `You stayed within ${dayData.goal} cal — great consistency`, color: '#ECFDF5', accent: '#059669' });
+        insights.push({ title: 'Goal reached!', desc: `You stayed within ${dayData.goal} cal — great consistency`, color: dc('#ECFDF5', 'text'), accent: '#059669' });
       }
       const topMeal = meals.reduce((best, m) => (m.cal || 0) > (best.cal || 0) ? m : best, meals[0]);
       if (topMeal) {
-        insights.push({ title: 'Biggest meal', desc: `${topMeal.name || 'Meal'} — ${topMeal.cal || 0} cal`, color: '#F5F3FF', accent: '#8B5CF6' });
+        insights.push({ title: 'Biggest meal', desc: `${topMeal.name || 'Meal'} — ${topMeal.cal || 0} cal`, color: dc('#F5F3FF', 'text'), accent: '#8B5CF6' });
       }
     }
 
     if (checkIns.length > 0) {
       const ci = checkIns[0];
       if (ci.moods && ci.moods.includes('energetic')) {
-        insights.push({ title: 'Energy noted', desc: 'Good nutrition is clearly fuelling your energy — keep it up', color: '#ECFDF5', accent: '#059669' });
+        insights.push({ title: 'Energy noted', desc: 'Good nutrition is clearly fuelling your energy — keep it up', color: dc('#ECFDF5', 'text'), accent: '#059669' });
       }
     }
 
-    insights.push({ title: 'Hydration check', desc: 'Staying hydrated supports metabolism and reduces cravings', color: '#EFF6FF', accent: '#3B82F6' });
-    insights.push({ title: 'Protein tip', desc: 'High-protein meals (eggs, fish, beans) help preserve muscle during weight loss', color: '#FFF7ED', accent: '#F59E0B' });
+    insights.push({ title: 'Hydration check', desc: 'Staying hydrated supports metabolism and reduces cravings', color: dc('#EFF6FF', 'text'), accent: '#3B82F6' });
+    insights.push({ title: 'Protein tip', desc: 'High-protein meals (eggs, fish, beans) help preserve muscle during weight loss', color: dc('#FFF7ED', 'text'), accent: '#F59E0B' });
 
     return insights;
   };
@@ -250,7 +251,7 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
         <View style={styles.detailHeader}>
           <Text style={styles.detailTitle}>{monthShort} {selectedDay}</Text>
           <TouchableOpacity onPress={closeDetail} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close" size={22} color="#6B7280" />
+            <Ionicons name="close" size={22} color={dc("#6B7280", 'text')} />
           </TouchableOpacity>
         </View>
 
@@ -263,7 +264,7 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
                   {idx > 0 && <View style={styles.detailDivider} />}
                   <View style={styles.detailRow}>
                     <View style={styles.detailLabel}>
-                      <Ionicons name="restaurant-outline" size={16} color="#059669" />
+                      <Ionicons name="restaurant-outline" size={16} color={dc("#059669", 'text')} />
                       <Text style={styles.detailLabelText} numberOfLines={1}>{meal.name || 'Meal'}</Text>
                     </View>
                     <Text style={styles.detailValue}>{meal.calories ?? meal.cal ?? 0} cal</Text>
@@ -273,10 +274,10 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
               <View style={styles.detailDivider} />
               <View style={styles.detailRow}>
                 <View style={styles.detailLabel}>
-                  <Ionicons name="flame-outline" size={16} color="#F59E0B" />
+                  <Ionicons name="flame-outline" size={16} color={dc("#F59E0B", 'text')} />
                   <Text style={[styles.detailLabelText, { fontWeight: '700' }]}>Total</Text>
                 </View>
-                <Text style={[styles.detailValue, dayData.totalCal > dayData.goal ? { color: '#EF4444' } : { color: '#059669' }]}>
+                <Text style={[styles.detailValue, dayData.totalCal > dayData.goal ? { color: dc('#EF4444', 'text') } : { color: dc('#059669', 'text') }]}>
                   {dayData.totalCal} / {dayData.goal} cal
                 </Text>
               </View>
@@ -307,7 +308,7 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
                           const emoji = spaceIdx > 0 ? item.slice(0, spaceIdx) : null;
                           if (!emoji) return null;
                           return (
-                            <View key={i} style={[styles.emojiCircle, { backgroundColor: i % 2 === 0 ? '#ECFDF5' : '#FFF7ED' }]}>
+                            <View key={i} style={[styles.emojiCircle, { backgroundColor: i % 2 === 0 ? dc('#ECFDF5', 'bg') : dc('#FFF7ED', 'bg') }]}>
                               <Text style={styles.emojiCircleText}>{emoji}</Text>
                             </View>
                           );
@@ -316,25 +317,25 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
                     })()}
                     {checkIns[0].waterCount > 0 && (
                       <View style={styles.waterBadge}>
-                        <Ionicons name="water" size={16} color="#3B82F6" />
+                        <Ionicons name="water" size={16} color={dc("#3B82F6", 'text')} />
                         <Text style={styles.waterBadgeText}>{checkIns[0].waterCount}</Text>
                         <Text style={styles.waterBadgeLabel}>{volumeUnit}</Text>
                       </View>
                     )}
                   </ScrollView>
                   <TouchableOpacity style={styles.emojiAddBtn} onPress={onShowCheckInPage}>
-                    <Ionicons name="add" size={22} color="#fff" />
+                    <Ionicons name="add" size={22} color={dc("#fff", 'text')} />
                   </TouchableOpacity>
                 </View>
               </View>
             ) : (
               <TouchableOpacity style={styles.symptomsEmptyCard} onPress={onShowCheckInPage} activeOpacity={0.7}>
                 <View style={styles.symptomsEmptyLeft}>
-                  <Ionicons name="clipboard-outline" size={24} color="#D1D5DB" />
+                  <Ionicons name="clipboard-outline" size={24} color={dc("#D1D5DB", 'text')} />
                   <Text style={styles.symptomsEmptyText}>No check-in recorded</Text>
                 </View>
                 <View style={styles.symptomsAddBtn}>
-                  <Ionicons name="add" size={22} color="#fff" />
+                  <Ionicons name="add" size={22} color={dc("#fff", 'text')} />
                 </View>
               </TouchableOpacity>
             )}
@@ -362,11 +363,11 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
     <ScrollView style={styles.yearScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.yearScrollContent}>
       <View style={styles.yearNav}>
         <TouchableOpacity onPress={() => setYearViewYear((y) => y - 1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="chevron-back" size={24} color="#374151" />
+          <Ionicons name="chevron-back" size={24} color={dc("#374151", 'text')} />
         </TouchableOpacity>
         <Text style={styles.yearNavText}>{yearViewYear}</Text>
         <TouchableOpacity onPress={() => setYearViewYear((y) => y + 1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="chevron-forward" size={24} color="#374151" />
+          <Ionicons name="chevron-forward" size={24} color={dc("#374151", 'text')} />
         </TouchableOpacity>
       </View>
 
@@ -414,7 +415,7 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
       <HeaderFade bg="#FAFBFF" scrollY={viewMode === 'month' ? pageFade.scrollY : undefined} />
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.headerBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="close" size={24} color="#374151" />
+          <Ionicons name="close" size={24} color={dc("#374151", 'text')} />
         </TouchableOpacity>
 
         <View style={styles.segmentedControl}>
@@ -438,15 +439,15 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
       {/* Legend */}
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendCircle, { backgroundColor: '#059669' }]} />
+          <View style={[styles.legendCircle, { backgroundColor: dc('#059669', 'bg') }]} />
           <Text style={styles.legendText}>On goal</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendCircle, { backgroundColor: '#F59E0B' }]} />
+          <View style={[styles.legendCircle, { backgroundColor: dc('#F59E0B', 'bg') }]} />
           <Text style={styles.legendText}>Over goal</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendCircle, { borderWidth: 2, borderColor: '#059669' }]} />
+          <View style={[styles.legendCircle, { borderWidth: 2, borderColor: dc('#059669', 'border') }]} />
           <Text style={styles.legendText}>Today</Text>
         </View>
       </View>
@@ -515,7 +516,7 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
               style={styles.backToTodayPill}
               onPress={() => { calendarScrollRef.current?.scrollTo({ y: todayMonthY.current, animated: true }); }}
             >
-              <Ionicons name="arrow-down" size={14} color="#059669" />
+              <Ionicons name="arrow-down" size={14} color={dc("#059669", 'text')} />
               <Text style={styles.backToTodayText}>Back to Today</Text>
             </TouchableOpacity>
           )}
@@ -536,7 +537,7 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
 const CELL_SIZE = Math.floor((SCREEN_WIDTH - 48) / 7);
 const MINI_CELL_SIZE = Math.floor((SCREEN_WIDTH - 72) / 21);
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,

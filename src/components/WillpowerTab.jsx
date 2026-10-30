@@ -6,7 +6,7 @@ import {
 import { addWillpowerEntry, WILLPOWER_KEY } from '../lib/willpower';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
-import { useTheme } from '../lib/theme';
+import { useTheme, dc, themedStyles } from '../lib/theme';
 import Confetti from './Confetti';
 import WillpowerTree, { STAGE_NAMES, STAGE_THRESHOLDS, getStageIndex, getXpInfo } from './WillpowerTree';
 
@@ -229,7 +229,7 @@ export default function WillpowerTab({ userId }) {
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>Garden of Grit</Text>
-          <View style={[styles.pointsBadge, { backgroundColor: '#059669' }]}>
+          <View style={[styles.pointsBadge, { backgroundColor: dc('#059669', 'bg') }]}>
             <Text style={styles.pointsText}>{count} pts</Text>
           </View>
         </View>
@@ -237,18 +237,18 @@ export default function WillpowerTab({ userId }) {
         {/* Tree */}
         <View style={styles.treeWrap}>
           <WillpowerTree count={count} pulseKey={pulseKey} size={treeSize} />
-          <Text style={[styles.stageName, { color: '#40c074' }]}>{STAGE_NAMES[stage]}</Text>
+          <Text style={[styles.stageName, { color: dc('#40c074', 'text') }]}>{STAGE_NAMES[stage]}</Text>
         </View>
 
         {/* XP Bar */}
-        <View style={[styles.xpSection, { backgroundColor: isDark ? '#1a3328' : '#fff' }]}>
+        <View style={[styles.xpSection, { backgroundColor: isDark ? dc('#1a3328', 'bg') : dc('#fff', 'bg') }]}>
           <View style={styles.xpHeader}>
             <Text style={[styles.xpLabel, { color: colors.text }]}>
               {xpInfo.isMax ? 'Maximum power achieved' : `${xpInfo.current}/${xpInfo.needed} → ${STAGE_NAMES[Math.min(stage + 1, STAGE_NAMES.length - 1)]}`}
             </Text>
             <Text style={[styles.xpTotal, { color: colors.textMuted }]}>{count} total</Text>
           </View>
-          <View style={[styles.xpBg, { backgroundColor: isDark ? '#0d1f18' : '#e8f5e9' }]}>
+          <View style={[styles.xpBg, { backgroundColor: isDark ? dc('#0d1f18', 'bg') : dc('#e8f5e9', 'bg') }]}>
             <Animated.View style={[styles.xpFill, { width: barWidth }]} />
           </View>
         </View>
@@ -266,11 +266,11 @@ export default function WillpowerTab({ userId }) {
 
         {/* Badges */}
         {earnedBadges.length > 0 && (
-          <View style={[styles.badgesSection, { backgroundColor: isDark ? '#1a3328' : '#fff' }]}>
+          <View style={[styles.badgesSection, { backgroundColor: isDark ? dc('#1a3328', 'bg') : dc('#fff', 'bg') }]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Badges Earned</Text>
             <View style={styles.badgesRow}>
               {earnedBadges.map(b => (
-                <View key={b.id} style={[styles.badge, { backgroundColor: isDark ? '#0d2e1f' : '#f0faf4' }]}>
+                <View key={b.id} style={[styles.badge, { backgroundColor: isDark ? dc('#0d2e1f', 'bg') : dc('#f0faf4', 'bg') }]}>
                   <Text style={styles.badgeIcon}>{b.icon}</Text>
                   <Text style={[styles.badgeName, { color: colors.text }]}>{b.name}</Text>
                   <Text style={[styles.badgeDesc, { color: colors.textMuted }]}>{b.desc}</Text>
@@ -282,11 +282,11 @@ export default function WillpowerTab({ userId }) {
 
         {/* Locked badges teaser */}
         {earnedBadges.length < BADGES.length && (
-          <View style={[styles.badgesSection, { backgroundColor: isDark ? '#1a3328' : '#fff' }]}>
+          <View style={[styles.badgesSection, { backgroundColor: isDark ? dc('#1a3328', 'bg') : dc('#fff', 'bg') }]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Milestones</Text>
             <View style={styles.badgesRow}>
               {BADGES.filter(b => !b.req(count)).slice(0, 3).map(b => (
-                <View key={b.id} style={[styles.badge, styles.badgeLocked, { backgroundColor: isDark ? '#0d2e1f' : '#f0faf4' }]}>
+                <View key={b.id} style={[styles.badge, styles.badgeLocked, { backgroundColor: isDark ? dc('#0d2e1f', 'bg') : dc('#f0faf4', 'bg') }]}>
                   <Text style={[styles.badgeIcon, { opacity: 0.3 }]}>{b.icon}</Text>
                   <Text style={[styles.badgeName, { color: colors.textMuted }]}>{b.name}</Text>
                   <Text style={[styles.badgeDesc, { color: colors.textMuted }]}>{b.desc}</Text>
@@ -298,10 +298,10 @@ export default function WillpowerTab({ userId }) {
 
         {/* History */}
         {history.length > 0 && (
-          <View style={[styles.historySection, { backgroundColor: isDark ? '#1a3328' : '#fff' }]}>
+          <View style={[styles.historySection, { backgroundColor: isDark ? dc('#1a3328', 'bg') : dc('#fff', 'bg') }]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Victories</Text>
             {history.map((h, i) => (
-              <View key={h.id || i} style={[styles.historyRow, { borderBottomColor: isDark ? '#1b4332' : '#e8f5e9' }]}>
+              <View key={h.id || i} style={[styles.historyRow, { borderBottomColor: isDark ? dc('#1b4332', 'border') : dc('#e8f5e9', 'border') }]}>
                 <Text style={styles.historyDot}>▸</Text>
                 <Text style={[styles.historyDate, { color: colors.textMuted }]}>{formatDate(h.created_at)}</Text>
                 {h.label ? <Text style={[styles.historyLabel, { color: colors.text }]}>{h.label}</Text> : null}
@@ -316,7 +316,7 @@ export default function WillpowerTab({ userId }) {
       {/* Pause Overlay */}
       {mode === 'pause' && (
         <Animated.View style={[styles.pauseOverlay, { opacity: pauseOpacity }]}>
-          <Animated.View style={[styles.pauseCard, { transform: [{ scale: pauseScale }], backgroundColor: isDark ? '#0d2e1f' : '#fff' }]}>
+          <Animated.View style={[styles.pauseCard, { transform: [{ scale: pauseScale }], backgroundColor: isDark ? dc('#0d2e1f', 'bg') : dc('#fff', 'bg') }]}>
             {/* Breathing circle */}
             <Animated.View style={[styles.breathCircle, {
               transform: [{ scale: breathAnim.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.1] }) }],
@@ -326,10 +326,10 @@ export default function WillpowerTab({ userId }) {
             <Text style={[styles.pauseQ, { color: colors.textMuted }]}>Why are you doing this?</Text>
             <Text style={[styles.pauseHint, { color: colors.textMuted }]}>Breathe. Then choose.</Text>
             <View style={styles.pauseBtns}>
-              <TouchableOpacity style={[styles.resistedBtn, { backgroundColor: '#059669' }]} onPress={handleResisted}>
+              <TouchableOpacity style={[styles.resistedBtn, { backgroundColor: dc('#059669', 'bg') }]} onPress={handleResisted}>
                 <Text style={styles.resistedBtnText}>I RESISTED</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.strugglingBtn, { borderColor: isDark ? '#2d6a4f' : '#ccc' }]} onPress={handleStruggling}>
+              <TouchableOpacity style={[styles.strugglingBtn, { borderColor: isDark ? dc('#2d6a4f', 'border') : dc('#ccc', 'border') }]} onPress={handleStruggling}>
                 <Text style={[styles.strugglingBtnText, { color: colors.textMuted }]}>I'm still struggling</Text>
               </TouchableOpacity>
             </View>
@@ -354,7 +354,7 @@ export default function WillpowerTab({ userId }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   root: { flex: 1 },
   scroll: { paddingTop: 60, paddingHorizontal: 16 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },

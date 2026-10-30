@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { dc, themedStyles } from '../lib/theme';
 
 // Shown over the sign-in screen right after logging out (the counterpart of AccountDeletedModal).
 export default function LoggedOutModal({ visible, onClose }) {
@@ -9,7 +10,7 @@ export default function LoggedOutModal({ visible, onClose }) {
       <View style={s.backdrop}>
         <View style={s.card}>
           <View style={s.icon}>
-            <Ionicons name="log-out-outline" size={30} color="#059669" />
+            <Ionicons name="log-out-outline" size={30} color={dc("#059669", 'text')} />
           </View>
           <Text style={s.title}>You're logged out</Text>
           <Text style={s.body}>
@@ -24,7 +25,7 @@ export default function LoggedOutModal({ visible, onClose }) {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { width: '100%', maxWidth: 400, backgroundColor: '#fff', borderRadius: 24, padding: 26, alignItems: 'center' },
   icon: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(5,150,105,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },

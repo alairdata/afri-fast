@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef } from 'react';
+import { dc, themedStyles } from '../lib/theme';
 import {
   View,
   Text,
@@ -461,7 +462,7 @@ const FastingQuizPage = ({ show, onClose, onSelectPlan }) => {
             <View style={s.headerSide} />
             <View style={s.headerCenter} />
             <TouchableOpacity onPress={() => { resetQuiz(); onClose(); }} style={s.headerSide} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-              <Ionicons name="close" size={22} color="#999" />
+              <Ionicons name="close" size={22} color={dc("#999", 'text')} />
             </TouchableOpacity>
           </View>
           <ScrollView
@@ -470,7 +471,7 @@ const FastingQuizPage = ({ show, onClose, onSelectPlan }) => {
             showsVerticalScrollIndicator={false}
           >
             <View style={s.doctorIconCircle}>
-              <Ionicons name="shield-checkmark" size={36} color="#D97706" />
+              <Ionicons name="shield-checkmark" size={36} color={dc("#D97706", 'text')} />
             </View>
             <Text style={s.doctorTitle}>Your health comes first</Text>
             <Text style={s.doctorSubtitle}>
@@ -506,7 +507,7 @@ const FastingQuizPage = ({ show, onClose, onSelectPlan }) => {
             <View style={s.headerSide} />
             <View style={s.headerCenter} />
             <TouchableOpacity onPress={() => { resetQuiz(); onClose(); }} style={s.headerSide} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-              <Ionicons name="close" size={22} color="#999" />
+              <Ionicons name="close" size={22} color={dc("#999", 'text')} />
             </TouchableOpacity>
           </View>
           <ScrollView
@@ -573,11 +574,11 @@ const FastingQuizPage = ({ show, onClose, onSelectPlan }) => {
         {/* Header: back arrow left, close X right */}
         <View style={s.headerRow}>
           <TouchableOpacity onPress={goBack} style={s.headerSide} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Ionicons name="chevron-back" size={24} color="#1F1F1F" />
+            <Ionicons name="chevron-back" size={24} color={dc("#1F1F1F", 'text')} />
           </TouchableOpacity>
           <View style={s.headerCenter} />
           <TouchableOpacity onPress={() => { resetQuiz(); onClose(); }} style={s.headerSide} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Ionicons name="close" size={22} color="#999" />
+            <Ionicons name="close" size={22} color={dc("#999", 'text')} />
           </TouchableOpacity>
         </View>
 
@@ -605,7 +606,7 @@ const FastingQuizPage = ({ show, onClose, onSelectPlan }) => {
                   onPress={() => selectOption(idx)}
                 >
                   {question.multi && selected && (
-                    <Ionicons name="checkmark" size={18} color="#fff" style={s.pillCheck} />
+                    <Ionicons name="checkmark" size={18} color={dc("#fff", 'text')} style={s.pillCheck} />
                   )}
                   <Text style={[s.pillText, selected && s.pillTextSelected]}>
                     {opt.label}
@@ -635,7 +636,7 @@ const FastingQuizPage = ({ show, onClose, onSelectPlan }) => {
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
-const s = StyleSheet.create({
+const s = themedStyles({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0,

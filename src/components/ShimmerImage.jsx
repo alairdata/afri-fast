@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
+import { themedStyles } from '../lib/theme';
 
 // A photo that shows a pulsing grey placeholder until it has loaded, then fades in,
 // so cards never sit empty and then pop. `style` sizes the box (same as an <Image> style).
@@ -41,7 +42,7 @@ const ShimmerImage = ({ uri, style, resizeMode = 'cover', onError }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   box: { overflow: 'hidden' },
   shimmer: { backgroundColor: '#D9D9D9' },
 });

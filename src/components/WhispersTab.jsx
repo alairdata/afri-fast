@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
-import { useTheme } from '../lib/theme';
+import { useTheme, dc } from '../lib/theme';
 import { supabase } from '../lib/supabase';
 import {
   View,
@@ -564,16 +564,16 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
               </View>
             </View>
             <TouchableOpacity style={styles.postMenuBtn} onPress={() => setPostMenu(postMenu === post.id ? null : post.id)}>
-              <Ionicons name="ellipsis-horizontal" size={18} color="#9ca3af" />
+              <Ionicons name="ellipsis-horizontal" size={18} color={dc("#9ca3af", 'text')} />
             </TouchableOpacity>
             {postMenu === post.id && (
               <View style={styles.postMenuDropdown}>
                 <TouchableOpacity style={styles.postMenuItem} onPress={() => setPostMenu(null)}>
-                  <Ionicons name="eye-off-outline" size={16} color="#374151" />
+                  <Ionicons name="eye-off-outline" size={16} color={dc("#374151", 'text')} />
                   <Text style={styles.postMenuItemText}>Hide</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.postMenuItem} onPress={() => setPostMenu(null)}>
-                  <Ionicons name="flag-outline" size={16} color="#374151" />
+                  <Ionicons name="flag-outline" size={16} color={dc("#374151", 'text')} />
                   <Text style={styles.postMenuItemText}>Report</Text>
                 </TouchableOpacity>
               </View>
@@ -612,11 +612,11 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
                       activeOpacity={hasVoted ? 1 : 0.7}
                     >
                       {hasVoted && (
-                        <View style={[styles.pollOptionBar, { width: `${percent}%`, backgroundColor: isTop ? '#D1FAE5' : '#F3F4F6' }]} />
+                        <View style={[styles.pollOptionBar, { width: `${percent}%`, backgroundColor: isTop ? dc('#D1FAE5', 'bg') : dc('#F3F4F6', 'bg') }]} />
                       )}
                       <Text style={[styles.pollOptionLabel, isTop && { fontWeight: '700' }]}>{opt.label}</Text>
                       {hasVoted && (
-                        <Text style={[styles.pollOptionPercent, isTop && { color: '#059669', fontWeight: '700' }]}>{percent}%</Text>
+                        <Text style={[styles.pollOptionPercent, isTop && { color: dc('#059669', 'text'), fontWeight: '700' }]}>{percent}%</Text>
                       )}
                     </TouchableOpacity>
                   );
@@ -635,19 +635,19 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
           {/* Action bar */}
           <View style={styles.postActions}>
             <TouchableOpacity style={styles.actionBtn} onPress={() => toggleLike(post.id)}>
-              <Ionicons name={post.liked ? 'heart' : 'heart-outline'} size={20} color={post.liked ? '#ef4444' : '#9ca3af'} />
-              <Text style={[styles.actionText, post.liked && { color: '#ef4444' }]}>{post.likes}</Text>
+              <Ionicons name={post.liked ? 'heart' : 'heart-outline'} size={20} color={post.liked ? dc('#ef4444', 'text') : dc('#9ca3af', 'text')} />
+              <Text style={[styles.actionText, post.liked && { color: dc('#ef4444', 'text') }]}>{post.likes}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionBtn} onPress={() => setCommentPostId(post.id)}>
-              <Ionicons name="chatbubble-outline" size={19} color="#9ca3af" />
+              <Ionicons name="chatbubble-outline" size={19} color={dc("#9ca3af", 'text')} />
               <Text style={styles.actionText}>{post.comments}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionBtn} onPress={() => handleShare(post)}>
-              <Ionicons name="paper-plane-outline" size={19} color="#9ca3af" />
+              <Ionicons name="paper-plane-outline" size={19} color={dc("#9ca3af", 'text')} />
             </TouchableOpacity>
             <View style={{ flex: 1 }} />
             <TouchableOpacity onPress={() => toggleBookmark(post.id)}>
-              <Ionicons name={post.bookmarked ? 'bookmark' : 'bookmark-outline'} size={20} color={post.bookmarked ? '#059669' : '#9ca3af'} />
+              <Ionicons name={post.bookmarked ? 'bookmark' : 'bookmark-outline'} size={20} color={post.bookmarked ? dc('#059669', 'text') : dc('#9ca3af', 'text')} />
             </TouchableOpacity>
           </View>
 
@@ -655,7 +655,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
           {post.topComment && (
             <>
               <View style={styles.topCommentCard}>
-                <View style={[styles.topCommentAvatar, { backgroundColor: '#f59e0b' }]}>
+                <View style={[styles.topCommentAvatar, { backgroundColor: dc('#f59e0b', 'bg') }]}>
                   <Text style={styles.topCommentAvatarText}>{post.topComment.name.charAt(0)}</Text>
                 </View>
                 <View style={styles.topCommentBubble}>
@@ -678,21 +678,21 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
             <View style={styles.postHeaderInfo} />
             <Text style={styles.postTimestamp}>{post.timestamp}</Text>
             <TouchableOpacity style={styles.postMenuBtn} onPress={() => setPostMenu(postMenu === post.id ? null : post.id)}>
-              <Ionicons name="ellipsis-horizontal" size={18} color="#9ca3af" />
+              <Ionicons name="ellipsis-horizontal" size={18} color={dc("#9ca3af", 'text')} />
             </TouchableOpacity>
             {postMenu === post.id && (
               <View style={styles.postMenuDropdown}>
                 <TouchableOpacity style={styles.postMenuItem} onPress={() => setPostMenu(null)}>
-                  <Ionicons name="person-add-outline" size={16} color="#374151" />
+                  <Ionicons name="person-add-outline" size={16} color={dc("#374151", 'text')} />
                   <Text style={styles.postMenuItemText}>Follow</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.postMenuItem} onPress={() => setPostMenu(null)}>
-                  <Ionicons name="eye-off-outline" size={16} color="#374151" />
+                  <Ionicons name="eye-off-outline" size={16} color={dc("#374151", 'text')} />
                   <Text style={styles.postMenuItemText}>Hide</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.postMenuItem} onPress={() => setPostMenu(null)}>
-                  <Ionicons name="ban-outline" size={16} color="#ef4444" />
-                  <Text style={[styles.postMenuItemText, { color: '#ef4444' }]}>Block</Text>
+                  <Ionicons name="ban-outline" size={16} color={dc("#ef4444", 'text')} />
+                  <Text style={[styles.postMenuItemText, { color: dc('#ef4444', 'text') }]}>Block</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -711,19 +711,19 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
           {/* Action bar */}
           <View style={styles.postActions}>
             <TouchableOpacity style={styles.actionBtn} onPress={() => toggleLike(post.id)}>
-              <Ionicons name={post.liked ? 'heart' : 'heart-outline'} size={20} color={post.liked ? '#ef4444' : '#9ca3af'} />
-              <Text style={[styles.actionText, post.liked && { color: '#ef4444' }]}>{post.likes}</Text>
+              <Ionicons name={post.liked ? 'heart' : 'heart-outline'} size={20} color={post.liked ? dc('#ef4444', 'text') : dc('#9ca3af', 'text')} />
+              <Text style={[styles.actionText, post.liked && { color: dc('#ef4444', 'text') }]}>{post.likes}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionBtn} onPress={() => setCommentPostId(post.id)}>
-              <Ionicons name="chatbubble-outline" size={19} color="#9ca3af" />
+              <Ionicons name="chatbubble-outline" size={19} color={dc("#9ca3af", 'text')} />
               <Text style={styles.actionText}>{post.comments}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionBtn} onPress={() => handleShare(post)}>
-              <Ionicons name="paper-plane-outline" size={19} color="#9ca3af" />
+              <Ionicons name="paper-plane-outline" size={19} color={dc("#9ca3af", 'text')} />
             </TouchableOpacity>
             <View style={{ flex: 1 }} />
             <TouchableOpacity onPress={() => toggleBookmark(post.id)}>
-              <Ionicons name={post.bookmarked ? 'bookmark' : 'bookmark-outline'} size={20} color={post.bookmarked ? '#059669' : '#9ca3af'} />
+              <Ionicons name={post.bookmarked ? 'bookmark' : 'bookmark-outline'} size={20} color={post.bookmarked ? dc('#059669', 'text') : dc('#9ca3af', 'text')} />
             </TouchableOpacity>
           </View>
         </>
@@ -736,20 +736,20 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerAvatar}>
-          <Ionicons name="leaf" size={16} color="#fff" />
+          <Ionicons name="leaf" size={16} color={dc("#fff", 'text')} />
         </View>
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color="#9ca3af" style={{ marginRight: 8 }} />
+          <Ionicons name="search" size={16} color={dc("#9ca3af", 'text')} style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search whispers..."
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={dc("#9ca3af", 'text')}
             value={searchText}
             onChangeText={setSearchText}
           />
         </View>
         <TouchableOpacity style={styles.bellBtn}>
-          <Ionicons name="notifications-outline" size={22} color="#374151" />
+          <Ionicons name="notifications-outline" size={22} color={dc("#374151", 'text')} />
         </TouchableOpacity>
       </View>
 
@@ -801,7 +801,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
           if (filtered.length === 0) {
             return (
               <View style={styles.emptyFilterState}>
-                <Ionicons name={activeFilter === 'Saved' ? 'bookmark-outline' : activeFilter === 'My posts' ? 'person-outline' : 'search-outline'} size={40} color="#D1D5DB" />
+                <Ionicons name={activeFilter === 'Saved' ? 'bookmark-outline' : activeFilter === 'My posts' ? 'person-outline' : 'search-outline'} size={40} color={dc("#D1D5DB", 'text')} />
                 <Text style={styles.emptyFilterTitle}>
                   {activeFilter === 'Saved' ? 'No saved whispers yet' : activeFilter === 'My posts' ? "You haven't posted yet" : activeFilter === 'Following' ? "You're not following anyone yet" : activeFilter === 'Newest' ? 'No new whispers' : 'Nothing here yet'}
                 </Text>
@@ -844,7 +844,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
       {/* Floating new post button */}
       <View style={styles.fab}>
         <TouchableOpacity style={styles.fabInner} onPress={() => setShowNewPost(true)}>
-          <Ionicons name="create-outline" size={16} color="#fff" />
+          <Ionicons name="create-outline" size={16} color={dc("#fff", 'text')} />
           <Text style={styles.fabText}>New post</Text>
         </TouchableOpacity>
       </View>
@@ -855,7 +855,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
           {/* Header */}
           <View style={styles.newPostHeader}>
             <TouchableOpacity onPress={() => { setShowNewPost(false); setShowCategoryDropdown(false); }}>
-              <Ionicons name="close" size={24} color="#374151" />
+              <Ionicons name="close" size={24} color={dc("#374151", 'text')} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.newPostBtn, !newPostText.trim() && styles.newPostBtnDisabled]}
@@ -873,8 +873,8 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
                 style={[styles.adminToggle, postAsPage && styles.adminToggleActive]}
                 onPress={() => { setPostAsPage(v => !v); setSelectedAdminPage(null); }}
               >
-                <Ionicons name={postAsPage ? 'shield' : 'shield-outline'} size={14} color={postAsPage ? '#fff' : '#059669'} />
-                <Text style={[styles.adminToggleTxt, postAsPage && { color: '#fff' }]}>Post as Page</Text>
+                <Ionicons name={postAsPage ? 'shield' : 'shield-outline'} size={14} color={postAsPage ? dc('#fff', 'text') : dc('#059669', 'text')} />
+                <Text style={[styles.adminToggleTxt, postAsPage && { color: dc('#fff', 'text') }]}>Post as Page</Text>
               </TouchableOpacity>
               {postAsPage && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}>
@@ -885,7 +885,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
                       onPress={() => setSelectedAdminPage(p)}
                     >
                       <View style={[styles.pageChipDot, { backgroundColor: p.color }]}>
-                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{p.initial}</Text>
+                        <Text style={{ color: dc('#fff', 'text'), fontSize: 10, fontWeight: '700' }}>{p.initial}</Text>
                       </View>
                       <Text style={[styles.pageChipTxt, selectedAdminPage?.name === p.name && { color: p.color, fontWeight: '700' }]}>{p.name}</Text>
                     </TouchableOpacity>
@@ -916,13 +916,13 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
                 >
                   {newPostCategory ? (
                     <View style={styles.newPostCategorySelected}>
-                      <View style={[styles.categoryDot, { backgroundColor: CATEGORIES.find(c => c.name === newPostCategory)?.color || '#059669' }]} />
+                      <View style={[styles.categoryDot, { backgroundColor: CATEGORIES.find(c => c.name === newPostCategory)?.color || dc('#059669', 'bg') }]} />
                       <Text style={styles.newPostCategorySelectedText}>{newPostCategory}</Text>
-                      <Ionicons name="chevron-down" size={12} color="#059669" />
+                      <Ionicons name="chevron-down" size={12} color={dc("#059669", 'text')} />
                     </View>
                   ) : (
                     <View style={styles.newPostCategoryDefault}>
-                      <Ionicons name="pricetag-outline" size={13} color="#9ca3af" />
+                      <Ionicons name="pricetag-outline" size={13} color={dc("#9ca3af", 'text')} />
                       <Text style={styles.newPostCategoryDefaultText}>Add topic</Text>
                     </View>
                   )}
@@ -931,7 +931,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
                 <TextInput
                   style={styles.newPostInput}
                   placeholder="What's on your mind?"
-                  placeholderTextColor="#bbb"
+                  placeholderTextColor={dc("#bbb", 'text')}
                   multiline
                   textAlignVertical="top"
                   value={newPostText}
@@ -947,11 +947,11 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
                 {CATEGORIES.map((cat) => (
                   <TouchableOpacity
                     key={cat.name}
-                    style={[styles.newPostDropdownItem, newPostCategory === cat.name && { backgroundColor: '#ECFDF5' }]}
+                    style={[styles.newPostDropdownItem, newPostCategory === cat.name && { backgroundColor: dc('#ECFDF5', 'bg') }]}
                     onPress={() => { setNewPostCategory(cat.name); setShowCategoryDropdown(false); }}
                   >
                     <View style={[styles.categoryDot, { backgroundColor: cat.color }]} />
-                    <Text style={[styles.newPostDropdownText, newPostCategory === cat.name && { color: '#059669', fontWeight: '600' }]}>{cat.name}</Text>
+                    <Text style={[styles.newPostDropdownText, newPostCategory === cat.name && { color: dc('#059669', 'text'), fontWeight: '600' }]}>{cat.name}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -969,11 +969,11 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
           {/* Header */}
           <View style={styles.commentPageHeader}>
             <TouchableOpacity onPress={() => { setCommentPostId(null); setCommentText(''); setReplyingTo(null); }}>
-              <Ionicons name="chevron-back" size={24} color="#374151" />
+              <Ionicons name="chevron-back" size={24} color={dc("#374151", 'text')} />
             </TouchableOpacity>
             <View style={{ flex: 1 }} />
             <TouchableOpacity>
-              <Ionicons name="notifications-outline" size={22} color="#374151" />
+              <Ionicons name="notifications-outline" size={22} color={dc("#374151", 'text')} />
             </TouchableOpacity>
           </View>
 
@@ -998,11 +998,11 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
                   </View>
                   <View style={styles.commentOriginalActions}>
                     <TouchableOpacity style={styles.actionBtn} onPress={() => toggleLike(post.id)}>
-                      <Ionicons name={post.liked ? 'heart' : 'heart-outline'} size={20} color={post.liked ? '#ef4444' : '#9ca3af'} />
-                      <Text style={[styles.actionText, post.liked && { color: '#ef4444' }]}>{post.likes}</Text>
+                      <Ionicons name={post.liked ? 'heart' : 'heart-outline'} size={20} color={post.liked ? dc('#ef4444', 'text') : dc('#9ca3af', 'text')} />
+                      <Text style={[styles.actionText, post.liked && { color: dc('#ef4444', 'text') }]}>{post.likes}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.actionBtn} onPress={() => handleShare(post)}>
-                      <Ionicons name="paper-plane-outline" size={19} color="#9ca3af" />
+                      <Ionicons name="paper-plane-outline" size={19} color={dc("#9ca3af", 'text')} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1023,7 +1023,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
 
             {/* Disclaimer */}
             <View style={styles.commentDisclaimer}>
-              <Ionicons name="information-circle-outline" size={14} color="#9ca3af" />
+              <Ionicons name="information-circle-outline" size={14} color={dc("#9ca3af", 'text')} />
               <Text style={styles.commentDisclaimerText}>Replies are from the community</Text>
             </View>
 
@@ -1046,7 +1046,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
                     <Text style={styles.commentBody}>{c.text}</Text>
                     <View style={styles.commentActionsRow}>
                       <TouchableOpacity style={styles.commentActionBtn}>
-                        <Ionicons name="heart-outline" size={14} color="#9ca3af" />
+                        <Ionicons name="heart-outline" size={14} color={dc("#9ca3af", 'text')} />
                         <Text style={styles.commentActionText}>{c.likes}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.commentActionBtn} onPress={() => {
@@ -1062,7 +1062,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
               ))
             ) : (
               <View style={styles.noCommentsContainer}>
-                <Ionicons name="chatbubbles-outline" size={40} color="#D1D5DB" />
+                <Ionicons name="chatbubbles-outline" size={40} color={dc("#D1D5DB", 'text')} />
                 <Text style={styles.noCommentsText}>No comments yet</Text>
                 <Text style={styles.noCommentsSub}>Be the first to share your thoughts</Text>
               </View>
@@ -1075,7 +1075,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
               ref={commentInputRef}
               style={styles.commentInput}
               placeholder={replyingTo ? `Reply to ${replyingTo}...` : "Write a comment..."}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={dc("#9ca3af", 'text')}
               value={commentText}
               onChangeText={setCommentText}
             />
@@ -1084,7 +1084,7 @@ export default function WhispersTab({ whisperPosts: externalPosts, setWhisperPos
               onPress={handleAddComment}
               disabled={!commentText.trim()}
             >
-              <Ionicons name="arrow-up" size={18} color="#fff" />
+              <Ionicons name="arrow-up" size={18} color={dc("#fff", 'text')} />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -1184,7 +1184,7 @@ const makeStyles = (c) => StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -1228,7 +1228,7 @@ const makeStyles = (c) => StyleSheet.create({
     marginRight: 8,
   },
   filterPillActive: {
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
   },
   filterText: {
     fontSize: 13,
@@ -1236,7 +1236,7 @@ const makeStyles = (c) => StyleSheet.create({
     color: c.textSecondary,
   },
   filterTextActive: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
   },
 
   emptyFilterState: {
@@ -1272,7 +1272,7 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f1f3',
+    borderBottomColor: dc('#f0f1f3', 'border'),
   },
   postHeader: {
     flexDirection: 'row',
@@ -1297,7 +1297,7 @@ const makeStyles = (c) => StyleSheet.create({
     fontSize: 16,
   },
   postAvatarText: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1378,7 +1378,7 @@ const makeStyles = (c) => StyleSheet.create({
     padding: 24,
   },
   pageImageText: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
@@ -1397,7 +1397,7 @@ const makeStyles = (c) => StyleSheet.create({
   followLink: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   followingLink: {
     fontSize: 13,
@@ -1428,7 +1428,7 @@ const makeStyles = (c) => StyleSheet.create({
     overflow: 'hidden',
   },
   pollOptionSelected: {
-    borderColor: '#059669',
+    borderColor: dc('#059669', 'border'),
     borderWidth: 1.5,
   },
   pollOptionBar: {
@@ -1470,7 +1470,7 @@ const makeStyles = (c) => StyleSheet.create({
   topCommentAvatarText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: dc('#fff', 'text'),
   },
   topCommentBubble: {
     flex: 1,
@@ -1491,7 +1491,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   viewAllComments: {
     fontSize: 13,
-    color: '#059669',
+    color: dc('#059669', 'text'),
     fontWeight: '600',
   },
   postText: {
@@ -1519,7 +1519,7 @@ const makeStyles = (c) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: dc('#f3f4f6', 'border'),
     paddingTop: 10,
   },
   actionBtn: {
@@ -1553,7 +1553,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   seeAllLink: {
     fontSize: 14,
-    color: '#059669',
+    color: dc('#059669', 'text'),
     fontWeight: '600',
   },
   categoriesScroll: {
@@ -1577,7 +1577,7 @@ const makeStyles = (c) => StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.38)',
   },
   categoryCardText: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
     fontSize: 14,
     fontWeight: '800',
     paddingHorizontal: 12,
@@ -1596,7 +1596,7 @@ const makeStyles = (c) => StyleSheet.create({
   fabInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 20,
@@ -1607,7 +1607,7 @@ const makeStyles = (c) => StyleSheet.create({
     elevation: 6,
   },
   fabText: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
     fontSize: 13,
     fontWeight: '700',
     marginLeft: 6,
@@ -1631,16 +1631,16 @@ const makeStyles = (c) => StyleSheet.create({
     borderBottomColor: 'rgba(0,0,0,0.06)',
   },
   newPostBtn: {
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
   },
   newPostBtnDisabled: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: dc('#D1FAE5', 'bg'),
   },
   newPostBtnText: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1667,7 +1667,7 @@ const makeStyles = (c) => StyleSheet.create({
     flexShrink: 0,
   },
   newPostAvatarText: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
     fontSize: 16,
     fontWeight: '700',
   },
@@ -1682,7 +1682,7 @@ const makeStyles = (c) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: dc('#ECFDF5', 'bg'),
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 14,
@@ -1690,14 +1690,14 @@ const makeStyles = (c) => StyleSheet.create({
   newPostCategorySelectedText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   newPostCategoryDefault: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: dc('#E5E7EB', 'border'),
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 14,
@@ -1786,7 +1786,7 @@ const makeStyles = (c) => StyleSheet.create({
   commentOriginalAvatarText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: dc('#fff', 'text'),
   },
   commentOriginalTimestamp: {
     fontSize: 12,
@@ -1822,7 +1822,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   commentFilterPillActive: {
     backgroundColor: c.cardAlt,
-    borderColor: '#1F1F1F',
+    borderColor: dc('#1F1F1F', 'border'),
   },
   commentFilterText: {
     fontSize: 13,
@@ -1830,7 +1830,7 @@ const makeStyles = (c) => StyleSheet.create({
     color: c.text,
   },
   commentFilterTextActive: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
   },
   commentDisclaimer: {
     flexDirection: 'row',
@@ -1869,7 +1869,7 @@ const makeStyles = (c) => StyleSheet.create({
   commentAvatarText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#fff',
+    color: dc('#fff', 'text'),
   },
   commentContent: {
     flex: 1,
@@ -1948,7 +1948,7 @@ const makeStyles = (c) => StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1988,7 +1988,7 @@ const makeStyles = (c) => StyleSheet.create({
     marginRight: 8,
   },
   allCatsFilterChipActive: {
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
   },
   allCatsFilterText: {
     fontSize: 13,
@@ -1996,7 +1996,7 @@ const makeStyles = (c) => StyleSheet.create({
     color: c.textSecondary,
   },
   allCatsFilterTextActive: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
   },
   allCatsGroupTitle: {
     fontSize: 13,
@@ -2028,20 +2028,20 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
   },
   allCatFollowingBtn: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: '#059669',
+    borderColor: dc('#059669', 'border'),
   },
   allCatFollowText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#fff',
+    color: dc('#fff', 'text'),
   },
   allCatFollowingText: {
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   allCatsEmpty: {
     alignItems: 'center',

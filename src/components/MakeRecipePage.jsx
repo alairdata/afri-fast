@@ -16,6 +16,7 @@ import { showAlert } from '../lib/alert';
 import ShimmerImage from './ShimmerImage';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 import { aiHeaders } from '../lib/aiAuth';
+import { dc, themedStyles } from '../lib/theme';
 
 // ── Ingredient amount scaler ─────────────────────────────────────────────────
 
@@ -170,7 +171,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
               onPress={() => (recipe.custom ? (removeCustomRecipe(userId, recipe.id), onClose()) : toggleSavedRecipe(userId, recipe.id))}
               accessibilityLabel={recipe.custom || savedIds.includes(recipe.id) ? 'Remove from saved recipes' : 'Save recipe'}
             >
-              <Ionicons name={recipe.custom || savedIds.includes(recipe.id) ? 'bookmark' : 'bookmark-outline'} size={17} color={recipe.custom || savedIds.includes(recipe.id) ? '#059669' : '#4B5563'} />
+              <Ionicons name={recipe.custom || savedIds.includes(recipe.id) ? 'bookmark' : 'bookmark-outline'} size={17} color={recipe.custom || savedIds.includes(recipe.id) ? dc('#059669', 'text') : dc('#4B5563', 'text')} />
             </TouchableOpacity>
           ) : null}
           {onLogMeal && (
@@ -187,7 +188,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
               <ShimmerImage uri={recipe.imageUrl} style={detail.heroImage} />
               {recipe.aiImage && (
                 <View style={detail.aiBadge}>
-                  <Ionicons name="sparkles-outline" size={11} color="#fff" />
+                  <Ionicons name="sparkles-outline" size={11} color={dc("#fff", 'text')} />
                   <Text style={detail.aiBadgeText}>AI image · how it could look</Text>
                 </View>
               )}
@@ -254,7 +255,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
               {recipe.cookTime ? (
                 <View style={[detail.chip, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
                   <Text style={detail.chipIcon}>🔥</Text>
-                  <Text style={[detail.chipText, { color: '#EF4444' }]}>{recipe.cookTime} cook</Text>
+                  <Text style={[detail.chipText, { color: dc('#EF4444', 'text') }]}>{recipe.cookTime} cook</Text>
                 </View>
               ) : null}
             </View>
@@ -320,7 +321,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
                   {communityPhotos.map((p) => (
                     <TouchableOpacity key={p.id} style={detail.communityCard} onPress={() => setCommunityCard(p)} activeOpacity={0.85}>
                       <View style={detail.communityAvatar}>
-                        <Ionicons name="person-circle" size={36} color="#059669" />
+                        <Ionicons name="person-circle" size={36} color={dc("#059669", 'text')} />
                       </View>
                       <ShimmerImage uri={p.photo_url} style={detail.communityPhoto} />
                     </TouchableOpacity>
@@ -338,7 +339,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
       <Modal visible={!!communityCard} transparent={false} animationType="slide" onRequestClose={() => setCommunityCard(null)}>
         <View style={detail.cardScreen}>
           <TouchableOpacity style={detail.cardBackBtn} onPress={() => setCommunityCard(null)}>
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color={dc("#fff", 'text')} />
           </TouchableOpacity>
           {communityCard && (() => {
             const items = communityCard.items || [];
@@ -346,7 +347,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
             return (
               <ScrollView contentContainerStyle={detail.cardScroll} showsVerticalScrollIndicator={false}>
                 <View style={detail.cardTopLabel}>
-                  <Ionicons name="person-circle" size={16} color="#059669" />
+                  <Ionicons name="person-circle" size={16} color={dc("#059669", 'text')} />
                   <Text style={detail.cardTopLabelText}>Community Meal</Text>
                 </View>
                 <View style={detail.card}>
@@ -363,7 +364,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
                       ? <View style={detail.cardItem}><Text style={detail.cardItemName}>No ingredients recorded</Text></View>
                       : items.map((f, i) => (
                           <View key={i} style={detail.cardItem}>
-                            <View style={[detail.cardDot, { backgroundColor: i === 0 ? '#4ade80' : i === 1 ? '#60a5fa' : i === 2 ? '#f59e0b' : '#a78bfa' }]} />
+                            <View style={[detail.cardDot, { backgroundColor: i === 0 ? dc('#4ade80', 'bg') : i === 1 ? dc('#60a5fa', 'bg') : i === 2 ? dc('#f59e0b', 'bg') : dc('#a78bfa', 'bg') }]} />
                             <Text style={detail.cardItemName}>{f.name}</Text>
                             <Text style={detail.cardItemCal}>{f.cal || f.calories || 0} cal</Text>
                           </View>
@@ -733,7 +734,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
         <View style={styles.header}>
           <Text style={styles.pageHeading} accessibilityRole="header">What sounds good today?</Text>
           <TouchableOpacity style={styles.headerIconBtn} onPress={() => setShowSaved(true)} accessibilityLabel="Saved recipes">
-            <Ionicons name={savedIds.length || customRecipes.length ? 'bookmark' : 'bookmark-outline'} size={19} color="#1F1F1F" />
+            <Ionicons name={savedIds.length || customRecipes.length ? 'bookmark' : 'bookmark-outline'} size={19} color={dc("#1F1F1F", 'text')} />
           </TouchableOpacity>
         </View>
 
@@ -750,11 +751,11 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
         >
           {/* Search */}
           <View style={styles.searchBar} onLayout={(e) => { searchY.current = e.nativeEvent.layout.y; }}>
-            <Ionicons name="search" size={17} color="#4B5563" style={{ marginRight: 10 }} />
+            <Ionicons name="search" size={17} color={dc("#4B5563", 'text')} style={{ marginRight: 10 }} />
             <TextInput
               style={styles.searchInput}
               placeholder="Find a recipe or ingredient..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={dc("#9CA3AF", 'text')}
               value={searchQuery}
               onChangeText={setSearchQuery}
               onFocus={() => {
@@ -766,20 +767,20 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityLabel="Clear search">
-                <Ionicons name="close-circle" size={16} color="#ccc" />
+                <Ionicons name="close-circle" size={16} color={dc("#ccc", 'text')} />
               </TouchableOpacity>
             )}
           </View>
 
           {/* Build a recipe from my kitchen (Pro): type, snap or say what you have and get a recipe that fits */}
           <TouchableOpacity style={styles.kitchenCard} onPress={() => (isPro ? onOpenKitchen && onOpenKitchen() : unlock('recipe_photo'))} activeOpacity={0.85} accessibilityLabel="Build a recipe from my kitchen">
-            <View style={styles.kitchenIcon}><Ionicons name="restaurant-outline" size={20} color="#16A34A" /></View>
+            <View style={styles.kitchenIcon}><Ionicons name="restaurant-outline" size={20} color={dc("#16A34A", 'text')} /></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.kitchenTitle}>Build a recipe from my kitchen</Text>
               <Text style={styles.actionDesc}>Snap a photo or list what you have</Text>
               {!isPro && <View style={styles.proPill}><Text style={styles.proPillText}>PRO</Text></View>}
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#6B7280" />
+            <Ionicons name="chevron-forward" size={18} color={dc("#6B7280", 'text')} />
           </TouchableOpacity>
 
           {/* Shop It (a grocery list from the meals you plan to cook) is hidden until it is built */}
@@ -789,7 +790,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
               <TextInput
                 style={styles.listInput}
                 placeholder="e.g. rice, tomatoes, chicken, onions"
-                placeholderTextColor="#999"
+                placeholderTextColor={dc("#999", 'text')}
                 value={listText}
                 onChangeText={setListText}
                 multiline
@@ -830,7 +831,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
                   )}
                 </View>
                 <TouchableOpacity onPress={() => { setPhotoPhase(null); setPhotoMatches([]); }}>
-                  <Ionicons name="close-circle" size={22} color="#ccc" />
+                  <Ionicons name="close-circle" size={22} color={dc("#ccc", 'text')} />
                 </TouchableOpacity>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
@@ -858,7 +859,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
                 return (
                   <View key={cat} style={styles.section}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      {meta.icon ? <Ionicons name={meta.icon} size={20} color="#16201b" /> : null}
+                      {meta.icon ? <Ionicons name={meta.icon} size={20} color={dc("#16201b", 'text')} /> : null}
                       <Text style={styles.sectionTitle}>{cat}</Text>
                     </View>
                     {meta.subtitle && <Text style={styles.sectionSubtitle}>{meta.subtitle}</Text>}
@@ -880,7 +881,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
         <View style={styles.cameraOverlay}>
           {!cameraPermission?.granted ? (
             <View style={styles.cameraPermission}>
-              <Ionicons name="camera-outline" size={48} color="#D1D5DB" />
+              <Ionicons name="camera-outline" size={48} color={dc("#D1D5DB", 'text')} />
               <Text style={styles.cameraPermissionText}>Camera access is required</Text>
             </View>
           ) : (
@@ -889,7 +890,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
 
               {/* Back button */}
               <TouchableOpacity style={styles.camBackBtn} onPress={() => { setShowCamera(false); setPendingUris([]); }}>
-                <Ionicons name="chevron-back" size={26} color="#fff" />
+                <Ionicons name="chevron-back" size={26} color={dc("#fff", 'text')} />
               </TouchableOpacity>
 
               {/* Hint */}
@@ -912,7 +913,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
                         style={styles.camThumbRemove}
                         onPress={() => setPendingUris(prev => prev.filter((_, j) => j !== i))}
                       >
-                        <Ionicons name="close-circle" size={20} color="#fff" />
+                        <Ionicons name="close-circle" size={20} color={dc("#fff", 'text')} />
                       </TouchableOpacity>
                     </View>
                   ))}
@@ -923,7 +924,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
               <View style={styles.camControls}>
                 {/* Gallery picker */}
                 <TouchableOpacity style={styles.camSideBtn} onPress={pickGalleryInsideCamera}>
-                  <Ionicons name="image-outline" size={28} color="#fff" />
+                  <Ionicons name="image-outline" size={28} color={dc("#fff", 'text')} />
                   {pendingUris.length > 0 && <Text style={styles.camSideBtnLabel}>Add more</Text>}
                 </TouchableOpacity>
 
@@ -936,7 +937,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
                 {pendingUris.length > 0 ? (
                   <TouchableOpacity style={styles.camFindBtn} onPress={() => { setShowCamera(false); analyseUris(pendingUris); }}>
                     <Text style={styles.camFindBtnText}>Find{'\n'}recipes</Text>
-                    <Ionicons name="arrow-forward" size={16} color="#fff" />
+                    <Ionicons name="arrow-forward" size={16} color={dc("#fff", 'text')} />
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.camSideBtn} />
@@ -949,10 +950,10 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
 
       {/* Saved recipes */}
       <Modal visible={showSaved} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowSaved(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#F2F2F2' }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: dc('#F2F2F2', 'bg') }}>
           <View style={styles.savedHeader}>
             <TouchableOpacity style={styles.headerIconBtn} onPress={() => setShowSaved(false)} accessibilityLabel="Close">
-              <Ionicons name="chevron-down" size={24} color="#1F1F1F" />
+              <Ionicons name="chevron-down" size={24} color={dc("#1F1F1F", 'text')} />
             </TouchableOpacity>
             <Text style={styles.pageTitle}>Saved recipes</Text>
             <View style={{ width: 44 }} />
@@ -962,7 +963,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
               const saved = [...customRecipes, ...savedIds.map(id => AFRICAN_RECIPES.find(r => r.id === id)).filter(Boolean)];
               if (!saved.length) return (
                 <View style={{ alignItems: 'center', paddingVertical: 80 }}>
-                  <Ionicons name="bookmark-outline" size={32} color="#9CA3AF" />
+                  <Ionicons name="bookmark-outline" size={32} color={dc("#9CA3AF", 'text')} />
                   <Text style={styles.savedEmptyTitle}>No saved recipes yet</Text>
                   <Text style={styles.savedEmptySub}>Tap the bookmark on any recipe to keep it here.</Text>
                 </View>
@@ -1001,7 +1002,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
@@ -1155,7 +1156,7 @@ const styles = StyleSheet.create({
   photoResultsSub: { fontSize: 12, color: '#888', marginTop: 2 },
 });
 
-const detail = StyleSheet.create({
+const detail = themedStyles({
   container: { flex: 1, backgroundColor: '#fff' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

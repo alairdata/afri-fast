@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, TextInput, Platform } from 'react-native';
+import { dc, themedStyles } from '../lib/theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -68,7 +69,7 @@ function LogHistoryPage({ show, onClose, recentMeals = [], dailyCalorieGoal = 20
       <View style={styles.page}>
         <View style={styles.pageHeader}>
           <TouchableOpacity style={styles.backBtn} onPress={onClose}>
-            <Ionicons name="chevron-back" size={24} color="#059669" />
+            <Ionicons name="chevron-back" size={24} color={dc("#059669", 'text')} />
           </TouchableOpacity>
           <Text style={styles.pageTitle}>Log History</Text>
           <View style={{ width: 40 }} />
@@ -87,12 +88,12 @@ function LogHistoryPage({ show, onClose, recentMeals = [], dailyCalorieGoal = 20
         </View>
 
         <View style={styles.searchWrap}>
-          <Ionicons name="search" size={16} color="#9CA3AF" />
+          <Ionicons name="search" size={16} color={dc("#9CA3AF", 'text')} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search by date e.g. Mon Jun 30"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={dc("#9CA3AF", 'text')}
             style={styles.searchInput}
           />
         </View>
@@ -355,7 +356,7 @@ export default function FastingDetailsPage({ show, onClose, recentMeals = [], ch
       <View style={styles.page}>
         <View style={styles.pageHeader}>
           <TouchableOpacity style={styles.backBtn} onPress={onClose}>
-            <Ionicons name="chevron-back" size={24} color="#059669" />
+            <Ionicons name="chevron-back" size={24} color={dc("#059669", 'text')} />
           </TouchableOpacity>
           <Text style={styles.pageTitle}>Progress Details</Text>
           <View style={{ width: 40 }} />
@@ -397,7 +398,7 @@ export default function FastingDetailsPage({ show, onClose, recentMeals = [], ch
               >
                 <View style={styles.cardTopRow}>
                   <Text style={styles.cardValue}>{progressData.hasDays ? progressData.daysLogged : '--'}</Text>
-                  <Ionicons name="chevron-forward" size={18} color="#059669" />
+                  <Ionicons name="chevron-forward" size={18} color={dc("#059669", 'text')} />
                 </View>
                 <Text style={styles.cardLabel}>Days logged</Text>
                 <Text style={styles.cardMeta}>See on goal vs over goal</Text>
@@ -432,11 +433,11 @@ export default function FastingDetailsPage({ show, onClose, recentMeals = [], ch
 
               <View style={styles.legendRow}>
                 <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+                  <View style={[styles.legendDot, { backgroundColor: dc('#10B981', 'bg') }]} />
                   <Text style={styles.legendText}>On goal</Text>
                 </View>
                 <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
+                  <View style={[styles.legendDot, { backgroundColor: dc('#F59E0B', 'bg') }]} />
                   <Text style={styles.legendText}>Over goal</Text>
                 </View>
                 <View style={styles.legendItem}>
@@ -472,21 +473,21 @@ export default function FastingDetailsPage({ show, onClose, recentMeals = [], ch
               <View style={styles.responseItem}>
                 <Text style={styles.responseLabel}>Energy levels</Text>
                 <View style={styles.responseBar}>
-                  <View style={[styles.responseFill, { width: `${progressData.energyScore}%`, backgroundColor: '#10B981' }]} />
+                  <View style={[styles.responseFill, { width: `${progressData.energyScore}%`, backgroundColor: dc('#10B981', 'bg') }]} />
                 </View>
                 <Text style={styles.responseValue}>{progressData.hasCheckIns ? progressData.energyLabel : '--'}</Text>
               </View>
               <View style={styles.responseItem}>
                 <Text style={styles.responseLabel}>Focus & clarity</Text>
                 <View style={styles.responseBar}>
-                  <View style={[styles.responseFill, { width: `${progressData.focusScore}%`, backgroundColor: '#8B5CF6' }]} />
+                  <View style={[styles.responseFill, { width: `${progressData.focusScore}%`, backgroundColor: dc('#8B5CF6', 'bg') }]} />
                 </View>
                 <Text style={styles.responseValue}>{progressData.hasCheckIns ? progressData.focusLabel : '--'}</Text>
               </View>
               <View style={[styles.responseItem, { marginBottom: 0 }]}>
                 <Text style={styles.responseLabel}>Mood stability</Text>
                 <View style={styles.responseBar}>
-                  <View style={[styles.responseFill, { width: `${progressData.moodScore}%`, backgroundColor: '#F59E0B' }]} />
+                  <View style={[styles.responseFill, { width: `${progressData.moodScore}%`, backgroundColor: dc('#F59E0B', 'bg') }]} />
                 </View>
                 <Text style={styles.responseValue}>{progressData.hasCheckIns ? progressData.moodLabel : '--'}</Text>
               </View>
@@ -523,10 +524,10 @@ export default function FastingDetailsPage({ show, onClose, recentMeals = [], ch
                 </View>
                 <View style={styles.donutLegend}>
                   {[
-                    { label: 'Low energy', pct: progressData.lowEnergyPct, color: '#EF4444' },
-                    { label: 'Brain fog',  pct: progressData.brainFogPct,  color: '#F59E0B' },
-                    { label: 'Cravings',   pct: progressData.cravingsPct,  color: '#8B5CF6' },
-                    { label: 'No symptoms',pct: progressData.noSymptomsPct,color: '#10B981' },
+                    { label: 'Low energy', pct: progressData.lowEnergyPct, color: dc('#EF4444', 'text') },
+                    { label: 'Brain fog',  pct: progressData.brainFogPct,  color: dc('#F59E0B', 'text') },
+                    { label: 'Cravings',   pct: progressData.cravingsPct,  color: dc('#8B5CF6', 'text') },
+                    { label: 'No symptoms',pct: progressData.noSymptomsPct,color: dc('#10B981', 'text') },
                   ].map(({ label, pct, color }) => (
                     <View key={label} style={styles.donutLegendItem}>
                       <View style={[styles.donutLegendDot, { backgroundColor: color }]} />
@@ -548,7 +549,7 @@ export default function FastingDetailsPage({ show, onClose, recentMeals = [], ch
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   pageOverlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,

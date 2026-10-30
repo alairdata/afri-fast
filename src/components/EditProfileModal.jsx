@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { dc, themedStyles } from '../lib/theme';
 
 const EditProfileModal = ({ show, onClose, onSave, userName, userEmail, setUserName, setUserEmail, userCountry, setUserCountry, profileImage, setProfileImage }) => {
   // Sits below the top of the phone (safe area), which the keyboard lift has to know about.
@@ -29,7 +30,7 @@ const EditProfileModal = ({ show, onClose, onSave, userName, userEmail, setUserN
         <View style={styles.editProfileHeader}>
           <Text style={styles.editProfileTitle}>Edit Profile</Text>
           <TouchableOpacity onPress={onClose}>
-            <Text style={{ color: '#999', fontSize: 16 }}>{'✕'}</Text>
+            <Text style={{ color: dc('#999', 'text'), fontSize: 16 }}>{'✕'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -52,7 +53,7 @@ const EditProfileModal = ({ show, onClose, onSave, userName, userEmail, setUserN
         <View style={styles.editProfileField}>
           <Text style={styles.editProfileLabel}>Email</Text>
           <TextInput
-            style={[styles.editProfileInput, { color: '#9CA3AF', backgroundColor: '#F3F4F6' }]}
+            style={[styles.editProfileInput, { color: dc('#9CA3AF', 'text'), backgroundColor: dc('#F3F4F6', 'bg') }]}
             value={userEmail || ''}
             editable={false}
             selectTextOnFocus={false}
@@ -67,7 +68,7 @@ const EditProfileModal = ({ show, onClose, onSave, userName, userEmail, setUserN
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   editProfileOverlay: {
     position: 'absolute',
     top: 0,

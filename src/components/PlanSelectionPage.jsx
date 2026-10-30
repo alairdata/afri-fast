@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
 import FastingQuizPage from './FastingQuizPage';
+import { dc, themedStyles } from '../lib/theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -55,7 +56,7 @@ const PlanSelectionPage = ({ show, onClose, dailyCalorieGoal, onSelectPlan }) =>
             <Text style={styles.planPageHeaderSub}>Choose your daily calorie target</Text>
           </View>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-            <Text style={{ color: '#666', fontSize: 18 }}>{'✕'}</Text>
+            <Text style={{ color: dc('#666', 'text'), fontSize: 18 }}>{'✕'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -63,18 +64,18 @@ const PlanSelectionPage = ({ show, onClose, dailyCalorieGoal, onSelectPlan }) =>
           {/* Quiz CTA */}
           <TouchableOpacity style={styles.quizCta} onPress={() => setShowQuiz(true)}>
             <View style={styles.quizCtaLeft}>
-              <Ionicons name="sparkles" size={20} color="#059669" />
+              <Ionicons name="sparkles" size={20} color={dc("#059669", 'text')} />
               <View>
                 <Text style={styles.quizCtaTitle}>Not sure which goal?</Text>
                 <Text style={styles.quizCtaSub}>Take a 2-min quiz to find your perfect fit</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#059669" />
+            <Ionicons name="chevron-forward" size={18} color={dc("#059669", 'text')} />
           </TouchableOpacity>
 
           {/* Gentle Section */}
           <View style={styles.planSection}>
-            <View style={[styles.sectionHeader, { backgroundColor: '#ECFDF5' }]}>
+            <View style={[styles.sectionHeader, { backgroundColor: dc('#ECFDF5', 'bg') }]}>
               <Text style={styles.sectionLabel}>Gentle</Text>
               <Text style={styles.sectionSub}>Gradual, sustainable loss — lower pressure, long-term results</Text>
             </View>
@@ -85,7 +86,7 @@ const PlanSelectionPage = ({ show, onClose, dailyCalorieGoal, onSelectPlan }) =>
 
           {/* Moderate Section */}
           <View style={styles.planSection}>
-            <View style={[styles.sectionHeader, { backgroundColor: '#FFFBEB' }]}>
+            <View style={[styles.sectionHeader, { backgroundColor: dc('#FFFBEB', 'bg') }]}>
               <Text style={styles.sectionLabel}>Moderate</Text>
               <Text style={styles.sectionSub}>The sweet spot — meaningful deficit without feeling deprived</Text>
             </View>
@@ -96,7 +97,7 @@ const PlanSelectionPage = ({ show, onClose, dailyCalorieGoal, onSelectPlan }) =>
 
           {/* Active Section */}
           <View style={styles.planSection}>
-            <View style={[styles.sectionHeader, { backgroundColor: '#FFF7ED' }]}>
+            <View style={[styles.sectionHeader, { backgroundColor: dc('#FFF7ED', 'bg') }]}>
               <Text style={styles.sectionLabel}>Active</Text>
               <Text style={styles.sectionSub}>Higher targets for those who exercise regularly or have larger frames</Text>
             </View>
@@ -107,7 +108,7 @@ const PlanSelectionPage = ({ show, onClose, dailyCalorieGoal, onSelectPlan }) =>
 
           {/* Custom Section */}
           <View style={styles.planSection}>
-            <View style={[styles.sectionHeader, { backgroundColor: '#F5F3FF' }]}>
+            <View style={[styles.sectionHeader, { backgroundColor: dc('#F5F3FF', 'bg') }]}>
               <Text style={styles.sectionLabel}>Custom</Text>
               <Text style={styles.sectionSub}>Set your own calorie target based on your specific needs</Text>
             </View>
@@ -142,7 +143,7 @@ const PlanSelectionPage = ({ show, onClose, dailyCalorieGoal, onSelectPlan }) =>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   planPageOverlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0,

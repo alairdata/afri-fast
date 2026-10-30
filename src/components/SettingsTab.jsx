@@ -8,7 +8,7 @@ import HealthSourcesPage from './HealthSourcesPage';
 import PhotoCreditsPage from './PhotoCreditsPage';
 import { useSubscription, openPaywall, restorePurchases } from '../lib/subscription';
 import { FaqSheet, ContactSheet, RateSheet, PrivacySheet, ClearHistorySheet } from './SettingsSheets';
-import { useTheme, DARK_MODE_AVAILABLE } from '../lib/theme';
+import { useTheme, DARK_MODE_AVAILABLE, dc, themedStyles } from '../lib/theme';
 import { showAlert } from '../lib/alert';
 
 const COUNTRIES = [
@@ -76,7 +76,7 @@ const OptionRow = ({ title, desc, active, onPress, colors, compact }) => (
     style={[
       optionStyles.row,
       compact && optionStyles.rowCompact,
-      { borderColor: active ? '#059669' : colors.border, backgroundColor: active ? colors.accentLight : colors.card },
+      { borderColor: active ? dc('#059669', 'border') : colors.border, backgroundColor: active ? colors.accentLight : colors.card },
     ]}
     onPress={onPress}
     activeOpacity={0.7}
@@ -85,8 +85,8 @@ const OptionRow = ({ title, desc, active, onPress, colors, compact }) => (
       <Text style={[optionStyles.title, { color: colors.text }]}>{title}</Text>
       {desc ? <Text style={[optionStyles.desc, { color: colors.textMuted }]}>{desc}</Text> : null}
     </View>
-    <View style={[optionStyles.check, { borderColor: active ? '#059669' : colors.border, backgroundColor: active ? '#059669' : 'transparent' }]}>
-      {active ? <Ionicons name="checkmark" size={12} color="#fff" /> : null}
+    <View style={[optionStyles.check, { borderColor: active ? dc('#059669', 'border') : colors.border, backgroundColor: active ? dc('#059669', 'bg') : 'transparent' }]}>
+      {active ? <Ionicons name="checkmark" size={12} color={dc("#fff", 'text')} /> : null}
     </View>
   </TouchableOpacity>
 );
@@ -118,7 +118,7 @@ const MacroStyleDropdown = ({ value, onChange, colors }) => {
     <>
       <TouchableOpacity ref={btnRef} style={dropdownStyles.btn} onPress={openMenu} activeOpacity={0.7}>
         <Text style={dropdownStyles.btnText}>{current.label}</Text>
-        <Ionicons name="chevron-down" size={10} color="#059669" />
+        <Ionicons name="chevron-down" size={10} color={dc("#059669", 'text')} />
       </TouchableOpacity>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setOpen(false)}>
@@ -148,7 +148,7 @@ const MacroStyleDropdown = ({ value, onChange, colors }) => {
   );
 };
 
-const dropdownStyles = StyleSheet.create({
+const dropdownStyles = themedStyles({
   btn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingVertical: 6, paddingHorizontal: 12,
@@ -170,7 +170,7 @@ const dropdownStyles = StyleSheet.create({
   itemTextActive: { color: '#059669', fontWeight: '700' },
 });
 
-const optionStyles = StyleSheet.create({
+const optionStyles = themedStyles({
   row: {
     width: '100%', flexDirection: 'row', alignItems: 'center',
     paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14,
@@ -480,13 +480,13 @@ const SettingsTab = ({
         <View style={styles.settingsProfileInfo}>
           <Text style={[styles.settingsProfileName, { color: colors.text }]}>{userName}</Text>
           <TouchableOpacity onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}>
-            <Text style={[styles.settingsProfileCountry, !userCountry && { color: '#9CA3AF' }]}>
+            <Text style={[styles.settingsProfileCountry, !userCountry && { color: dc('#9CA3AF', 'text') }]}>
               {userCountry || 'Select your country'}
             </Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity style={styles.settingsEditBtn} onPress={onEditProfile}>
-          <Text style={{ color: '#059669', fontSize: 16 }}>{'\u270E'}</Text>
+          <Text style={{ color: dc('#059669', 'text'), fontSize: 16 }}>{'\u270E'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -642,7 +642,7 @@ const SettingsTab = ({
                       onPress={() => setShowHydrationUnitDropdown((prev) => !prev)}
                     >
                       <Text style={styles.settingsUnitPickerText}>{volumeUnit}</Text>
-                      <Ionicons name="chevron-down" size={12} color="#059669" />
+                      <Ionicons name="chevron-down" size={12} color={dc("#059669", 'text')} />
                     </TouchableOpacity>
                     {showHydrationUnitDropdown && (
                       <View style={styles.settingsInlineDropdown}>
@@ -666,13 +666,13 @@ const SettingsTab = ({
             <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowMeasurementGuide(true)}>
                 <View style={styles.settingsActionLeft}>
-                  <Ionicons name="eye-outline" size={18} color="#374151" />
+                  <Ionicons name="eye-outline" size={18} color={dc("#374151", 'text')} />
                   <View>
                     <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Measurement Guide</Text>
                     <Text style={[styles.settingsItemDesc, { color: colors.textMuted }]}>Sachets, bottles, food portions & more</Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="#ccc" />
+                <Ionicons name="chevron-forward" size={16} color={dc("#ccc", 'text')} />
               </TouchableOpacity>
             </View>
 
@@ -693,7 +693,7 @@ const SettingsTab = ({
             <View style={[styles.settingsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>Your plan</Text>
               <View style={styles.settingsActionLeft}>
-                <Ionicons name={sub.isPro ? 'sparkles' : 'leaf-outline'} size={18} color="#059669" />
+                <Ionicons name={sub.isPro ? 'sparkles' : 'leaf-outline'} size={18} color={dc("#059669", 'text')} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.accountRowLabel, { color: colors.text }]}>{sub.isPro ? `Logga Pro${sub.inTrial ? ' · Free trial' : ''}` : 'Free'}</Text>
                   <Text style={{ fontSize: 12.5, color: colors.textMuted, marginTop: 3 }}>
@@ -707,10 +707,10 @@ const SettingsTab = ({
                 <TouchableOpacity style={[styles.discoverPro, { marginTop: 16, marginBottom: 0 }]} onPress={() => openPaywall('settings')} activeOpacity={0.85}>
                   <View style={styles.discoverProTop}>
                     <View style={styles.settingsActionLeft}>
-                      <Ionicons name="sparkles-outline" size={18} color="#047857" />
+                      <Ionicons name="sparkles-outline" size={18} color={dc("#047857", 'text')} />
                       <Text style={styles.discoverProTitle}>Discover Logga Pro</Text>
                     </View>
-                    <Ionicons name="arrow-up-outline" size={15} color="#047857" style={{ transform: [{ rotate: '45deg' }] }} />
+                    <Ionicons name="arrow-up-outline" size={15} color={dc("#047857", 'text')} style={{ transform: [{ rotate: '45deg' }] }} />
                   </View>
                   <Text style={styles.discoverProSub}>Unlock personalised forecasts, planning insights, and more.</Text>
                 </TouchableOpacity>
@@ -720,15 +720,15 @@ const SettingsTab = ({
               {sub.isPro && (
                 <TouchableOpacity style={styles.settingsActionItem} onPress={() => Linking.openURL(sub.managementURL || 'https://apps.apple.com/account/subscriptions').catch(() => {})}>
                   <View style={styles.settingsActionLeft}>
-                    <Ionicons name="settings-outline" size={18} color="#374151" />
+                    <Ionicons name="settings-outline" size={18} color={dc("#374151", 'text')} />
                     <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Manage subscription</Text>
                   </View>
-                  <Ionicons name="open-outline" size={16} color="#ccc" />
+                  <Ionicons name="open-outline" size={16} color={dc("#ccc", 'text')} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity style={[styles.settingsActionItem, { borderBottomWidth: 0 }]} onPress={doRestore} disabled={restoring}>
                 <View style={styles.settingsActionLeft}>
-                  <Ionicons name="refresh-outline" size={18} color="#374151" />
+                  <Ionicons name="refresh-outline" size={18} color={dc("#374151", 'text')} />
                   <Text style={[styles.settingsActionLabel, { color: colors.text }]}>{restoring ? 'Restoring…' : 'Restore Purchases'}</Text>
                 </View>
               </TouchableOpacity>
@@ -747,28 +747,28 @@ const SettingsTab = ({
           <TouchableOpacity style={styles.discoverPro} onPress={() => openPaywall('settings')} activeOpacity={0.85}>
             <View style={styles.discoverProTop}>
               <View style={styles.settingsActionLeft}>
-                <Ionicons name="sparkles-outline" size={18} color="#047857" />
+                <Ionicons name="sparkles-outline" size={18} color={dc("#047857", 'text')} />
                 <Text style={styles.discoverProTitle}>Discover Logga Pro</Text>
               </View>
-              <Ionicons name="arrow-up-outline" size={15} color="#047857" style={{ transform: [{ rotate: '45deg' }] }} />
+              <Ionicons name="arrow-up-outline" size={15} color={dc("#047857", 'text')} style={{ transform: [{ rotate: '45deg' }] }} />
             </View>
             <Text style={styles.discoverProSub}>Unlock personalised forecasts, planning insights, and more.</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={[styles.accountRow, sub.canPurchase && { borderBottomWidth: 1, borderBottomColor: colors.border }]} onPress={() => setShowMakeItYours(true)}>
           <View style={styles.settingsActionLeft}>
-            <Ionicons name="person-outline" size={18} color="#374151" />
+            <Ionicons name="person-outline" size={18} color={dc("#374151", 'text')} />
             <Text style={[styles.accountRowLabel, { color: colors.text }]}>Personal details</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+          <Ionicons name="chevron-forward" size={16} color={dc("#9CA3AF", 'text')} />
         </TouchableOpacity>
         {sub.canPurchase && (
           <TouchableOpacity style={styles.accountRow} onPress={() => setShowSubscription(true)}>
             <View style={styles.settingsActionLeft}>
-              <Ionicons name="card-outline" size={18} color="#374151" />
+              <Ionicons name="card-outline" size={18} color={dc("#374151", 'text')} />
               <Text style={[styles.accountRowLabel, { color: colors.text }]}>Subscription & purchases</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={16} color={dc("#9CA3AF", 'text')} />
           </TouchableOpacity>
         )}
       </View>
@@ -842,34 +842,34 @@ const SettingsTab = ({
 
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowDataRequest(true)}>
           <View style={styles.settingsActionLeft}>
-            <Ionicons name="download-outline" size={18} color="#374151" />
+            <Ionicons name="download-outline" size={18} color={dc("#374151", 'text')} />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Request My Data</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+          <Ionicons name="chevron-forward" size={16} color={dc("#ccc", 'text')} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowClear(true)}>
           <View style={styles.settingsActionLeft}>
-            <Ionicons name="trash-outline" size={18} color="#374151" />
+            <Ionicons name="trash-outline" size={18} color={dc("#374151", 'text')} />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Clear History</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+          <Ionicons name="chevron-forward" size={16} color={dc("#ccc", 'text')} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowPrivacy(true)}>
           <View style={styles.settingsActionLeft}>
-            <Ionicons name="shield-checkmark-outline" size={18} color="#374151" />
+            <Ionicons name="shield-checkmark-outline" size={18} color={dc("#374151", 'text')} />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Privacy Settings</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+          <Ionicons name="chevron-forward" size={16} color={dc("#ccc", 'text')} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => { setConfirmDelete(false); setDeleteText(''); setShowAccountSheet(true); }}>
           <View style={styles.settingsActionLeft}>
-            <Ionicons name="person-outline" size={18} color="#374151" />
+            <Ionicons name="person-outline" size={18} color={dc("#374151", 'text')} />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Account Options</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+          <Ionicons name="chevron-forward" size={16} color={dc("#ccc", 'text')} />
         </TouchableOpacity>
       </View>
 
@@ -879,34 +879,34 @@ const SettingsTab = ({
 
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowFaq(true)}>
           <View style={styles.settingsActionLeft}>
-            <Ionicons name="help-circle-outline" size={18} color="#374151" />
+            <Ionicons name="help-circle-outline" size={18} color={dc("#374151", 'text')} />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Help & FAQ</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+          <Ionicons name="chevron-forward" size={16} color={dc("#ccc", 'text')} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowSources(true)}>
           <View style={styles.settingsActionLeft}>
-            <Ionicons name="book-outline" size={18} color="#374151" />
+            <Ionicons name="book-outline" size={18} color={dc("#374151", 'text')} />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Health Info & Sources</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+          <Ionicons name="chevron-forward" size={16} color={dc("#ccc", 'text')} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowContact(true)}>
           <View style={styles.settingsActionLeft}>
-            <Ionicons name="mail-outline" size={18} color="#374151" />
+            <Ionicons name="mail-outline" size={18} color={dc("#374151", 'text')} />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Contact Support</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+          <Ionicons name="chevron-forward" size={16} color={dc("#ccc", 'text')} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingsActionItem} onPress={() => setShowRate(true)}>
           <View style={styles.settingsActionLeft}>
-            <Ionicons name="star-outline" size={18} color="#374151" />
+            <Ionicons name="star-outline" size={18} color={dc("#374151", 'text')} />
             <Text style={[styles.settingsActionLabel, { color: colors.text }]}>Rate the App</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#ccc" />
+          <Ionicons name="chevron-forward" size={16} color={dc("#ccc", 'text')} />
         </TouchableOpacity>
       </View>
 
@@ -930,7 +930,7 @@ const SettingsTab = ({
         <View style={[styles.makeItYoursPage, { zIndex: 100 }]}>
           <View style={styles.makeItYoursHeader}>
             <TouchableOpacity onPress={() => setShowMeasurementGuide(false)}>
-              <Ionicons name="chevron-back" size={24} color="#1F1F1F" />
+              <Ionicons name="chevron-back" size={24} color={dc("#1F1F1F", 'text')} />
             </TouchableOpacity>
             <Text style={styles.makeItYoursHeaderTitle}>Visual Guide</Text>
           </View>
@@ -941,8 +941,8 @@ const SettingsTab = ({
             <Text style={styles.guideSection}>Water</Text>
 
             <TouchableOpacity style={styles.guideVisualCard} onPress={() => setStoryViewer({ ...guideStories.sachet, index: 0 })}>
-              <View style={[styles.guideVisualIcon, { backgroundColor: '#EFF6FF' }]}>
-                <Ionicons name="water-outline" size={24} color="#3B82F6" />
+              <View style={[styles.guideVisualIcon, { backgroundColor: dc('#EFF6FF', 'bg') }]}>
+                <Ionicons name="water-outline" size={24} color={dc("#3B82F6", 'text')} />
               </View>
               <View style={styles.guideVisualInfo}>
                 <Text style={styles.guideVisualTitle}>1 Sachet</Text>
@@ -952,8 +952,8 @@ const SettingsTab = ({
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.guideVisualCard} onPress={() => setStoryViewer({ ...guideStories.bottle, index: 0 })}>
-              <View style={[styles.guideVisualIcon, { backgroundColor: '#EFF6FF' }]}>
-                <Ionicons name="flask-outline" size={24} color="#3B82F6" />
+              <View style={[styles.guideVisualIcon, { backgroundColor: dc('#EFF6FF', 'bg') }]}>
+                <Ionicons name="flask-outline" size={24} color={dc("#3B82F6", 'text')} />
               </View>
               <View style={styles.guideVisualInfo}>
                 <Text style={styles.guideVisualTitle}>1 Bottle</Text>
@@ -963,8 +963,8 @@ const SettingsTab = ({
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.guideVisualCard} onPress={() => setStoryViewer({ ...guideStories.glass, index: 0 })}>
-              <View style={[styles.guideVisualIcon, { backgroundColor: '#EFF6FF' }]}>
-                <Ionicons name="cafe-outline" size={24} color="#3B82F6" />
+              <View style={[styles.guideVisualIcon, { backgroundColor: dc('#EFF6FF', 'bg') }]}>
+                <Ionicons name="cafe-outline" size={24} color={dc("#3B82F6", 'text')} />
               </View>
               <View style={styles.guideVisualInfo}>
                 <Text style={styles.guideVisualTitle}>1 Glass</Text>
@@ -998,8 +998,8 @@ const SettingsTab = ({
             <Text style={styles.guideFoodSectionTitle}>YOUR MEASURING TOOLS</Text>
 
             <TouchableOpacity style={styles.guideVisualCard} onPress={() => setStoryViewer({ ...guideStories.foodTeaspoon, index: 0 })}>
-              <View style={[styles.guideVisualIcon, { backgroundColor: '#FFF7ED' }]}>
-                <Ionicons name="ellipse-outline" size={24} color="#F97316" />
+              <View style={[styles.guideVisualIcon, { backgroundColor: dc('#FFF7ED', 'bg') }]}>
+                <Ionicons name="ellipse-outline" size={24} color={dc("#F97316", 'text')} />
               </View>
               <View style={styles.guideVisualInfo}>
                 <Text style={styles.guideVisualTitle}>Teaspoon</Text>
@@ -1009,8 +1009,8 @@ const SettingsTab = ({
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.guideVisualCard} onPress={() => setStoryViewer({ ...guideStories.foodTablespoon, index: 0 })}>
-              <View style={[styles.guideVisualIcon, { backgroundColor: '#FFF7ED' }]}>
-                <Ionicons name="remove-outline" size={24} color="#F97316" />
+              <View style={[styles.guideVisualIcon, { backgroundColor: dc('#FFF7ED', 'bg') }]}>
+                <Ionicons name="remove-outline" size={24} color={dc("#F97316", 'text')} />
               </View>
               <View style={styles.guideVisualInfo}>
                 <Text style={styles.guideVisualTitle}>Tablespoon</Text>
@@ -1020,8 +1020,8 @@ const SettingsTab = ({
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.guideVisualCard} onPress={() => setStoryViewer({ ...guideStories.foodOneTin, index: 0 })}>
-              <View style={[styles.guideVisualIcon, { backgroundColor: '#FFF7ED' }]}>
-                <Ionicons name="cube-outline" size={24} color="#F97316" />
+              <View style={[styles.guideVisualIcon, { backgroundColor: dc('#FFF7ED', 'bg') }]}>
+                <Ionicons name="cube-outline" size={24} color={dc("#F97316", 'text')} />
               </View>
               <View style={styles.guideVisualInfo}>
                 <Text style={styles.guideVisualTitle}>1/3 Cup</Text>
@@ -1031,8 +1031,8 @@ const SettingsTab = ({
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.guideVisualCard} onPress={() => setStoryViewer({ ...guideStories.foodThreeTins, index: 0 })}>
-              <View style={[styles.guideVisualIcon, { backgroundColor: '#FFF7ED' }]}>
-                <Ionicons name="layers-outline" size={24} color="#F97316" />
+              <View style={[styles.guideVisualIcon, { backgroundColor: dc('#FFF7ED', 'bg') }]}>
+                <Ionicons name="layers-outline" size={24} color={dc("#F97316", 'text')} />
               </View>
               <View style={styles.guideVisualInfo}>
                 <Text style={styles.guideVisualTitle}>1 Cup</Text>
@@ -1044,8 +1044,8 @@ const SettingsTab = ({
             <Text style={styles.guideFoodSectionTitle}>MEAT & FISH</Text>
 
             <TouchableOpacity style={styles.guideVisualCard} onPress={() => setStoryViewer({ ...guideStories.foodMeat100, index: 0 })}>
-              <View style={[styles.guideVisualIcon, { backgroundColor: '#FEF2F2' }]}>
-                <Ionicons name="fish-outline" size={24} color="#EF4444" />
+              <View style={[styles.guideVisualIcon, { backgroundColor: dc('#FEF2F2', 'bg') }]}>
+                <Ionicons name="fish-outline" size={24} color={dc("#EF4444", 'text')} />
               </View>
               <View style={styles.guideVisualInfo}>
                 <Text style={styles.guideVisualTitle}>100g</Text>
@@ -1055,8 +1055,8 @@ const SettingsTab = ({
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.guideVisualCard} onPress={() => setStoryViewer({ ...guideStories.foodMeat500, index: 0 })}>
-              <View style={[styles.guideVisualIcon, { backgroundColor: '#FEF2F2' }]}>
-                <Ionicons name="fish-outline" size={24} color="#EF4444" />
+              <View style={[styles.guideVisualIcon, { backgroundColor: dc('#FEF2F2', 'bg') }]}>
+                <Ionicons name="fish-outline" size={24} color={dc("#EF4444", 'text')} />
               </View>
               <View style={styles.guideVisualInfo}>
                 <Text style={styles.guideVisualTitle}>500g</Text>
@@ -1068,8 +1068,8 @@ const SettingsTab = ({
             <Text style={styles.guideFoodSectionTitle}>VEGETABLES</Text>
 
             <TouchableOpacity style={styles.guideVisualCard} onPress={() => setStoryViewer({ ...guideStories.foodVeg100, index: 0 })}>
-              <View style={[styles.guideVisualIcon, { backgroundColor: '#ECFDF5' }]}>
-                <Ionicons name="leaf-outline" size={24} color="#059669" />
+              <View style={[styles.guideVisualIcon, { backgroundColor: dc('#ECFDF5', 'bg') }]}>
+                <Ionicons name="leaf-outline" size={24} color={dc("#059669", 'text')} />
               </View>
               <View style={styles.guideVisualInfo}>
                 <Text style={styles.guideVisualTitle}>100g</Text>
@@ -1114,11 +1114,11 @@ const SettingsTab = ({
               {/* Header */}
               <View style={styles.storyHeader}>
                 <TouchableOpacity onPress={() => setStoryViewer(null)}>
-                  <Ionicons name="chevron-back" size={24} color="#1F1F1F" />
+                  <Ionicons name="chevron-back" size={24} color={dc("#1F1F1F", 'text')} />
                 </TouchableOpacity>
                 <Text style={styles.storyHeaderTitle}>{storyViewer.title}</Text>
                 <TouchableOpacity onPress={() => setStoryViewer(null)}>
-                  <Ionicons name="close" size={22} color="#999" />
+                  <Ionicons name="close" size={22} color={dc("#999", 'text')} />
                 </TouchableOpacity>
               </View>
 
@@ -1130,7 +1130,7 @@ const SettingsTab = ({
                   <Image source={{ uri: storyViewer.slides[storyViewer.index].image }} style={styles.storyImage} resizeMode="cover" />
                 ) : (
                   <View style={[styles.storyImagePlaceholder, { backgroundColor: storyViewer.slides[storyViewer.index].bg }]}>
-                    <Ionicons name="image-outline" size={48} color="#D1D5DB" />
+                    <Ionicons name="image-outline" size={48} color={dc("#D1D5DB", 'text')} />
                   </View>
                 )}
               </View>
@@ -1155,7 +1155,7 @@ const SettingsTab = ({
                   onPress={() => { if (storyViewer.index > 0) setStoryViewer({ ...storyViewer, index: storyViewer.index - 1 }); }}
                   disabled={storyViewer.index === 0}
                 >
-                  <Ionicons name="chevron-back" size={20} color="#374151" />
+                  <Ionicons name="chevron-back" size={20} color={dc("#374151", 'text')} />
                   <Text style={styles.storyNavText}>Back</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1169,7 +1169,7 @@ const SettingsTab = ({
                   }}
                 >
                   <Text style={styles.storyNavText}>{storyViewer.index === storyViewer.slides.length - 1 ? 'Done' : 'Next'}</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#374151" />
+                  <Ionicons name="chevron-forward" size={20} color={dc("#374151", 'text')} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -1204,12 +1204,12 @@ const SettingsTab = ({
               <>
                 <Text style={[styles.acctTitle, { color: colors.text }]}>Account options</Text>
                 <TouchableOpacity style={styles.acctRow} onPress={() => { setShowAccountSheet(false); onLogout?.(); }}>
-                  <Ionicons name="log-out-outline" size={20} color="#374151" />
+                  <Ionicons name="log-out-outline" size={20} color={dc("#374151", 'text')} />
                   <Text style={[styles.acctRowText, { color: colors.text }]}>Log out</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.acctRow} onPress={() => setConfirmDelete(true)}>
-                  <Ionicons name="trash-outline" size={20} color="#DC2626" />
-                  <Text style={[styles.acctRowText, { color: '#DC2626' }]}>Delete account</Text>
+                  <Ionicons name="trash-outline" size={20} color={dc("#DC2626", 'text')} />
+                  <Text style={[styles.acctRowText, { color: dc('#DC2626', 'text') }]}>Delete account</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.acctCancel} onPress={() => setShowAccountSheet(false)}>
                   <Text style={styles.acctCancelText}>Close</Text>
@@ -1217,12 +1217,12 @@ const SettingsTab = ({
               </>
             ) : (
               <>
-                <Text style={[styles.acctTitle, { color: '#DC2626' }]}>Delete your account?</Text>
+                <Text style={[styles.acctTitle, { color: dc('#DC2626', 'text') }]}>Delete your account?</Text>
                 <Text style={[styles.acctBody, { color: colors.textSecondary }]}>
                   Your account and all your data will be permanently deleted after 7 days. Until then you can log back in and restore everything. After that, it cannot be undone.
                 </Text>
                 <Text style={[styles.acctBody, { color: colors.textSecondary, marginBottom: 8 }]}>
-                  Type <Text style={{ fontWeight: '800', color: '#DC2626' }}>DELETE</Text> to confirm.
+                  Type <Text style={{ fontWeight: '800', color: dc('#DC2626', 'text') }}>DELETE</Text> to confirm.
                 </Text>
                 <TextInput
                   style={[styles.acctInput, { color: colors.text, borderColor: colors.border }]}
@@ -1231,7 +1231,7 @@ const SettingsTab = ({
                   autoCapitalize="characters"
                   autoCorrect={false}
                   placeholder="DELETE"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={dc("#9CA3AF", 'text')}
                 />
                 <TouchableOpacity
                   style={[styles.acctDeleteBtn, deleteText.trim().toUpperCase() !== 'DELETE' && { opacity: 0.35 }]}
@@ -1263,21 +1263,21 @@ const SettingsTab = ({
                 <Text style={styles.cpSubtitle}>Pick your country so Logga feels like home.</Text>
               </View>
               <TouchableOpacity style={styles.cpClose} onPress={() => setShowCountryPicker(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close" size={18} color="#374151" />
+                <Ionicons name="close" size={18} color={dc("#374151", 'text')} />
               </TouchableOpacity>
             </View>
             <View style={styles.cpSearch}>
-              <Ionicons name="search" size={16} color="#9CA3AF" />
+              <Ionicons name="search" size={16} color={dc("#9CA3AF", 'text')} />
               <TextInput
                 style={styles.cpSearchInput}
                 placeholder="Search countries"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={dc("#9CA3AF", 'text')}
                 value={countrySearch}
                 onChangeText={setCountrySearch}
               />
               {countrySearch.length > 0 && (
                 <TouchableOpacity onPress={() => setCountrySearch('')}>
-                  <Ionicons name="close-circle" size={16} color="#9CA3AF" />
+                  <Ionicons name="close-circle" size={16} color={dc("#9CA3AF", 'text')} />
                 </TouchableOpacity>
               )}
             </View>
@@ -1298,7 +1298,7 @@ const SettingsTab = ({
                 >
                   <Text style={[styles.cpRowText, userCountry === item.name && styles.cpRowTextSelected]}>{item.name}</Text>
                   <View style={[styles.cpRadio, userCountry === item.name && styles.cpRadioOn]}>
-                    {userCountry === item.name && <Ionicons name="checkmark" size={13} color="#fff" />}
+                    {userCountry === item.name && <Ionicons name="checkmark" size={13} color={dc("#fff", 'text')} />}
                   </View>
                 </TouchableOpacity>
               )}
@@ -1323,11 +1323,11 @@ const SettingsTab = ({
               {/* Hour */}
               <View style={styles.tpColumn}>
                 <TouchableOpacity style={styles.tpBtn} onPress={() => setTimePicker(p => ({ ...p, hour: p.hour === 12 ? 1 : p.hour + 1 }))}>
-                  <Ionicons name="chevron-up" size={22} color="#1F1F1F" />
+                  <Ionicons name="chevron-up" size={22} color={dc("#1F1F1F", 'text')} />
                 </TouchableOpacity>
                 <Text style={styles.tpNumber}>{String(timePicker.hour).padStart(2, '0')}</Text>
                 <TouchableOpacity style={styles.tpBtn} onPress={() => setTimePicker(p => ({ ...p, hour: p.hour === 1 ? 12 : p.hour - 1 }))}>
-                  <Ionicons name="chevron-down" size={22} color="#1F1F1F" />
+                  <Ionicons name="chevron-down" size={22} color={dc("#1F1F1F", 'text')} />
                 </TouchableOpacity>
               </View>
 
@@ -1336,11 +1336,11 @@ const SettingsTab = ({
               {/* Minute */}
               <View style={styles.tpColumn}>
                 <TouchableOpacity style={styles.tpBtn} onPress={() => setTimePicker(p => ({ ...p, minute: p.minute === 55 ? 0 : p.minute + 5 }))}>
-                  <Ionicons name="chevron-up" size={22} color="#1F1F1F" />
+                  <Ionicons name="chevron-up" size={22} color={dc("#1F1F1F", 'text')} />
                 </TouchableOpacity>
                 <Text style={styles.tpNumber}>{String(timePicker.minute).padStart(2, '0')}</Text>
                 <TouchableOpacity style={styles.tpBtn} onPress={() => setTimePicker(p => ({ ...p, minute: p.minute === 0 ? 55 : p.minute - 5 }))}>
-                  <Ionicons name="chevron-down" size={22} color="#1F1F1F" />
+                  <Ionicons name="chevron-down" size={22} color={dc("#1F1F1F", 'text')} />
                 </TouchableOpacity>
               </View>
 
@@ -1389,7 +1389,7 @@ const SettingsTab = ({
                   <Text style={styles.msOptionDesc}>Hit your calorie goal every day to build a streak.</Text>
                 </View>
                 <View style={[styles.msCheckBox, milestoneDraft.streak && styles.msCheckBoxActive]}>
-                  {milestoneDraft.streak && <Ionicons name="checkmark" size={14} color="#fff" />}
+                  {milestoneDraft.streak && <Ionicons name="checkmark" size={14} color={dc("#fff", 'text')} />}
                 </View>
               </View>
               {milestoneDraft.streak && (
@@ -1419,7 +1419,7 @@ const SettingsTab = ({
                   <Text style={styles.msOptionDesc}>Hit your daily water goal 7 days in a row.</Text>
                 </View>
                 <View style={[styles.msCheckBox, milestoneDraft.hydration && styles.msCheckBoxActive]}>
-                  {milestoneDraft.hydration && <Ionicons name="checkmark" size={14} color="#fff" />}
+                  {milestoneDraft.hydration && <Ionicons name="checkmark" size={14} color={dc("#fff", 'text')} />}
                 </View>
               </View>
             </TouchableOpacity>
@@ -1433,7 +1433,7 @@ const SettingsTab = ({
                   <Text style={styles.msOptionDesc}>Drop 5kg from your starting weight — we'll celebrate you!</Text>
                 </View>
                 <View style={[styles.msCheckBox, milestoneDraft.weight && styles.msCheckBoxActive]}>
-                  {milestoneDraft.weight && <Ionicons name="checkmark" size={14} color="#fff" />}
+                  {milestoneDraft.weight && <Ionicons name="checkmark" size={14} color={dc("#fff", 'text')} />}
                 </View>
               </View>
             </TouchableOpacity>
@@ -1457,7 +1457,7 @@ const SettingsTab = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   settingsContainer: {
     flex: 1,
     backgroundColor: '#FAFAFA',

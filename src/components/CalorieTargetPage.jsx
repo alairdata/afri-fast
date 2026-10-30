@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Dimens
 import { computeTdeeSummary, projectGoal, fromKg, MIN_CALORIES, MAX_SURPLUS, MAX_TARGET_NO_TDEE } from '../lib/tdeeSummary';
 import { SourcesLink } from './HealthSourcesPage';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
+import { dc, themedStyles } from '../lib/theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -128,7 +129,7 @@ const CalorieTargetPage = ({
       <View style={styles.page}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={onClose} accessibilityLabel="Close">
-            <Ionicons name="chevron-back" size={24} color="#059669" />
+            <Ionicons name="chevron-back" size={24} color={dc("#059669", 'text')} />
           </TouchableOpacity>
           <Text style={styles.title}>Daily calorie target</Text>
           <View style={{ width: 40 }} />
@@ -139,24 +140,24 @@ const CalorieTargetPage = ({
           <Text style={styles.kicker}>YOUR TARGET</Text>
           <View style={styles.numberRow}>
             <TouchableOpacity style={styles.stepBtn} onPress={() => bump(-50)} accessibilityLabel="Lower by 50">
-              <Ionicons name="remove" size={22} color={INK} />
+              <Ionicons name="remove" size={22} color={dc(INK, 'text')} />
             </TouchableOpacity>
             <View style={styles.numberCol}>
               <TextInput
-                style={[styles.numberInput, !!limitError && { color: RED }]}
+                style={[styles.numberInput, !!limitError && { color: dc(RED, 'text') }]}
                 value={text}
                 onChangeText={(v) => setText(v.replace(/[^0-9]/g, '').slice(0, 5))}
                 keyboardType="number-pad"
                 inputMode="numeric"
                 placeholder="0"
-                placeholderTextColor={INK400}
+                placeholderTextColor={dc(INK400, 'text')}
                 maxLength={5}
                 selectTextOnFocus
               />
               <Text style={styles.numberUnit}>calories a day</Text>
             </View>
             <TouchableOpacity style={styles.stepBtn} onPress={() => bump(50)} accessibilityLabel="Raise by 50">
-              <Ionicons name="add" size={22} color={INK} />
+              <Ionicons name="add" size={22} color={dc(INK, 'text')} />
             </TouchableOpacity>
           </View>
 
@@ -177,7 +178,7 @@ const CalorieTargetPage = ({
                     <Text style={styles.actTitle}>{sel.t}</Text>
                     <Text style={styles.actSub}>{sel.s}</Text>
                   </View>
-                  <Ionicons name={actOpen ? 'chevron-up' : 'chevron-down'} size={20} color={INK500} />
+                  <Ionicons name={actOpen ? 'chevron-up' : 'chevron-down'} size={20} color={dc(INK500, 'text')} />
                 </TouchableOpacity>
                 {actOpen ? (
                   <View style={styles.dropList}>
@@ -186,7 +187,7 @@ const CalorieTargetPage = ({
                       return (
                         <TouchableOpacity
                           key={o.v}
-                          style={[styles.dropItem, i > 0 && { borderTopWidth: 1, borderTopColor: LINE }]}
+                          style={[styles.dropItem, i > 0 && { borderTopWidth: 1, borderTopColor: dc(LINE, 'border') }]}
                           onPress={() => { setActivity(o.v); setActOpen(false); }}
                           activeOpacity={0.8}
                         >
@@ -194,7 +195,7 @@ const CalorieTargetPage = ({
                             <Text style={styles.actTitle}>{o.t}</Text>
                             <Text style={styles.actSub}>{o.s}</Text>
                           </View>
-                          {on ? <Ionicons name="checkmark" size={20} color={INK} /> : null}
+                          {on ? <Ionicons name="checkmark" size={20} color={dc(INK, 'text')} /> : null}
                         </TouchableOpacity>
                       );
                     })}
@@ -267,7 +268,7 @@ const CalorieTargetPage = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,

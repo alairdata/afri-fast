@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { dc, themedStyles } from '../lib/theme';
 
 // Shown after an account has been deleted (the app has already signed out, so this sits on top of the
 // sign-in / onboarding screen). It lives at the top of the app, not inside Settings, because Settings is
@@ -14,7 +15,7 @@ export default function AccountDeletedModal({ visible, onClose, deleteAfter }) {
       <View style={s.backdrop}>
         <View style={s.card}>
           <View style={s.icon}>
-            <Ionicons name="checkmark" size={34} color="#059669" />
+            <Ionicons name="checkmark" size={34} color={dc("#059669", 'text')} />
           </View>
           <Text style={s.title}>Your account has been deleted</Text>
           {deleteAfter === 'now' ? (
@@ -38,7 +39,7 @@ export default function AccountDeletedModal({ visible, onClose, deleteAfter }) {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { width: '100%', maxWidth: 400, backgroundColor: '#fff', borderRadius: 24, padding: 26, alignItems: 'center' },
   icon: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(5,150,105,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },

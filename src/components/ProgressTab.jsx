@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platf
 import Svg, { Path, Circle, Line, Rect, Text as SvgText } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAccountPref, setAccountPref } from '../lib/accountPrefs';
-import { useTheme } from '../lib/theme';
+import { useTheme, dc } from '../lib/theme';
 import { computeMomentumTimeline, MET, MIN_LOGGED_DAYS } from '../lib/momentum';
 import { computeWeeklyPace, estimateChangeSinceWeighInKg, scaleTrendWeekly, blendWeeklyRate, findOddWeighIns } from '../lib/trajectory';
 import { computeObservedTdee } from '../lib/observedTdee';
@@ -32,10 +32,10 @@ const WARN = '#F59E0B';
 const DANGER = '#EF4444';
 const WARN_BG = '#FFF7ED';
 const WEEK_AHEAD_LEVELS = {
-  low: { label: 'Low risk', bg: '#D1FAE5', color: '#047857' },
-  watch: { label: 'Worth watching', bg: '#FEF3C7', color: '#B45309' },
-  high: { label: 'Plan ahead', bg: '#FEE2E2', color: '#B91C1C' },
-  none: { label: 'No pattern yet', bg: '#F3F4F6', color: '#6B7280' },
+  low: { label: 'Low risk', bg: '#D1FAE5', color: dc('#047857', 'text') },
+  watch: { label: 'Worth watching', bg: '#FEF3C7', color: dc('#B45309', 'text') },
+  high: { label: 'Plan ahead', bg: '#FEE2E2', color: dc('#B91C1C', 'text') },
+  none: { label: 'No pattern yet', bg: '#F3F4F6', color: dc('#6B7280', 'text') },
 };
 
 // Seven rounded bars on a grey track (Calories, Hydration, Steps on Insights), oldest day first.
@@ -144,7 +144,7 @@ const RangeDropdown = ({ value, onChange, styles }) => {
     <>
       <TouchableOpacity ref={btnRef} style={styles.rangeDropdownBtn} onPress={openMenu} activeOpacity={0.7}>
         <Text style={styles.rangeDropdownBtnText}>{RANGE_LABEL[value]}</Text>
-        <Ionicons name="chevron-down" size={10} color="#059669" />
+        <Ionicons name="chevron-down" size={10} color={dc("#059669", 'text')} />
       </TouchableOpacity>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setOpen(false)}>
@@ -212,7 +212,7 @@ function buildGauge(score, accent, muted = false) {
   for (let i = 0; i < n; i++) {
     const [x0, y0] = xy(180 + i * (180 / n)), [x1, y1] = xy(180 + (i + 1) * (180 / n));
     const c = lerp(i / n);
-    segments.push({ d: `M ${x0} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y1}`, stroke: muted ? '#e5e7eb' : `rgb(${c[0]},${c[1]},${c[2]})` });
+    segments.push({ d: `M ${x0} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y1}`, stroke: muted ? dc('#e5e7eb', 'border') : `rgb(${c[0]},${c[1]},${c[2]})` });
   }
   const rad = ((180 + (score / 100) * 180) * Math.PI) / 180, iR = r - 13, oR = r + 13;
   return {
@@ -774,8 +774,8 @@ const ProgressTab = ({
     const ratio = deviationKg / Math.abs(requiredWeeklyRateKg);
     if (ratio <= -0.001) return { label: 'Ahead of Pace', color: accent, bg: colors.accentLight };
     if (ratio <= 0.10) return { label: 'On Track', color: accent, bg: colors.accentLight };
-    if (ratio <= 0.30) return { label: 'Drifting', color: WARN, bg: WARN_BG };
-    return { label: 'Stalled', color: DANGER, bg: DANGER_BG };
+    if (ratio <= 0.30) return { label: 'Drifting', color: dc(WARN, 'text'), bg: WARN_BG };
+    return { label: 'Stalled', color: dc(DANGER, 'text'), bg: DANGER_BG };
   }, [deviationKg, requiredWeeklyRateKg, accent, colors.accentLight]);
 
   // Forecast shares the same energy-deficit engine as the This Week chart (weeklyPace).
@@ -1397,8 +1397,8 @@ const ProgressTab = ({
     if (!weeklyPace.badge) return null;
     const toneStyle = {
       good: { color: accent, bg: colors.accentLight },
-      warn: { color: WARN, bg: WARN_BG },
-      danger: { color: DANGER, bg: DANGER_BG },
+      warn: { color: dc(WARN, 'text'), bg: WARN_BG },
+      danger: { color: dc(DANGER, 'text'), bg: DANGER_BG },
       neutral: { color: colors.textSecondary, bg: colors.cardAlt },
     }[weeklyPace.badge.tone];
     return { label: weeklyPace.badge.label, ...toneStyle };
@@ -1749,7 +1749,7 @@ const ProgressTab = ({
                 <>
                   <View style={{ flexDirection: 'row', gap: 5, marginTop: 14 }}>
                     {weeklyHitRates.map((p, i) => (
-                      <View key={i} style={{ width: 26, height: 5, borderRadius: 3, backgroundColor: p == null ? colors.border : p >= 80 ? accent : p >= 60 ? WARN : DANGER }} />
+                      <View key={i} style={{ width: 26, height: 5, borderRadius: 3, backgroundColor: p == null ? colors.border : p >= 80 ? accent : p >= 60 ? dc(WARN, 'bg') : dc(DANGER, 'bg') }} />
                     ))}
                   </View>
                   <Text style={styles.mutedSmall}>6-week consistency</Text>
@@ -1761,7 +1761,7 @@ const ProgressTab = ({
             <View style={styles.statCardBig}>
               <TouchableOpacity style={styles.statCardHead} onPress={() => onShowCalorieDetails && onShowCalorieDetails()} accessibilityLabel="Calories, see details">
                 <Text style={styles.statCardTitle}>Calories</Text>
-                <Ionicons name="chevron-forward" size={18} color="#4B5563" />
+                <Ionicons name="chevron-forward" size={18} color={dc("#4B5563", 'text')} />
               </TouchableOpacity>
               <View style={styles.statCardBody}>
                 <View style={styles.statCardFacts}>
@@ -1801,17 +1801,17 @@ const ProgressTab = ({
                     <View style={{ position: 'relative', marginTop: 10 }} onLayout={(e) => { const w = Math.round(e.nativeEvent.layout.width); if (w > 0 && w !== chartW) setChartW(w); }}>
                       <Svg width={chartW} height={156} viewBox={`0 0 ${chartW} 156`}>
                         <Path d={`M0 26H${chartW}M0 64H${chartW}M0 102H${chartW}M0 140H${chartW}`} stroke={colors.border} strokeWidth={1} strokeOpacity={0.5} />
-                        {!!chart.band && <Path d={chart.band} fill="#6366F1" fillOpacity={0.07} />}
+                        {!!chart.band && <Path d={chart.band} fill={dc("#6366F1", 'bg')} fillOpacity={0.07} />}
                         <Line x1={chart.todayPt.cx} y1={12} x2={chart.todayPt.cx} y2={140} stroke={colors.textMuted} strokeOpacity={0.5} strokeWidth={1} strokeDasharray="3 3" />
                         <Rect x={Math.min(Math.max(chart.todayPt.cx - 20, 0), chartW - 40)} y={0} width={40} height={16} rx={8} fill={colors.text} />
                         <SvgText x={Math.min(Math.max(chart.todayPt.cx, 20), chartW - 20)} y={11.5} textAnchor="middle" fontSize={9.5} fontWeight="700" fill={colors.card}>Today</SvgText>
-                        <Path d={chart.proj} fill="none" stroke={PREDICTED} strokeWidth={2.5} strokeLinecap="round" strokeDasharray="6 6" />
-                        {!!chart.thenPath && <Path d={chart.thenPath} fill="none" stroke={PREDICTED} strokeWidth={2.5} strokeLinecap="round" strokeDasharray="6 6" />}
+                        <Path d={chart.proj} fill="none" stroke={dc(PREDICTED, 'border')} strokeWidth={2.5} strokeLinecap="round" strokeDasharray="6 6" />
+                        {!!chart.thenPath && <Path d={chart.thenPath} fill="none" stroke={dc(PREDICTED, 'border')} strokeWidth={2.5} strokeLinecap="round" strokeDasharray="6 6" />}
                         {chart.weighIns.length >= 2 && <Path d={smooth(chart.weighIns.map((p) => [p.cx, p.cy]))} fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="round" />}
                         {chart.weighIns.map((p, i) => <Circle key={i} cx={p.cx} cy={p.cy} r={chart.weekOnly ? 4 : 3} fill={accent} stroke={colors.card} strokeWidth={chart.weekOnly ? 2 : 1.5} />)}
                         <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={10} fill={accent} fillOpacity={0.15} />
                         <Circle cx={chart.todayPt.cx} cy={chart.todayPt.cy} r={5.5} fill={accent} stroke={colors.card} strokeWidth={2} />
-                        {chart.endPt && <Circle cx={chart.endPt.cx} cy={chart.endPt.cy} r={5} fill={colors.card} stroke={PREDICTED} strokeWidth={2} />}
+                        {chart.endPt && <Circle cx={chart.endPt.cx} cy={chart.endPt.cy} r={5} fill={colors.card} stroke={dc(PREDICTED, 'border')} strokeWidth={2} />}
                         {chart.labels.map((l, i) => (
                           <SvgText key={i} x={l.x} y={152} textAnchor="middle" fontSize={10} fontWeight={l.bold ? '800' : '600'} fill={l.bold ? colors.text : colors.textMuted}>{l.text}</SvgText>
                         ))}
@@ -1831,7 +1831,7 @@ const ProgressTab = ({
                     </View>
                     <View style={[styles.chartKeyRow, { justifyContent: 'center', gap: 18, marginTop: 14 }]}>
                       <View style={styles.chartKeyItem}>
-                        <Svg width={14} height={4}><Line x1={0} y1={2} x2={14} y2={2} stroke={PREDICTED} strokeWidth={3} strokeDasharray="4 3" /></Svg>
+                        <Svg width={14} height={4}><Line x1={0} y1={2} x2={14} y2={2} stroke={dc(PREDICTED, 'border')} strokeWidth={3} strokeDasharray="4 3" /></Svg>
                         <Text style={styles.chartKeyText}>Predicted</Text>
                       </View>
                       {chart.weighIns.length > 0 && (
@@ -1852,15 +1852,15 @@ const ProgressTab = ({
                 )}
                 <View style={[styles.weightStatsCompact, { marginTop: 12 }]}>
                   <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(99, 102, 241, 0.08)' }]}>
-                    <Text style={[styles.weightStatValueCompact, { color: '#4F46E5' }]}>{chart && chart.weekOnly ? `${chart.todayVal.toFixed(1)} ${weightUnit}` : '--'}</Text>
+                    <Text style={[styles.weightStatValueCompact, { color: dc('#4F46E5', 'text') }]}>{chart && chart.weekOnly ? `${chart.todayVal.toFixed(1)} ${weightUnit}` : '--'}</Text>
                     <Text style={styles.weightStatLabelCompact}>Today's prediction</Text>
                   </View>
                   <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(16, 185, 129, 0.08)' }]}>
-                    <Text style={[styles.weightStatValueCompact, { color: '#10B981' }]}>{weightData.hasLoggedWeight && weightData.uniqueWeights.length >= 2 ? weightData.weightChange : '--'}</Text>
+                    <Text style={[styles.weightStatValueCompact, { color: dc('#10B981', 'text') }]}>{weightData.hasLoggedWeight && weightData.uniqueWeights.length >= 2 ? weightData.weightChange : '--'}</Text>
                     <Text style={styles.weightStatLabelCompact}>This period</Text>
                   </View>
                   <View style={[styles.weightStatCompact, { backgroundColor: 'rgba(5, 150, 105, 0.08)' }]}>
-                    <Text style={[styles.weightStatValueCompact, { color: '#059669' }]}>{monthWeightChange == null ? '--' : `${monthWeightChange >= 0 ? '+' : ''}${monthWeightChange} kg`}</Text>
+                    <Text style={[styles.weightStatValueCompact, { color: dc('#059669', 'text') }]}>{monthWeightChange == null ? '--' : `${monthWeightChange >= 0 ? '+' : ''}${monthWeightChange} kg`}</Text>
                     <Text style={styles.weightStatLabelCompact}>This month</Text>
                   </View>
                 </View>
@@ -1872,7 +1872,7 @@ const ProgressTab = ({
                         : `${oddWeighIns.length} weigh-ins look very different from your others, so they aren't counted in your trend. If they're typos, fix or delete them in your logs.`}
                     </Text>
                     <TouchableOpacity onPress={() => onShowWeightModal && onShowWeightModal()} style={{ marginTop: 6, minHeight: 32, justifyContent: 'center' }} accessibilityRole="button">
-                      <Text style={{ color: '#A8811F', fontSize: 12.5, fontWeight: '800' }}>Check my logs ›</Text>
+                      <Text style={{ color: dc('#A8811F', 'text'), fontSize: 12.5, fontWeight: '800' }}>Check my logs ›</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1996,14 +1996,14 @@ const ProgressTab = ({
 
             {/* Guardrail */}
             {patternInsight && !patternDismissed && (
-              <View style={[styles.card, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+              <View style={[styles.card, { backgroundColor: dc('#FEF2F2', 'bg'), borderColor: dc('#FECACA', 'border') }]}>
                 <View style={styles.rowStart}>
-                  <View style={[styles.warnDot, { width: 20, height: 20, borderRadius: 10, backgroundColor: '#DC2626' }]}><Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>!</Text></View>
-                  <Text style={[styles.cardTitleSmall, { color: '#B91C1C' }]}>{patternAi?.title || patternInsight.fallback.title}</Text>
+                  <View style={[styles.warnDot, { width: 20, height: 20, borderRadius: 10, backgroundColor: dc('#DC2626', 'bg') }]}><Text style={{ color: dc('#fff', 'text'), fontSize: 12, fontWeight: '800' }}>!</Text></View>
+                  <Text style={[styles.cardTitleSmall, { color: dc('#B91C1C', 'text') }]}>{patternAi?.title || patternInsight.fallback.title}</Text>
                 </View>
-                <Text style={[styles.mutedBody, { color: '#7F5A5A', marginTop: 8 }]}>{patternAi?.body || patternInsight.fallback.body}</Text>
+                <Text style={[styles.mutedBody, { color: dc('#7F5A5A', 'text'), marginTop: 8 }]}>{patternAi?.body || patternInsight.fallback.body}</Text>
                 <TouchableOpacity style={styles.dismissBtn} onPress={dismissPattern}>
-                  <Text style={{ color: '#B91C1C', fontSize: 12.5, fontWeight: '700' }}>Got it</Text>
+                  <Text style={{ color: dc('#B91C1C', 'text'), fontSize: 12.5, fontWeight: '700' }}>Got it</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -2017,7 +2017,7 @@ const ProgressTab = ({
               <View style={[styles.rowBetween, { alignItems: 'center' }]}>
                 <Text style={styles.cardTitle15}>Your week ahead</Text>
                 {weekAhead.toWatch > 0 && (
-                  <View style={[styles.greyPill, { backgroundColor: '#FEE2E2' }]}><Text style={[styles.greyPillText, { color: '#B91C1C' }]}>{weekAhead.toWatch} {weekAhead.toWatch === 1 ? 'day' : 'days'} to watch</Text></View>
+                  <View style={[styles.greyPill, { backgroundColor: dc('#FEE2E2', 'bg') }]}><Text style={[styles.greyPillText, { color: dc('#B91C1C', 'text') }]}>{weekAhead.toWatch} {weekAhead.toWatch === 1 ? 'day' : 'days'} to watch</Text></View>
                 )}
               </View>
               <Text style={[styles.mutedBody, { marginTop: 6 }]}>Based on your past patterns, some days may need a little more planning.</Text>
@@ -2031,7 +2031,7 @@ const ProgressTab = ({
                       <Text style={[styles.aheadDayName, on && { fontWeight: '700', color: colors.text }]}>{d.name}</Text>
                       <Text style={styles.aheadDayNum}>{d.num}</Text>
                       <View style={styles.aheadBarBox}><View style={{ width: '70%', height: `${Math.round(d.height * 100)}%`, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: color }} /></View>
-                      <View style={{ height: 14, justifyContent: 'center' }}>{d.level === 'high' ? <Text style={{ fontSize: 11, fontWeight: '800', color: '#F87171' }}>!</Text> : null}</View>
+                      <View style={{ height: 14, justifyContent: 'center' }}>{d.level === 'high' ? <Text style={{ fontSize: 11, fontWeight: '800', color: dc('#F87171', 'text') }}>!</Text> : null}</View>
                     </TouchableOpacity>
                   );
                 })}
@@ -2057,7 +2057,7 @@ const ProgressTab = ({
             <View style={styles.statCardBig}>
               <TouchableOpacity style={styles.statCardHead} onPress={() => onShowHydrationDetails && onShowHydrationDetails()} accessibilityLabel="Hydration, open the water log">
                 <Text style={styles.statCardTitle}>Hydration</Text>
-                <Ionicons name="chevron-forward" size={18} color="#4B5563" />
+                <Ionicons name="chevron-forward" size={18} color={dc("#4B5563", 'text')} />
               </TouchableOpacity>
               <View style={styles.statCardBody}>
                 <View style={styles.statCardFacts}>
@@ -2074,7 +2074,7 @@ const ProgressTab = ({
             <View style={styles.statCardBig}>
               <TouchableOpacity style={styles.statCardHead} onPress={() => onShowStepsDetails && onShowStepsDetails()} accessibilityLabel="Steps, open the steps log">
                 <Text style={styles.statCardTitle}>Steps</Text>
-                <Ionicons name="chevron-forward" size={18} color="#4B5563" />
+                <Ionicons name="chevron-forward" size={18} color={dc("#4B5563", 'text')} />
               </TouchableOpacity>
               <View style={[styles.statCardBody, { position: 'relative' }]}>
                 <View style={styles.statCardFacts}>
@@ -2088,7 +2088,7 @@ const ProgressTab = ({
                   <>
                     <BlurView intensity={Platform.OS === 'android' ? 30 : 16} tint="light" style={StyleSheet.absoluteFill} />
                     <View style={styles.healthOverlay}>
-                      <View style={styles.healthIcon}><Ionicons name="heart" size={18} color="#EF4444" /></View>
+                      <View style={styles.healthIcon}><Ionicons name="heart" size={18} color={dc("#EF4444", 'text')} /></View>
                       <Text style={styles.healthTitle}>Connect Apple Health</Text>
                       <Text style={styles.healthSub}>Your daily steps fill in by themselves. Logga only reads steps.</Text>
                       <TouchableOpacity
@@ -2112,16 +2112,16 @@ const ProgressTab = ({
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <View style={styles.greyPill}><Text style={styles.greyPillText}>Last 4 weeks</Text></View>
                   <TouchableOpacity onPress={() => onShowActivityLog && onShowActivityLog()} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                    <Text style={[styles.seeAllBtnSmall, { fontSize: 13, color: '#047857' }]}>See all</Text>
-                    <Ionicons name="arrow-forward" size={13} color="#047857" />
+                    <Text style={[styles.seeAllBtnSmall, { fontSize: 13, color: dc('#047857', 'text') }]}>See all</Text>
+                    <Ionicons name="arrow-forward" size={13} color={dc("#047857", 'text')} />
                   </TouchableOpacity>
                 </View>
               </View>
               <Text style={styles.moveExplain}>Each square is one day. A tick means you moved for 30+ minutes.</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
-                <View style={[styles.moveStat, { backgroundColor: '#FFF7ED' }]}><Text style={[styles.moveStatNum, { color: '#EA580C' }]}>{movement.full}</Text><Text style={styles.moveStatLabel}>Active days</Text></View>
-                <View style={[styles.moveStat, { backgroundColor: '#FFF7ED' }]}><Text style={[styles.moveStatNum, { color: '#F97316' }]}>{movement.light}</Text><Text style={styles.moveStatLabel}>Light days</Text></View>
-                <View style={[styles.moveStat, { backgroundColor: colors.cardAlt }]}><Text style={[styles.moveStatNum, { color: '#6B7280' }]}>{movement.rest}</Text><Text style={styles.moveStatLabel}>Rest days</Text></View>
+                <View style={[styles.moveStat, { backgroundColor: dc('#FFF7ED', 'bg') }]}><Text style={[styles.moveStatNum, { color: dc('#EA580C', 'text') }]}>{movement.full}</Text><Text style={styles.moveStatLabel}>Active days</Text></View>
+                <View style={[styles.moveStat, { backgroundColor: dc('#FFF7ED', 'bg') }]}><Text style={[styles.moveStatNum, { color: dc('#F97316', 'text') }]}>{movement.light}</Text><Text style={styles.moveStatLabel}>Light days</Text></View>
+                <View style={[styles.moveStat, { backgroundColor: colors.cardAlt }]}><Text style={[styles.moveStatNum, { color: dc('#6B7280', 'text') }]}>{movement.rest}</Text><Text style={styles.moveStatLabel}>Rest days</Text></View>
               </View>
               <View accessible accessibilityLabel={`Activity over the last 4 weeks: ${movement.full} active days, ${movement.light} light days and ${movement.rest} rest days`} style={{ gap: 6 }}>
                 <View style={{ flexDirection: 'row', gap: 6, marginBottom: 2 }}>
@@ -2132,8 +2132,8 @@ const ProgressTab = ({
                   <View key={w} style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                     <Text style={[styles.moveWeekLabel, w === 3 && { fontWeight: '700', color: colors.text }]}>{['3 wks ago', '2 wks ago', 'Last wk', 'This wk'][w]}</Text>
                     {week.map((c) => (
-                      <View key={c.ds} style={[styles.moveCell, { backgroundColor: c.level === 'full' ? '#F97316' : c.level === 'light' ? '#FDBA74' : colors.cardAlt, opacity: c.level === 'future' ? 0.45 : 1 }]}>
-                        {c.level === 'full' && <Ionicons name="checkmark" size={12} color="#fff" />}
+                      <View key={c.ds} style={[styles.moveCell, { backgroundColor: c.level === 'full' ? dc('#F97316', 'bg') : c.level === 'light' ? dc('#FDBA74', 'bg') : colors.cardAlt, opacity: c.level === 'future' ? 0.45 : 1 }]}>
+                        {c.level === 'full' && <Ionicons name="checkmark" size={12} color={dc("#fff", 'text')} />}
                       </View>
                     ))}
                   </View>
@@ -2141,8 +2141,8 @@ const ProgressTab = ({
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 14, rowGap: 6, marginTop: 14 }}>
                 <View style={styles.moveLegendItem}><View style={[styles.moveSwatch, { backgroundColor: colors.cardAlt }]} /><Text style={styles.moveLegend}>Rest</Text></View>
-                <View style={styles.moveLegendItem}><View style={[styles.moveSwatch, { backgroundColor: '#FDBA74' }]} /><Text style={styles.moveLegend}>Light (under 30 min)</Text></View>
-                <View style={styles.moveLegendItem}><View style={[styles.moveSwatch, { backgroundColor: '#F97316' }]} /><Text style={styles.moveLegend}>Active (30+ min)</Text></View>
+                <View style={styles.moveLegendItem}><View style={[styles.moveSwatch, { backgroundColor: dc('#FDBA74', 'bg') }]} /><Text style={styles.moveLegend}>Light (under 30 min)</Text></View>
+                <View style={styles.moveLegendItem}><View style={[styles.moveSwatch, { backgroundColor: dc('#F97316', 'bg') }]} /><Text style={styles.moveLegend}>Active (30+ min)</Text></View>
               </View>
               <View style={styles.movePattern}>
                 <Text style={styles.movePatternText}><Text style={{ fontWeight: '700' }}>Your pattern: </Text>{movement.pattern}</Text>
@@ -2183,9 +2183,9 @@ const ProgressTab = ({
             {worstWeekday && (
               <>
                 <Text style={[styles.kicker, { marginTop: 20, marginBottom: 10 }]}>WATCH OUT FOR</Text>
-                <View style={[styles.card, { margin: 0, backgroundColor: WARN_BG, borderColor: '#FCE3CB' }]}>
+                <View style={[styles.card, { margin: 0, backgroundColor: dc(WARN_BG, 'bg'), borderColor: dc('#FCE3CB', 'border') }]}>
                   <Text style={[styles.cardTitleSmall, { color: colors.text }]}>{worstWeekday.name}</Text>
-                  <Text style={[styles.mutedBody, { color: '#8A7663', marginTop: 6 }]}>
+                  <Text style={[styles.mutedBody, { color: dc('#8A7663', 'text'), marginTop: 6 }]}>
                     On average you've come in about {worstWeekday.avgOverage.toLocaleString()} kcal over your goal on {worstWeekday.name.toLowerCase()}. Worth pre-planning that day's meals.
                   </Text>
                 </View>
@@ -2256,10 +2256,10 @@ const makeStyles = (c) => StyleSheet.create({
   pill: { borderRadius: 20, paddingVertical: 5, paddingHorizontal: 14, marginTop: -2 },
   pillText: { fontSize: 12, fontWeight: '700' },
   mutedSmall: { color: c.textMuted, fontSize: 11, fontWeight: '600', marginTop: 6 },
-  nudgeBox: { backgroundColor: WARN_BG, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginTop: 10 },
-  nudgeBoxUrgent: { backgroundColor: DANGER_BG },
-  nudgeText: { color: '#A8811F', fontSize: 11.5, fontWeight: '600', textAlign: 'center', lineHeight: 16 },
-  nudgeTextUrgent: { color: '#B91C1C' },
+  nudgeBox: { backgroundColor: dc(WARN_BG, 'bg'), borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginTop: 10 },
+  nudgeBoxUrgent: { backgroundColor: dc(DANGER_BG, 'bg') },
+  nudgeText: { color: dc('#A8811F', 'text'), fontSize: 11.5, fontWeight: '600', textAlign: 'center', lineHeight: 16 },
+  nudgeTextUrgent: { color: dc('#B91C1C', 'text') },
   strongSmall: { color: c.text, fontSize: 10.5, fontWeight: '700' },
   mutedBody: { color: c.textSecondary, fontSize: 12.5, fontWeight: '500', lineHeight: 18 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
@@ -2278,8 +2278,8 @@ const makeStyles = (c) => StyleSheet.create({
   axisLabel: { color: c.textMuted, fontSize: 10, fontWeight: '600' },
   detailsBtn: { marginTop: 10, backgroundColor: c.cardAlt, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   detailsBtnText: { color: c.accentText, fontSize: 12.5, fontWeight: '700' },
-  warnDot: { width: 22, height: 22, borderRadius: 7, backgroundColor: WARN, alignItems: 'center', justifyContent: 'center' },
-  dismissBtn: { marginTop: 12, backgroundColor: c.card, borderWidth: 1, borderColor: '#FCE3CB', borderRadius: 11, paddingVertical: 10, alignItems: 'center' },
+  warnDot: { width: 22, height: 22, borderRadius: 7, backgroundColor: dc(WARN, 'bg'), alignItems: 'center', justifyContent: 'center' },
+  dismissBtn: { marginTop: 12, backgroundColor: c.card, borderWidth: 1, borderColor: dc('#FCE3CB', 'border'), borderRadius: 11, paddingVertical: 10, alignItems: 'center' },
   burnoutWeekRow: { flexDirection: 'row', gap: 6, alignItems: 'flex-end', marginTop: 16 },
   burnoutDayCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
   burnoutDayScore: { fontSize: 12, fontWeight: '800' },
@@ -2312,7 +2312,7 @@ const makeStyles = (c) => StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(5,150,105,0.15)',
     borderRadius: 8,
   },
-  rangeDropdownBtnText: { color: '#059669', fontSize: 12, fontWeight: '600' },
+  rangeDropdownBtnText: { color: dc('#059669', 'text'), fontSize: 12, fontWeight: '600' },
   rangeDropdownMenu: {
     position: 'absolute',
     backgroundColor: c.card, borderRadius: 12,
@@ -2324,7 +2324,7 @@ const makeStyles = (c) => StyleSheet.create({
   rangeDropdownItem: { paddingVertical: 10, paddingHorizontal: 16 },
   rangeDropdownItemActive: { backgroundColor: 'rgba(5,150,105,0.08)' },
   rangeDropdownItemText: { fontSize: 13, color: c.textSecondary },
-  rangeDropdownItemTextActive: { color: '#059669', fontWeight: '700' },
+  rangeDropdownItemTextActive: { color: dc('#059669', 'text'), fontWeight: '700' },
 
   // ── Activities check-in-style add row (new) ─────────────────────────────
   activityCheckInRow: {
@@ -2334,7 +2334,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   activityCheckInText: { fontSize: 13.5, color: c.text, fontWeight: '600' },
   activityCheckInAddBtn: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: '#F97316',
+    width: 34, height: 34, borderRadius: 17, backgroundColor: dc('#F97316', 'bg'),
     alignItems: 'center', justifyContent: 'center',
   },
 
@@ -2354,7 +2354,7 @@ const makeStyles = (c) => StyleSheet.create({
   weekDots: { flexDirection: 'row', justifyContent: 'space-between' },
   weekDay: { flexDirection: 'column', alignItems: 'center', gap: 6 },
   weekDot: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  weekDotCheck: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  weekDotCheck: { color: dc('#fff', 'text'), fontSize: 12, fontWeight: '700' },
   weekDayLabel: { fontSize: 11, fontWeight: '500', color: c.textMuted },
   progressContentCompact: {
     flex: 1,
@@ -2394,16 +2394,16 @@ const makeStyles = (c) => StyleSheet.create({
   statCardFacts: { width: 96, gap: 4 },
   statFactLabel: { fontSize: 12, color: c.textSecondary },
   statFactValue: { fontSize: 18, fontWeight: '700', color: c.text },
-  pillTrack: { flex: 1, justifyContent: 'flex-end', borderRadius: 999, backgroundColor: c.cardAlt === '#F3F4F6' ? '#EEF0F2' : c.cardAlt, overflow: 'hidden' },
+  pillTrack: { flex: 1, justifyContent: 'flex-end', borderRadius: 999, backgroundColor: c.cardAlt === '#F3F4F6' ? dc('#EEF0F2', 'bg') : c.cardAlt, overflow: 'hidden' },
   pillLetter: { flex: 1, textAlign: 'center', fontSize: 10, color: c.textSecondary },
   pillLetterToday: { fontWeight: '800', color: c.text },
   goalBarsBox: { height: 120, position: 'relative', borderBottomWidth: 1, borderBottomColor: c.border },
   goalBarsGrid: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1, borderTopColor: c.border, opacity: 0.5 },
-  goalBarsGoalLine: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1.5, borderTopColor: '#9CA3AF', borderStyle: 'dashed', zIndex: 2 },
+  goalBarsGoalLine: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1.5, borderTopColor: dc('#9CA3AF', 'border'), borderStyle: 'dashed', zIndex: 2 },
   goalBarsGoalText: { position: 'absolute', right: 0, marginBottom: 2, fontSize: 9, fontWeight: '700', color: c.textSecondary, backgroundColor: c.card, paddingLeft: 4, zIndex: 3 },
   goalBarsRow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
   aheadDay: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 6, borderRadius: 10, borderWidth: 1.5, borderColor: 'transparent' },
-  aheadDayOn: { borderColor: '#D1D5DB', backgroundColor: c.card },
+  aheadDayOn: { borderColor: dc('#D1D5DB', 'border'), backgroundColor: c.card },
   aheadDayName: { fontSize: 11, color: c.textSecondary },
   aheadDayNum: { fontSize: 13, fontWeight: '600', color: c.text },
   aheadBarBox: { width: '100%', height: 90, alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 },
@@ -2419,18 +2419,18 @@ const makeStyles = (c) => StyleSheet.create({
   moveWeekLabel: { width: 44, fontSize: 10, lineHeight: 12, color: c.textSecondary },
   movePattern: { marginTop: 12, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: c.cardAlt, borderRadius: 12 },
   movePatternText: { fontSize: 12.5, lineHeight: 18, color: c.text },
-  healthIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  healthTitle: { fontSize: 15, fontWeight: '800', color: '#16201b' },
-  healthSub: { fontSize: 12.5, lineHeight: 17, color: '#4b5563', textAlign: 'center', marginTop: 4 },
-  healthBtn: { marginTop: 10, paddingHorizontal: 22, paddingVertical: 9, borderRadius: 999, backgroundColor: '#16201b' },
-  healthBtnTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  healthIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: dc('#fff', 'bg'), alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  healthTitle: { fontSize: 15, fontWeight: '800', color: dc('#16201b', 'text') },
+  healthSub: { fontSize: 12.5, lineHeight: 17, color: dc('#4b5563', 'text'), textAlign: 'center', marginTop: 4 },
+  healthBtn: { marginTop: 10, paddingHorizontal: 22, paddingVertical: 9, borderRadius: 999, backgroundColor: dc('#16201b', 'bg') },
+  healthBtnTxt: { color: dc('#fff', 'text'), fontSize: 14, fontWeight: '700' },
   progressSectionTitleCompact: {
     fontSize: 14,
     fontWeight: '600',
     color: c.text,
   },
   seeAllBtnSmall: {
-    color: '#059669',
+    color: dc('#059669', 'text'),
     fontSize: 12,
     fontWeight: '600',
   },
@@ -2443,7 +2443,7 @@ const makeStyles = (c) => StyleSheet.create({
   },
   chartTooltip: {
     position: 'absolute',
-    backgroundColor: '#000',
+    backgroundColor: dc('#000', 'bg'),
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -2452,12 +2452,12 @@ const makeStyles = (c) => StyleSheet.create({
     zIndex: 20,
   },
   chartTooltipText: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
     fontSize: 11,
     fontWeight: '700',
   },
   chartTooltipSub: {
-    color: '#fff',
+    color: dc('#fff', 'text'),
     fontSize: 9,
     fontWeight: '500',
     opacity: 0.75,
@@ -2465,14 +2465,14 @@ const makeStyles = (c) => StyleSheet.create({
   },
   stepsAxisLabel: {
     fontSize: 9,
-    color: '#b3b9c4',
+    color: dc('#b3b9c4', 'text'),
     fontWeight: '400',
   },
   stepsTooltipCentered: {
     position: 'absolute',
     top: 4,
     alignSelf: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: dc('#0f172a', 'bg'),
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 5,
@@ -2523,7 +2523,7 @@ const makeStyles = (c) => StyleSheet.create({
   bmiCategory: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#10B981',
+    color: dc('#10B981', 'text'),
   },
   bmiWeightInfo: {
     alignItems: 'flex-end',
@@ -2577,7 +2577,7 @@ const makeStyles = (c) => StyleSheet.create({
   chartPlaceholderText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   chartPlaceholderSubtext: {
     fontSize: 11,
@@ -2599,7 +2599,7 @@ const makeStyles = (c) => StyleSheet.create({
   weightStatValueCompact: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#10B981',
+    color: dc('#10B981', 'text'),
   },
   weightStatLabelCompact: {
     fontSize: 9,
@@ -2614,14 +2614,14 @@ const makeStyles = (c) => StyleSheet.create({
   weightActionBtnCompact: {
     flex: 1,
     paddingVertical: 8,
-    backgroundColor: '#059669',
+    backgroundColor: dc('#059669', 'bg'),
     borderRadius: 8,
     alignItems: 'center',
   },
   weightActionBtnText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#fff',
+    color: dc('#fff', 'text'),
   },
   weightActionLinkCompact: {
     flex: 1,
@@ -2633,7 +2633,7 @@ const makeStyles = (c) => StyleSheet.create({
   weightActionLinkText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#059669',
+    color: dc('#059669', 'text'),
   },
   calorieStatsRow: {
     flexDirection: 'row',

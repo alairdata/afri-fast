@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet } from 'react-native';
+import { dc, themedStyles } from '../lib/theme';
 
 const FindRecipeModal = ({ show, onClose }) => {
   const [recipeSearchInput, setRecipeSearchInput] = useState('');
@@ -17,7 +18,7 @@ const FindRecipeModal = ({ show, onClose }) => {
       <View style={styles.weightPage}>
         <View style={styles.weightPageHeader}>
           <TouchableOpacity style={styles.weightBackBtn} onPress={handleClose}>
-            <Ionicons name="chevron-back" size={24} color="#059669" />
+            <Ionicons name="chevron-back" size={24} color={dc("#059669", 'text')} />
           </TouchableOpacity>
           <Text style={styles.weightPageTitle}>🔍 Find Recipe</Text>
           <View style={{ width: 40 }} />
@@ -88,7 +89,7 @@ const FindRecipeModal = ({ show, onClose }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   weightPageOverlay: {
     position: 'absolute',
     top: 0,

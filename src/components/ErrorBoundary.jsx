@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { themedStyles } from '../lib/theme';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -38,7 +39,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles({
   container: {
     flex: 1,
     justifyContent: 'center',
