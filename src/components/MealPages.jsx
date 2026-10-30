@@ -347,15 +347,25 @@ const MealPages = ({
               </TouchableOpacity>
             </View>
 
-            {/* No AI: type the meal in (only shown when AI is off) */}
-            {aiOff && <TouchableOpacity style={styles.manualRow} onPress={() => handleLogMethod('manual')} activeOpacity={0.7}>
+            {/* No AI: type the meal in */}
+            <TouchableOpacity style={styles.manualRow} onPress={() => handleLogMethod('manual')} activeOpacity={0.7} accessibilityLabel="Enter it yourself, type a food and its calories, no AI">
               <Ionicons name="create-outline" size={18} color={colors.text} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.manualTitle, { color: colors.text }]}>Enter it yourself</Text>
                 <Text style={styles.manualSub}>Type a food and its calories, no AI</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color="#ccc" />
-            </TouchableOpacity>}
+            </TouchableOpacity>
+
+            {/* What people are saying: a real review from a Logga user */}
+            <Text style={styles.reviewKicker}>What people are saying</Text>
+            <View style={styles.reviewCard}>
+              <View style={{ flexDirection: 'row', gap: 2, marginBottom: 6 }}>
+                {[0, 1, 2, 3, 4].map((i) => <Ionicons key={i} name="star" size={12} color="#F59E0B" />)}
+              </View>
+              <Text style={styles.reviewText}>"It actually knew the calories in my jollof rice! I was shocked. Even got the portion right."</Text>
+              <Text style={styles.reviewName}>— Amina O.</Text>
+            </View>
 
           </ScrollView>
         </View>
@@ -502,6 +512,10 @@ const makeStyles = (c) => StyleSheet.create({
   manualRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#FCFCFC' },
   manualTitle: { fontSize: 15, fontWeight: '700' },
   manualSub: { fontSize: 12.5, color: c.textMuted, marginTop: 2 },
+  reviewKicker: { fontSize: 13, fontWeight: '600', color: '#BDBDBD', marginTop: 22, marginBottom: 10 },
+  reviewCard: { backgroundColor: '#FCFCFC', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16 },
+  reviewText: { fontSize: 13.5, lineHeight: 19, fontStyle: 'italic', color: '#1F1F1F' },
+  reviewName: { fontSize: 12, fontWeight: '600', color: '#9CA3AF', marginTop: 6 },
 
   recentMealsSectionClean: {
     backgroundColor: c.card, borderRadius: 20, paddingTop: 14, paddingHorizontal: 16, paddingBottom: 12,
