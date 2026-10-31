@@ -350,16 +350,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       </View>
     );
   };
-  // Pro: start working out the meal's micronutrients as soon as its foods are known (they settle for a moment
-  // first, in case of edits), so they're ready by the time the meal is logged and its card shows.
-  const { isPro: microsPro } = useSubscription();
-  useEffect(() => {
-    if (!microsPro || !detectedFoods.length || viewingMeal?.micros) return undefined;
-    const t = setTimeout(() => {
-      getMicrosFor(detectedFoods.map((f) => ({ name: f.name, qty: f.qty, cal: f.cal }))).catch(() => {});
-    }, 1200);
-    return () => clearTimeout(t);
-  }, [microsPro, detectedFoods]);
   const [permission, requestPermission] = useCameraPermissions();
   const [micPermSaved, setMicPermSaved] = useState(false);
 
@@ -415,6 +405,16 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const editCalInputRef = useRef('');
   const [mealInput, setMealInput] = useState('');
   const [detectedFoods, setDetectedFoods] = useState([]);
+  // Pro: start working out the meal's micronutrients as soon as its foods are known (they settle for a moment
+  // first, in case of edits), so they're ready by the time the meal is logged and its card shows.
+  const { isPro: microsPro } = useSubscription();
+  useEffect(() => {
+    if (!microsPro || !detectedFoods.length || viewingMeal?.micros) return undefined;
+    const t = setTimeout(() => {
+      getMicrosFor(detectedFoods.map((f) => ({ name: f.name, qty: f.qty, cal: f.cal }))).catch(() => {});
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [microsPro, detectedFoods]);
   // The AI's meal title only holds while the foods are the ones it saw. Once they're edited (a renamed food,
   // one added or removed), the title is rebuilt from the foods actually there: the two biggest, joined by "and".
   const titleFoodsRef = useRef(null);
