@@ -220,8 +220,8 @@ export const DayMealsCard = ({ date, recentMeals, onViewMeal, onRequestDelete, o
       <View style={styles.recentMealsListClean}>
         {meals.length === 0 && (
           <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: dc('#E6F8EF', 'bg'), alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 30 }}>🍽️</Text>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: dc('#F2F8F4', 'bg'), alignItems: 'center', justifyContent: 'center' }}>
+              <MaterialCommunityIcons name="silverware-fork-knife" size={28} color={dc('#0A9B72', 'text')} />
             </View>
             <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 8 }}>No meals logged</Text>
             <Text style={{ fontSize: 13, color: colors.subtext, marginTop: 4, textAlign: 'center' }}>
@@ -429,8 +429,8 @@ const MealPages = ({
               const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
               if (sortedDates.length === 0) return (
                 <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-                  <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: dc('#E6F8EF', 'bg'), alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 30 }}>🍽️</Text>
+                  <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: dc('#F2F8F4', 'bg'), alignItems: 'center', justifyContent: 'center' }}>
+                    <MaterialCommunityIcons name="silverware-fork-knife" size={28} color={dc('#0A9B72', 'text')} />
                   </View>
                   <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 12 }}>No meals logged yet</Text>
                 </View>
