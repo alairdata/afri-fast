@@ -1832,15 +1832,24 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                 {/* KCAL + PROGRESS */}
                 {(() => {
                   const dayTotal = cardDayTotal;
+                  const mealCal = detectedFoods.length > 0
+                    ? detectedFoods.reduce((s, f) => s + (f.cal || 0), 0)
+                    : (viewingMeal?.calories || 0);
                   const rawPct = cardGoal > 0 ? dayTotal / cardGoal : 0;
                   const isOver = rawPct > 1;
                   const barPct = Math.min(rawPct, 1);
                   const remaining = Math.max(cardGoal - dayTotal, 0);
                   return (
                     <View style={styles.shareCardKcalSection}>
-                      {/* Today overall only: the day's %, total against that day's goal, what's left and the bar */}
+                      {/* This meal's kcal (no label), then Today overall: the day's %, total against that day's goal, what's left and the bar */}
                       <View style={styles.shareCardKcalRow}>
-                        <View style={[styles.shareCardProgressCol, { gap: 8 }]}>
+                        <View style={[styles.shareCardKcalBig, { justifyContent: 'flex-end' }]}>
+                          <View style={styles.shareCardKcalNumberRow}>
+                            <Text style={[styles.shareCardKcalNumber, mealCal >= 1000 && { fontSize: 40, letterSpacing: -2 }]}>{Math.round(mealCal)}</Text>
+                            <Text style={styles.shareCardKcalUnit}>kcal</Text>
+                          </View>
+                        </View>
+                        <View style={styles.shareCardProgressCol}>
                           <View style={styles.shareCardProgressMeta}>
                             <Text style={styles.shareCardProgressLabel}>Today overall</Text>
                             <Text style={[styles.shareCardProgressPct, isOver && { color: dc('#f97316', 'text') }]}>{Math.round(rawPct * 100)}%</Text>
