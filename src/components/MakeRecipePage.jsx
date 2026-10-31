@@ -522,6 +522,15 @@ const recipesForCountry = (country) => {
   return [...matched, ...AFRICAN_RECIPES.filter(r => !matched.includes(r))];
 };
 
+// A shuffled copy of a list, the same for the same seed (so a row doesn't reshuffle on every redraw).
+const shuffled = (list, seed) => {
+  let s = seed >>> 0;
+  const rand = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+  return out;
+};
+
 const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen }) => {
   const customRecipes = useCustomRecipes(userId);
   const savedIds = useSavedRecipes(userId);
@@ -555,6 +564,23 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
     return ids;
   }, [visibleRecipes]);
   const isLocked = (recipe) => !recipe.custom && !isPro && !freeRecipeIds.has(recipe.id);
+
+  // Each visit to Recipes shuffles every row, so the page looks new each time. Their country's dishes still
+  // come first, and on Free the row's free recipe stays at the front.
+  const [shuffleSeed, setShuffleSeed] = useState(() => Math.floor(Math.random() * 1e9));
+  useEffect(() => { if (show) setShuffleSeed(Math.floor(Math.random() * 1e9)); }, [show]);
+  const rowsByCategory = useMemo(() => {
+    const rows = {};
+    RECIPE_CATEGORIES.forEach((cat, k) => {
+      const inCat = visibleRecipes.filter(r => r.category === cat);
+      const pinned = isPro ? [] : inCat.filter(r => freeRecipeIds.has(r.id));
+      const rest = inCat.filter(r => !pinned.includes(r));
+      const local = userCountry ? rest.filter(r => recipeMatchesCountry(r, userCountry)) : [];
+      const others = rest.filter(r => !local.includes(r));
+      rows[cat] = [...pinned, ...shuffled(local, shuffleSeed + k), ...shuffled(others, shuffleSeed + 100 + k)];
+    });
+    return rows;
+  }, [visibleRecipes, freeRecipeIds, isPro, userCountry, shuffleSeed]);
 
   // 'List it': match recipes to the ingredients you type (no AI needed).
   const findFromList = () => {
@@ -853,7 +879,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
           ) : (
             <>
               {RECIPE_CATEGORIES.map(cat => {
-                const recipes = visibleRecipes.filter(r => r.category === cat);
+                const recipes = rowsByCategory[cat] || [];
                 if (recipes.length === 0) return null;
                 const meta = CATEGORY_META[cat] || {};
                 return (
