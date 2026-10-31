@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Logga Admin</title>
+<title>Logga AI Admin</title>
+<link rel="icon" type="image/png" href="/logga-mark.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -709,7 +710,7 @@
     return '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 class="display" style="margin:0;font-size:24px;letter-spacing:-.5px">Bulk upload recipes</h2>' + xbtn() + '</div>' +
       '<div style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:#F6F3EC"><span style="font-size:13px;font-weight:600">One recipe per row. Row 1 holds these column headers:</span>' +
         '<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px;font-family:ui-monospace,Menlo,monospace">' + BULK_COLS.map(function (c) { return '<span style="padding:3px 8px;border-radius:6px;' + (c[1] ? 'background:#FFF1DD;color:#6A3B00;font-weight:600">' + c[0] + ' *' : 'background:#fff">' + c[0]) + '</span>'; }).join('') + '</div>' +
-        '<span style="font-size:12px;line-height:1.5" class="muted">* required. category = one of the app\'s categories (default Lunch). Separate countries with ",", and ingredients and steps with ";" (ingredient as "name — amount"). published = yes or no (blank = draft). Add photos with image_url, or per recipe after import.</span></div>' +
+        '<span style="font-size:12px;line-height:1.5" class="muted">* required. The recipe sheet\'s own columns work too (Calories, Protein "22g", Prep Time "15 min", Cook Time, Servings, Yield, Local Names, Image Filename). category = one of the app\'s categories; old names like Fasting-Friendly become Weight Loss Friendly (unknown = Lunch). Separate countries with ","; ingredients as "name — amount; …" or "name|amount, …"; steps with ";" or numbered "1. … 2. …". Local names as "Awoyo (Ghana)|Pepper Soup (General)". published = yes or no (blank = draft). Recipes already in the app are skipped. Photos: image_url, or a file name the website has under /food/, or add per recipe after import.</span></div>' +
       '<div class="stack"><label class="lbl" for="bulkfile">Excel or CSV file</label><input id="bulkfile" type="file" accept=".xlsx,.xlsm,.xls,.csv" data-file="bulk" style="font-size:13px"></div>' +
       (b.error ? '<p role="alert" class="alert">' + esc(b.error) + '</p>' : '') +
       (b.fileName ? '<div style="display:flex;flex-wrap:wrap;gap:8px;font-size:13px"><span style="font-weight:600">' + esc(b.fileName) + '</span><span class="pill" style="background:#E2EFE4;color:#1F5A36">' + (b.valid || []).length + ' ready</span>' + ((b.errors || []).length ? '<span class="pill" style="background:#FBE5DC;color:#8A2E10">' + b.errors.length + ' skipped</span>' : '') + '</div>' : '') +
@@ -730,7 +731,7 @@
     var codeStep = S.phase === 'code';
     return '<div style="min-height:100vh;display:flex;flex-wrap:wrap">' +
       '<div style="flex:1 1 420px;background:#1F5A36;color:#F6F3EC;padding:56px;display:flex;flex-direction:column;justify-content:space-between;gap:48px">' +
-        '<div style="display:flex;align-items:center;gap:12px">' + logo(40, '#F6F3EC') + '<span class="display" style="font-size:28px;letter-spacing:-.5px">Logga</span></div>' +
+        '<div style="display:flex;align-items:center;gap:12px">' + logo(44) + '<span class="display" style="font-size:28px;letter-spacing:-.5px">Logga AI</span></div>' +
         '<div style="display:flex;flex-direction:column;gap:16px;max-width:460px"><h1 class="display" style="margin:0;font-size:52px;line-height:1.02;letter-spacing:-1.5px">Every plate of waakye, counted.</h1>' +
         '<p style="margin:0;font-size:17px;line-height:1.55;color:#D8E4D9">The admin console for Logga: users, recipes, feedback and the foods people are actually eating.</p></div>' +
         '<p style="margin:0;font-size:13px;color:#B9CDBC">Restricted area · admins only</p></div>' +
@@ -745,7 +746,7 @@
           (codeStep ? '<button type="button" class="btn" data-act="backToEmail">Use a different email</button>' : '') +
         '</form></div></div>';
   }
-  function logo(size, ink) { return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 40 40" fill="none" aria-hidden="true"><circle cx="20" cy="20" r="19" stroke="#F2A541" stroke-width="2"/><path d="M10 22c3 6 17 6 20 0" stroke="' + ink + '" stroke-width="2.5" stroke-linecap="round"/><path d="M20 19c0-6 3-9 7-10-1 5-3 8-7 10z" fill="#F2A541"/></svg>'; }
+  function logo(size) { return '<span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;flex:none;width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:#fff"><img src="/logga-mark.png" alt="" width="' + Math.round(size * 0.74) + '" height="' + Math.round(size * 0.74) + '" style="display:block"></span>'; }
 
   function render() {
     var app = document.getElementById('app');
@@ -768,7 +769,7 @@
         S.tab === 'overview' ? viewOverview(D) : S.tab === 'users' ? viewUsers(D) : S.tab === 'meals' ? viewMeals(D) : S.tab === 'recipes' ? viewRecipes(D) : S.tab === 'feedback' ? viewFeedback(D) : viewSettings(D);
       html = '<div style="min-height:100vh;display:flex;flex-wrap:wrap;align-items:stretch">' +
         '<nav aria-label="Admin" class="lg-nav" style="flex:1 1 220px;max-width:100%;background:#13241A;color:#E7EEE8;padding:28px 18px;display:flex;flex-direction:column;gap:28px">' +
-          '<div style="display:flex;align-items:center;gap:10px;padding:0 8px">' + logo(30, '#E7EEE8') + '<span class="display" style="font-size:22px;letter-spacing:0">Logga <span style="font-weight:600;color:#F2A541;font-size:14px">admin</span></span></div>' +
+          '<div style="display:flex;align-items:center;gap:10px;padding:0 8px">' + logo(32) + '<span class="display" style="font-size:22px;letter-spacing:0">Logga AI <span style="font-weight:600;color:#F2A541;font-size:14px">admin</span></span></div>' +
           '<div style="display:flex;flex-direction:column;gap:4px">' + TABS.map(function (t) { return '<button type="button" class="nav-btn"' + (t[0] === S.tab ? ' aria-current="page"' : '') + ' data-act="tab" data-id="' + t[0] + '">' + t[1] + (t[0] === 'feedback' && open ? '<span style="font-size:12px;color:#F2A541">' + open + '</span>' : '') + '</button>'; }).join('') + '</div>' +
           '<div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;padding:0 8px"><span style="font-size:13px;color:#A9BBAE">Signed in as</span><span style="font-size:14px;font-weight:600;word-break:break-all">' + esc(S.me && S.me.email) + '</span>' +
           '<button type="button" data-act="signOut" style="align-self:flex-start;min-height:44px;padding:0 16px;border:1px solid #3B5A47;border-radius:8px;background:transparent;color:#E7EEE8;font-size:14px">Sign out</button></div></nav>' +
@@ -840,6 +841,43 @@
   }
 
   function loadScript(src) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = function () { rej(new Error('Could not load the spreadsheet reader.')); }; document.head.appendChild(s); }); }
+  // Old category names from before the app moved past fasting, and loose spellings, mapped to the app's own.
+  var CATEGORY_ALIASES = { fastingfriendly: 'Weight Loss Friendly', fasting: 'Weight Loss Friendly', fastingdrinks: 'Weight Loss Drinks',
+    snack: 'Snacks', dessert: 'Desserts', drink: 'Drinks', quickeasy: 'Quick & Easy', quickandeasy: 'Quick & Easy' };
+  var catKey = function (c) { return String(c || '').toLowerCase().replace(/[^a-z]/g, ''); };
+  function bulkCategory(c) {
+    var k = catKey(c);
+    return CATEGORIES.filter(function (x) { return catKey(x) === k; })[0] || CATEGORY_ALIASES[k] || 'Lunch';
+  }
+  // The first number in a cell: 22 from "22g", 15 from "15 min", 2.5 from "2,5".
+  function numIn(v) { var m = String(v == null ? '' : v).replace(',', '.').match(/\d+(\.\d+)?/); return m ? Number(m[0]) : 0; }
+  // "Pepper Soup (General)|Awoyo (Ghana)|Light Soup (Ghana Variant)" -> { Ghana: 'Awoyo', Nigeria: 'Pepper Soup', ... }:
+  // a name tagged with one of the recipe's countries goes to that country; a general one fills the rest.
+  function bulkLocalNames(text, countries) {
+    var out = {}, general = '';
+    String(text || '').split('|').map(function (x) { return x.trim(); }).filter(Boolean).forEach(function (entry) {
+      var m = entry.match(/^(.*?)\s*\(([^)]*)\)\s*$/), name = m ? m[1].trim() : entry, tag = m ? m[2] : '';
+      var c = countries.filter(function (x) { return tag.toLowerCase().indexOf(x.toLowerCase()) >= 0; })[0];
+      if (c) { if (!out[c]) out[c] = name; } else if (!general) general = name;
+    });
+    if (general) countries.forEach(function (c) { if (!out[c]) out[c] = general; });
+    return out;
+  }
+  // "Fish|2 chunks (approx. 250g), Onion|1/4 bulb" (the recipe sheet) or "Fish — 2 chunks; Onion — 1/4 bulb" (this form).
+  function bulkIngredients(text) {
+    var t = String(text || '');
+    if (t.indexOf('|') < 0) return parseIngredients(t.replace(/;/g, '\n'));
+    return t.split(/,\s*(?=[^,|]*\|)|\n|;/).map(function (x) { return x.trim(); }).filter(Boolean).map(function (x) {
+      var i = x.indexOf('|');
+      return i < 0 ? { name: x, amount: '' } : { name: x.slice(0, i).trim(), amount: x.slice(i + 1).trim() };
+    });
+  }
+  // "1. Wash... 2. Steam..." (numbered in one cell) or steps separated by ";" or new lines.
+  function bulkSteps(text) {
+    var t = String(text || '').trim();
+    var parts = /^\s*1[.)]\s/.test(t) ? t.split(/\s*(?:^|\s)\d+[.)]\s+/) : t.split(/;|\n/);
+    return parts.map(function (x) { return x.trim(); }).filter(Boolean);
+  }
   async function readBulk(file) {
     S.bulk = { fileName: file.name, valid: [], errors: [] };
     try {
@@ -848,22 +886,40 @@
       var rows = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
       if (!rows.length) throw new Error('That file has no rows under the header row.');
       var id = nextId(), sort = nextSort();
+      // Recipes already in the app (and earlier rows of this file) are skipped, so nothing is added twice.
+      var seen = {}; S.data.recipes.forEach(function (r) { seen[String(r.data && r.data.name || '').trim().toLowerCase()] = true; });
+      var photos = [];
       rows.forEach(function (row, i) {
         var g = {}; Object.keys(row).forEach(function (k) { g[String(k).trim().toLowerCase().replace(/[\s-]+/g, '_')] = row[k]; });
         var pick = function () { for (var a = 0; a < arguments.length; a++) { var v = g[arguments[a]]; if (v !== undefined && String(v).trim() !== '') return String(v).trim(); } return ''; };
-        var name = pick('name', 'recipe', 'recipe_name', 'title'), kcal = Number(pick('kcal', 'calories', 'cal'));
+        var name = pick('name', 'recipe', 'recipe_name', 'title'), kcal = numIn(pick('kcal', 'calories', 'cal'));
         if (!name) return S.bulk.errors.push('Row ' + (i + 2) + ': no name');
         if (!(kcal > 0)) return S.bulk.errors.push('Row ' + (i + 2) + ' (' + name + '): no calories');
-        var cat = pick('category', 'meal', 'meal_type'); cat = CATEGORIES.filter(function (c) { return c.toLowerCase() === cat.toLowerCase(); })[0] || 'Lunch';
-        var n = function () { var v = Number(pick.apply(null, arguments)); return isFinite(v) && v > 0 ? v : 0; };
-        var prep = n('prep_min', 'prep', 'prep_time');
-        S.bulk.valid.push({ id: id++, sort: sort++, published: /^(y|yes|true|1)$/i.test(pick('published', 'publish')), data: {
-          name: name, category: cat, description: pick('description'), countries: pick('country', 'countries').split(',').map(function (s) { return s.trim(); }).filter(Boolean),
-          localNames: {}, calories: Math.round(kcal), protein: n('protein_g', 'protein'), carbs: n('carbs_g', 'carbs'), fats: n('fat_g', 'fats', 'fat'),
-          prepTime: prep ? prep + ' min' : '', cookTime: '', servings: 1, yield: pick('serving', 'serving_size', 'portion') || '1 serving',
-          ingredients: parseIngredients(pick('ingredients').replace(/;/g, '\n')), instructions: pick('steps', 'instructions', 'method').split(';').map(function (s) { return s.trim(); }).filter(Boolean),
-          imageUrl: pick('image_url', 'photo', 'image') || null } });
+        var key = name.toLowerCase();
+        if (seen[key]) return S.bulk.errors.push('Row ' + (i + 2) + ' (' + name + '): already in the app, skipped');
+        seen[key] = true;
+        var n = function () { return numIn(pick.apply(null, arguments)); };
+        var prep = n('prep_min', 'prep', 'prep_time'), cook = n('cook_min', 'cook', 'cook_time');
+        var countries = pick('country', 'countries').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+        var rec = { id: id++, sort: sort++, published: /^(y|yes|true|1)$/i.test(pick('published', 'publish')), data: {
+          name: name, category: bulkCategory(pick('category', 'meal', 'meal_type')), description: pick('description'), countries: countries,
+          localNames: bulkLocalNames(pick('local_names', 'local_name'), countries), calories: Math.round(kcal),
+          protein: n('protein_g', 'protein'), carbs: n('carbs_g', 'carbs'), fats: n('fat_g', 'fats', 'fat'),
+          prepTime: prep ? prep + ' min' : '', cookTime: cook ? cook + ' min' : '', servings: n('servings') || 1,
+          yield: pick('yield', 'serving', 'serving_size', 'portion') || '1 serving',
+          ingredients: bulkIngredients(pick('ingredients')), instructions: bulkSteps(pick('steps', 'instructions', 'method')),
+          imageUrl: pick('image_url', 'photo', 'image') || null } };
+        // A photo named by file (image_filename) is used when the website has it under /food/.
+        var fileName = pick('image_filename', 'image_file', 'filename');
+        if (!rec.data.imageUrl && fileName) photos.push({ rec: rec, row: i + 2, url: 'https://www.logga.space/food/' + encodeURIComponent(fileName) });
+        S.bulk.valid.push(rec);
       });
+      await Promise.all(photos.map(function (p) {
+        return fetch(p.url, { method: 'HEAD' }).then(function (r) { return r.ok; }, function () { return false; }).then(function (ok) {
+          if (ok) p.rec.data.imageUrl = p.url;
+          else S.bulk.errors.push('Row ' + p.row + ' (' + p.rec.data.name + '): photo not found, imported without one (add it after import)');
+        });
+      }));
     } catch (err) { S.bulk.error = err.message; }
     render();
   }
