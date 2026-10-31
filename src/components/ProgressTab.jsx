@@ -1657,9 +1657,20 @@ const ProgressTab = ({
     let afterRest = 0;
     flat.forEach((c, i) => { if (c.level === 'full' && i > 0 && flat[i - 1].level === 'none') afterRest += 1; });
     const perWeek = Math.round(full / 4);
+    const thisWeek = weeks[3].filter((c) => c.level === 'full').length;
+    // 3-5 active days a week is a healthy rhythm with rest days in it; only below that do we ask for more,
+    // and 6-7 gets a nudge to rest. This week's own count wins when it's better than the 4-week average.
+    const days = Math.max(perWeek, thisWeek);
+    const advice = days >= 6
+      ? 'Make sure you take at least one rest day. Your body gets stronger while it rests.'
+      : thisWeek >= 3 && perWeek < 3
+        ? `This week you've already had ${thisWeek}, a healthy rhythm with rest days built in. Keep it going.`
+        : days >= 3
+          ? "That's a healthy rhythm, with rest days built in. Keep it going."
+          : 'Adding one more active day would help.';
     const pattern = full === 0
       ? "you haven't had a 30+ minute day in the last 4 weeks yet. One a week is a good place to start."
-      : `you're active about ${perWeek || 1} ${(perWeek || 1) === 1 ? 'day' : 'days'} a week${afterRest / full > 0.5 ? ', usually after a rest day' : ''}. ${perWeek >= 5 ? 'Keep it going.' : 'Adding one more active day would help.'}`;
+      : `over the last 4 weeks you're active about ${perWeek || 1} ${(perWeek || 1) === 1 ? 'day' : 'days'} a week${afterRest / full > 0.5 ? ', usually after a rest day' : ''}. ${advice}`;
     return { weeks, full, light, rest, pattern };
   }, [activities, stepLogs, now]);
 
