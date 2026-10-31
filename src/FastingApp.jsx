@@ -94,6 +94,7 @@ import { showAlert } from './lib/alert';
 import { aiHeaders } from './lib/aiAuth';
 import { getAccountPref, setAccountPref } from './lib/accountPrefs';
 import { saveOfferDeadline } from './lib/offerTimer';
+import { setVoiceCountry } from './lib/useVoiceInput';
 import { deliverNudges, savePushToken } from './lib/adminMessages';
 import { maybeAskForReview } from './lib/reviewPrompt';
 import { dc, themedStyles } from './lib/theme';
@@ -312,6 +313,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState(session?.user?.email ?? '');
   const [userCountry, setUserCountry] = useState('');
+  // Voice input listens for the person's own English and knows their foods (lib/useVoiceInput.js).
+  useEffect(() => { setVoiceCountry(userCountry); }, [userCountry]);
   const [userCount, setUserCount] = useState(0);
   const [userJoinDate, setUserJoinDate] = useState(null);
 

@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabase';
 import { uploadMealPhoto, enqueuePendingMealPhoto } from '../lib/mealPhotoUpload';
 import ManualMealForm from './ManualMealForm';
 import { callGeminiApi } from '../lib/geminiApi';
+import { startWebSpeech } from '../lib/useVoiceInput';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
 import LumiRive from './LumiRive';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
@@ -905,34 +906,21 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setSayPhase('recording');
 
     if (Platform.OS === 'web') {
-      // Web: use SpeechRecognition API
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
+      // Web: the browser's speech recognition in the person's own English, carrying on through pauses
+      // (lib/useVoiceInput.js). The words then go to the food AI, which reads local names as meant.
+      const stopSay = (note) => {
         clearInterval(waveIntervalRef.current);
         setIsRecording(false);
         setSayPhase('idle');
-        alert('Voice recognition is not supported in this browser. Try Chrome or Edge.');
-        return;
-      }
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-      recognition.onresult = (event) => {
-        let transcript = '';
-        for (let i = 0; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
-        }
-        webTranscriptRef.current = transcript;
-        setVoiceTranscript(transcript);
+        if (note) alert(note);
       };
-      recognition.onerror = () => {
-        clearInterval(waveIntervalRef.current);
-        setIsRecording(false);
-        setSayPhase('idle');
-      };
-      webSpeechRef.current = recognition;
-      recognition.start();
+      webTranscriptRef.current = '';
+      const ctl = startWebSpeech({
+        onText: (said) => { webTranscriptRef.current = said; setVoiceTranscript(said); },
+        onEnd: (note) => { webSpeechRef.current = null; stopSay(note); },
+      });
+      if (!ctl) { stopSay('Voice isn’t supported in this browser. Try Chrome, or type it.'); return; }
+      webSpeechRef.current = ctl;
     } else {
       // Native: use expo-av
       try {

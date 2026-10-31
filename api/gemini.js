@@ -310,11 +310,24 @@ export default async function handler(req, res) {
     if (type === 'transcribe_audio') {
       const { base64 } = data;
       const raw = await callGemini(GEMINI_KEY, [
-        { text: 'Write down exactly what the person says about the food they have, in plain words. Keep local food names as they say them. If nothing is said, return an empty string.' },
+        { text: `Write down exactly what the person says, word for word: questions, food, amounts and everything else, in plain words. They may speak with a ${data.country ? `${String(data.country).slice(0, 40)} ` : 'West or East African '}accent and use local food names (e.g. waakye, kenkey, banku, eba, jollof, egusi, ugali, sukuma, injera); spell those the usual way. Don't add, summarise or answer anything. If nothing is said, return an empty string.` },
         { inline_data: { mime_type: 'audio/m4a', data: base64 } },
       ], { schema: { type: 'OBJECT', properties: { text: { type: 'STRING' } }, required: ['text'] } });
       const parsed = parseJson(raw);
       return res.json({ text: String(parsed?.text || '').trim() });
+    }
+
+    // ── Words from the browser's speech recognition, with misheard local food names put right ──
+    if (type === 'fix_transcript') {
+      const said = String(data.text || '').slice(0, 2000);
+      if (!said.trim()) return res.json({ text: '' });
+      const raw = await callGemini(GEMINI_KEY, [{
+        text: `Speech recognition wrote down what someone${data.country ? ` from ${String(data.country).slice(0, 40)}` : ''} said in a food and calorie app. It often mishears African food names and accents (e.g. "walk eye" for waakye, "can key" for kenkey, "bank you" for banku, "egg-woosie" for egusi, "you golly" for ugali). Fix only words that were clearly misheard, spell local foods the usual way and add basic punctuation. Change nothing else: keep their wording, don't add, remove, summarise or answer anything.\n\nWhat was written down:\n${said}`,
+      }], { schema: { type: 'OBJECT', properties: { text: { type: 'STRING' } }, required: ['text'] } });
+      const parsed = parseJson(raw);
+      const text = String(parsed?.text || '').trim();
+      // Guard against anything that isn't a light correction.
+      return res.json({ text: text && text.length <= said.length * 1.6 + 20 ? text : said });
     }
 
     // ── Build a recipe from my kitchen: a recipe from what they have, scaled to a calorie amount per person ──

@@ -8,7 +8,6 @@ import Slider from '@react-native-community/slider';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Audio } from 'expo-av';
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import { track } from '../lib/analytics';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
@@ -21,6 +20,7 @@ import { uploadMealPhoto } from '../lib/mealPhotoUpload';
 import { aiHeaders } from '../lib/aiAuth';
 import { getAccountPref, setAccountPref } from '../lib/accountPrefs';
 import { dc, themedStyles } from '../lib/theme';
+import { useVoiceInput } from '../lib/useVoiceInput';
 
 // The recipe's AI photo (a data URI) uploaded to storage, so a saved recipe keeps it. Null if it can't be uploaded.
 async function uploadRecipeImage(dataUri) {
@@ -197,19 +197,6 @@ async function planPortions({ text, photoUri, budget, userCountry, type = 'plan_
   return result;
 }
 
-async function transcribe(uri) {
-  if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError();
-  const base64 = await readUriAsBase64(uri);
-  const response = await fetch(`${BASE}/api/gemini`, {
-    method: 'POST',
-    headers: await aiHeaders(),
-    body: JSON.stringify({ type: 'transcribe_audio', data: { base64 } }),
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error || 'Could not hear that');
-  return result.text || '';
-}
-
 async function callApi(type, data) {
   if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError();
   const response = await fetch(`${BASE}/api/gemini`, {
@@ -280,81 +267,8 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [addItemDetecting, setAddItemDetecting] = useState(false);
-  // Voice: 'idle' | 'listening' | 'transcribing'. The words land in the text box so they can be checked first.
-  const [voice, setVoice] = useState('idle');
-  const [voiceNote, setVoiceNote] = useState(null);
-  const recordingRef = useRef(null);
-  const speechRef = useRef(null);
-  const baseTextRef = useRef('');
-  const joinText = (a, b) => [a.trim(), b.trim()].filter(Boolean).join(a.trim() ? ', ' : '');
-
-  const startVoice = async () => {
-    setVoiceNote(null);
-    baseTextRef.current = text;
-    if (Platform.OS === 'web') {
-      const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
-      if (!SR) { setVoiceNote('Voice isn’t supported in this browser. Try Chrome, or type it.'); return; }
-      const rec = new SR();
-      rec.continuous = true;
-      rec.interimResults = true;
-      rec.lang = 'en-US';
-      rec.onresult = (e) => {
-        let said = '';
-        for (let i = 0; i < e.results.length; i++) said += e.results[i][0].transcript;
-        setText(joinText(baseTextRef.current, said));
-      };
-      rec.onerror = () => setVoice('idle');
-      rec.onend = () => setVoice((v) => (v === 'listening' ? 'idle' : v));
-      speechRef.current = rec;
-      rec.start();
-      setVoice('listening');
-      return;
-    }
-    try {
-      const { granted } = await Audio.requestPermissionsAsync();
-      if (!granted) { setVoiceNote('Allow the microphone in Settings to use voice.'); return; }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      recordingRef.current = recording;
-      setVoice('listening');
-    } catch (_) {
-      setVoiceNote('Couldn’t start the microphone. Try again, or type it.');
-    }
-  };
-
-  const stopVoice = async () => {
-    if (Platform.OS === 'web') {
-      speechRef.current?.stop();
-      speechRef.current = null;
-      setVoice('idle');
-      return;
-    }
-    const rec = recordingRef.current;
-    recordingRef.current = null;
-    try { await rec?.stopAndUnloadAsync(); } catch (_) {}
-    try { await Audio.setAudioModeAsync({ allowsRecordingIOS: false }); } catch (_) {}
-    const uri = rec?.getURI();
-    if (!uri) { setVoice('idle'); return; }
-    setVoice('transcribing');
-    try {
-      const said = await transcribe(uri);
-      if (said) setText(joinText(baseTextRef.current, said));
-      else setVoiceNote('Didn’t catch that. Try again, or type it.');
-    } catch (e) {
-      setVoiceNote(e instanceof AiConsentError ? 'AI features are off. Turn them on in Settings › Privacy Settings.' : 'Didn’t catch that. Try again, or type it.');
-    }
-    setVoice('idle');
-  };
-
-  // Stop listening if the planner closes mid-recording.
-  useEffect(() => {
-    if (visible) return undefined;
-    speechRef.current?.stop?.();
-    recordingRef.current?.stopAndUnloadAsync?.().catch(() => {});
-    recordingRef.current = null;
-    setVoice('idle');
-    return undefined;
-  }, [visible]);
+  // Voice (lib/useVoiceInput.js): the words land in the text box, comma-separated, so they can be checked first.
+  const { voice, voiceNote, startVoice, stopVoice } = useVoiceInput({ text, setText, active: visible, joiner: ', ' });
 
   // Fresh each time it opens.
   useEffect(() => {
