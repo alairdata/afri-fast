@@ -4,22 +4,86 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { dc, themedStyles } from '../lib/theme';
 import { useSubscription } from '../lib/subscription';
 import { supabase } from '../lib/supabase';
-import { MICRO_GROUPS } from '../lib/micros';
+import { MICRO_GROUPS, microsCache as cache } from '../lib/micros';
 import { unlock } from './ProLock';
 
-// Worked out once per meal: kept here for this session and saved on the meal (meals.micros) for next time.
-const cache = new Map(); // foods signature or meal id -> micros
 const sigOf = (foods) => foods.map((f) => `${f.name}|${f.qty || ''}|${Math.round(f.cal || 0)}`).join(';');
 
 const fmt = (v) => (v >= 100 ? Math.round(v).toLocaleString() : v >= 10 ? (Math.round(v * 10) / 10).toString() : (Math.round(v * 100) / 100).toString());
 
-// Under a meal's Macro Distribution: its micronutrients (vitamins and minerals) in four groups, all closed until tapped, each against an adult's daily
-// value. Logga Pro; Free sees the groups locked. fetchMicros(foods) asks the AI and resolves { micros }.
+// The four groups of micronutrients, all closed until tapped; each row shows the amount and its share of an
+// adult's daily value. values: { b1: 0.4, iron: 3.2, ... } in the units of lib/micros.js.
+export function MicroGroups({ values }) {
+  const [open, setOpen] = useState({});
+  return MICRO_GROUPS.map((g, gi) => (
+    <View key={g.title} style={st.group}>
+      <TouchableOpacity style={st.groupHead} onPress={() => setOpen((o) => ({ ...o, [gi]: !o[gi] }))} accessibilityRole="button" accessibilityState={{ expanded: !!open[gi] }}>
+        <View style={{ flex: 1 }}>
+          <Text style={st.groupTitle}>{g.title}</Text>
+          <Text style={st.groupNote}>{g.note}</Text>
+        </View>
+        <Ionicons name={open[gi] ? 'chevron-up' : 'chevron-down'} size={18} color={dc('#6B7280', 'text')} />
+      </TouchableOpacity>
+      {open[gi] && g.items.map((m) => {
+        const v = Number(values?.[m.key]) || 0;
+        const pct = m.dv ? Math.round((v / m.dv) * 100) : null;
+        return (
+          <View key={m.key} style={st.item}>
+            <View style={st.row}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={st.name}>{m.name}</Text>
+                <Text style={st.what}>{m.what}</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={st.amount}>{fmt(v)} {m.unit}</Text>
+                {pct != null && <Text style={st.pct}>{pct}%</Text>}
+              </View>
+            </View>
+            {pct != null && (
+              <View style={st.track}><View style={[st.fill, { width: `${Math.min(pct, 100)}%` }]} /></View>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  ));
+}
+
+// What Free sees: the groups with their values hidden, and Unlock with Logga Pro.
+export function MicrosLocked({ sub, style, showTitle = true }) {
+  return (
+    <TouchableOpacity style={style} onPress={() => unlock('micros')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Micronutrients. Unlock with Logga Pro">
+      <View style={st.head}>
+        {showTitle ? <Text style={st.title}>Micronutrients</Text> : <View />}
+        <View style={st.proPill}><Ionicons name="lock-closed" size={11} color={dc('#fff', 'text')} /><Text style={st.proPillTxt}>PRO</Text></View>
+      </View>
+      <Text style={st.sub}>{sub}</Text>
+      {MICRO_GROUPS.map((g) => (
+        <View key={g.title} style={st.group}>
+          <Text style={st.groupTitle}>{g.title}</Text>
+          {g.items.slice(0, 2).map((m, i) => (
+            <View key={m.key} style={st.row}>
+              <Text style={st.name} numberOfLines={1}>{m.name}</Text>
+              <View style={[st.ghost, { width: 44 + ((i * 17) % 30) }]} />
+            </View>
+          ))}
+          <Text style={st.more}>+ {g.items.length - 2} more</Text>
+        </View>
+      ))}
+      <View style={st.unlockBtn}>
+        <Ionicons name="lock-open-outline" size={16} color={dc('#fff', 'text')} />
+        <Text style={st.unlockTxt}>Unlock with Logga Pro</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// Under a meal's Macro Distribution: its micronutrients. Logga Pro; Free sees them locked. Worked out once per
+// meal (fetchMicros(foods) asks the AI and resolves { micros }) and saved on it (meals.micros).
 export default function MicrosCard({ foods, mealId, fetchMicros }) {
   const { isPro } = useSubscription();
   const [micros, setMicros] = useState(null);
   const [state, setState] = useState('idle'); // idle | loading | error | off
-  const [open, setOpen] = useState({}); // every group starts closed
   const sig = sigOf(foods || []);
 
   useEffect(() => {
@@ -58,33 +122,7 @@ export default function MicrosCard({ foods, mealId, fetchMicros }) {
 
   if (!foods?.length) return null;
 
-  if (!isPro) {
-    return (
-      <TouchableOpacity style={st.card} onPress={() => unlock('micros')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Micronutrients. Unlock with Logga Pro">
-        <View style={st.head}>
-          <Text style={st.title}>Micronutrients</Text>
-          <View style={st.proPill}><Ionicons name="lock-closed" size={11} color={dc('#fff', 'text')} /><Text style={st.proPillTxt}>PRO</Text></View>
-        </View>
-        <Text style={st.sub}>29 essential vitamins and minerals in this meal, against what your body needs each day.</Text>
-        {MICRO_GROUPS.map((g) => (
-          <View key={g.title} style={st.group}>
-            <Text style={st.groupTitle}>{g.title}</Text>
-            {g.items.slice(0, 2).map((m, i) => (
-              <View key={m.key} style={st.row}>
-                <Text style={st.name} numberOfLines={1}>{m.name}</Text>
-                <View style={[st.ghost, { width: 44 + ((i * 17) % 30) }]} />
-              </View>
-            ))}
-            <Text style={st.more}>+ {g.items.length - 2} more</Text>
-          </View>
-        ))}
-        <View style={st.unlockBtn}>
-          <Ionicons name="lock-open-outline" size={16} color={dc('#fff', 'text')} />
-          <Text style={st.unlockTxt}>Unlock with Logga Pro</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  }
+  if (!isPro) return <MicrosLocked style={st.card} sub="29 essential vitamins and minerals in this meal, against what your body needs each day." />;
 
   return (
     <View style={st.card}>
@@ -94,38 +132,7 @@ export default function MicrosCard({ foods, mealId, fetchMicros }) {
       )}
       {state === 'off' && <Text style={st.statusTxt}>AI features are off. Turn them on in Settings › Privacy Settings to see these.</Text>}
       {state === 'error' && <Text style={st.statusTxt}>Couldn't work these out right now. Open this meal again to try again.</Text>}
-      {micros && MICRO_GROUPS.map((g, gi) => (
-        <View key={g.title} style={st.group}>
-          <TouchableOpacity style={st.groupHead} onPress={() => setOpen((o) => ({ ...o, [gi]: !o[gi] }))} accessibilityRole="button" accessibilityState={{ expanded: !!open[gi] }}>
-            <View style={{ flex: 1 }}>
-              <Text style={st.groupTitle}>{g.title}</Text>
-              <Text style={st.groupNote}>{g.note}</Text>
-            </View>
-            <Ionicons name={open[gi] ? 'chevron-up' : 'chevron-down'} size={18} color={dc('#6B7280', 'text')} />
-          </TouchableOpacity>
-          {open[gi] && g.items.map((m) => {
-            const v = Number(micros[m.key]) || 0;
-            const pct = m.dv ? Math.round((v / m.dv) * 100) : null;
-            return (
-              <View key={m.key} style={st.item}>
-                <View style={st.row}>
-                  <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text style={st.name}>{m.name}</Text>
-                    <Text style={st.what}>{m.what}</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={st.amount}>{fmt(v)} {m.unit}</Text>
-                    {pct != null && <Text style={st.pct}>{pct}%</Text>}
-                  </View>
-                </View>
-                {pct != null && (
-                  <View style={st.track}><View style={[st.fill, { width: `${Math.min(pct, 100)}%` }]} /></View>
-                )}
-              </View>
-            );
-          })}
-        </View>
-      ))}
+      {micros && <MicroGroups values={micros} />}
     </View>
   );
 }

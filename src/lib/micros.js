@@ -58,3 +58,6 @@ export const MICRO_GROUPS = [
 ];
 
 export const MICRO_ITEMS = MICRO_GROUPS.flatMap((g) => g.items);
+
+// Worked-out micronutrients kept for this session: by foods signature, and by meal as `id:<meal id>`.
+export const microsCache = new Map();

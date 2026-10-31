@@ -1,10 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, ActivityIndicator } from 'react-native';
 import { SourcesLink } from './HealthSourcesPage';
 import { LineChart } from 'react-native-chart-kit';
 import { Rect } from 'react-native-svg';
 import { dc, themedStyles } from '../lib/theme';
+import { useSubscription } from '../lib/subscription';
+import { supabase } from '../lib/supabase';
+import { callGeminiApi } from '../lib/geminiApi';
+import { MICRO_ITEMS, microsCache } from '../lib/micros';
+import { MicroGroups, MicrosLocked } from './MicrosCard';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -22,6 +27,23 @@ const TRENDS = [
     note: 'Includes salt and seasoning cubes. WHO suggests under 2,000mg of sodium a day (about one teaspoon of salt).' },
 ];
 
+const RANGE_DAYS = { '7 days': 7, '30 days': 30, '90 days': 90 };
+// The range's meals (All time = every meal).
+const mealsInRange = (meals, range) => {
+  const days = RANGE_DAYS[range];
+  if (!days) return meals;
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return meals.filter((m) => { const t = m.timestamp || new Date(m.date).getTime(); return !isNaN(t) && t >= cutoff; });
+};
+// A meal's worked-out micronutrients: saved on it, or worked out earlier this session.
+const microsOf = (m) => m.micros || microsCache.get(`id:${m.id}`) || null;
+// What the AI needs to work a meal out: its foods, else just its name and calories.
+const microFoods = (m) => (Array.isArray(m.foods) && m.foods.length
+  ? m.foods.map((f) => ({ name: f.name, qty: f.qty, cal: f.cal }))
+  : m.name ? [{ name: m.name, cal: m.calories }] : []);
+const MICRO_BATCH = 8;
+const MICRO_MAX_PER_OPEN = 48;
+
 const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   const [calorieRange, setCalorieRange] = useState('7 days');
   const [proteinTooltip, setProteinTooltip] = useState(null);
@@ -32,6 +54,43 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   const [sodiumTooltip, setSodiumTooltip] = useState(null);
   const [trendKey, setTrendKey] = useState('protein');
   const [trendTooltip, setTrendTooltip] = useState(null);
+  // Macronutrients | Micronutrients, the same pill toggle as Today's Meals | Usual Meals.
+  const [nutrientTab, setNutrientTab] = useState('macro');
+  const { isPro } = useSubscription();
+  const [microFill, setMicroFill] = useState({ running: false, done: 0, total: 0, failed: false });
+  const [, setMicroTick] = useState(0);
+
+  // On Micronutrients (Pro), meals in the range that don't have theirs yet are worked out, a few at a time,
+  // and saved on each meal, so every meal is only ever worked out once.
+  useEffect(() => {
+    if (!show || nutrientTab !== 'micro' || !isPro) return undefined;
+    const missing = mealsInRange(recentMeals || [], calorieRange)
+      .filter((m) => m.id != null && !microsOf(m) && microFoods(m).length)
+      .slice(0, MICRO_MAX_PER_OPEN);
+    if (!missing.length) return undefined;
+    let alive = true;
+    setMicroFill({ running: true, done: 0, total: missing.length, failed: false });
+    (async () => {
+      let done = 0;
+      for (let i = 0; i < missing.length && alive; i += MICRO_BATCH) {
+        const batch = missing.slice(i, i + MICRO_BATCH);
+        try {
+          const { results } = await callGeminiApi('meals_micros', { meals: batch.map((m) => ({ id: m.id, foods: microFoods(m) })) });
+          Object.entries(results || {}).forEach(([id, micros]) => {
+            microsCache.set(`id:${id}`, micros);
+            supabase.from('meals').update({ micros }).eq('id', id).then(() => {}, () => {});
+          });
+        } catch (e) {
+          if (alive) setMicroFill((f) => ({ ...f, running: false, failed: true }));
+          return;
+        }
+        done += batch.length;
+        if (alive) { setMicroFill((f) => ({ ...f, done })); setMicroTick((t) => t + 1); }
+      }
+      if (alive) setMicroFill((f) => ({ ...f, running: false }));
+    })();
+    return () => { alive = false; };
+  }, [show, nutrientTab, isPro, calorieRange, recentMeals]);
 
   useEffect(() => { if (!proteinTooltip) return; const t = setTimeout(() => setProteinTooltip(null), 2000); return () => clearTimeout(t); }, [proteinTooltip]);
   useEffect(() => { if (!carbsTooltip) return; const t = setTimeout(() => setCarbsTooltip(null), 2000); return () => clearTimeout(t); }, [carbsTooltip]);
@@ -202,9 +261,60 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
             </View>
           </View>
 
-          {/* Macro distribution, with fibre, sugar and sodium in the same card */}
+          {/* Macronutrients | Micronutrients */}
+          <View style={styles.nutrientTabsWrap}>
+            <View style={styles.nutrientTabs} accessibilityRole="tablist">
+              {[['macro', 'Macronutrients'], ['micro', 'Micronutrients']].map(([id, label]) => (
+                <TouchableOpacity
+                  key={id}
+                  style={[styles.nutrientTab, nutrientTab === id && styles.nutrientTabOn]}
+                  onPress={() => setNutrientTab(id)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: nutrientTab === id }}
+                >
+                  <Text style={[styles.nutrientTabTxt, nutrientTab === id && styles.nutrientTabTxtOn]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {nutrientTab === 'micro' ? (
+            <View style={styles.detailSection}>
+              {!isPro ? (
+                <MicrosLocked style={styles.macroCardCompact} showTitle={false} sub="29 essential vitamins and minerals in your food each day, against what your body needs." />
+              ) : (() => {
+                const withMicros = rangeMeals.filter((m) => microsOf(m));
+                const microDays = new Set(withMicros.map((m) => m.date)).size;
+                const avgMicros = {};
+                MICRO_ITEMS.forEach((it) => {
+                  avgMicros[it.key] = microDays ? withMicros.reduce((t, m) => t + (Number(microsOf(m)[it.key]) || 0), 0) / microDays : 0;
+                });
+                return (
+                  <View style={styles.macroCardCompact}>
+                    <Text style={styles.extraTitle}>Daily average</Text>
+                    {microFill.running && (
+                      <View style={styles.microStatus}>
+                        <ActivityIndicator size="small" color={dc('#059669', 'text')} />
+                        <Text style={styles.microStatusTxt}>Working out your meals... {microFill.done} of {microFill.total}</Text>
+                      </View>
+                    )}
+                    {microFill.failed && <Text style={styles.microStatusTxt}>Couldn't work out every meal right now. Open this tab again to try again.</Text>}
+                    {!rangeMeals.length ? (
+                      <Text style={styles.microStatusTxt}>No meals logged in this range yet.</Text>
+                    ) : withMicros.length ? (
+                      <>
+                        {withMicros.length < rangeMeals.length && !microFill.running && (
+                          <Text style={styles.microStatusTxt}>Based on {withMicros.length} of {rangeMeals.length} meals.</Text>
+                        )}
+                        <MicroGroups values={avgMicros} />
+                      </>
+                    ) : null}
+                  </View>
+                );
+              })()}
+            </View>
+          ) : (
           <View style={styles.detailSection}>
-            <Text style={styles.detailSectionTitle}>Macro Distribution</Text>
             <View style={styles.macroCardCompact}>
               <View style={styles.macroDistBarCompact}>
                 <View style={{ width: hasData ? `${pct(totals.protein, 4)}%` : '33%', height: '100%', backgroundColor: dc('#EF4444', 'bg'), borderTopLeftRadius: 6, borderBottomLeftRadius: 6 }} />
@@ -239,6 +349,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
               </View>
             </View>
           </View>
+          )}
 
           {/* One trend chart, switchable by nutrient */}
           <View style={styles.detailSection}>
@@ -305,6 +416,14 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
 };
 
 const styles = themedStyles({
+  nutrientTabsWrap: { alignItems: 'center', marginBottom: 12 },
+  nutrientTabs: { flexDirection: 'row', gap: 2, padding: 4, borderRadius: 999, backgroundColor: '#F1F5F3' },
+  nutrientTab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999 },
+  nutrientTabOn: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 1 },
+  nutrientTabTxt: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  nutrientTabTxtOn: { color: '#047857' },
+  microStatus: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 4 },
+  microStatusTxt: { fontSize: 12, color: '#6B7280', marginTop: 4 },
   distCol: { flex: 1, alignItems: 'center' },
   distLabel: { fontSize: 12, color: '#6B7280', fontWeight: '600' },
   distValue: { fontSize: 18, fontWeight: '800', color: '#1F1F1F', marginTop: 4 },

@@ -196,7 +196,7 @@ const createdAfterOnboarding = (createdAt, onboarding) => {
   const done = onboarding?.completedAt || 0;
   return new Date(createdAt).getTime() >= done - CLOCK_SLACK_MS;
 };
-const MEAL_COLUMNS = 'id, user_id, name, calories, protein, carbs, fats, fiber, date, logged_at, method, image_url, notes, photo, detected_name, foods';
+const MEAL_COLUMNS = 'id, user_id, name, calories, protein, carbs, fats, fiber, date, logged_at, method, image_url, notes, photo, detected_name, foods, micros';
 
 const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccountDeleted, onLoggedOut, darkMode, onToggleDarkMode }) => {
   // True while the server is deleting the account (it can take a few seconds): shows a 'Deleting...' screen.

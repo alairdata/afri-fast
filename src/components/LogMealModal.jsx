@@ -15,11 +15,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { uploadMealPhoto, enqueuePendingMealPhoto } from '../lib/mealPhotoUpload';
 import ManualMealForm from './ManualMealForm';
-import { ensureAiConsent, AiConsentError } from '../lib/consent';
+import { callGeminiApi } from '../lib/geminiApi';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
 import LumiRive from './LumiRive';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
-import { aiHeaders } from '../lib/aiAuth';
 import { dc, themedStyles } from '../lib/theme';
 import MicrosCard from './MicrosCard';
 
@@ -105,23 +104,6 @@ export const saveCommunityPhotos = async (mealId, photoUrl, detectedFoods, recip
   }
 };
 
-const BASE = Platform.OS === 'web' ? '' : 'https://afri-fast.vercel.app';
-const GEMINI_API_URL = `${BASE}/api/gemini`;
-
-async function callGeminiApi(type, data) {
-  // Nothing goes to Google without the person's say-so (guideline 5.1.2(i)); the screen that opened this already asked.
-  if (!(await ensureAiConsent({ silent: true }))) throw new AiConsentError();
-  const response = await fetch(GEMINI_API_URL, {
-    method: 'POST',
-    headers: await aiHeaders(),
-    body: JSON.stringify({ type, data }),
-  });
-  const text = await response.text();
-  let result;
-  try { result = JSON.parse(text); } catch { throw new Error('Server returned an unexpected response. Try again.'); }
-  if (!response.ok) throw new Error(result.error || 'AI service error');
-  return result;
-}
 
 
 const analyzeWithGemini = async (photoUri, onProgress, userCountry = '') => {
