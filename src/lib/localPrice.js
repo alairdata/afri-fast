@@ -62,12 +62,13 @@ export async function rate(from, to) {
   }
 }
 
+// The local symbol ("GH₵ 78", "KSh 640") whatever language the phone is in; the plain code ("GHS 78") where the
+// phone can't do symbols.
 const money = (amount, currency, digits) => {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency, minimumFractionDigits: digits, maximumFractionDigits: digits }).format(amount);
-  } catch (_) {
-    return `${currency} ${amount.toFixed(digits)}`;
-  }
+  const opts = { style: 'currency', currency, minimumFractionDigits: digits, maximumFractionDigits: digits };
+  try { return new Intl.NumberFormat(undefined, { ...opts, currencyDisplay: 'narrowSymbol' }).format(amount); } catch (_) {}
+  try { return new Intl.NumberFormat(undefined, opts).format(amount); } catch (_) {}
+  return `${currency} ${amount.toFixed(digits)}`;
 };
 
 /**
