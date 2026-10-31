@@ -1893,24 +1893,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                 })()}
               </View>
 
-              {/* Detected food items */}
-              {shareIncludeIngredients && detectedFoods.length > 0 && (
-                <View style={styles.shareCardFoodsList}>
-                  <Text style={styles.shareCardFoodsTitle}>Detected Foods</Text>
-                  {detectedFoods.map((food, i) => (
-                    <View key={i} style={styles.shareCardFoodRow}>
-                      <View style={[styles.shareCardFoodDot, { backgroundColor: dc('#1F1F1F', 'bg') }]} />
-                      <Text style={styles.shareCardFoodName} numberOfLines={1}>{food.name}{food.qty ? <Text style={styles.shareCardFoodQty}>  {food.qty}</Text> : null}</Text>
-                      <Text style={styles.shareCardFoodCal}>{food.cal} cal</Text>
-                    </View>
-                  ))}
-                  <View style={[styles.shareCardFoodRow, { justifyContent: 'space-between', borderTopColor: dc('rgba(0,0,0,0.08)', 'border') }]}>
-                    <Text style={styles.shareCardFoodsTotalLabel}>Total detected food calories</Text>
-                    <Text style={styles.shareCardFoodsTotalValue}>{detectedFoods.reduce((s, f) => s + (f.cal || 0), 0).toLocaleString()} cal</Text>
-                  </View>
-                </View>
-              )}
-
               {/* Macro distribution */}
               {shareIncludeIngredients && (() => {
                 const hasFoods = detectedFoods.length > 0;
