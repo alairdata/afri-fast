@@ -13,13 +13,13 @@ const sigOf = (foods) => foods.map((f) => `${f.name}|${f.qty || ''}|${Math.round
 
 const fmt = (v) => (v >= 100 ? Math.round(v).toLocaleString() : v >= 10 ? (Math.round(v * 10) / 10).toString() : (Math.round(v * 100) / 100).toString());
 
-// Under a meal's Macro Distribution: its vitamins and minerals in four groups, each against an adult's daily
+// Under a meal's Macro Distribution: its micronutrients (vitamins and minerals) in four groups, all closed until tapped, each against an adult's daily
 // value. Logga Pro; Free sees the groups locked. fetchMicros(foods) asks the AI and resolves { micros }.
 export default function MicrosCard({ foods, mealId, fetchMicros }) {
   const { isPro } = useSubscription();
   const [micros, setMicros] = useState(null);
   const [state, setState] = useState('idle'); // idle | loading | error | off
-  const [open, setOpen] = useState({ 0: true });
+  const [open, setOpen] = useState({}); // every group starts closed
   const sig = sigOf(foods || []);
 
   useEffect(() => {
@@ -60,9 +60,9 @@ export default function MicrosCard({ foods, mealId, fetchMicros }) {
 
   if (!isPro) {
     return (
-      <TouchableOpacity style={st.card} onPress={() => unlock('micros')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Vitamins and minerals. Unlock with Logga Pro">
+      <TouchableOpacity style={st.card} onPress={() => unlock('micros')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Micronutrients. Unlock with Logga Pro">
         <View style={st.head}>
-          <Text style={st.title}>Vitamins & Minerals</Text>
+          <Text style={st.title}>Micronutrients</Text>
           <View style={st.proPill}><Ionicons name="lock-closed" size={11} color={dc('#fff', 'text')} /><Text style={st.proPillTxt}>PRO</Text></View>
         </View>
         <Text style={st.sub}>29 essential vitamins and minerals in this meal, against what your body needs each day.</Text>
@@ -88,8 +88,7 @@ export default function MicrosCard({ foods, mealId, fetchMicros }) {
 
   return (
     <View style={st.card}>
-      <Text style={st.title}>Vitamins & Minerals</Text>
-      <Text style={st.sub}>Estimated for this meal · % of an adult's daily needs</Text>
+      <Text style={st.title}>Micronutrients</Text>
       {state === 'loading' && (
         <View style={st.status}><ActivityIndicator size="small" color={dc('#059669', 'text')} /><Text style={st.statusTxt}>Working out the vitamins and minerals...</Text></View>
       )}
