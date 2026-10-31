@@ -925,6 +925,29 @@ const TodayTab = ({
     return { daysLogged: dates.length, avgCals: Math.round(byDate.reduce((sum, [, cal]) => sum + cal, 0) / dates.length), goalDays };
   })();
 
+  // This week (Mon-today): days with water logged, the average a day on those days, and days the goal was
+  // reached. Same units and default goal as the water page, so the numbers match it.
+  const weekWater = (() => {
+    const UNIT_ML = { oz: 29.574, mL: 1, ml: 1, sachet: 500, bottle: 750, glasses: 237 };
+    const goalMl = hydrationGoal > 0 ? Math.max(100, hydrationGoal * (UNIT_ML[volumeUnit] ?? 1)) : 2000;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    const mlByDate = {};
+    (waterLogs || []).forEach((l) => { mlByDate[l.date] = (mlByDate[l.date] || 0) + (Number(l.amount) || 0) * (UNIT_ML[l.unit] ?? 237); });
+    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((letter, i) => {
+      const d = new Date(monday); d.setDate(monday.getDate() + i);
+      const ml = mlByDate[d.toDateString()] || 0;
+      return { letter, future: d > today, ml, logged: ml > 0, hit: ml >= goalMl };
+    });
+    const logged = days.filter((d) => d.logged);
+    return {
+      days,
+      daysLogged: logged.length,
+      avgL: logged.length ? (Math.round(logged.reduce((s, d) => s + d.ml, 0) / logged.length / 100) / 10).toFixed(1) : null,
+      goalDays: days.filter((d) => d.hit).length,
+    };
+  })();
+
   // This week (Mon-Sun): logged activities, their minutes and estimated kcal, and which days were active.
   const weekActivity = (() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1237,6 +1260,43 @@ const TodayTab = ({
           </View>
         </View>
 
+        {/* Your Water this week (Mon-Sun): same layout as This Week, in blue */}
+        <View style={styles.activityCard}>
+          <View style={styles.activityHead}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="water-outline" size={16} color={colors.text} />
+              <Text style={styles.activityTitle}>Your Water</Text>
+            </View>
+            <TouchableOpacity onPress={onNavigateToHydration} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={[styles.activitySeeAll, { color: dc('#2563EB', 'text') }]}>See all</Text>
+              <Ionicons name="arrow-forward" size={13} color={dc("#2563EB", 'text')} />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {[
+              [weekWater.daysLogged, 'Days logged'],
+              [weekWater.avgL == null ? null : `${weekWater.avgL} L`, 'Avg a day'],
+              [weekWater.goalDays, 'Goal days'],
+            ].map(([value, label]) => (
+              <View key={label} style={styles.activityStat}>
+                <Text style={styles.activityStatValue}>{value == null ? '--' : value.toLocaleString()}</Text>
+                <Text style={styles.activityStatLabel}>{label}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.activityWeekLabel}>Days you logged your water</Text>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {weekWater.days.map((d, i) => (
+              <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+                <View style={[styles.activityDot, d.logged && styles.waterDotOn, d.future && { opacity: 0.5 }]}>
+                  {d.logged && <Ionicons name="checkmark" size={13} color={dc("#fff", 'text')} />}
+                </View>
+                <Text style={styles.activityDayLetter}>{d.letter}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
         {/* Activities this week (Mon-Sun) */}
         <View style={styles.activityCard}>
           <View style={styles.activityHead}>
@@ -1402,6 +1462,7 @@ const makeStyles = (c) => StyleSheet.create({
   activityDot: { width: '100%', aspectRatio: 1, borderRadius: 8, borderWidth: 1, borderColor: dc('#E5E7EB', 'border'), backgroundColor: c.cardAlt === '#F3F4F6' ? dc('#F7F7F8', 'bg') : c.cardAlt, alignItems: 'center', justifyContent: 'center' },
   activityDotOn: { backgroundColor: dc('#F97316', 'bg'), borderColor: dc('#F97316', 'border') },
   loggedDotOn: { backgroundColor: dc('#059669', 'bg'), borderColor: dc('#059669', 'border') },
+  waterDotOn: { backgroundColor: dc('#2563EB', 'bg'), borderColor: dc('#2563EB', 'border') },
   activityDayLetter: { fontSize: 11, color: c.textSecondary },
   activityLogBtn: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 999, borderWidth: 1, borderColor: dc('#D1D5DB', 'border'), backgroundColor: c.card },
   activityLogBtnText: { fontSize: 14, fontWeight: '600', color: c.text },
