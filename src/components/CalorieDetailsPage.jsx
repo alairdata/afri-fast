@@ -41,8 +41,10 @@ const microsOf = (m) => m.micros || microsCache.get(`id:${m.id}`) || null;
 const microFoods = (m) => (Array.isArray(m.foods) && m.foods.length
   ? m.foods.map((f) => ({ name: f.name, qty: f.qty, cal: f.cal }))
   : m.name ? [{ name: m.name, cal: m.calories }] : []);
+// The micronutrient card's title, by range (each value is still a day's average, against a day's needs).
+const AVG_LABEL = { '7 days': 'Weekly average', '30 days': 'Monthly average', '90 days': '3-month average', 'All time': 'All-time average' };
 const MICRO_BATCH = 8;
-const MICRO_MAX_PER_OPEN = 48;
+const MICRO_MAX_PER_OPEN = 200;
 
 const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   const [calorieRange, setCalorieRange] = useState('7 days');
@@ -234,7 +236,9 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
         </View>
 
         <ScrollView style={styles.weightPageContent} showsVerticalScrollIndicator={false}>
-          {/* Calorie Statistics - Compact 4 in a row */}
+          {/* Macronutrients: Calorie Statistics, the toggle, the macro card. Micronutrients: the toggle and the
+              range's micronutrients. Daily Trends under both. */}
+          {nutrientTab === 'macro' && (
           <View style={styles.detailSection}>
             <Text style={styles.detailSectionTitle}>Calorie Statistics</Text>
             <View style={styles.calorieStatsGridCompact}>
@@ -260,6 +264,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
               </View>
             </View>
           </View>
+          )}
 
           {/* Macronutrients | Micronutrients */}
           <View style={styles.nutrientTabsWrap}>
@@ -291,7 +296,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
                 });
                 return (
                   <View style={styles.macroCardCompact}>
-                    <Text style={styles.extraTitle}>Daily average</Text>
+                    <Text style={styles.extraTitle}>{AVG_LABEL[calorieRange] || 'Daily average'}</Text>
                     {microFill.running && (
                       <View style={styles.microStatus}>
                         <ActivityIndicator size="small" color={dc('#059669', 'text')} />
@@ -333,79 +338,41 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
                   </View>
                 ))}
               </View>
-              <View style={styles.extraDivider} />
-              <Text style={styles.extraTitle}>Also in your food (daily average)</Text>
-              <View style={styles.extraRow}>
-                {[
-                  ['Fibre', hasData ? `${avg(totals.fiber)}g` : '--', null],
-                  ['Sugar', hasSugarData ? `${avgOver('sugar')}g` : '--', hasSugarData ? avgOver('sugar') > SUGAR_REF_G : null],
-                  ['Sodium', hasSugarData ? `${avgOver('sodium').toLocaleString()}mg` : '--', hasSugarData ? avgOver('sodium') > SODIUM_REF_MG : null],
-                ].map(([label, value, over]) => (
-                  <View key={label} style={styles.extraCol}>
-                    <Text style={[styles.extraValue, over === true && { color: dc('#D97706', 'text') }, over === false && { color: dc('#059669', 'text') }]}>{value}</Text>
-                    <Text style={styles.extraLabel}>{label}</Text>
-                  </View>
-                ))}
-              </View>
             </View>
           </View>
           )}
 
-          {/* One trend chart, switchable by nutrient */}
+          {/* Daily Trends: one chart each for protein, carbs and fats */}
           <View style={styles.detailSection}>
             <Text style={styles.detailSectionTitle}>Daily Trends</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 10 }}>
-              {TRENDS.map((t) => (
-                <TouchableOpacity
-                  key={t.key}
-                  onPress={() => { setTrendKey(t.key); setTrendTooltip(null); }}
-                  style={[styles.trendTab, trendKey === t.key && { backgroundColor: t.hex, borderColor: t.hex }]}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.trendTabTxt, trendKey === t.key && { color: dc('#fff', 'text') }]}>{t.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            {(() => {
-              const t = TRENDS.find((x) => x.key === trendKey) || TRENDS[0];
-              const isLimit = t.key === 'sugar' || t.key === 'sodium';
-              const ok = isLimit ? hasSugarData : hasData;
-              const fmt = (v) => (t.unit === 'mg' ? `${Math.round(v).toLocaleString()}mg` : `${Math.round(v)}g`);
-              const avgVal = isLimit ? avgOver(t.key) : avg(totals[t.key]);
-              const series = dailyData.map((d) => Math.round(d[t.key] || 0));
-              const stats = isLimit
-                ? [[fmt(avgVal), 'Avg daily'], [fmt(Math.max(0, ...sugarDays.map((d) => d[t.key]))), 'Highest day'], [`${daysOver(t.key, t.ref)} of ${sugarDays.length}`, `Days over ${t.unit === 'mg' ? '2,000mg' : '50g'}`]]
-                : t.key === 'fiber'
-                  ? [[fmt(avgVal), 'Avg daily'], [fmt(Math.max(0, ...dailyData.map((d) => d.fiber || 0))), 'Best day'], [fmt(totals.fiber), 'Total']]
-                  : [[fmt(avgVal), 'Avg daily'], [`${pct(totals[t.key], t.key === 'fats' ? 9 : 4)}%`, 'Of calories'], [fmt(totals[t.key]), 'Total']];
+            {[
+              ['protein', proteinTooltip, setProteinTooltip],
+              ['carbs', carbsTooltip, setCarbsTooltip],
+              ['fats', fatsTooltip, setFatsTooltip],
+            ].map(([key, tip, setTip], i) => {
+              const t = TRENDS.find((x) => x.key === key);
+              const fmt = (v) => `${Math.round(v).toLocaleString()}g`;
+              const series = dailyData.map((d) => Math.round(d[key] || 0));
               return (
-                <View style={styles.chartCardCompact}>
-                  {hasMultiple && ok
-                    ? makeMacroChart(series, t.rgba, t.hex, trendTooltip, setTrendTooltip, t.unit)
-                    : <View style={{ height: 150, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{ok ? `${fmt(avgVal)} avg` : isLimit ? 'Log a meal to start tracking this' : 'No data yet'}</Text></View>}
+                <View key={key} style={[styles.chartCardCompact, i > 0 && { marginTop: 12 }]}>
+                  <View style={styles.trendHead}>
+                    <View style={[styles.macroDistDotSmall, { backgroundColor: t.hex }]} />
+                    <Text style={styles.trendHeadTxt}>{t.label}</Text>
+                  </View>
+                  {hasMultiple && hasData
+                    ? makeMacroChart(series, t.rgba, t.hex, tip, setTip, 'g')
+                    : <View style={{ height: 150, justifyContent: 'center', alignItems: 'center' }}><Text style={styles.chartPlaceholderText}>{hasData ? `${fmt(avg(totals[key]))} avg` : 'No data yet'}</Text></View>}
                   <View style={styles.macroStatsRowCompact}>
-                    {stats.map(([v, l]) => (
+                    {[[fmt(avg(totals[key])), 'Avg daily'], [`${pct(totals[key], key === 'fats' ? 9 : 4)}%`, 'Of calories'], [fmt(totals[key]), 'Total']].map(([v, l]) => (
                       <View key={l} style={styles.macroStatItemCompact}>
-                        <Text style={styles.macroStatValueSmall}>{ok ? v : '--'}</Text>
+                        <Text style={styles.macroStatValueSmall}>{hasData ? v : '--'}</Text>
                         <Text style={styles.macroStatLabelSmall}>{l}</Text>
                       </View>
                     ))}
                   </View>
-                  {isLimit && topMeals(t.key).length > 0 && (
-                    <View style={styles.topMeals}>
-                      <Text style={styles.topMealsTitle}>Most from</Text>
-                      {topMeals(t.key).map((m) => (
-                        <View key={m.id} style={styles.topMealRow}>
-                          <Text style={styles.topMealName} numberOfLines={1}>{m.name}</Text>
-                          <Text style={styles.topMealVal}>{fmt(m[t.key])}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                  {t.note ? <Text style={styles.refNote}>{t.note}</Text> : null}
                 </View>
               );
-            })()}
+            })}
           </View>
 
           <SourcesLink topic="food" only label="Estimates · Sources" color={dc("#6B7280", 'text')} style={{ marginTop: 4, marginBottom: 24 }} />
@@ -416,6 +383,8 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
 };
 
 const styles = themedStyles({
+  trendHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  trendHeadTxt: { fontSize: 13, fontWeight: '700', color: '#1F1F1F' },
   nutrientTabsWrap: { alignItems: 'center', marginBottom: 12 },
   nutrientTabs: { flexDirection: 'row', gap: 2, padding: 4, borderRadius: 999, backgroundColor: '#F1F5F3' },
   nutrientTab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999 },
