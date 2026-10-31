@@ -207,6 +207,7 @@ const SettingsTab = ({
   carbsGoal, setCarbsGoal,
   fatsGoal, setFatsGoal,
   hydrationGoal, setHydrationGoal,
+  stepGoal, setStepGoal,
   volumeUnit, setVolumeUnit,
   weightUnit, setWeightUnit,
   foodMeasurement, setFoodMeasurement,
@@ -296,6 +297,9 @@ const SettingsTab = ({
   useEffect(() => { setMacroDrafts({ protein: String(proteinGoal), carbs: String(carbsGoal), fats: String(fatsGoal) }); }, [proteinGoal, carbsGoal, fatsGoal]);
   const [hydrationDraft, setHydrationDraft] = useState(String(hydrationGoal));
   useEffect(() => { setHydrationDraft(String(hydrationGoal)); }, [hydrationGoal]);
+  // Daily steps goal: the goal line and 'goal reached' on the Steps chart and Insights.
+  const [stepDraft, setStepDraft] = useState(String(stepGoal || ''));
+  useEffect(() => { setStepDraft(String(stepGoal || '')); }, [stepGoal]);
 
   const fmt12 = (h24, m) => {
     const isPM = h24 >= 12;
@@ -660,6 +664,25 @@ const SettingsTab = ({
                   </View>
                 </View>
               </View>
+              <View style={styles.settingsItem}>
+                <View style={styles.settingsItemLeft}>
+                  <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Daily Steps</Text>
+                </View>
+                <View style={styles.settingsInputWrapper}>
+                  <TextInput
+                    style={styles.settingsInput}
+                    value={stepDraft}
+                    onChangeText={(t) => setStepDraft(t.replace(/[^0-9]/g, ''))}
+                    onBlur={() => {
+                      const v = Number(stepDraft);
+                      if (v >= 500 && v <= 50000) setStepGoal?.(v);
+                      else setStepDraft(String(stepGoal || ''));
+                    }}
+                    keyboardType="numeric"
+                  />
+                  <Text style={styles.settingsInputUnit}>steps</Text>
+                </View>
+              </View>
             </View>
 
             {/* Visual Guide */}
@@ -816,7 +839,6 @@ const SettingsTab = ({
         <View style={styles.settingsItem}>
           <View style={styles.settingsItemLeft}>
             <Text style={[styles.settingsItemLabel, { color: colors.text }]}>Smart Nudges</Text>
-            <Text style={styles.settingsItemSub}>Water, movement, streak and heads-up reminders, only when they help</Text>
           </View>
           {renderToggle(notifySmart, () => onToggleNotifySmart?.(!notifySmart))}
         </View>

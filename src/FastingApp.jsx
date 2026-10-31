@@ -2664,6 +2664,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
           setFatsGoal={(value) => { setMacroStyle('custom'); setFatsGoal(value); recordGoalChange({ fatsGoal: value }, { fats_goal: value, macro_style: 'custom' }); }}
           hydrationGoal={hydrationGoal}
           setHydrationGoal={(val) => { setHydrationGoal(val); recordGoalChange({ hydrationGoal: val }, { hydration_goal: val }); }}
+          stepGoal={stepGoal}
+          setStepGoal={(val) => { if (!(val > 0)) return; setStepGoal(val); upsertProfile({ step_goal: val }, 'update step_goal'); }}
           volumeUnit={volumeUnit}
           setVolumeUnit={(val) => { updateHydrationUnit(val); upsertProfile({ volume_unit: val }, 'update volume_unit'); }}
           targetWeight={targetWeight}
