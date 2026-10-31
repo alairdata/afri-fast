@@ -2405,7 +2405,8 @@ const makeStyles = (c) => StyleSheet.create({
   momentumLine: { fontSize: 14, fontWeight: '600', color: c.text },
   statCardBig: { marginHorizontal: 16, marginTop: 12, paddingTop: 16, paddingHorizontal: 16, paddingBottom: 14, backgroundColor: c.card, borderRadius: 18, borderWidth: 1, borderColor: dc('rgba(0,0,0,0.04)', 'border') },
   statCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  statCardTitle: { fontSize: 18, fontWeight: '700', color: c.text },
+  // Same as the FORECAST heading (kicker): small grey capitals.
+  statCardTitle: { color: c.textMuted, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
   statCardBody: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   statCardFacts: { width: 96, gap: 4 },
   statFactLabel: { fontSize: 12, color: c.textSecondary },
