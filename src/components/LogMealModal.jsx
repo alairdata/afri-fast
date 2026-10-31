@@ -317,7 +317,15 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     return resolveCaloriesEaten(ledgerMap, dateStr, liveTotal);
   }, [ledgerMap, mealAnchorDate, recentMeals]);
   const openMiniCheckIn = () => {
+    setQuickCheckIn(null);
     onOpenCheckIn?.();
+  };
+  // The CHECK-IN card on the meal screen opens the quick stomach-and-mood sheet (with this meal's picks so
+  // far), not the full check-in page; "More detail" in the sheet still leads there.
+  const openQuickFeel = () => {
+    if (!onQuickCheckIn) { openMiniCheckIn(); return; }
+    setQuickPicks({ stomach: mealCheckInSnapshot?.satietyMoods || [], mood: mealCheckInSnapshot?.emotionalMoods || [] });
+    setQuickCheckIn({ doLog: null, standalone: true });
   };
 
   const renderCheckInWidget = () => {
@@ -337,13 +345,13 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   </View>
                 ))}
               </ScrollView>
-              <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: dc('#059669', 'bg'), alignItems: 'center', justifyContent: 'center', marginLeft: 10 }} onPress={openMiniCheckIn}>
+              <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: dc('#059669', 'bg'), alignItems: 'center', justifyContent: 'center', marginLeft: 10 }} onPress={openQuickFeel}>
                 <Ionicons name="add" size={22} color={dc("#fff", 'text')} />
               </TouchableOpacity>
             </View>
           </View>
         ) : (
-          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: dc('#fff', 'bg'), borderRadius: 16, padding: 14, borderWidth: 1, borderColor: dc('#E5E7EB', 'border') }} onPress={openMiniCheckIn} activeOpacity={0.7}>
+          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: dc('#fff', 'bg'), borderRadius: 16, padding: 14, borderWidth: 1, borderColor: dc('#E5E7EB', 'border') }} onPress={openQuickFeel} activeOpacity={0.7}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="clipboard-outline" size={24} color={dc("#D1D5DB", 'text')} />
               <Text style={{ fontSize: 14, color: dc('#9CA3AF', 'text'), fontWeight: '500' }}>How did this meal feel?</Text>
@@ -438,6 +446,11 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
   const finishQuickCheckIn = (save) => {
     const pending = quickCheckIn;
     setQuickCheckIn(null);
+    if (save && pending?.standalone) {
+      // Editing this meal's feelings: keep anything else already given (body, place, company) and replace these two.
+      onQuickCheckIn({ ...(mealCheckInSnapshot || {}), satietyMoods: quickPicks.stomach, emotionalMoods: quickPicks.mood });
+      return;
+    }
     if (save && (quickPicks.stomach.length || quickPicks.mood.length)) {
       onQuickCheckIn({ satietyMoods: quickPicks.stomach, emotionalMoods: quickPicks.mood });
     }
@@ -2298,10 +2311,10 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
             )}
             <TouchableOpacity style={styles.qcPrimary} onPress={() => finishQuickCheckIn(true)} activeOpacity={0.85}>
               <Ionicons name="checkmark" size={18} color={dc("#fff", 'text')} />
-              <Text style={styles.qcPrimaryText}>{quickPicks.stomach.length || quickPicks.mood.length ? 'Save feelings & log meal' : 'Log meal'}</Text>
+              <Text style={styles.qcPrimaryText}>{quickCheckIn.standalone ? 'Save' : quickPicks.stomach.length || quickPicks.mood.length ? 'Save feelings & log meal' : 'Log meal'}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => finishQuickCheckIn(false)} style={{ alignSelf: 'center', padding: 8, marginTop: 6 }}>
-              <Text style={styles.qcSkip}>Skip and log</Text>
+              <Text style={styles.qcSkip}>{quickCheckIn.standalone ? 'Cancel' : 'Skip and log'}</Text>
             </TouchableOpacity>
           </LinearGradient>
         </View>
