@@ -3,8 +3,8 @@
 // today's rate. The real charged price still appears in the plan's legal text and on Apple's own payment sheet.
 //
 // Their country, in order: the App Store country of the Apple ID that will pay (RevenueCat's storefront, the most
-// accurate: it's where they're billed), else the country picked in onboarding. The rate comes once a day from
-// open.er-api.com and is kept on the phone.
+// accurate: it's where they're billed), else the country picked in onboarding. The rate comes about twice a day from
+// open.er-api.com and is kept on the phone; when it can't be refreshed, the last one we got is used.
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStorefrontCountry } from './subscription';
@@ -47,18 +47,21 @@ export async function localCurrency(onboardingCountry) {
 export async function rate(from, to) {
   if (!from || !to || from === to) return null;
   const key = `${RATE_KEY}${from}`;
+  let saved = null;
   try {
-    const saved = JSON.parse((await AsyncStorage.getItem(key)) || 'null');
+    saved = JSON.parse((await AsyncStorage.getItem(key)) || 'null');
     if (saved && Date.now() - saved.at < RATE_MAX_AGE && saved.rates?.[to]) return saved.rates[to];
   } catch (_) {}
+  // Time for a fresh rate; if it can't be fetched (offline, the service down), the last one we got, however old.
+  const last = saved?.rates?.[to] || null;
   try {
     const r = await fetch(`https://open.er-api.com/v6/latest/${encodeURIComponent(from)}`);
     const j = await r.json();
-    if (j?.result !== 'success' || !j.rates) return null;
+    if (j?.result !== 'success' || !j.rates) return last;
     AsyncStorage.setItem(key, JSON.stringify({ at: Date.now(), rates: j.rates })).catch(() => {});
-    return j.rates[to] || null;
+    return j.rates[to] || last;
   } catch (_) {
-    return null;
+    return last;
   }
 }
 
