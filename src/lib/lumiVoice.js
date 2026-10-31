@@ -131,16 +131,86 @@ export function moveCopy(tone, steps, day = 0) {
 }
 
 // A heads-up about a possible rough patch: calm in every voice (never alarming).
-// weekday: the predicted day's name, or null when it's within a day.
-export function burnoutCopy(tone, weekday) {
-  const when = weekday ? `around ${weekday}` : 'soon';
+// when: the predicted day as read on the day the message arrives ('today', 'tomorrow', 'around Thursday',
+// 'around next Tuesday'), so a bare weekday never leaves people guessing which week it means.
+export function burnoutCopy(tone, when = 'soon') {
   switch (tone) {
     case 'cheerleader': return { title: 'Heads up 🌤️', body: `A rough patch may come ${when}. A proper meal and some water today and we beat it together!` };
     case 'gentle': return { title: 'Be easy on yourself 🌤️', body: `Things may feel heavy ${when}. A proper meal and some water today will help.` };
     case 'auntie': return { title: 'Listen to me 🌤️', body: `You may feel worn out ${when}. Eat a proper meal today, not just snacks o.` };
     case 'elder': return { title: 'Rest is part of the journey 🌤️', body: `A harder day may come ${when}. Eat well today and it will pass more gently.` };
-    default: return { title: 'Heads up 🌤️', body: weekday ? `You may hit a rough patch around ${weekday}. Eating well today helps.` : 'You may hit a rough patch soon. A proper meal and some water today will help.' };
+    default: return { title: 'Heads up 🌤️', body: `You may hit a rough patch ${when}. A proper meal and some water today will help.` };
   }
+}
+
+// Messages for where someone is in their journey (see lifecycleMoments in smartNotifications.js).
+// kind: firstLog | new1 | new2 | slip2 | slip3 | quiet14 | quiet30 | comeback.
+// meal: their most-logged meal (slip3 only, may be null).
+export function lifecycleCopy(tone, kind, name, meal = null) {
+  const n = first(name);
+  const lines = {
+    plain: {
+      firstLog: { title: 'Your first log is waiting', body: 'Snap or type something you ate today. It takes a few seconds.' },
+      new1: { title: `Day 2${comma(name)}`, body: 'Log one meal today and Logga starts learning how you eat.' },
+      new2: { title: `Day 3${comma(name)}`, body: 'Every day you log, Logga gets to know your eating a little better.' },
+      slip2: { title: 'Quick log?', body: 'Nothing logged for 2 days. One quick log keeps your week on track.' },
+      slip3: meal
+        ? { title: `Had ${meal} today?`, body: 'Log it in a few seconds and pick up where you left off.' }
+        : { title: `Still with us${comma(name)}?`, body: 'Log one meal today and pick up where you left off.' },
+      quiet14: { title: 'Ready to pick it back up?', body: "It's been two weeks. One meal is all it takes to start again." },
+      quiet30: { title: 'A fresh start? 🌱', body: 'Logga is ready whenever you are.' },
+      comeback: { title: 'Day 2 of your comeback', body: 'Yesterday was a great restart. Log one meal today to keep it going.' },
+    },
+    cheerleader: {
+      firstLog: { title: 'Your first log! 🎉', body: 'Snap something you ate today and watch your day fill up!' },
+      new1: { title: "Day 2, let's go! 💪", body: 'Log a meal today and keep the momentum rolling!' },
+      new2: { title: 'Three days in! 🔥', body: 'Log your dinner. The more you log, the smarter I get about you!' },
+      slip2: { title: `Missed you${comma(name)}! 💛`, body: "Two days off is nothing. One quick log and we're back in it!" },
+      slip3: meal
+        ? { title: `Had ${meal} today? 😋`, body: "Log it in a few seconds and you're right back on track!" }
+        : { title: 'Comeback time! 💪', body: "Log one meal today and you're right back on track!" },
+      quiet14: { title: `We miss you${comma(name)}! 💛`, body: "Two weeks away? No problem. One log and we're back in business!" },
+      quiet30: { title: 'Fresh start? 🌱', body: "Whenever you're ready, I'll be right here cheering you on!" },
+      comeback: { title: 'Comeback, day 2! 💪', body: "You're back and I love it! Log a meal today and keep it rolling!" },
+    },
+    gentle: {
+      firstLog: { title: `Whenever you're ready${comma(name)}`, body: 'Your first log can be anything you ate today. A quick photo is enough.' },
+      new1: { title: `Day 2${comma(name)}`, body: 'One meal logged today is plenty. Go at your own pace.' },
+      new2: { title: `Three days${comma(name)}`, body: 'Log your dinner when you can. Each day helps me understand you better.' },
+      slip2: { title: `Busy few days${comma(name)}?`, body: "No pressure. When you're ready, one quick log is enough." },
+      slip3: meal
+        ? { title: `Had ${meal} today?`, body: "If you have, a quick log is all it takes. No rush." }
+        : { title: `Whenever you're ready${comma(name)}`, body: "One meal logged today and you're back. No rush." },
+      quiet14: { title: `Thinking of you${comma(name)}`, body: "It's been a while, and that's okay. I'm here when you want me." },
+      quiet30: { title: 'A fresh start, whenever 🌱', body: "No rush at all. I'll be here when you're ready." },
+      comeback: { title: `Good to have you back${comma(name)}`, body: 'Yesterday was a lovely restart. One log today keeps it going.' },
+    },
+    auntie: {
+      firstLog: { title: `${n || 'My dear'}, nothing logged yet 👀`, body: 'You signed up and disappeared? Show me one thing you ate today.' },
+      new1: { title: 'Day 2 👀', body: 'Yesterday was the easy part. Let me see what you eat today.' },
+      new2: { title: "Day 3, I'm watching 👀", body: 'The more you log, the more I know. So log your dinner o.' },
+      slip2: { title: 'Where have you been? 👀', body: 'Two days and not one meal? Come and show me what you ate.' },
+      slip3: meal
+        ? { title: `${meal} again today? 👀`, body: "Don't think I've forgotten you. Log it." }
+        : { title: 'Three days o 👀', body: "I'm still waiting. Log one meal today." },
+      quiet14: { title: `Two weeks${n ? `, ${n}` : ''}? 👀`, body: "I'm not angry. Just come back and log one meal." },
+      quiet30: { title: "Okay, I'll stop asking 👀", body: 'When you are ready, you know where to find me.' },
+      comeback: { title: "So you're back for real? 👀", body: 'Yesterday was good. Let me see if today will be too.' },
+    },
+    elder: {
+      firstLog: { title: 'The first step, my child', body: 'Every journey begins with one. Log one thing you ate today.' },
+      new1: { title: 'The second day, my child', body: 'A habit is built in the days after the first. Log one meal today.' },
+      new2: { title: 'Three days, my child', body: 'The more you share, the better I can guide you. Log your dinner.' },
+      slip2: { title: 'Two quiet days, my child', body: 'A path not walked grows over. One log today clears it.' },
+      slip3: meal
+        ? { title: `Your ${meal}, my child?`, body: 'If it was on your plate today, write it down.' }
+        : { title: 'Three days, my child', body: 'Returning is also part of the journey. Log one meal today.' },
+      quiet14: { title: 'Two weeks have passed, my child', body: 'The door is still open. One log is enough to begin again.' },
+      quiet30: { title: 'A new season, my child 🌱', body: 'When you are ready, we begin again.' },
+      comeback: { title: 'Welcome back, my child', body: 'The return was the hard part. Log one meal today and walk on.' },
+    },
+  };
+  return (lines[tone] || lines.plain)[kind];
 }
 
 export function coachGreeting(tone, name) {

@@ -1214,13 +1214,13 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         await syncSmartNotifications({
           recentMeals, waterLogs, stepLogs: effectiveStepLogs, activities, hydrationGoal, volumeUnit, userId: session?.user?.id,
           tone: coachTone, userName, nudgeMode: accountability, eatingStyle, mealReminderTime,
-          meals: notifyMealReminder, smart: notifySmart,
+          meals: notifyMealReminder, smart: notifySmart, joinedAt: userJoinDate,
         });
       })().catch((e) => console.log('[SmartNotifications] sync failed:', e?.message));
     }, 2500);
     return () => clearTimeout(t);
   }, [notifSettingsLoaded, notifySmart, notifyMealReminder, mealReminderTime, accountability, coachTone, userName, eatingStyle,
-    session?.user?.id, dataLoadCount >= 8, recentMeals, waterLogs, effectiveStepLogs, activities, hydrationGoal, volumeUnit, insightTick]);
+    session?.user?.id, dataLoadCount >= 8, recentMeals, waterLogs, effectiveStepLogs, activities, hydrationGoal, volumeUnit, insightTick, userJoinDate]);
 
   // Analytics: identify the person and open a session (see lib/analytics.js).
   useEffect(() => {

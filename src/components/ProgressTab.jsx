@@ -988,7 +988,12 @@ const ProgressTab = ({
         weekday: d.date.toLocaleDateString('en-US', { weekday: 'short' }), eatenKcal: Math.round(d.total),
       })),
       roughPatch: burnout.daysToCrash != null && burnout.crashDate
-        ? { inDays: burnout.daysToCrash, weekday: burnout.crashDate.toLocaleDateString('en-US', { weekday: 'long' }), date: fmtShort(burnout.crashDate) }
+        ? {
+          inDays: burnout.daysToCrash, weekday: burnout.crashDate.toLocaleDateString('en-US', { weekday: 'long' }), date: fmtShort(burnout.crashDate),
+          // How to name the day, so a bare weekday never reads as the wrong week.
+          sayItAs: burnout.daysToCrash <= 0 ? 'today' : burnout.daysToCrash === 1 ? 'tomorrow'
+            : `${burnout.daysToCrash >= 7 ? 'next ' : ''}${burnout.crashDate.toLocaleDateString('en-US', { weekday: 'long' })}`,
+        }
         : null,
     };
   }, [burnout, burnoutDrivers, proteinGoal, dailyCalorieGoal, last7]);

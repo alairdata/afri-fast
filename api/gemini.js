@@ -140,7 +140,8 @@ const BURNOUT_WHY_SYSTEM =
   '- tip: ONE short, doable thing to do today or tomorrow (for example a specific kind of meal, a glass of water, not skipping a meal). Empty string if ' +
   'everything is fine.\n' +
   '- crashNote: if a rough-patch date is given, ONE calm sentence about it ("around Thursday you may feel worn down — a proper lunch each day before ' +
-  'then helps"). Otherwise an empty string. Never scary, never guilt.\n\n' +
+  'then helps"). Name the day exactly as roughPatch.sayItAs gives it ("today", "tomorrow", "Thursday", "next Tuesday"), never just ' +
+  'the weekday when sayItAs says otherwise. With no rough-patch date, an empty string. Never scary, never guilt.\n\n' +
   'No medical claims, no diagnosing, no shaming. Do not repeat the score number. Keep every field short enough to read at a glance.';
 
 const BURNOUT_WHY_SCHEMA = {
