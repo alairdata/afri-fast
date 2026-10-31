@@ -899,13 +899,14 @@
         if (seen[key]) return S.bulk.errors.push('Row ' + (i + 2) + ' (' + name + '): already in the app, skipped');
         seen[key] = true;
         var n = function () { return numIn(pick.apply(null, arguments)); };
-        var prep = n('prep_min', 'prep', 'prep_time'), cook = n('cook_min', 'cook', 'cook_time');
+        // "15 min" stays minutes; "24 hrs" (soaking, fermenting) stays hours.
+        var timeOf = function () { var t = pick.apply(null, arguments), v = numIn(t); return !v ? '' : /h(ou)?r/i.test(t) ? v + (v === 1 ? ' hr' : ' hrs') : v + ' min'; };
         var countries = pick('country', 'countries').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
         var rec = { id: id++, sort: sort++, published: /^(y|yes|true|1)$/i.test(pick('published', 'publish')), data: {
           name: name, category: bulkCategory(pick('category', 'meal', 'meal_type')), description: pick('description'), countries: countries,
           localNames: bulkLocalNames(pick('local_names', 'local_name'), countries), calories: Math.round(kcal),
           protein: n('protein_g', 'protein'), carbs: n('carbs_g', 'carbs'), fats: n('fat_g', 'fats', 'fat'),
-          prepTime: prep ? prep + ' min' : '', cookTime: cook ? cook + ' min' : '', servings: n('servings') || 1,
+          prepTime: timeOf('prep_min', 'prep', 'prep_time'), cookTime: timeOf('cook_min', 'cook', 'cook_time'), servings: n('servings') || 1,
           yield: pick('yield', 'serving', 'serving_size', 'portion') || '1 serving',
           ingredients: bulkIngredients(pick('ingredients')), instructions: bulkSteps(pick('steps', 'instructions', 'method')),
           imageUrl: pick('image_url', 'photo', 'image') || null } };
