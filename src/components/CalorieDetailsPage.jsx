@@ -60,10 +60,10 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
   const [microFill, setMicroFill] = useState({ running: false, done: 0, total: 0, failed: false });
   const [, setMicroTick] = useState(0);
 
-  // On Micronutrients (Pro), meals in the range that don't have theirs yet are worked out, a few at a time,
-  // and saved on each meal, so every meal is only ever worked out once.
+  // Meals in the range that don't have their micronutrients yet (the daily job usually got there first) are worked
+  // out a few at a time as soon as this page opens (Pro), so the Micronutrients tab is ready when tapped.
   useEffect(() => {
-    if (!show || nutrientTab !== 'micro' || !isPro) return undefined;
+    if (!show || !isPro) return undefined;
     const missing = mealsInRange(recentMeals || [], calorieRange)
       .filter((m) => m.id != null && !microsOf(m) && microFoods(m).length)
       .slice(0, MICRO_MAX_PER_OPEN);
@@ -90,7 +90,7 @@ const CalorieDetailsPage = ({ show, onClose, recentMeals }) => {
       if (alive) setMicroFill((f) => ({ ...f, running: false }));
     })();
     return () => { alive = false; };
-  }, [show, nutrientTab, isPro, calorieRange, recentMeals]);
+  }, [show, isPro, calorieRange, recentMeals]);
 
   useEffect(() => { if (!proteinTooltip) return; const t = setTimeout(() => setProteinTooltip(null), 2000); return () => clearTimeout(t); }, [proteinTooltip]);
   useEffect(() => { if (!carbsTooltip) return; const t = setTimeout(() => setCarbsTooltip(null), 2000); return () => clearTimeout(t); }, [carbsTooltip]);

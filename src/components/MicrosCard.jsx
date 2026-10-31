@@ -5,9 +5,8 @@ import { dc, themedStyles } from '../lib/theme';
 import { useSubscription } from '../lib/subscription';
 import { supabase } from '../lib/supabase';
 import { MICRO_GROUPS, microsCache as cache } from '../lib/micros';
+import { getMicrosFor, microsSig } from '../lib/microsFetch';
 import { unlock } from './ProLock';
-
-const sigOf = (foods) => foods.map((f) => `${f.name}|${f.qty || ''}|${Math.round(f.cal || 0)}`).join(';');
 
 const fmt = (v) => (v >= 100 ? Math.round(v).toLocaleString() : v >= 10 ? (Math.round(v * 10) / 10).toString() : (Math.round(v * 100) / 100).toString());
 
@@ -79,12 +78,12 @@ export function MicrosLocked({ sub, style, showTitle = true }) {
 }
 
 // Under a meal's Macro Distribution: its micronutrients. Logga Pro; Free sees them locked. Worked out once per
-// meal (fetchMicros(foods) asks the AI and resolves { micros }) and saved on it (meals.micros).
-export default function MicrosCard({ foods, mealId, fetchMicros }) {
+// meal and saved on it (meals.micros); usually already worked out by then (the scan starts it early).
+export default function MicrosCard({ foods, mealId }) {
   const { isPro } = useSubscription();
   const [micros, setMicros] = useState(null);
   const [state, setState] = useState('idle'); // idle | loading | error | off
-  const sig = sigOf(foods || []);
+  const sig = microsSig(foods);
 
   useEffect(() => {
     if (!isPro || !foods?.length) return undefined;
@@ -100,11 +99,10 @@ export default function MicrosCard({ foods, mealId, fetchMicros }) {
         if (data?.micros && alive) { cache.set(sig, data.micros); setMicros(data.micros); setState('idle'); return; }
       }
       try {
-        const res = await fetchMicros(foods);
+        const m = await getMicrosFor(foods);
         if (!alive) return;
-        if (!res?.micros) { setState('error'); return; }
-        cache.set(sig, res.micros);
-        setMicros(res.micros);
+        if (!m) { setState('error'); return; }
+        setMicros(m);
         setState('idle');
       } catch (e) {
         if (alive) setState(e?.code === 'AI_CONSENT' ? 'off' : 'error');
@@ -113,11 +111,12 @@ export default function MicrosCard({ foods, mealId, fetchMicros }) {
     return () => { alive = false; };
   }, [isPro, sig]);
 
-  // Save on the meal once both are known (a just-logged meal gets its id a moment after the card shows).
+  // Save on the meal once both are known (a just-logged meal gets its id a moment after the card shows). It only
+  // counts as saved once the save went through, so a failed save is tried again next time.
   useEffect(() => {
     if (!isPro || !micros || !mealId || cache.get(`id:${mealId}`)) return;
-    cache.set(`id:${mealId}`, micros);
-    supabase.from('meals').update({ micros }).eq('id', mealId).then(() => {}, () => {});
+    supabase.from('meals').update({ micros }).eq('id', mealId)
+      .then(({ error }) => { if (!error) cache.set(`id:${mealId}`, micros); }, () => {});
   }, [isPro, micros, mealId]);
 
   if (!foods?.length) return null;

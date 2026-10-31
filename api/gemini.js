@@ -1,28 +1,15 @@
 import { PNG } from 'pngjs';
 import jpegJs from 'jpeg-js';
 import { fillMethodStep } from '../src/lib/recipeMethod.js';
-import { MICRO_ITEMS } from '../src/lib/micros.js';
+import { NUTRITION_SYSTEM, callGemini, parseJson } from './_gemini.js';
+import { microsForFoods, microsForMeals } from './_micros.js';
 import { MEDICAL_SAFETY } from './_safety.js';
 import { checkAiAuth } from './_aiAuth.js';
 import { toneInstruction } from './_tone.js';
 
 // Lumi's chosen voice for the Insights tab texts (data.coachTone), or nothing.
 const withVoice = (data) => { const v = toneInstruction(data?.coachTone); return v ? `\n\n${v}` : ''; };
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
-
 // ── Shared system instructions ───────────────────────────────────────────────
-
-const NUTRITION_SYSTEM =
-  'You are an expert nutritionist and visual analysis AI specializing in African cuisine. ' +
-  'Accurately identify dishes, estimate realistic portions, and calculate macro structures. ' +
-  'Calories come first: estimate cal directly from what that food and portion typically contains as prepared (as a food composition table would, oil included), not by adding up macros; then give protein, carbs and fats that fit it (roughly 4, 4 and 9 kcal per gram). ' +
-  'For portions: use COUNT + SIZE + ITEM for countable foods (e.g. "2 medium eggs", "1 large chicken thigh") ' +
-  'and SIZE + ITEM for non-countable foods (e.g. "1 heaped cup of white rice", "1 medium wrap of fufu"). ' +
-  'EXCEPTION: if the user explicitly states a precise weight or volume for a food (e.g. "150g rice", "200ml milk", "0.5kg beef"), ' +
-  'use that exact figure verbatim as the qty — do not convert it into an approximate description. ' +
-  'Only use the COUNT/SIZE approximation style when the user has not given a precise measurement (this is always the case for photo scans, since there is no way to know exact weight from an image). ' +
-  'For meal titles: lead with the starchy base or carb, then the single most prominent accompaniment, ' +
-  'joined by "and" or "with". No brackets, parentheses, or commas.';
 
 const INGREDIENT_SYSTEM =
   "You are a chef's assistant specializing in identifying food ingredients from photos of fridges, pantries, and kitchen counters.";
@@ -220,52 +207,6 @@ const RECIPE_SCHEMA = {
 };
 
 // ── Core fetch helper ────────────────────────────────────────────────────────
-
-async function callGemini(apiKey, parts, { systemInstruction, schema } = {}) {
-  for (const model of GEMINI_MODELS) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const body = {
-      contents: [{ parts }],
-      generationConfig: {
-        temperature: 0.1,
-        ...(schema ? { responseMimeType: 'application/json', responseSchema: schema } : {}),
-      },
-      ...(systemInstruction ? { systemInstruction: { parts: [{ text: systemInstruction }] } } : {}),
-    };
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (response.status === 503) continue;
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || 'AI service error');
-    return data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim() || '';
-  }
-  throw new Error('AI service unavailable');
-}
-
-// A meal's foods as lines for a micronutrient prompt ("- Jollof rice, 1 cup (320 kcal)").
-const foodLines = (foods) => (Array.isArray(foods) ? foods : []).slice(0, 20)
-  .map((f) => `- ${String(f?.name || '').slice(0, 80)}${f?.qty ? `, ${String(f.qty).slice(0, 60)}` : ''}${f?.cal ? ` (${Math.round(f.cal)} kcal)` : ''}`)
-  .filter((l) => l.length > 2)
-  .join('\n');
-
-// Every micronutrient as a non-negative number (unknown or invalid = 0), 2 decimals.
-const cleanMicros = (r) => {
-  const out = {};
-  MICRO_ITEMS.forEach((m) => { const v = Number(r?.[m.key]); out[m.key] = v >= 0 && Number.isFinite(v) ? Math.round(v * 100) / 100 : 0; });
-  return out;
-};
-
-function parseJson(text) {
-  if (!text) return null;
-  try { return JSON.parse(text); } catch {
-    const match = text.match(/[{[][^]*[}\]]/);
-    if (!match) return null;
-    try { return JSON.parse(match[0]); } catch { return null; }
-  }
-}
 
 function normalizeFood(f, fallback = 'Unknown food') {
   const protein = Number(f.protein) || 0;
@@ -505,49 +446,12 @@ export default async function handler(req, res) {
     // ── Nutrition lookup ─────────────────────────────────────────────────────
     // ── Vitamins and minerals for a whole meal (Logga Pro, shown under the meal) ──
     if (type === 'meal_micros') {
-      const foods = foodLines(data.foods);
-      if (!foods) return res.json({ micros: null });
-      const schema = {
-        type: 'OBJECT',
-        properties: Object.fromEntries(MICRO_ITEMS.map((m) => [m.key, { type: 'NUMBER', description: `${m.name} in ${m.unit}` }])),
-        required: MICRO_ITEMS.map((m) => m.key),
-      };
-      const text = await callGemini(GEMINI_KEY, [{
-        text: `Estimate the vitamins and minerals in this whole meal, as prepared (cooking oil, salt and seasoning cubes included), the way a food composition table would. Add up all the foods.\n\n${foods}\n\n` +
-          `Give each value for the whole meal in exactly this unit: ${MICRO_ITEMS.map((m) => `${m.key} = ${m.name} in ${m.unit}`).join('; ')}. ` +
-          'Use realistic amounts for these foods and portions; 0 only when the meal really has none of it.',
-      }], { systemInstruction: NUTRITION_SYSTEM, schema });
-      const parsed = parseJson(text);
-      if (!parsed) return res.json({ micros: null });
-      return res.json({ micros: cleanMicros(parsed) });
+      return res.json({ micros: await microsForFoods(GEMINI_KEY, data.foods) });
     }
 
     // ── The same for several logged meals at once (Calorie Details > Micronutrients fills in older meals) ──
     if (type === 'meals_micros') {
-      const meals = (Array.isArray(data.meals) ? data.meals : []).slice(0, 8)
-        .map((m) => ({ id: String(m.id), foods: foodLines(m.foods) }))
-        .filter((m) => m.foods);
-      if (!meals.length) return res.json({ results: {} });
-      const schema = {
-        type: 'ARRAY',
-        items: {
-          type: 'OBJECT',
-          properties: { id: { type: 'STRING' }, ...Object.fromEntries(MICRO_ITEMS.map((m) => [m.key, { type: 'NUMBER', description: `${m.name} in ${m.unit}` }])) },
-          required: ['id', ...MICRO_ITEMS.map((m) => m.key)],
-        },
-      };
-      const text = await callGemini(GEMINI_KEY, [{
-        text: 'For EACH meal below, estimate the vitamins and minerals in the whole meal, as prepared (cooking oil, salt and seasoning cubes included), the way a food composition table would. Add up the foods within each meal; keep meals separate and return one entry per meal with its id.\n\n' +
-          meals.map((m) => `MEAL id=${m.id}\n${m.foods}`).join('\n\n') +
-          `\n\nGive each value per meal in exactly this unit: ${MICRO_ITEMS.map((m) => `${m.key} = ${m.name} in ${m.unit}`).join('; ')}. ` +
-          'Use realistic amounts for these foods and portions; 0 only when the meal really has none of it.',
-      }], { systemInstruction: NUTRITION_SYSTEM, schema });
-      const parsed = parseJson(text);
-      const results = {};
-      (Array.isArray(parsed) ? parsed : []).forEach((r) => {
-        if (r && meals.some((m) => m.id === String(r.id))) results[String(r.id)] = cleanMicros(r);
-      });
-      return res.json({ results });
+      return res.json({ results: await microsForMeals(GEMINI_KEY, data.meals) });
     }
 
     if (type === 'lookup_nutrition') {

@@ -21,6 +21,8 @@ import LumiRive from './LumiRive';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 import { dc, themedStyles } from '../lib/theme';
 import MicrosCard from './MicrosCard';
+import { getMicrosFor } from '../lib/microsFetch';
+import { useSubscription } from '../lib/subscription';
 
 // Web-safe helper: convert a URI (blob URL or data URL) to base64 string
 const readUriAsBase64 = async (uri) => {
@@ -348,6 +350,16 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       </View>
     );
   };
+  // Pro: start working out the meal's micronutrients as soon as its foods are known (they settle for a moment
+  // first, in case of edits), so they're ready by the time the meal is logged and its card shows.
+  const { isPro: microsPro } = useSubscription();
+  useEffect(() => {
+    if (!microsPro || !detectedFoods.length || viewingMeal?.micros) return undefined;
+    const t = setTimeout(() => {
+      getMicrosFor(detectedFoods.map((f) => ({ name: f.name, qty: f.qty, cal: f.cal }))).catch(() => {});
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [microsPro, detectedFoods]);
   const [permission, requestPermission] = useCameraPermissions();
   const [micPermSaved, setMicPermSaved] = useState(false);
 
@@ -1922,7 +1934,6 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                     ? detectedFoods.map((f) => ({ name: f.name, qty: f.qty, cal: f.cal }))
                     : (viewingMeal?.name ? [{ name: viewingMeal.name, cal: viewingMeal.calories }] : [])}
                   mealId={viewingMeal?.id || loggedMealId}
-                  fetchMicros={(foods) => callGeminiApi('meal_micros', { foods })}
                 />
               )}
 

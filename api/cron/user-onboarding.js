@@ -2,7 +2,7 @@
 //  - Day 2: signed up 2-3 days ago, confirmed their email, has still not logged a meal.
 //  - Day 7: signed up 7-8 days ago and has still not logged a meal.
 // (SUAI's third flow, the upgrade nudge, doesn't apply: Logga has no paid plan.)
-// Also saves every user's daily weight prediction (see api/_predictions.js), and (first) erases accounts whose 7-day restore window has passed -- see api/delete-account.js. It lives in
+// Also fills in micronutrients for saved meals without them (api/_micros.js), saves every user's daily weight prediction (see api/_predictions.js), and (first) erases accounts whose 7-day restore window has passed -- see api/delete-account.js. It lives in
 // this job because the Hobby plan allows only 12 serverless functions per deployment.
 // Runs once a day from vercel.json. Vercel sends `Authorization: Bearer $CRON_SECRET` when CRON_SECRET is set.
 import { configured, adminHeaders, sendDripEmail } from '../_authEmail.js';
@@ -55,9 +55,16 @@ export default async function handler(req, res) {
     const { savePredictionsForEveryone } = await import('../_predictions.js');
     predictions = await savePredictionsForEveryone();
   } catch (e) { console.error('[cron predictions]', e); predictions = { error: e.message }; }
-  if (!configured()) return res.status(200).json({ message: 'Emails not configured; purge and predictions only', purge, predictions });
 
-  const results = { purge, predictions, day2: { checked: 0, emailed: 0 }, day7: { checked: 0, emailed: 0 }, errors: [] };
+  // Micronutrients for every saved meal that doesn't have them yet (see api/_micros.js), so the app only reads them.
+  let micros = null;
+  try {
+    const { fillMissingMicros } = await import('../_micros.js');
+    micros = await fillMissingMicros();
+  } catch (e) { console.error('[cron micros]', e); micros = { error: e.message }; }
+  if (!configured()) return res.status(200).json({ message: 'Emails not configured; purge, predictions and micros only', purge, predictions, micros });
+
+  const results = { purge, predictions, micros, day2: { checked: 0, emailed: 0 }, day7: { checked: 0, emailed: 0 }, errors: [] };
   try {
     for (const u of await usersInWindow(2, 3)) {
       results.day2.checked++;
