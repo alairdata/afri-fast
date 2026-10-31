@@ -80,7 +80,7 @@ struct WaterRow: View {
                             .foregroundStyle(filled ? LoggaTheme.water : LoggaTheme.water.opacity(0.35))
                     }
                 }
-                Text("\(day.waterGlasses) of \(day.waterGoal) glasses")
+                Text("\(day.waterGlasses) of \(day.waterGoal) \(day.waterGoal == 1 ? day.waterServingName : day.waterServingPlural)")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(LoggaTheme.waterInk)
             }
@@ -93,7 +93,7 @@ struct WaterRow: View {
                     .background(LoggaTheme.water, in: Circle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Log a glass of water")
+            .accessibilityLabel("Log a \(day.waterServingName) of water")
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 7)

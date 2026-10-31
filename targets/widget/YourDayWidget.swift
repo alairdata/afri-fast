@@ -87,7 +87,7 @@ struct YourDayWidgetView: View {
                     .background(Color(hex: 0xE4F0F9), in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Log a glass of water")
+                .accessibilityLabel("Log a \(day.waterServingName) of water")
 
                 LogMealButton(height: 34)
             }

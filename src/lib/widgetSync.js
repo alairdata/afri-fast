@@ -168,6 +168,8 @@ export async function pushWidgetSnapshot({ recentMeals, waterLogs, hydrationGoal
       proteinGoal: whole(proteinGoal, DEFAULT_PROTEIN_GOAL) || DEFAULT_PROTEIN_GOAL,
       streakDays: whole(computeCurrentMealStreak(recentMeals, now)),
       userId: userId || null,
+      // What one water tap is in their unit, for the widget's "3 of 6 sachets".
+      waterServing: volumeUnit === 'sachet' ? 'sachet' : volumeUnit === 'bottle' ? 'bottle' : 'glass',
       loggedThisWeek,
       ...(burnoutScore != null ? { burnoutScore, burnoutLabel: burnoutLabel(burnoutScore) } : {}),
     };

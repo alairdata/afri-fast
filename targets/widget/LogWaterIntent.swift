@@ -7,8 +7,8 @@ import UserNotifications
 import WidgetKit
 
 struct LogWaterIntent: AppIntent {
-    static let title: LocalizedStringResource = "Log a glass of water"
-    static let description = IntentDescription("Adds one glass of water to today in Logga.")
+    static let title: LocalizedStringResource = "Log water"
+    static let description = IntentDescription("Adds one serving of water (a glass, sachet or bottle, as you track it) to today in Logga.")
 
     func perform() async throws -> some IntentResult {
         var day = LoggaStore.load()

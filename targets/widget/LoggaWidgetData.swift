@@ -62,6 +62,8 @@ struct LoggaDay: Codable, Equatable {
     var burnoutLabel: String? = nil
     /// Which account this snapshot belongs to (the app writes it; widget taps keep it when they re-save).
     var userId: String? = nil
+    /// What one water tap is in the person's own unit: "sachet", "bottle" or "glass" (the app writes it).
+    var waterServing: String? = nil
 
     init(date: Date, caloriesEaten: Int, calorieGoal: Int, waterGlasses: Int, waterGoal: Int,
          proteinGrams: Int, proteinGoal: Int, streakDays: Int, loggedThisWeek: [Bool],
@@ -98,6 +100,14 @@ struct LoggaDay: Codable, Equatable {
         burnoutScore = (try? c.decodeIfPresent(Int.self, forKey: .burnoutScore)) ?? nil
         burnoutLabel = (try? c.decodeIfPresent(String.self, forKey: .burnoutLabel)) ?? nil
         userId = (try? c.decodeIfPresent(String.self, forKey: .userId)) ?? nil
+        waterServing = (try? c.decodeIfPresent(String.self, forKey: .waterServing)) ?? nil
+    }
+
+    /// "sachet" / "sachets" (or bottle, glass) for the water count.
+    var waterServingName: String { waterServing ?? "glass" }
+    var waterServingPlural: String {
+        let one = waterServingName
+        return one == "glass" ? "glasses" : one + "s"
     }
 
     var caloriesLeft: Int { max(calorieGoal - caloriesEaten, 0) }
