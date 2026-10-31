@@ -1297,6 +1297,20 @@ const TodayTab = ({
           </View>
         </View>
 
+        {/* Based on Your Pattern */}
+        <View style={[styles.sectionTight, { marginTop: 16 }]}>
+          <Text style={styles.sectionTitleTight}>Based on Your Pattern</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.patternScrollCompact}>
+            {patternCards.map((card, i) => (
+              <TouchableOpacity key={i} style={styles.patternCardLarge} onPress={() => setSelectedArticle(card)}>
+                <Image source={card.image} style={styles.patternImageArea} resizeMode="cover" />
+                <Text style={styles.patternTitleLarge}>{card.title}</Text>
+                <Text style={styles.patternTimeLarge}>{card.time}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {/* Activities this week (Mon-Sun) */}
         <View style={styles.activityCard}>
           <View style={styles.activityHead}>
@@ -1336,20 +1350,6 @@ const TodayTab = ({
             <Ionicons name="add" size={16} color={colors.text} />
             <Text style={styles.activityLogBtnText}>Log activity</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Based on Your Pattern */}
-        <View style={[styles.sectionTight, { marginTop: 16 }]}>
-          <Text style={styles.sectionTitleTight}>Based on Your Pattern</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.patternScrollCompact}>
-            {patternCards.map((card, i) => (
-              <TouchableOpacity key={i} style={styles.patternCardLarge} onPress={() => setSelectedArticle(card)}>
-                <Image source={card.image} style={styles.patternImageArea} resizeMode="cover" />
-                <Text style={styles.patternTitleLarge}>{card.title}</Text>
-                <Text style={styles.patternTimeLarge}>{card.time}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
         </View>
 
         <View style={styles.bottomSpacer} />
