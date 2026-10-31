@@ -142,6 +142,12 @@ export async function restorePurchases() {
   return state.isPro;
 }
 
+/** The App Store country of the Apple ID that pays (e.g. 'GHA'), or null (not on iPhone, or not known yet). */
+export async function getStorefrontCountry() {
+  if (!configured || !Purchases?.getStorefront) return null;
+  try { return (await Purchases.getStorefront())?.countryCode || null; } catch (_) { return null; }
+}
+
 export function useSubscription() {
   const [s, setS] = useState(state);
   useEffect(() => onSubscriptionChange(setS), []);

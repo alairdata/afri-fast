@@ -6,6 +6,7 @@ import { track, EVENTS } from '../lib/analytics';
 import ProFeatureCarousel from './ProFeatureCarousel';
 import { showAlert } from '../lib/alert';
 import { dc, themedStyles } from '../lib/theme';
+import { useLocalPrice } from '../lib/localPrice';
 
 const INK = '#16201b';
 const INK500 = '#6c7872';
@@ -45,6 +46,8 @@ const TESTIMONIALS = [
 
 const openUrl = (url) => Linking.openURL(url).catch(() => {});
 
+// Plan prices show in the person's own currency where Apple charges them in dollars (lib/localPrice.js); the terms
+// below keep Apple's real price.
 const fmtMoney = (amount, currency) => {
   try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount); } catch (_) { return null; }
 };
@@ -96,9 +99,11 @@ const PaywallModal = ({ goal }) => {
   const trial = choice === 'yearly' ? !!plans?.trialYearly : !!plans?.trialMonthly;
   const yp = yearly?.product;
   const mp = monthly?.product;
+  const local = useLocalPrice(yp?.currencyCode || mp?.currencyCode);
+  const priceOf = (p) => local.show(p.price, p.currencyCode) || p.priceString;
   // A true comparison only: 12 months at the monthly price, crossed out next to the yearly price.
-  const twelveMonthly = yp && mp && mp.price * 12 > yp.price ? fmtMoney(mp.price * 12, mp.currencyCode) : null;
-  const yearlyPerMonth = yp ? fmtMoney(Math.floor((yp.price / 12) * 100) / 100, yp.currencyCode) : null;
+  const twelveMonthly = yp && mp && mp.price * 12 > yp.price ? (local.show(mp.price * 12, mp.currencyCode) || fmtMoney(mp.price * 12, mp.currencyCode)) : null;
+  const yearlyPerMonth = yp ? (local.show(yp.price / 12, yp.currencyCode) || fmtMoney(Math.floor((yp.price / 12) * 100) / 100, yp.currencyCode)) : null;
 
   const buy = async () => {
     if (!selected || busy) return;
@@ -182,7 +187,7 @@ const PaywallModal = ({ goal }) => {
                     <View style={styles.badge}><Text style={styles.badgeTxt}>BEST VALUE</Text></View>
                     <Text style={styles.planTitle}>12 months</Text>
                     {twelveMonthly ? <Text style={styles.strike}>{twelveMonthly}</Text> : <Text style={styles.strike}> </Text>}
-                    <Text style={styles.planPrice}>{yp.priceString}</Text>
+                    <Text style={styles.planPrice}>{priceOf(yp)}</Text>
                     {yearlyPerMonth ? <Text style={styles.planPer}>{yearlyPerMonth}/mo</Text> : null}
                     {plans.trialYearly ? <View style={styles.trialChip}><Text style={styles.trialTxt}>7 days free</Text></View> : null}
                   </TouchableOpacity>
@@ -197,13 +202,14 @@ const PaywallModal = ({ goal }) => {
                   >
                     <Text style={styles.planTitle}>1 month</Text>
                     <Text style={styles.strike}> </Text>
-                    <Text style={styles.planPrice}>{mp.priceString}</Text>
+                    <Text style={styles.planPrice}>{priceOf(mp)}</Text>
                     <Text style={styles.planPer}>billed monthly</Text>
                     {plans.trialMonthly ? <View style={styles.trialChip}><Text style={styles.trialTxt}>7 days free</Text></View> : null}
                   </TouchableOpacity>
                 )}
               </View>
             )}
+            {plans && local.rateLine ? <Text style={styles.rateLine}>{local.rateLine}</Text> : null}
 
             {/* What people said */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 22, marginHorizontal: -22 }} contentContainerStyle={{ paddingHorizontal: 22, gap: 10 }}>
@@ -241,7 +247,7 @@ const PaywallModal = ({ goal }) => {
 
         {canPurchase && plans && selected && (
           <View style={styles.footer}>
-            <Text style={styles.cancelAny}>{trial ? `7 days free, then ${selected.product.priceString}/${choice === 'yearly' ? 'year' : 'month'} · ` : ''}Cancel anytime</Text>
+            <Text style={styles.cancelAny}>{trial ? `7 days free, then ${priceOf(selected.product)}/${choice === 'yearly' ? 'year' : 'month'} · ` : ''}Cancel anytime</Text>
             <TouchableOpacity style={[styles.cta, busy && { opacity: 0.6 }]} onPress={buy} disabled={busy} activeOpacity={0.85}>
               {busy ? <ActivityIndicator color={dc("#fff", 'text')} /> : <Text style={styles.ctaTxt}>{trial ? 'Start my free week' : 'Continue'}</Text>}
             </TouchableOpacity>
@@ -268,6 +274,7 @@ const styles = themedStyles({
   planTitle: { fontSize: 15, fontWeight: '800', color: INK },
   planPrice: { fontSize: 22, fontWeight: '800', color: INK, marginTop: 2 },
   planPer: { fontSize: 12.5, color: INK500, fontWeight: '600', marginTop: 2 },
+  rateLine: { fontSize: 12, color: INK500, textAlign: 'center', marginTop: 10 },
   planPrices: { fontSize: 13.5, color: INK500, marginTop: 3, fontWeight: '600' },
   strike: { textDecorationLine: 'line-through', color: INK400, fontWeight: '500', fontSize: 13, marginTop: 6 },
   trialChip: { alignSelf: 'center', marginTop: 8, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(5,150,105,0.12)' },

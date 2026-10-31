@@ -17,6 +17,7 @@ import {
 import HealthSourcesPage from './HealthSourcesPage';
 import LumiRive from './LumiRive';
 import { showAlert } from '../lib/alert';
+import { useLocalPrice } from '../lib/localPrice';
 
 // ── Design tokens (the onboarding canvas) ──────────────────────────────────────
 const C = {
@@ -1504,12 +1505,16 @@ function ProScreen({ d, plans, onRetry, onClose, onPurchased }) {
   const trial = choice === 'yearly' ? !!plans?.trialYearly : !!plans?.trialMonthly;
   const yp = yearly?.product;
   const mp = monthly?.product;
-  const yearlyPerMonth = yp ? fmtMoney(Math.floor((yp.price / 12) * 100) / 100, yp.currencyCode) : null;
+  // Prices in their own currency where Apple charges them in dollars (lib/localPrice.js); the legal text keeps Apple's.
+  const local = useLocalPrice(yp?.currencyCode || mp?.currencyCode, d.country);
+  const priceOf = (p) => (p ? local.show(p.price, p.currencyCode) || p.priceString : '');
+  const yearlyPerMonth = yp ? (local.show(yp.price / 12, yp.currencyCode) || fmtMoney(Math.floor((yp.price / 12) * 100) / 100, yp.currencyCode)) : null;
   const saving = yp && mp && mp.price * 12 > yp.price ? Math.round((1 - yp.price / (mp.price * 12)) * 100) : 0;
   const win = predictedWindow(d);
 
   const cta = trial ? 'Start my free week' : 'Continue';
-  const legal = 'Payment is charged to your Apple ID. The subscription renews automatically unless you cancel at least 24 hours before the end of the current period'
+  const legal = (selected ? `${trial ? 'Free for 7 days, then ' : ''}${selected.product.priceString} a ${choice === 'yearly' ? 'year' : 'month'}. ` : '')
+    + 'Payment is charged to your Apple ID. The subscription renews automatically unless you cancel at least 24 hours before the end of the current period'
     + (trial ? ' or free trial' : '') + '. Manage or cancel any time in your Apple ID settings.';
 
   const buy = async () => {
@@ -1588,18 +1593,19 @@ function ProScreen({ d, plans, onRetry, onClose, onPurchased }) {
             <PlanCard id="yearly">
               {saving > 0 ? <View style={s.bestBadge}><Text style={s.bestBadgeTxt}>Save {saving}%</Text></View> : null}
               <Text style={s.planLen}>12 months</Text>
-              <Text style={s.planPrice}>{yp?.priceString || ''}</Text>
+              <Text style={s.planPrice}>{priceOf(yp)}</Text>
               {yearlyPerMonth ? <Text style={s.planPer}>{yearlyPerMonth}/mo</Text> : null}
               <Text style={[s.trialChip, !plans?.trialYearly && { color: 'transparent' }]}>7 days free</Text>
             </PlanCard>
             <PlanCard id="monthly">
               <Text style={s.planLen}>1 month</Text>
-              <Text style={s.planPrice}>{mp?.priceString || ''}</Text>
+              <Text style={s.planPrice}>{priceOf(mp)}</Text>
               <Text style={s.planPer}>billed monthly</Text>
               <Text style={[s.trialChip, !plans?.trialMonthly && { color: 'transparent' }]}>7 days free</Text>
             </PlanCard>
           </View>
         )}
+        {plans && local.rateLine ? <Text style={s.rateLine}>{local.rateLine}</Text> : null}
       </ScrollView>
       <View style={[s.footer, { backgroundColor: '#fff', paddingTop: 14, paddingBottom: Platform.OS === 'ios' ? 22 : 16 }]}>
         <PrimaryBtn label={cta} onPress={buy} busy={busy} />
@@ -1633,6 +1639,10 @@ export function OfferScreen({ d, offer, deadline, onDone, reason = 'onboarding_o
   useEffect(() => { if (left === 0) onDone(false); }, [left === 0]);
   const pad = (n) => String(n).padStart(2, '0');
   const intro = offer.pkg.product.introPrice;
+  // In their own currency where Apple charges them in dollars; the legal line keeps Apple's real price.
+  const local = useLocalPrice(offer.pkg.product.currencyCode, d.country);
+  const introTxt = local.show(intro.price, offer.pkg.product.currencyCode) || offer.introPrice;
+  const priceTxt = local.show(offer.pkg.product.price, offer.pkg.product.currencyCode) || offer.price;
   const pct = offer.pkg.product.price > 0 ? Math.round((1 - intro.price / offer.pkg.product.price) * 100) : 0;
 
   const claim = async () => {
@@ -1658,7 +1668,7 @@ export function OfferScreen({ d, offer, deadline, onDone, reason = 'onboarding_o
       </TouchableOpacity>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: Platform.OS === 'ios' ? 100 : 80, alignItems: 'center' }} showsVerticalScrollIndicator={false}>
         <Text style={s.offerEyebrow}>A GIFT FOR YOU{first ? `, ${first.toUpperCase()}` : ''}</Text>
-        <Text style={s.offerTitle}>Your first month of Pro for <Text style={{ color: C.primary }}>{offer.introPrice}</Text></Text>
+        <Text style={s.offerTitle}>Your first month of Pro for <Text style={{ color: C.primary }}>{introTxt}</Text></Text>
         <View style={{ width: 300, alignItems: 'center', marginTop: 10 }}>
           <Sparkles />
           <Image source={LUMI.gift} style={{ width: 220, height: 210 }} resizeMode="contain" accessibilityLabel="Lumi with a gift" />
@@ -1674,12 +1684,13 @@ export function OfferScreen({ d, offer, deadline, onDone, reason = 'onboarding_o
             ))}
           </View>
           <View style={s.offerPriceRow}>
-            <Text style={s.offerStrike}>{offer.price}</Text>
-            <Text style={s.offerPrice}>{offer.introPrice}</Text>
+            <Text style={s.offerStrike}>{priceTxt}</Text>
+            <Text style={s.offerPrice}>{introTxt}</Text>
             <Text style={s.offerPer}>first month</Text>
           </View>
+          {local.rateLine ? <Text style={s.rateLine}>{local.rateLine}</Text> : null}
         </View>
-        <Text style={s.offerTerms}>First month {offer.introPrice}, then {offer.price} each month.{'\n'}Cancel anytime.</Text>
+        <Text style={s.offerTerms}>First month {introTxt}, then {priceTxt} each month.{'\n'}Cancel anytime.</Text>
       </ScrollView>
       <View style={s.footer}>
         <PrimaryBtn label="Claim my offer" onPress={claim} busy={busy} />
@@ -1699,7 +1710,7 @@ export function OfferScreen({ d, offer, deadline, onDone, reason = 'onboarding_o
             <View style={s.sheetHandle} />
             <Image source={LUMI.shocked} style={{ width: 150, height: 170, alignSelf: 'center' }} resizeMode="contain" accessibilityLabel="Shocked Lumi" />
             <Text style={s.skipTitle}>Are you sure you want to skip {pct > 0 ? `${pct}% off` : 'this offer'}?</Text>
-            <Text style={s.skipBody}>Your first month of Pro for {offer.introPrice} instead of {offer.price}. Once you skip, this offer won't come back.</Text>
+            <Text style={s.skipBody}>Your first month of Pro for {introTxt} instead of {priceTxt}. Once you skip, this offer won't come back.</Text>
             <PrimaryBtn label="Back to my offer" onPress={() => setConfirming(false)} />
             <TextBtn label="Skip this offer forever" onPress={() => onDone(false)} />
           </Animated.View>
@@ -2264,6 +2275,7 @@ const s = StyleSheet.create({
   trialChip: { marginTop: 8, fontSize: 12.5, fontWeight: '600', color: C.primary },
   proTerms: { fontSize: 13, fontWeight: '700', color: C.ink600, textAlign: 'center', marginBottom: 10 },
   proLegal: { marginTop: 10, fontSize: 10.5, lineHeight: 14, color: C.ink400, textAlign: 'center' },
+  rateLine: { marginTop: 10, fontSize: 12, color: C.ink500, textAlign: 'center' },
   legalLinks: { flexDirection: 'row', justifyContent: 'center', gap: 18, marginTop: 6 },
   legalLink: { fontSize: 11.5, fontWeight: '700', color: C.ink500, textDecorationLine: 'underline' },
 
