@@ -21,6 +21,7 @@ import LumiRive from './LumiRive';
 import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
 import { aiHeaders } from '../lib/aiAuth';
 import { dc, themedStyles } from '../lib/theme';
+import MicrosCard from './MicrosCard';
 
 // Web-safe helper: convert a URI (blob URL or data URL) to base64 string
 const readUriAsBase64 = async (uri) => {
@@ -1931,6 +1932,17 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   </View>
                 );
               })()}
+
+              {/* Vitamins and minerals (Logga Pro; locked on Free) */}
+              {shareIncludeIngredients && (
+                <MicrosCard
+                  foods={detectedFoods.length > 0
+                    ? detectedFoods.map((f) => ({ name: f.name, qty: f.qty, cal: f.cal }))
+                    : (viewingMeal?.name ? [{ name: viewingMeal.name, cal: viewingMeal.calories }] : [])}
+                  mealId={viewingMeal?.id || loggedMealId}
+                  fetchMicros={(foods) => callGeminiApi('meal_micros', { foods })}
+                />
+              )}
 
               {/* Action buttons */}
               <View style={styles.shareCardActions}>

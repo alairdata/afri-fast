@@ -1,6 +1,7 @@
 import { PNG } from 'pngjs';
 import jpegJs from 'jpeg-js';
 import { fillMethodStep } from '../src/lib/recipeMethod.js';
+import { MICRO_ITEMS } from '../src/lib/micros.js';
 import { MEDICAL_SAFETY } from './_safety.js';
 import { checkAiAuth } from './_aiAuth.js';
 import { toneInstruction } from './_tone.js';
@@ -489,6 +490,29 @@ export default async function handler(req, res) {
     }
 
     // ── Nutrition lookup ─────────────────────────────────────────────────────
+    // ── Vitamins and minerals for a whole meal (Logga Pro, shown under the meal) ──
+    if (type === 'meal_micros') {
+      const foods = (Array.isArray(data.foods) ? data.foods : []).slice(0, 20)
+        .map((f) => `- ${String(f.name || '').slice(0, 80)}${f.qty ? `, ${String(f.qty).slice(0, 60)}` : ''}${f.cal ? ` (${Math.round(f.cal)} kcal)` : ''}`)
+        .join('\n');
+      if (!foods) return res.json({ micros: null });
+      const schema = {
+        type: 'OBJECT',
+        properties: Object.fromEntries(MICRO_ITEMS.map((m) => [m.key, { type: 'NUMBER', description: `${m.name} in ${m.unit}` }])),
+        required: MICRO_ITEMS.map((m) => m.key),
+      };
+      const text = await callGemini(GEMINI_KEY, [{
+        text: `Estimate the vitamins and minerals in this whole meal, as prepared (cooking oil, salt and seasoning cubes included), the way a food composition table would. Add up all the foods.\n\n${foods}\n\n` +
+          `Give each value for the whole meal in exactly this unit: ${MICRO_ITEMS.map((m) => `${m.key} = ${m.name} in ${m.unit}`).join('; ')}. ` +
+          'Use realistic amounts for these foods and portions; 0 only when the meal really has none of it.',
+      }], { systemInstruction: NUTRITION_SYSTEM, schema });
+      const parsed = parseJson(text);
+      if (!parsed) return res.json({ micros: null });
+      const micros = {};
+      MICRO_ITEMS.forEach((m) => { const v = Number(parsed[m.key]); micros[m.key] = v >= 0 && Number.isFinite(v) ? Math.round(v * 100) / 100 : 0; });
+      return res.json({ micros });
+    }
+
     if (type === 'lookup_nutrition') {
       const { itemName } = data;
       const text = await callGemini(GEMINI_KEY, [{
