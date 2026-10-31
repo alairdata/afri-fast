@@ -685,21 +685,23 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     setScanError(null);
     try {
       const results = await analyzeWithGemini(primaryUri, setScanProgress, userCountry);
-      setScanProgress(100);
       if (results?.error) {
+        setScanProgress(100);
         setScanError("Couldn't reach the server. Check your connection and try again.");
         return;
       }
       if (results?.notFood) {
+        setScanProgress(100);
         setScanError(`No food detected — ${results.identified}. Try a clearer photo.`);
         return;
       }
+      // The foods and 100% land together: 100% with no foods yet reads as "Couldn't identify any food items",
+      // which used to flash for a moment on every scan.
       setScanFromScreen(results?.fromScreen || false);
       setScanShareable(results?.shareable === true && !results?.fromScreen);
       setMealTitle(results?.title || null);
-      setTimeout(() => {
-        setDetectedFoods((results?.foods || []).map((f, i) => ({ ...f, id: i })));
-      }, 300);
+      setDetectedFoods((results?.foods || []).map((f, i) => ({ ...f, id: i })));
+      setScanProgress(100);
     } catch (e) {
       console.log('Analysis error:', e);
       if (scanProgressRef.current) clearInterval(scanProgressRef.current);
