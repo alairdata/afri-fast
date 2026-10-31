@@ -1123,8 +1123,8 @@ const TodayTab = ({
               {onOpenWaterLog && (
                 <TouchableOpacity style={styles.waterLogBtn} onPress={onOpenWaterLog} activeOpacity={0.8} accessibilityLabel="Log water">
                   <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-                    <Path d="M7.3 12.5c1.6-.9 3.1-.9 4.7 0s3.1.9 4.7 0l-.7 7.3a1.8 1.8 0 0 1-1.8 1.6H9.8A1.8 1.8 0 0 1 8 19.8z" fill={dc("#93C5FD", 'bg')} />
-                    <Path d="M6 3.5h12l-1.6 16.3a1.8 1.8 0 0 1-1.8 1.6H9.4a1.8 1.8 0 0 1-1.8-1.6z" stroke={dc("#2563EB", 'border')} strokeWidth={1.8} strokeLinejoin="round" />
+                    <Path d="M7.3 12.5c1.6-.9 3.1-.9 4.7 0s3.1.9 4.7 0l-.7 7.3a1.8 1.8 0 0 1-1.8 1.6H9.8A1.8 1.8 0 0 1 8 19.8z" fill={dc("#7DD3FC", 'bg')} />
+                    <Path d="M6 3.5h12l-1.6 16.3a1.8 1.8 0 0 1-1.8 1.6H9.4a1.8 1.8 0 0 1-1.8-1.6z" stroke={dc("#0EA5E9", 'border')} strokeWidth={1.8} strokeLinejoin="round" />
                   </Svg>
                   <View style={styles.waterLogPlus}><Ionicons name="add" size={11} color={dc("#fff", 'text')} /></View>
                 </TouchableOpacity>
@@ -1268,8 +1268,8 @@ const TodayTab = ({
               <Text style={styles.activityTitle}>Your Water</Text>
             </View>
             <TouchableOpacity onPress={onNavigateToHydration} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={[styles.activitySeeAll, { color: dc('#2563EB', 'text') }]}>See all</Text>
-              <Ionicons name="arrow-forward" size={13} color={dc("#2563EB", 'text')} />
+              <Text style={[styles.activitySeeAll, { color: dc('#0EA5E9', 'text') }]}>See all</Text>
+              <Ionicons name="arrow-forward" size={13} color={dc("#0EA5E9", 'text')} />
             </TouchableOpacity>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -1462,12 +1462,12 @@ const makeStyles = (c) => StyleSheet.create({
   activityDot: { width: '100%', aspectRatio: 1, borderRadius: 8, borderWidth: 1, borderColor: dc('#E5E7EB', 'border'), backgroundColor: c.cardAlt === '#F3F4F6' ? dc('#F7F7F8', 'bg') : c.cardAlt, alignItems: 'center', justifyContent: 'center' },
   activityDotOn: { backgroundColor: dc('#F97316', 'bg'), borderColor: dc('#F97316', 'border') },
   loggedDotOn: { backgroundColor: dc('#059669', 'bg'), borderColor: dc('#059669', 'border') },
-  waterDotOn: { backgroundColor: dc('#2563EB', 'bg'), borderColor: dc('#2563EB', 'border') },
+  waterDotOn: { backgroundColor: dc('#38BDF8', 'bg'), borderColor: dc('#38BDF8', 'border') },
   activityDayLetter: { fontSize: 11, color: c.textSecondary },
   activityLogBtn: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 999, borderWidth: 1, borderColor: dc('#D1D5DB', 'border'), backgroundColor: c.card },
   activityLogBtnText: { fontSize: 14, fontWeight: '600', color: c.text },
-  waterLogBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: dc('#DBEAFE', 'bg'), alignItems: 'center', justifyContent: 'center' },
-  waterLogPlus: { position: 'absolute', top: 5, right: 4, width: 15, height: 15, borderRadius: 8, backgroundColor: dc('#2563EB', 'bg'), borderWidth: 2, borderColor: dc('#DBEAFE', 'border'), alignItems: 'center', justifyContent: 'center' },
+  waterLogBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: dc('#E0F2FE', 'bg'), alignItems: 'center', justifyContent: 'center' },
+  waterLogPlus: { position: 'absolute', top: 5, right: 4, width: 15, height: 15, borderRadius: 8, backgroundColor: dc('#0EA5E9', 'bg'), borderWidth: 2, borderColor: dc('#E0F2FE', 'border'), alignItems: 'center', justifyContent: 'center' },
   goalChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, marginBottom: 14,
     backgroundColor: dc('#D1FAE5', 'bg'), paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20,
