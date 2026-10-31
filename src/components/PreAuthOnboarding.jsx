@@ -1903,7 +1903,9 @@ export default function PreAuthOnboarding({ initialData, initialStep, onComplete
     if (finishedRef.current) return;
     finishedRef.current = true;
     track(EVENTS.ONBOARDING_COMPLETED);
-    Promise.resolve(onComplete?.(buildAnswers(data), data)).finally(() => { finishedRef.current = false; });
+    // The offer's end time travels with the answers, so the Today tab can keep counting down after sign-up.
+    const answers = { ...buildAnswers(data), offerDeadline: !pro && deadline > Date.now() ? deadline : null };
+    Promise.resolve(onComplete?.(answers, data)).finally(() => { finishedRef.current = false; });
   };
   // Past the plan, "next" off the end of the flow (or onto a skipped widget) means done.
   const nextOrFinish = () => {

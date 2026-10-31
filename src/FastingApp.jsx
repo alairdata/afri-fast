@@ -93,6 +93,7 @@ import { ensureAiConsent, CONSENT_KEYS_KEPT_ON_LOGOUT, resetConsentMemory } from
 import { showAlert } from './lib/alert';
 import { aiHeaders } from './lib/aiAuth';
 import { getAccountPref, setAccountPref } from './lib/accountPrefs';
+import { saveOfferDeadline } from './lib/offerTimer';
 import { deliverNudges, savePushToken } from './lib/adminMessages';
 import { maybeAskForReview } from './lib/reviewPrompt';
 import { dc, themedStyles } from './lib/theme';
@@ -1842,6 +1843,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         // the one-off steps below happen once.
         if (onboardingExtrasDone.current) { if (!cancelled) onPreAuthDataApplied?.(); return; }
         onboardingExtrasDone.current = true;
+        // The first-month offer's two hours (started during onboarding): the Today tab counts them down.
+        if (pendingPreAuthData.offerDeadline > Date.now()) saveOfferDeadline(session.user.id, pendingPreAuthData.offerDeadline);
         // Lumi's voice. Saved on its own, so the rest of the onboarding answers never depend on it.
         if (pendingPreAuthData.tone) {
           setCoachTone(pendingPreAuthData.tone);

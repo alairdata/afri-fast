@@ -14,6 +14,7 @@ import { SourceList, SourcesLink } from './HealthSourcesPage';
 import { DayMealsCard, ShimmerLogButton } from './MealPages';
 import Svg, { Path } from 'react-native-svg';
 import RiveCalorieGauge from './RiveCalorieGauge';
+import OfferTimerChip from './OfferTimerChip';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -1070,6 +1071,7 @@ const TodayTab = ({
 
         {/* Calorie gauge hero, for the day picked above */}
         <View style={styles.heroCardCompact}>
+          <OfferTimerChip userId={userId} name={userName} />
           <View style={styles.heroContent}>
             {/* The animated gauge shows "remaining"; over goal, no goal set, web or a failed load use the drawn one */}
             {Platform.OS !== 'web' && !riveGaugeFailed && selGoal > 0 && !selOver ? (

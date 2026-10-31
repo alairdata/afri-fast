@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAccountPref, setAccountPref } from '../lib/accountPrefs';
 import { OfferScreen, WidgetScreen, WidgetStepsScreen } from './PreAuthOnboarding';
 import { getSubscription, onSubscriptionChange, loadIntroOffer } from '../lib/subscription';
+import { saveOfferDeadline } from '../lib/offerTimer';
 
 // People who signed up before the offer and widget screens were part of onboarding see them once, just
 // in case: the first-month offer (only when they aren't on Pro and Apple says this Apple ID can still get
@@ -45,7 +46,11 @@ export default function CatchUpPrompts({ userId, name, kcal, newUser, busy }) {
       }
       let o = null;
       if (getSubscription().ready && !getSubscription().isPro) o = await loadIntroOffer().catch(() => null);
-      if (o) { setOffer(o); setDeadline(Date.now() + OFFER_WINDOW_MS); setStep('offer'); } else setStep('widget');
+      if (o) {
+        const dl = Date.now() + OFFER_WINDOW_MS;
+        setOffer(o); setDeadline(dl); setStep('offer');
+        saveOfferDeadline(userId, dl); // the Today tab keeps counting down after this screen closes
+      } else setStep('widget');
     }, 4000);
     return () => clearTimeout(t);
   }, [userId, newUser, busy]);
