@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, Animated, RefreshControl } from 'react-native';
 import { useTheme, dc, themedStyles } from '../lib/theme';
 import { getJustForYou, getCachedJustForYou, getProJustForYou, getCachedProJustForYou, LENS_LABELS } from '../lib/claudeInsights';
+import { getConsent, onConsentChange } from '../lib/consent';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSubscription } from '../lib/subscription';
 import { unlock } from './ProLock';
@@ -670,6 +671,21 @@ const TodayTab = ({
     if (!isPro || !userId || !dataReady) return;
     fetchProInsights(buildPayload());
   }, [isPro, userId, dataReady]);
+
+  // AI allowed after the first fetch (the consent question shows on sign-in while that fetch quietly skips):
+  // fetch again, or the Just for you row stays empty until the app is reopened.
+  const [aiAllowedTick, setAiAllowedTick] = useState(0);
+  useEffect(() => {
+    let allowed = getConsent().ai === true;
+    return onConsentChange((c) => {
+      if (c.ai === true && !allowed) setAiAllowedTick((t) => t + 1);
+      allowed = c.ai === true;
+    });
+  }, []);
+  useEffect(() => {
+    if (!aiAllowedTick || !userId || !dataReady) return;
+    fetchInsights(buildPayload());
+  }, [aiAllowedTick]);
 
   // Time since last fast counter
   useEffect(() => {
