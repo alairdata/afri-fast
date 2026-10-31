@@ -1034,7 +1034,7 @@ const styles = StyleSheet.create({
   tagline: { fontSize: 14, color: '#6B7280' },
   authTitle: {
     fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 16,
-    textAlign: 'center', fontFamily: 'Inter, sans-serif', alignSelf: 'center',
+    textAlign: 'center', alignSelf: 'center',
   },
   card: {
     backgroundColor: '#F4F1EA', borderRadius: 20, padding: 24, width: '100%',
@@ -1065,24 +1065,24 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
   },
-  socialBtnGoogleText: { fontSize: 15, fontWeight: '600', color: '#111', fontFamily: 'Inter, sans-serif' },
+  socialBtnGoogleText: { fontSize: 15, fontWeight: '600', color: '#111' },
   socialBtnApple: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#111111', borderRadius: 14, paddingVertical: 15,
     marginBottom: 4, gap: 10,
   },
-  socialBtnAppleText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', fontFamily: 'Inter, sans-serif' },
+  socialBtnAppleText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
   emailToggle: {
     flexDirection: 'row', alignItems: 'center', marginVertical: 20, gap: 10,
   },
   emailToggleLine: { flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' },
-  emailToggleText: { fontSize: 12, color: 'rgba(0,0,0,0.35)', fontWeight: '400', fontFamily: 'Inter, sans-serif' },
+  emailToggleText: { fontSize: 12, color: 'rgba(0,0,0,0.35)', fontWeight: '400' },
   btn: {
     backgroundColor: '#0F9D78', borderRadius: 14, paddingVertical: 15,
     alignItems: 'center', marginTop: 4,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: '#fff', fontSize: 15, fontWeight: '700', fontFamily: 'Inter, sans-serif' },
+  btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   modeToggle: { marginTop: 20, alignItems: 'center' },
   modeToggleText: { fontSize: 13, color: 'rgba(0,0,0,0.4)' },
   modeToggleLink: { color: '#0F9D78', fontWeight: '600' },

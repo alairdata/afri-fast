@@ -18,44 +18,13 @@ import RestoreAccountScreen from './src/components/RestoreAccountScreen';
 import RestrictedScreen from './src/components/RestrictedScreen';
 import { isAccountRestricted } from './src/lib/adminMessages';
 
-if (Platform.OS === 'web' && typeof document !== 'undefined') {
-  // Load Inter from Google Fonts
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=block';
-  document.head.appendChild(link);
-
-  // react-native-web generates a CSS rule with font-family: -apple-system,BlinkMacSystemFont,...
-  // for its base Text style. We patch that specific rule to prepend Inter.
-  // Ionicons rules only contain "Ionicons" and are left untouched.
-  const patchSystemFontRule = () => {
-    for (const sheet of document.styleSheets) {
-      try {
-        for (const rule of sheet.cssRules) {
-          if (!rule.style) continue;
-          const ff = rule.style.getPropertyValue('font-family');
-          const font = rule.style.getPropertyValue('font');
-          if (ff && ff.includes('-apple-system')) {
-            rule.style.setProperty('font-family', `"Inter",${ff}`);
-          }
-          if (font && font.includes('-apple-system')) {
-            rule.style.setProperty('font', font.replace('-apple-system', '"Inter",-apple-system'));
-          }
-        }
-      } catch (e) {
-        // cross-origin stylesheets throw — skip them
-      }
-    }
-  };
-
-  // Run after first render so react-native-web has generated its CSS classes
-  setTimeout(patchSystemFontRule, 0);
-
-}
+// The app uses the system font: SF Pro on iPhone, and on the web SF Pro on Apple devices (the system stack
+// below; react-native-web's Text uses the same one), Segoe UI on Windows, Roboto on Android.
+const SYSTEM_FONT_WEB = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
 TextInput.defaultProps = TextInput.defaultProps || {};
 TextInput.defaultProps.style = [
-  { fontFamily: 'Inter', ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) },
+  Platform.OS === 'web' ? { fontFamily: SYSTEM_FONT_WEB, outlineStyle: 'none' } : null,
   TextInput.defaultProps.style,
 ].filter(Boolean);
 

@@ -2818,7 +2818,6 @@ const styles = themedStyles({
     backgroundColor: '#111',
     borderRadius: 24,
     overflow: 'hidden',
-    fontFamily: 'Inter',
   },
   shareCardActions: {
     flexDirection: 'row',
@@ -3067,7 +3066,6 @@ const styles = themedStyles({
     fontSize: 13,
   },
   shareCardBrandName: {
-    fontFamily: 'Inter',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -3160,7 +3158,6 @@ const styles = themedStyles({
     gap: 6,
   },
   shareCardKcalNumber: {
-    fontFamily: 'Inter',
     fontSize: 50,
     fontWeight: '900',
     color: '#fff',
