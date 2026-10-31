@@ -1877,7 +1877,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                         {dateStr} · <Text style={styles.shareCardFooterMealType}>{mealType}</Text>
                       </Text>
                       <LinearGradient colors={[dc('#22c55e', 'bg'), dc('#16a34a', 'bg')]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.shareCardCtaBtn}>
-                        <Text style={styles.shareCardCtaText}>Made with Logga →</Text>
+                        <Text style={styles.shareCardCtaText}>Made with Logga AI →</Text>
                       </LinearGradient>
                     </View>
                   );

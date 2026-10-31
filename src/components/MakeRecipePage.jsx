@@ -379,7 +379,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
                   {/* Footer */}
                   <View style={detail.cardFooter}>
                     <Text style={detail.cardFooterText}>Community · Logga</Text>
-                    <View style={detail.cardFooterBadge}><Text style={detail.cardFooterBadgeText}>Made with Logga →</Text></View>
+                    <View style={detail.cardFooterBadge}><Text style={detail.cardFooterBadgeText}>Made with Logga AI →</Text></View>
                   </View>
                 </View>
                 {/* Buttons */}
