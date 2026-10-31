@@ -126,13 +126,14 @@ async function callGeminiApi(type, data) {
 const analyzeWithGemini = async (photoUri, onProgress, userCountry = '') => {
   try {
     onProgress?.(5);
-    // Compress and resize before sending — prevents Vercel 4.5MB body limit errors
+    // Compress and resize before sending — prevents Vercel 4.5MB body limit errors. 1280 px at 0.85 (about
+    // 0.5 MB) keeps labels readable and small items countable; 900 px at 0.7 made the AI guess.
     let uri = photoUri;
     if (Platform.OS !== 'web') {
       const compressed = await ImageManipulator.manipulateAsync(
         photoUri,
-        [{ resize: { width: 900 } }],
-        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        [{ resize: { width: 1280 } }],
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
       );
       uri = compressed.uri;
     }
