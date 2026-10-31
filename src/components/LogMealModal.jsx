@@ -1838,27 +1838,37 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   const rawPct = cardGoal > 0 ? dayTotal / cardGoal : 0;
                   const isOver = rawPct > 1;
                   const barPct = Math.min(rawPct, 1);
-                  // Meal name on its own full-width line, then the day's total so far (this meal included),
-                  // then the Deficit target bar on its own line so a big number never squeezes it.
+                  const remaining = Math.max(cardGoal - dayTotal, 0);
                   return (
                     <View style={styles.shareCardKcalSection}>
-                      {!!cardMealName && <Text style={[styles.shareCardMealName, { flex: 0 }]} numberOfLines={2}>{cardMealName}</Text>}
-                      <Text style={[styles.shareCardKcalLabel, { marginTop: 10, marginBottom: 4 }]}>Total calories</Text>
-                      <View style={styles.shareCardKcalNumberRow}>
-                        <Text style={styles.shareCardKcalNumber}>{String(Math.round(dayTotal || mealCal))}</Text>
-                        <Text style={styles.shareCardKcalUnit}>kcal</Text>
-                      </View>
-                      <View style={{ marginTop: 14, gap: 8 }}>
-                        <View style={styles.shareCardProgressMeta}>
-                          <Text style={styles.shareCardProgressLabel}>Deficit target</Text>
-                          <Text style={[styles.shareCardProgressPct, isOver && { color: dc('#f97316', 'text') }]}>{Math.round(rawPct * 100)}%</Text>
+                      <View style={styles.shareCardKcalRow}>
+                        <View style={styles.shareCardKcalBig}>
+                          <Text style={styles.shareCardKcalLabel}>This meal</Text>
+                          <View style={styles.shareCardKcalNumberRow}>
+                            <Text style={[styles.shareCardKcalNumber, mealCal >= 1000 && { fontSize: 40, letterSpacing: -2 }]}>{mealCal}</Text>
+                            <Text style={styles.shareCardKcalUnit}>kcal</Text>
+                          </View>
                         </View>
-                        <View style={styles.shareCardProgressBar}>
-                          <LinearGradient
-                            colors={isOver ? ['#f97316', '#ef4444'] : ['#22c55e', '#86efac']}
-                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                            style={[styles.shareCardProgressFill, { width: `${Math.round(barPct * 100)}%` }]}
-                          />
+                        <View style={styles.shareCardProgressCol}>
+                          <View style={styles.shareCardProgressMeta}>
+                            <Text style={styles.shareCardProgressLabel}>Today overall</Text>
+                            <Text style={[styles.shareCardProgressPct, isOver && { color: dc('#f97316', 'text') }]}>{Math.round(rawPct * 100)}%</Text>
+                          </View>
+                          <View>
+                            <View style={styles.shareCardProgressNumbers}>
+                              <Text style={styles.shareCardProgressText}>{dayTotal.toLocaleString()} of {(cardGoal || 0).toLocaleString()} kcal</Text>
+                              <Text style={[styles.shareCardProgressText, { fontWeight: '600', color: isOver ? dc('#f97316', 'text') : dc('rgba(255,255,255,0.8)', 'text') }]}>
+                                {isOver ? `${(dayTotal - cardGoal).toLocaleString()} over` : `${remaining.toLocaleString()} left`}
+                              </Text>
+                            </View>
+                          <View style={styles.shareCardProgressBar}>
+                            <LinearGradient
+                              colors={isOver ? ['#f97316', '#ef4444'] : ['#22c55e', '#86efac']}
+                              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                              style={[styles.shareCardProgressFill, { width: `${Math.round(barPct * 100)}%` }]}
+                            />
+                          </View>
+                          </View>
                         </View>
                       </View>
                     </View>
