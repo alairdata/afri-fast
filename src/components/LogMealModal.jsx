@@ -1519,7 +1519,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
               </Text>
             )}
 
-            <Text style={[styles.portionNote, { marginHorizontal: 20 }]}>Calories and nutrients are AI estimates. Portions not right? Tap the green label to adjust.</Text>
+            <Text style={styles.portionNote}>Calories and nutrients are AI estimates. Portions not right? Tap the green label to adjust.</Text>
 
             <View style={styles.foodCard}>
                     <View style={styles.foodCardHead}>
@@ -2765,9 +2765,11 @@ const styles = themedStyles({
   },
   portionNote: {
     fontSize: 12,
+    lineHeight: 17,
     color: '#9CA3AF',
     textAlign: 'center',
-    marginBottom: 10,
+    marginHorizontal: 44,
+    marginBottom: 12,
   },
   scanActionRow: {
     flexDirection: 'row',
