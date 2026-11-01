@@ -77,6 +77,9 @@
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, storageKey: 'logga-admin-auth' } });
 
   var CATEGORIES = ['Weight Loss Friendly', 'Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts', 'Drinks', 'Weight Loss Drinks', 'Quick & Easy', 'Low Fat', 'Low Carb', 'High Protein'];
+  // Test and App Review accounts are left out of every count, list and chart, so the numbers are real users only.
+  // The emails live in admin_settings under 'test_accounts' (a JSON list), readable by admins only, never in this
+  // public page.
   var TILES = ['#1F5A36', '#2E7D4F', '#9A4A0C', '#3C6FB4', '#C2621A', '#5B4A8A', '#8A3B2E', '#2F5F6E'];
   var DAY = 86400000;
 
@@ -214,6 +217,11 @@
       var first = !S.data;
       S.data = compute({ profiles: results[0], meals: results[1], water: results[2], checkins: results[3], weights: results[4], recipes: results[5], feedback: results[6], admins: results[7], mealsAllTime: results[8].count || 0, flags: results[9], settings: results[10] });
       S.loadError = '';
+      // The all-time meal count comes from the database, so take the test accounts' meals off it.
+      if (S.data.testIds.length) {
+        var tm = await sb.from('meals').select('id', { count: 'exact', head: true }).in('user_id', S.data.testIds);
+        if (!tm.error && tm.count) S.data.mealsAllTime = Math.max(0, S.data.mealsAllTime - tm.count);
+      }
       render();
       if (first || !quiet) loadRevenue();
     } catch (err) { setState({ loadError: err.message }); }
@@ -222,6 +230,13 @@
   function compute(raw) {
     var now = Date.now(), today = startOfDay(now);
     var users = {};
+    var savedTest = ((raw.settings || []).filter(function (s) { return s.key === 'test_accounts'; })[0] || {}).value;
+    var testEmails = {}; (Array.isArray(savedTest) ? savedTest : []).forEach(function (e) { testEmails[String(e).trim().toLowerCase()] = true; });
+    var testIds = {};
+    raw.profiles = raw.profiles.filter(function (p) { var t = testEmails[String(p.email || '').trim().toLowerCase()]; if (t) testIds[p.id] = true; return !t; });
+    var real = function (r) { return !testIds[r.user_id]; };
+    raw.meals = raw.meals.filter(real); raw.water = raw.water.filter(real); raw.checkins = raw.checkins.filter(real); raw.weights = raw.weights.filter(real);
+    var testCount = Object.keys(testIds).length;
     raw.profiles.forEach(function (p) {
       var dev = (p.app_prefs && p.app_prefs.device) || {};
       users[p.id] = { id: p.id, name: p.name || (p.email || '').split('@')[0] || 'No name', email: p.email || '', country: p.country || '', goal: p.goal || '',
@@ -311,7 +326,7 @@
     var goals = {};
     list.forEach(function (u) { var g = u.goal || 'Not set'; goals[g] = (goals[g] || 0) + 1; });
 
-    return { users: list, activeNow: activeNow, dau: dau, dauLastWeek: dauLastWeek, mealsToday: mealsToday.length, mealsAllTime: raw.mealsAllTime,
+    return { testCount: testCount, testIds: Object.keys(testIds), users: list, activeNow: activeNow, dau: dau, dauLastWeek: dauLastWeek, mealsToday: mealsToday.length, mealsAllTime: raw.mealsAllTime,
       retention: cohort.length ? pct(retained, cohort.length) : null, cohortSize: cohort.length,
       signupsToday: list.filter(function (u) { return u.joined >= today; }).length, days: days, foodsToday: foodsToday, hours: hours, slots: slots,
       recipes: raw.recipes, recipeLogs: recipeLogs, feedback: raw.feedback, admins: raw.admins, goals: goals, settings: settings, refreshedAt: now };
@@ -514,7 +529,7 @@
         '<div role="group" aria-label="Filter" style="display:flex;flex-wrap:wrap;gap:6px">' + chips.map(function (c) { return '<button type="button" class="chip" aria-pressed="' + (S.userFilter === c) + '" data-act="userFilter" data-id="' + c + '">' + c + '</button>'; }).join('') + '</div></div>' +
       '<section class="card tablewrap" aria-label="Users"><table style="min-width:900px"><thead><tr style="background:#F6F3EC"><th style="padding-left:16px">User</th><th>Plan</th><th>Device</th><th>Joined</th><th>Last active</th><th>Churn risk</th><th>Status</th><th><span class="sr">Actions</span></th></tr></thead><tbody>' + body + '</tbody></table>' +
       (rows.length ? '' : '<p style="margin:0;padding:24px;text-align:center" class="muted">No users match.</p>') +
-      '<p style="margin:0;padding:12px 16px;border-top:1px solid #F0EBE0;font-size:12px" class="muted">Showing ' + rows.length + ' of ' + D.users.length + ' users</p></section></div>';
+      '<p style="margin:0;padding:12px 16px;border-top:1px solid #F0EBE0;font-size:12px" class="muted">Showing ' + rows.length + ' of ' + D.users.length + ' users' + (D.testCount ? ' · ' + D.testCount + ' test account' + (D.testCount === 1 ? '' : 's') + ' not counted' : '') + '</p></section></div>';
   }
 
   function viewMeals(D) {
