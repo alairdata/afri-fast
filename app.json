@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Logga",
+    "name": "Logga AI",
     "slug": "afri-fast",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "scheme": "logga",
     "icon": "./assets/icon.png",
@@ -25,7 +25,7 @@
           "group.com.logga.app"
         ]
       },
-      "buildNumber": "18"
+      "buildNumber": "19"
     },
     "android": {
       "package": "com.logga.app",
@@ -48,7 +48,7 @@
       "bundler": "webpack",
       "themeColor": "#FFFFFF",
       "description": "African meal fasting and calorie tracker",
-      "name": "Logga",
+      "name": "Logga AI",
       "shortName": "Logga"
     },
     "plugins": [
