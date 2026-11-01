@@ -675,7 +675,8 @@
     return { id: r.id, name: d.name || '', countries: (d.countries || []).join(', '), category: d.category || 'Lunch', description: d.description || '', yield: d.yield || '',
       prepTime: parseInt(d.prepTime, 10) || '', cookTime: parseInt(d.cookTime, 10) || '', calories: d.calories || '', protein: d.protein || '', carbs: d.carbs || '', fats: d.fats || '',
       ingredients: (d.ingredients || []).map(function (i) { return i.amount ? i.name + ' — ' + i.amount : i.name; }).join('\n'),
-      instructions: (d.instructions || []).join('\n'), imageUrl: d.imageUrl || '', published: r.published, file: null, base: d };
+      instructions: (d.instructions || []).join('\n'), imageUrl: d.imageUrl || '', published: r.published, file: null, base: d,
+      localNames: Object.keys(d.localNames || {}).map(function (c) { return c + ': ' + d.localNames[c]; }).join('\n') };
   }
   function modalRecipe() {
     var d = S.draft, f = function (id, label, value, type, extra) { return '<div class="stack"' + (extra || '') + '><label class="lbl" for="' + id + '">' + label + '</label><input id="' + id + '" class="field" type="' + (type || 'text') + '" value="' + esc(value) + '" data-draft="' + id.slice(2) + '"></div>'; };
@@ -689,6 +690,7 @@
         f('d_yield', 'Serving size', d.yield) + f('d_prepTime', 'Prep time (min)', d.prepTime, 'number') + f('d_cookTime', 'Cook time (min)', d.cookTime, 'number') +
         f('d_imageUrl', 'Photo link', d.imageUrl, 'url', ' style="grid-column:1/-1"') + '</div>' +
       '<div class="stack"><label class="lbl" for="d_description">Description</label><textarea id="d_description" class="field" rows="2" data-draft="description">' + esc(d.description) + '</textarea></div>' +
+      '<div class="stack"><label class="lbl" for="d_localNames">Also known as <span style="font-weight:400" class="muted">— its name in each country, one per line, as "Country: name". The app shows people their own country\'s name.</span></label><textarea id="d_localNames" class="field" rows="3" data-draft="localNames" placeholder="Ghana: Awoyo&#10;Nigeria: Pepper Soup">' + esc(d.localNames || '') + '</textarea></div>' +
       '<fieldset style="margin:0;padding:14px;border:1px solid #E4DED1;border-radius:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px"><legend style="padding:0 6px;font-size:13px;font-weight:600">Nutrition per serving</legend>' +
         f('d_calories', 'Calories', d.calories, 'number') + f('d_protein', 'Protein (g)', d.protein, 'number') + f('d_carbs', 'Carbs (g)', d.carbs, 'number') + f('d_fats', 'Fat (g)', d.fats, 'number') + '</fieldset>' +
       '<div class="stack"><label class="lbl" for="d_ingredients">Ingredients <span style="font-weight:400" class="muted">— one per line, as "name — amount"</span></label><textarea id="d_ingredients" class="field" rows="5" data-draft="ingredients" placeholder="Long-grain rice — 1 cup&#10;Fresh tomatoes — 2 medium">' + esc(d.ingredients) + '</textarea></div>' +
@@ -814,7 +816,9 @@
         ingredients: parseIngredients(d.ingredients), instructions: d.instructions.split('\n').map(function (s) { return s.trim(); }).filter(Boolean),
         imageUrl: imageUrl || null,
       });
-      if (!data.localNames) data.localNames = {};
+      // "Ghana: Awoyo" lines -> { Ghana: 'Awoyo' }
+      data.localNames = {};
+      String(d.localNames || '').split('\n').forEach(function (l) { var i = l.indexOf(':'); if (i > 0 && l.slice(i + 1).trim()) data.localNames[l.slice(0, i).trim()] = l.slice(i + 1).trim(); });
       var id = d.id || nextId(), res;
       if (d.id) res = await sb.from('recipes').update({ data: data, published: d.published, updated_at: new Date().toISOString() }).eq('id', id);
       else res = await sb.from('recipes').insert({ id: id, data: data, published: d.published, sort: nextSort() });
