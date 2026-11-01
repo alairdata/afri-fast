@@ -915,6 +915,23 @@
         if (!rec.data.imageUrl && fileName) photos.push({ rec: rec, row: i + 2, url: 'https://www.logga.space/food/' + encodeURIComponent(fileName) });
         S.bulk.valid.push(rec);
       });
+      // Photo links (image_url): each one is loaded as an image; a link that doesn't load is dropped and flagged,
+      // so a recipe never goes in with a broken photo.
+      var loadsAsImage = function (url) {
+        return new Promise(function (resolve) {
+          var img = new Image(), done = function (ok) { clearTimeout(t); img.onload = img.onerror = null; resolve(ok); };
+          var t = setTimeout(function () { done(false); }, 12000);
+          img.onload = function () { done(img.naturalWidth > 0); }; img.onerror = function () { done(false); };
+          img.src = url;
+        });
+      };
+      await Promise.all(S.bulk.valid.filter(function (r) { return r.data.imageUrl; }).map(function (r, k) {
+        return loadsAsImage(r.data.imageUrl).then(function (ok) {
+          if (ok) return;
+          S.bulk.errors.push(r.data.name + ': photo link doesn’t load (' + r.data.imageUrl.slice(0, 60) + '…), imported without a photo');
+          r.data.imageUrl = null;
+        });
+      }));
       await Promise.all(photos.map(function (p) {
         return fetch(p.url, { method: 'HEAD' }).then(function (r) { return r.ok; }, function () { return false; }).then(function (ok) {
           if (ok) p.rec.data.imageUrl = p.url;
