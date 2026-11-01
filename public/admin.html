@@ -86,7 +86,7 @@
     email: '', code: '', authError: '', busy: false,
     me: null, tab: 'overview', toast: '', modal: null, live: true,
     data: null, loadError: '',
-    metric: 'signups', userQuery: '', userFilter: 'All', recipeQuery: '', recipeCountry: 'All', fbFilter: 'Open',
+    metric: 'signups', userQuery: '', userFilter: 'All', recipeQuery: '', recipeCountry: 'All', recipeStatus: 'All', fbFilter: 'Open',
     draft: null, formError: '', bulk: null, newAdmin: '',
     rc: null, plans: {}, customer: {}, menuFor: null, nudge: null,
   };
@@ -546,6 +546,9 @@
     all.forEach(function (r) { recipeCountriesOf(r).forEach(function (c) { countryCount[c] = (countryCount[c] || 0) + 1; }); });
     var countries = Object.keys(countryCount).sort(function (a, b) { return countryCount[b] - countryCount[a]; });
     var shown = all.filter(function (r) {
+      if (S.recipeStatus === 'Published' && !r.published) return false;
+      if (S.recipeStatus === 'Drafts' && r.published) return false;
+      if (S.recipeStatus === 'No photo' && r.data.imageUrl) return false;
       if (S.recipeCountry !== 'All' && recipeCountriesOf(r).indexOf(S.recipeCountry) < 0) return false;
       return !q || (r.data.name + ' ' + (r.data.category || '') + ' ' + recipeCountriesOf(r).join(' ')).toLowerCase().indexOf(q) >= 0;
     });
@@ -564,9 +567,12 @@
         '<button type="button" class="btn" style="min-height:38px;font-size:13px;color:#A3330D" data-act="askDelRecipe" data-id="' + r.id + '" aria-label="Delete ' + esc(d.name) + '">Delete</button></div></li>';
     }).join('');
     var pub = all.filter(function (r) { return r.published; }).length;
-    var counts = [['Recipes', all.length, true], ['Published', pub], ['Drafts', all.length - pub], ['Countries', countries.length]].map(function (c) {
-      return '<div style="' + (c[2] ? 'background:#13241A;color:#fff;border:0;' : 'background:#fff;border:1px solid #E4DED1;') + 'border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600;color:' + (c[2] ? '#B9CDBC' : '#565D57') + '">' + c[0] + '</span><span class="display" style="font-size:32px">' + c[1] + '</span></div>';
-    }).join('');
+    var noPhoto = all.filter(function (r) { return !r.data.imageUrl; }).length;
+    // Each count filters the list (tap again for all); Countries is just a number.
+    var counts = [['All', 'Recipes', all.length], ['Published', 'Published', pub], ['Drafts', 'Not published', all.length - pub], ['No photo', 'No photo', noPhoto]].map(function (c) {
+      var on = S.recipeStatus === c[0];
+      return '<button type="button" data-act="recipeStatus" data-id="' + c[0] + '" aria-pressed="' + on + '" style="text-align:left;cursor:pointer;font:inherit;' + (on ? 'background:#13241A;color:#fff;border:0;' : 'background:#fff;color:inherit;border:1px solid #E4DED1;') + 'border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600;color:' + (on ? '#B9CDBC' : '#565D57') + '">' + c[1] + '</span><span class="display" style="font-size:32px">' + c[2] + '</span></button>';
+    }).join('') + '<div style="background:#fff;border:1px solid #E4DED1;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600;color:#565D57">Countries</span><span class="display" style="font-size:32px">' + countries.length + '</span></div>';
     return '<div style="display:flex;flex-direction:column;gap:20px">' +
       '<section aria-label="Recipe counts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">' + counts + '</section>' +
       '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center"><label for="rsearch" class="sr">Search recipes</label><input id="rsearch" class="field" type="search" placeholder="Search recipes" value="' + esc(S.recipeQuery) + '" data-input="recipeQuery" style="flex:1 1 220px">' +
@@ -574,7 +580,7 @@
         ['All'].concat(countries).map(function (c) { return '<option value="' + esc(c) + '"' + (c === S.recipeCountry ? ' selected' : '') + '>' + esc(c === 'All' ? 'All countries' : c) + '</option>'; }).join('') + '</select></div>' +
         '<button type="button" data-act="addRecipe" style="min-height:44px;padding:0 18px;border:0;border-radius:10px;background:#D9822B;font-size:15px;font-weight:700">+ Add recipe</button></div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">' +
-        '<section class="card" aria-label="Recipes" style="flex:3 1 520px;min-width:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:16px 18px 12px"><h2 style="margin:0;font-size:15px;font-weight:600">All recipes</h2><span style="font-size:13px" class="muted">' + shown.length + ' shown</span></div>' +
+        '<section class="card" aria-label="Recipes" style="flex:3 1 520px;min-width:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:16px 18px 12px"><h2 style="margin:0;font-size:15px;font-weight:600">' + ({ All: 'All recipes', Published: 'Published recipes', Drafts: 'Not published', 'No photo': 'Recipes without a photo' }[S.recipeStatus] || 'All recipes') + '</h2><span style="font-size:13px" class="muted">' + shown.length + ' shown</span></div>' +
           '<ul style="list-style:none;margin:0;padding:0">' + items + '</ul>' + (shown.length ? '' : '<p style="margin:0;padding:24px;text-align:center;border-top:1px solid #F0EBE0" class="muted">No recipes match.</p>') + '</section>' +
         '<section class="card" aria-label="Recipes by country" style="flex:1 1 260px;min-width:0;position:sticky;top:20px;padding:20px;display:flex;flex-direction:column;gap:10px"><h2 style="margin:0;font-size:15px;font-weight:600">Recipes by country</h2>' +
           countries.slice(0, 14).map(function (c) { return '<div style="display:grid;grid-template-columns:minmax(80px,120px) minmax(0,1fr) 24px;align-items:center;gap:10px"><span style="font-size:13px">' + esc(c) + '</span><div class="bar"><div style="width:' + pct(countryCount[c], cmax) + '%;background:#1F5A36"></div></div><span style="font-size:13px;font-weight:600;text-align:right">' + countryCount[c] + '</span></div>'; }).join('') +
@@ -695,7 +701,7 @@
         f('d_calories', 'Calories', d.calories, 'number') + f('d_protein', 'Protein (g)', d.protein, 'number') + f('d_carbs', 'Carbs (g)', d.carbs, 'number') + f('d_fats', 'Fat (g)', d.fats, 'number') + '</fieldset>' +
       '<div class="stack"><label class="lbl" for="d_ingredients">Ingredients <span style="font-weight:400" class="muted">— one per line, as "name — amount"</span></label><textarea id="d_ingredients" class="field" rows="5" data-draft="ingredients" placeholder="Long-grain rice — 1 cup&#10;Fresh tomatoes — 2 medium">' + esc(d.ingredients) + '</textarea></div>' +
       '<div class="stack"><label class="lbl" for="d_instructions">Steps <span style="font-weight:400" class="muted">— one per line</span></label><textarea id="d_instructions" class="field" rows="5" data-draft="instructions">' + esc(d.instructions) + '</textarea></div>' +
-      '<label for="d_published" style="display:flex;align-items:center;gap:10px;font-size:14px;min-height:44px;cursor:pointer"><input id="d_published" type="checkbox"' + (d.published ? ' checked' : '') + ' data-draft="published" style="width:20px;height:20px;accent-color:#1F5A36">Publish to the app now (otherwise saved as a draft)</label>' +
+      '<label for="d_published" style="display:flex;align-items:center;gap:10px;font-size:14px;min-height:44px;cursor:pointer"><input id="d_published" type="checkbox"' + (d.published ? ' checked' : '') + ' data-draft="published" style="width:20px;height:20px;accent-color:#1F5A36">Publish to the app now (otherwise saved as a draft; needs a photo)</label>' +
       (S.formError ? '<p role="alert" class="alert">' + esc(S.formError) + '</p>' : '') +
       '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-act="closeModal">Cancel</button><button type="submit" class="btn btn-primary"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Saving…' : 'Save recipe') + '</button></div></form>';
   }
@@ -708,7 +714,7 @@
   var BULK_COLS = [['name', true], ['kcal', true], ['country'], ['category'], ['serving'], ['prep_min'], ['protein_g'], ['carbs_g'], ['fat_g'], ['description'], ['ingredients'], ['steps'], ['image_url'], ['published']];
   function modalBulk() {
     var b = S.bulk || {};
-    var rows = (b.valid || []).map(function (r) { return '<tr><td style="padding:8px 10px;font-weight:500">' + esc(r.data.name) + '</td><td style="padding:8px 10px" class="muted">' + esc((r.data.countries || []).join(', ')) + ' · ' + esc(r.data.category) + '</td><td style="padding:8px 10px;text-align:right">' + fmt(r.data.calories) + '</td><td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:600">' + (r.published ? 'Publish' : 'Draft') + '</td></tr>'; }).join('');
+    var rows = (b.valid || []).map(function (r) { return '<tr><td style="padding:8px 10px;font-weight:500">' + esc(r.data.name) + '</td><td style="padding:8px 10px" class="muted">' + esc((r.data.countries || []).join(', ')) + ' · ' + esc(r.data.category) + '</td><td style="padding:8px 10px;text-align:right">' + fmt(r.data.calories) + '</td><td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:600">' + (r.published && r.data.imageUrl ? 'Publish' : r.published ? 'Draft (no photo)' : 'Draft') + '</td></tr>'; }).join('');
     return '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 class="display" style="margin:0;font-size:24px;letter-spacing:-.5px">Bulk upload recipes</h2>' + xbtn() + '</div>' +
       '<div style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:#F6F3EC"><span style="font-size:13px;font-weight:600">One recipe per row. Row 1 holds these column headers:</span>' +
         '<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px;font-family:ui-monospace,Menlo,monospace">' + BULK_COLS.map(function (c) { return '<span style="padding:3px 8px;border-radius:6px;' + (c[1] ? 'background:#FFF1DD;color:#6A3B00;font-weight:600">' + c[0] + ' *' : 'background:#fff">' + c[0]) + '</span>'; }).join('') + '</div>' +
@@ -820,11 +826,13 @@
       data.localNames = {};
       String(d.localNames || '').split('\n').forEach(function (l) { var i = l.indexOf(':'); if (i > 0 && l.slice(i + 1).trim()) data.localNames[l.slice(0, i).trim()] = l.slice(i + 1).trim(); });
       var id = d.id || nextId(), res;
-      if (d.id) res = await sb.from('recipes').update({ data: data, published: d.published, updated_at: new Date().toISOString() }).eq('id', id);
-      else res = await sb.from('recipes').insert({ id: id, data: data, published: d.published, sort: nextSort() });
+      var heldBack = d.published && !data.imageUrl; // no photo -> stays a draft
+      var published = d.published && !heldBack;
+      if (d.id) res = await sb.from('recipes').update({ data: data, published: published, updated_at: new Date().toISOString() }).eq('id', id);
+      else res = await sb.from('recipes').insert({ id: id, data: data, published: published, sort: nextSort() });
       if (res.error) throw new Error(res.error.message);
       S.busy = false; S.modal = null; S.draft = null;
-      toast(d.id ? 'Recipe saved.' : 'Recipe added' + (d.published ? ' and published to the app.' : ' as a draft.'));
+      toast(heldBack ? 'Saved as a draft: add a photo to publish it.' : d.id ? 'Recipe saved.' : 'Recipe added' + (published ? ' and published to the app.' : ' as a draft.'));
       loadData(true);
     } catch (err) { setState({ busy: false, formError: err.message }); }
   }
@@ -947,7 +955,7 @@
   }
   async function importBulk() {
     setState({ busy: true });
-    var rows = S.bulk.valid.map(function (r) { return { id: r.id, data: r.data, published: r.published, sort: r.sort }; });
+    var rows = S.bulk.valid.map(function (r) { return { id: r.id, data: r.data, published: r.published && !!r.data.imageUrl, sort: r.sort }; });
     var res = await sb.from('recipes').insert(rows);
     if (res.error) { S.bulk.error = res.error.message; return setState({ busy: false }); }
     S.busy = false; S.modal = null; var n = rows.length; S.bulk = null;
@@ -998,8 +1006,10 @@
     pickSingle: function () { setState({ modal: { type: 'recipe' }, draft: draftFrom(null), formError: '' }); },
     pickBulk: function () { setState({ modal: { type: 'bulk' }, bulk: null }); },
     editRecipe: function (id) { var r = S.data.recipes.filter(function (x) { return String(x.id) === id; })[0]; setState({ modal: { type: 'recipe' }, draft: draftFrom(r), formError: '' }); },
+    recipeStatus: function (id) { setState({ recipeStatus: S.recipeStatus === id ? 'All' : id }); },
     togglePub: async function (id) {
       var r = S.data.recipes.filter(function (x) { return String(x.id) === id; })[0]; if (!r) return;
+      if (!r.published && !r.data.imageUrl) return toast('Add a photo first: recipes without a photo stay unpublished.');
       var res = await sb.from('recipes').update({ published: !r.published, updated_at: new Date().toISOString() }).eq('id', r.id);
       if (res.error) return toast('Could not change it: ' + res.error.message);
       r.published = !r.published; toast(r.published ? r.data.name + ' is now in the app.' : r.data.name + ' is hidden from the app.');
