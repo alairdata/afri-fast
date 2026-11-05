@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
+import GrowingTextInput from './GrowingTextInput';
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
 import { AFRICAN_RECIPES, RECIPE_CATEGORIES } from '../lib/africanRecipes';
 import { useRecipesVersion } from '../lib/recipes';
@@ -813,13 +814,12 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
 
           {listOpen && isPro && (
             <View style={styles.listBox}>
-              <TextInput
+              <GrowingTextInput
                 style={styles.listInput}
                 placeholder="e.g. rice, tomatoes, chicken, onions"
                 placeholderTextColor={dc("#999", 'text')}
                 value={listText}
                 onChangeText={setListText}
-                multiline
                 autoFocus
               />
               <TouchableOpacity style={[styles.listBtn, !listText.trim() && { opacity: 0.5 }]} onPress={findFromList} disabled={!listText.trim()}>

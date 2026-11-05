@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { foodExamplesFor } from '../lib/foodExamples';
 import { Audio } from 'expo-av';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Dimensions, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Share, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -148,7 +149,7 @@ const analyzeWithGemini = async (photoUri, onProgress, userCountry = '') => {
   }
 };
 
-const analyzeTextWithGemini = async (mealText, onProgress) => {
+const analyzeTextWithGemini = async (mealText, onProgress, userCountry = '') => {
   try {
     onProgress?.(8);
     let pct = 8;
@@ -159,7 +160,7 @@ const analyzeTextWithGemini = async (mealText, onProgress) => {
 
     let result;
     try {
-      result = await callGeminiApi('analyze_text', { mealText });
+      result = await callGeminiApi('analyze_text', { mealText, userCountry });
     } finally {
       clearInterval(ticker);
     }
@@ -856,7 +857,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     // Try up to 3 times — Gemini can be inconsistent
     let results = null;
     for (let attempt = 0; attempt < 3; attempt++) {
-      results = await analyzeTextWithGemini(mealInput.trim());
+      results = await analyzeTextWithGemini(mealInput.trim(), undefined, userCountry);
       if (results && !results.notFood) break;
       if (results?.notFood) break; // genuine not-food, no point retrying
     }
@@ -868,7 +869,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       return;
     }
     if (results.notFood) {
-      setWriteError("Couldn't identify any food in that. Try being more specific — e.g. \"fufu with light soup and chicken\"");
+      setWriteError(`Couldn't identify any food in that. Try being more specific — e.g. "${foodExamplesFor(userCountry).sentence}"`);
       setWritePhase('idle');
       return;
     }
@@ -1422,7 +1423,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                 <TextInput
                   multiline
                   style={styles.writeInput}
-                  placeholder={"e.g. Two wraps of fufu with light soup and fish, plus a bottle of water..."}
+                  placeholder={`e.g. ${foodExamplesFor(userCountry).sentence}...`}
                   placeholderTextColor={dc("#9dbfab", 'text')}
                   value={mealInput}
                   onChangeText={(t) => { setMealInput(t); setWriteError(null); }}
@@ -1437,7 +1438,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
             {/* Suggestion chips */}
             {writePhase === 'idle' && (
               <View style={styles.chipRow}>
-                {['Jollof rice', 'Fufu + soup', 'Waakye', 'Eba + egusi', 'Suya'].map((s, i) => (
+                {foodExamplesFor(userCountry).chips.map((s, i) => (
                   <TouchableOpacity key={i} style={styles.chip} onPress={() => setMealInput(prev => prev ? prev + ', ' + s : s)}>
                     <Text style={styles.chipText}>{s}</Text>
                   </TouchableOpacity>
@@ -1450,7 +1451,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
               <View style={styles.writeErrorBanner}>
                 <Ionicons name="warning-outline" size={18} color={dc("#fff", 'text')} />
                 <Text style={styles.writeErrorText}>
-                  That doesn't look like a food. Try something like "Jollof Rice" or "Fufu and Egusi".
+                  That doesn't look like a food. Try something like "{foodExamplesFor(userCountry).chips[0]}" or "{foodExamplesFor(userCountry).chips[1]}".
                 </Text>
               </View>
             )}

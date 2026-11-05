@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
+import GrowingTextInput from './GrowingTextInput';
 import { track } from '../lib/analytics';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 import { SourcesLink } from './HealthSourcesPage';
@@ -245,7 +246,6 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const [recipeImage, setRecipeImage] = useState(null); // data URI, or 'failed'
   const [savedRecipe, setSavedRecipe] = useState(false);
   const [text, setText] = useState('');
-  const [inputH, setInputH] = useState(36); // the kitchen text box: one line (36) up to about four (112)
   const [photo, setPhoto] = useState(null);
   const lowBudget = caloriesLeft < 150;
   const [useAll, setUseAll] = useState(false);
@@ -572,15 +572,13 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                   <TouchableOpacity style={styles.composerBtnOutline} onPress={() => pickPhoto(false)} accessibilityLabel="Add a photo">
                     <Ionicons name="add" size={20} color={dc(INK, 'text')} />
                   </TouchableOpacity>
-                  <TextInput
-                    style={[styles.slimInput, { height: text ? inputH : 36 }]}
-                    onContentSizeChange={(e) => setInputH(Math.min(112, Math.max(36, Math.ceil(e.nativeEvent.contentSize.height))))}
-                    scrollEnabled={inputH >= 112}
+                  <GrowingTextInput
+                    maxHeight={112}
+                    style={styles.slimInput}
                     placeholder="What do you have?"
                     placeholderTextColor={dc("#9CA3AF", 'text')}
                     value={text}
                     onChangeText={setText}
-                    multiline
                     accessibilityLabel={copy.inputLabel}
                   />
                   <TouchableOpacity
@@ -976,7 +974,7 @@ const styles = themedStyles({
   composerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   composerSlim: { borderRadius: 26, paddingTop: 8, paddingRight: 8, paddingBottom: 8, paddingLeft: 8 },
   slimRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  slimInput: { flex: 1, minWidth: 0, fontSize: 16, color: INK, paddingTop: 8, paddingBottom: 8, paddingHorizontal: 4, textAlignVertical: 'top', ...(Platform.OS === 'web' ? { lineHeight: 20, outlineStyle: 'none', resize: 'none' } : {}) },
+  slimInput: { flex: 1, minWidth: 0, minHeight: 36, fontSize: 16, color: INK, paddingTop: 8, paddingBottom: 8, paddingHorizontal: 4, textAlignVertical: 'top', ...(Platform.OS === 'web' ? { lineHeight: 20, outlineStyle: 'none', resize: 'none' } : {}) },
   composerBtnOutline: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
   composerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   sendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' },

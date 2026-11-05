@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, Pressable, ScrollView, TextInput, StyleSh
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { CHECKIN_ICON_SECTIONS } from '../lib/checkinIcons';
+import GrowingTextInput from './GrowingTextInput';
 import { dc, themedStyles } from '../lib/theme';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -519,8 +520,7 @@ const CheckInPage = ({
                   />
                 ))}
                 <View style={ss.notesCard}>
-                  <TextInput
-                    multiline
+                  <GrowingTextInput
                     style={ss.notesInput}
                     placeholder={(noteEntries || []).length > 0 ? 'Add another note...' : 'Add notes about your meals, hunger, energy, or anything unusual today.'}
                     placeholderTextColor={dc("#999", 'text')}

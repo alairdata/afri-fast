@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '../lib/supabase';
+import GrowingTextInput from './GrowingTextInput';
 import { useTheme, dc, themedStyles } from '../lib/theme';
 import { loadConsent, saveConsent } from '../lib/consent';
 
@@ -121,13 +122,13 @@ export function ContactSheet({
           <Text style={[st.body, { color: colors.textSecondary }]}>
             {intro || `Something not working, or an idea to share? Tell us and we'll get back to you${userEmail ? ` at ${userEmail}` : ''}.`}
           </Text>
-          <TextInput
+          <GrowingTextInput
+            maxHeight={260}
             style={[st.textArea, { color: colors.text, borderColor: colors.border }]}
             value={message}
             onChangeText={setMessage}
             placeholder="What's on your mind?"
             placeholderTextColor={dc("#9CA3AF", 'text')}
-            multiline
             textAlignVertical="top"
             maxLength={2000}
           />
@@ -181,13 +182,13 @@ export function RateSheet({ visible, onClose, userId, userEmail }) {
               </TouchableOpacity>
             ))}
           </View>
-          <TextInput
+          <GrowingTextInput
+            maxHeight={260}
             style={[st.textArea, { minHeight: 90, color: colors.text, borderColor: colors.border }]}
             value={comment}
             onChangeText={setComment}
             placeholder="Anything you'd like to add? (optional)"
             placeholderTextColor={dc("#9CA3AF", 'text')}
-            multiline
             textAlignVertical="top"
             maxLength={1000}
           />

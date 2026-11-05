@@ -54,7 +54,7 @@ const SATIETY_INDEX = [
   [/banana/i, 118],
   [/popcorn/i, 154],
   [/cheese|wara/i, 146],
-  [/fufu|banku|eba|kenkey|tuo|amala|pounded|semo|garri|gari/i, 138], // dense starch: closest tested is white rice
+  [/fufu|banku|eba|kenkey|tuo|amala|pounded|semo|garri|gari|ugali|posho|sadza|nsima/i, 138], // dense starch: closest tested is white rice
 ];
 const siOf = (name = '') => { const hit = SATIETY_INDEX.find(([re]) => re.test(name)); return hit ? hit[1] : null; };
 

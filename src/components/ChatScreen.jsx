@@ -1,4 +1,5 @@
 import { ensureAiConsent, AiConsentError } from '../lib/consent';
+import GrowingTextInput from './GrowingTextInput';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, KeyboardAvoidingView, Platform, Animated, Image, Keyboard } from 'react-native';
@@ -135,7 +136,6 @@ const ChatScreen = ({
   const keyboardOffset = Platform.OS === 'ios' ? safeInsets.top : 0;
 
   const [chatInput, setChatInput] = useState('');
-  const [inputH, setInputH] = useState(36); // the text box: one line (36) up to about four (112)
   const [photo, setPhoto] = useState(null);
   // When the keyboard opens, jump to the latest message so it stays in view above the keyboard.
   useEffect(() => {
@@ -455,15 +455,13 @@ const ChatScreen = ({
                   <Ionicons name="add" size={20} color={dc(INK, 'text')} />
                 </TouchableOpacity>
               )}
-              <TextInput
+              <GrowingTextInput
+                maxHeight={112}
                 placeholder={isMeals ? 'What did you eat?' : 'Ask about your progress…'}
                 placeholderTextColor={dc("#9CA3AF", 'text')}
-                style={[styles.slimInput, { height: chatInput ? inputH : 36 }]}
-                onContentSizeChange={(e) => setInputH(Math.min(112, Math.max(36, Math.ceil(e.nativeEvent.contentSize.height))))}
-                scrollEnabled={inputH >= 112}
+                style={styles.slimInput}
                 value={chatInput}
                 onChangeText={setChatInput}
-                multiline
                 blurOnSubmit={false}
                 onKeyPress={(e) => {
                   // Enter sends on a keyboard; Shift+Enter makes a new line
@@ -542,7 +540,7 @@ const styles = themedStyles({
   composerWrap: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: Platform.OS === 'web' ? 16 : 30, backgroundColor: '#F9FAFB' },
   composer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 26, padding: 8, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   slimRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  slimInput: { flex: 1, minWidth: 0, fontSize: 16, color: INK, paddingTop: 8, paddingBottom: 8, paddingHorizontal: 4, textAlignVertical: 'top', ...(Platform.OS === 'web' ? { lineHeight: 20, outlineStyle: 'none', resize: 'none' } : {}) },
+  slimInput: { flex: 1, minWidth: 0, minHeight: 36, fontSize: 16, color: INK, paddingTop: 8, paddingBottom: 8, paddingHorizontal: 4, textAlignVertical: 'top', ...(Platform.OS === 'web' ? { lineHeight: 20, outlineStyle: 'none', resize: 'none' } : {}) },
   composerInput: { fontSize: 16, lineHeight: 22, color: INK, minHeight: 26, maxHeight: 110, paddingVertical: 2, outlineStyle: 'none' },
   composerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   composerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
