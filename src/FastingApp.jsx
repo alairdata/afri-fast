@@ -3380,6 +3380,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
             showToast('Failed to delete meal. Try again.', 'error');
           } else {
             supabase.from('recipe_community_photos').delete().eq('meal_id', id);
+            // meal_logs keeps a copy of every saved meal, so a deleted meal has to go from there too.
+            dbSave(supabase.from('meal_logs').delete().eq('meal_id', id).eq('user_id', session.user.id), 'delete meal_log');
           }
         }}
       />
