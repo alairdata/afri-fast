@@ -35,6 +35,7 @@ import {
 import { evaluateMilestones } from './lib/milestones';
 import { syncSmartNotifications, clearSmartNotifications, onBurnoutSummaryPublished } from './lib/smartNotifications';
 import { onJustForYouSaved } from './lib/claudeInsights';
+import { showsSmartCardPreview } from './components/SmartCardPreview';
 import { appleHealthSupported, connectAppleHealth, readDailySteps } from './lib/appleHealth';
 import { pendingWidgetWater, ackWidgetWater, pushWidgetSnapshot, clearWidgetSnapshot, claimWidgetFor, WIDGET_KEYS_KEPT_ON_LOGOUT } from './lib/widgetSync';
 import { track, EVENTS, startSession, countSessionLog, incrementUserProperty, resetAnalytics } from './lib/analytics';
@@ -222,6 +223,9 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
   // === Navigation state ===
   const [activeTab, setActiveTab] = useState('today');
+  // The dot on Insights goes once it's been opened (preview: it comes back on the next visit)
+  const [insightsSeen, setInsightsSeen] = useState(false);
+  useEffect(() => { if (activeTab === 'progress') setInsightsSeen(true); }, [activeTab]);
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [showPlanPage, setShowPlanPage] = useState(false);
   const [showCheckInPage, setShowCheckInPage] = useState(false);
@@ -3401,6 +3405,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       <BottomTabBar
         activeTab={activeTab}
         onTabChange={(tab) => { setShowFindRecipePage(false); setShowLogMealOptions(false); setShowMealHistory(false); setActiveTab(tab); }}
+        dotTabs={showsSmartCardPreview(session?.user?.id) && !insightsSeen && activeTab !== 'progress' ? ['progress'] : []}
       />
 
       {/* === Chat (above everything incl. tab bar) === */}

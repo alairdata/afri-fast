@@ -6,7 +6,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAccountPref, setAccountPref } from '../lib/accountPrefs';
 import { useTheme, dc } from '../lib/theme';
 import { computeMomentumTimeline, MIN_LOGGED_DAYS } from '../lib/momentum';
-import { computeWeeklyPace, estimateChangeSinceWeighInKg, forecastActivityKcalByDate, scaleTrendWeekly, blendWeeklyRate, findOddWeighIns } from '../lib/trajectory';
+import { computeWeeklyPace, estimateChangeSinceWeighInKg, forecastActivityKcalByDate, scaleTrendWeekly, blendWeeklyRate, findOddWeighIns, PACE_TARGET_RATE_KG } from '../lib/trajectory';
+import SmartCardPreview, { buildSmartCardFacts, showsSmartCardPreview } from './SmartCardPreview';
 import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
 import { publishBurnoutSummary } from '../lib/smartNotifications';
@@ -767,6 +768,11 @@ const ProgressTab = ({
     if (ratio <= 0.30) return { label: 'Drifting', color: dc(WARN, 'text'), bg: WARN_BG };
     return { label: 'Stalled', color: dc(DANGER, 'text'), bg: DANGER_BG };
   }, [deviationKg, requiredWeeklyRateKg, accent, colors.accentLight]);
+
+  const smartCardFacts = useMemo(() => (showsSmartCardPreview(userId) ? buildSmartCardFacts({
+    weights: sortedWeights, meals: recentMeals, goalHistory, weeklyRateKg: weeklyWeightChangeKg,
+    chosenRateKg: PACE_TARGET_RATE_KG[pacePreference] ?? null, now,
+  }) : null), [userId, sortedWeights, recentMeals, goalHistory, weeklyWeightChangeKg, pacePreference, now]);
 
   // Forecast shares the same rate as the This Week chart (weeklyPace: food and scale together, rate x days).
   const forecastDelta = (days) => {
@@ -1676,6 +1682,8 @@ const ProgressTab = ({
           {Platform.OS === 'web' && <View style={{ height: 12 }} />}
 
           <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }} {...pageFade.scrollProps}>
+
+            {smartCardFacts && <SmartCardPreview facts={smartCardFacts} weightUnit={weightUnit} fromKg={fromKg} cardStyle={styles.card} />}
 
             {/* Streaks */}
             <View style={styles.progressSectionCompact}>

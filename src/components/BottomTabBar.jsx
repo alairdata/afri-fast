@@ -13,7 +13,7 @@ const ALL_TABS = [
   { id: 'settings', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
 ];
 
-const BottomTabBar = ({ activeTab, onTabChange }) => {
+const BottomTabBar = ({ activeTab, onTabChange, dotTabs = [] }) => {
   const { colors } = useTheme();
   const tabs = ALL_TABS;
 
@@ -31,11 +31,19 @@ const BottomTabBar = ({ activeTab, onTabChange }) => {
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
           >
-            <Ionicons
-              name={isActive ? tab.iconActive : tab.icon}
-              size={22}
-              color={isActive ? colors.accent : colors.textMuted}
-            />
+            <View>
+              <Ionicons
+                name={isActive ? tab.iconActive : tab.icon}
+                size={22}
+                color={isActive ? colors.accent : colors.textMuted}
+              />
+              {dotTabs.includes(tab.id) && (
+                <View
+                  accessibilityLabel="Something new here"
+                  style={[styles.dot, { backgroundColor: '#EF4444', borderColor: colors.tabBar }]}
+                />
+              )}
+            </View>
             <Text style={[isActive ? styles.tabLabel : styles.tabLabelInactive, { color: isActive ? colors.accent : colors.textMuted }]}>{tab.label}</Text>
           </TouchableOpacity>
         );
@@ -71,6 +79,15 @@ const styles = StyleSheet.create({
     gap: 3,
     paddingVertical: 4,
     flex: 1,
+  },
+  dot: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
   },
   tabLabel: {
     fontSize: 10,
