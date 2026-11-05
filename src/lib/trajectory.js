@@ -51,20 +51,71 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 // Today, still in progress: counted as at least the day's calorie goal, so a breakfast alone never reads
 // as a huge "deficit", but eating past the goal shows up straight away. Null when nothing is logged today
 // or there's no goal or burn to compare against.
-function todayDeficit({ mealsByDate, tdee, bmr, activityKcalByDate, calorieGoal, now }) {
+function todayDeficit({ mealsByDate, tdee, bmr, activityKcalByDate, calorieGoal, learned, usualActivityKcal, now }) {
   const ds = new Date(now).toDateString();
   const eaten = mealsByDate[ds] || 0;
   if (eaten <= 0 || !(calorieGoal > 0)) return null;
-  const activityKcal = activityKcalByDate[ds] || 0;
-  const burn = (activityKcal > 0 && bmr != null) ? bmr + bmr * TEF_RATIO + activityKcal : tdee;
+  const burn = burnForDay({ ds, isToday: true, tdee, bmr, activityKcalByDate, learned, usualActivityKcal });
   if (burn == null) return null;
   return burn - Math.max(eaten, calorieGoal);
 }
 
+// Calories an activity adds ON TOP of resting burn, for the forecast only. These are the usual MET values
+// minus 1, because resting burn is already counted in BMR. Strength is an average across a whole session
+// including the rests between sets, which is what people log. Steps are net of resting burn for the same reason.
+// The gross estimate in AddActivityModal and the Movement score (momentum.js) are a different question and stay as they are.
+const NET_MET = { walking: 2.5, running: 8.8, cycling: 6.5, swimming: 5, strength: 2.5, sports: 6, other: 3 };
+const NET_KCAL_PER_STEP_PER_KG = 0.0003;
+// Resting burn plus digestion plus the everyday moving that isn't steps or workouts (standing, chores): the
+// usual "sedentary" level. Now that activity is net, 1.1 alone would make logging steps lower the estimate.
+const BASE_BURN_RATIO = 1.2;
+const STILL_LOSING_KG_PER_WEEK = 0.05;
+const USUAL_ACTIVITY_DAYS = 28;
+const MIN_DAYS_FOR_USUAL = 7;
+
+// { [dateString]: extra kcal } for the last 28 days, shared by the Insights tab and the server's daily prediction.
+export function forecastActivityKcalByDate({ activities = [], stepLogs = [], bodyKg, now = Date.now() }) {
+  const kg = bodyKg || 70;
+  const map = {};
+  for (let i = 0; i < USUAL_ACTIVITY_DAYS; i++) map[new Date(now - i * DAY_MS).toDateString()] = 0;
+  activities.forEach((a) => {
+    const ds = new Date(a.timestamp || new Date(a.date).getTime()).toDateString();
+    if (ds in map) map[ds] += (a.durationMin || 0) * (NET_MET[a.type] ?? NET_MET.other) * 3.5 * kg / 200;
+  });
+  stepLogs.forEach((s) => {
+    const ds = new Date(s.timestamp || new Date(s.date).getTime()).toDateString();
+    if (ds in map) map[ds] += (s.steps || 0) * kg * NET_KCAL_PER_STEP_PER_KG;
+  });
+  return map;
+}
+
+// A person's normal daily activity over finished days. Their learned burn already includes it, so only the
+// difference from normal should move a given day's burn. Null until there are enough days to call anything normal.
+function usualActivity(activityKcalByDate, now) {
+  const todayDs = new Date(now).toDateString();
+  const days = Object.entries(activityKcalByDate).filter(([ds, kcal]) => ds !== todayDs && kcal > 0);
+  if (days.length < MIN_DAYS_FOR_USUAL) return null;
+  return days.reduce((sum, [, kcal]) => sum + kcal, 0) / days.length;
+}
+
+// One day's burn. Nothing logged: the blended daily burn. Activity logged: resting burn plus that activity, handing
+// over to the burn learned from weigh-ins as it earns trust (learned.share, 0-1). Today is unfinished, so
+// a low step count so far never pulls its burn below normal.
+function burnForDay({ ds, isToday = false, tdee, bmr, activityKcalByDate, learned, usualActivityKcal }) {
+  const activityKcal = activityKcalByDate[ds] || 0;
+  if (!(activityKcal > 0) || bmr == null) return tdee;
+  const measured = bmr * BASE_BURN_RATIO + activityKcal;
+  if (!learned) return measured;
+  const fromNormal = usualActivityKcal == null ? 0 : activityKcal - usualActivityKcal;
+  const learnedBurn = learned.burn + (isToday ? Math.max(0, fromNormal) : fromNormal);
+  return learned.share * learnedBurn + (1 - learned.share) * measured;
+}
+
 export function computeWeeklyPace({
   tdee, bmr, recentMeals = [], pacePreference, weightEwmaTodayKg, confidence, daysSinceWeighIn,
-  activityKcalByDate = {}, calorieGoal = null, now = Date.now(),
+  activityKcalByDate = {}, calorieGoal = null, learned = null, scaleTrend = null, now = Date.now(),
 }) {
+  const usualActivityKcal = usualActivity(activityKcalByDate, now);
   const dTarget = PACE_TARGET_DEFICIT[pacePreference] || null;
 
   const mealsByDate = {};
@@ -75,24 +126,36 @@ export function computeWeeklyPace({
   // 2,000+kcal deficit would falsely crater the projected line every time a day goes unlogged.
   // The window is the last 7 finished days plus today, counted as at least the calorie goal (see todayDeficit).
   let d7d = 0, loggedDaysCount = 0;
-  const today = todayDeficit({ mealsByDate, tdee, bmr, activityKcalByDate, calorieGoal, now });
+  const today = todayDeficit({ mealsByDate, tdee, bmr, activityKcalByDate, calorieGoal, learned, usualActivityKcal, now });
   if (today != null) { d7d += today; loggedDaysCount++; }
   for (let i = 7; i >= 1; i--) {
     const d = new Date(now - i * DAY_MS);
     const ds = d.toDateString();
     const logged = mealsByDate[ds] || 0;
     if (logged <= 0) continue;
-    const activityKcal = activityKcalByDate[ds] || 0;
-    // + TEF: BMR + measured activity alone omits the Thermic Effect of Food (~10% of TDEE spent
-    // digesting regardless of activity) -- same gap, same fix, as Momentum's Movement target.
-    const expenditure = (activityKcal > 0 && bmr != null) ? bmr + bmr * TEF_RATIO + activityKcal : tdee;
+    const expenditure = burnForDay({ ds, tdee, bmr, activityKcalByDate, learned, usualActivityKcal });
     const deficit = expenditure != null ? expenditure - logged : 0;
     d7d += deficit;
     loggedDaysCount++;
   }
   const dBar = loggedDaysCount > 0 ? d7d / loggedDaysCount : null; // average daily deficit, over days actually logged
   const vEnergyKg = dBar != null ? (dBar * 7) / KCAL_PER_KG : null; // expected 7-day loss if this average holds for a full week
-  const pRatio = (dBar != null && tdee != null && dTarget) ? dBar / dTarget : null;
+
+  // Negative = losing weight, to match the sign convention used everywhere else in this app
+  // (weeklyWeightChangeKg, requiredWeeklyRateKg, etc: negative delta = weight went down). null
+  // (not 0) when nothing was logged this week -- a flat-line guess would be worse than no guess.
+  const foodDailyRateKg = (tdee != null && dBar != null) ? -dBar / KCAL_PER_KG : null;
+  // The forecast and the pace verdict use food and scale together: the scale counts as far as the weigh-ins
+  // earn it, so "On Pace" can't stand against a scale that disagrees, and someone with no scale still gets
+  // an honest rate from food alone.
+  const blended = blendWeeklyRate({
+    scaleTrend,
+    foodRateKg: foodDailyRateKg != null ? foodDailyRateKg * 7 : null,
+    bodyKg: weightEwmaTodayKg,
+  });
+  const dailyRateKg = foodDailyRateKg != null && blended ? blended.rateKg / 7 : null;
+  const dTargetRateKg = PACE_TARGET_RATE_KG[pacePreference] || null;
+  const pRatio = (dailyRateKg != null && dTargetRateKg) ? (-dailyRateKg * 7) / dTargetRateKg : null;
   // A single logged day out of 7 can swing dBar/pRatio entirely on its own -- require a few before
   // trusting them enough to drive a pace verdict. dBar/pRatio/dailyRateKg themselves stay computed
   // off whatever's logged either way, so the chart and its projection never lose data because of this.
@@ -139,15 +202,12 @@ export function computeWeeklyPace({
     if (pRatio > 1.30) badge = { label: 'Faster Than Planned', tone: 'neutral' };
     else if (pRatio >= 0.90) badge = { label: 'On Pace', tone: 'good' };
     else if (pRatio >= 0.50) badge = { label: 'Off Pace', tone: 'warn' };
+    // Still losing, just slower than the chosen pace, isn't a stall or a danger. "Stalled" means it has really stopped.
+    else if (dailyRateKg != null && dailyRateKg * 7 <= -STILL_LOSING_KG_PER_WEEK) badge = { label: 'Slower Than Planned', tone: 'neutral' };
     else badge = { label: 'Stalled', tone: 'danger' };
   }
   // else: not enough logged days this week to judge pace confidently -- no badge, same as today
   // when nothing at all has been logged.
-
-  // Negative = losing weight, to match the sign convention used everywhere else in this app
-  // (weeklyWeightChangeKg, requiredWeeklyRateKg, etc: negative delta = weight went down). null
-  // (not 0) when nothing was logged this week -- a flat-line guess would be worse than no guess.
-  const dailyRateKg = (tdee != null && dBar != null) ? -dBar / KCAL_PER_KG : null;
 
   // k is days from today -- positive for a forward forecast, negative to backfill a day this
   // week that has no real weigh-in yet. Margin widens with distance from today in either direction.
@@ -158,7 +218,7 @@ export function computeWeeklyPace({
     return { projectedKg, upperKg: projectedKg + marginKg, lowerKg: projectedKg - marginKg };
   };
 
-  return { dTarget, d7d, dBar, vEnergyKg, pRatio, unsafe, belowBmrFloor, threeDayAvgCalories, bmrSafetyFloor, badge, dailyRateKg, projectDay };
+  return { dTarget, d7d, dBar, vEnergyKg, pRatio, unsafe, belowBmrFloor, threeDayAvgCalories, bmrSafetyFloor, badge, dailyRateKg, foodDailyRateKg, projectDay };
 }
 
 /**
@@ -172,12 +232,13 @@ export function computeWeeklyPace({
  * the estimate improves as they log. Negative = lost weight. Null when it can't be estimated.
  */
 export function estimateChangeSinceWeighInKg({
-  tdee, bmr, recentMeals = [], activityKcalByDate = {}, daysSinceWeighIn, calorieGoal = null, now = Date.now(),
+  tdee, bmr, recentMeals = [], activityKcalByDate = {}, daysSinceWeighIn, calorieGoal = null, learned = null, now = Date.now(),
 }) {
   if (tdee == null || !Number.isFinite(daysSinceWeighIn) || daysSinceWeighIn < 1) return null;
   const mealsByDate = {};
   recentMeals.forEach((m) => { if (m.date) mealsByDate[m.date] = (mealsByDate[m.date] || 0) + (m.calories || 0); });
-  const today = todayDeficit({ mealsByDate, tdee, bmr, activityKcalByDate, calorieGoal, now }) || 0;
+  const usualActivityKcal = usualActivity(activityKcalByDate, now);
+  const today = todayDeficit({ mealsByDate, tdee, bmr, activityKcalByDate, calorieGoal, learned, usualActivityKcal, now }) || 0;
   const span = Math.min(daysSinceWeighIn - 1, 90); // days after the weigh-in day, up to yesterday
   if (span < 1) return today ? { kg: -today / KCAL_PER_KG, loggedDays: 1, estimatedDays: 0 } : null;
   let loggedDeficit = 0, logged = 0;
@@ -185,8 +246,7 @@ export function estimateChangeSinceWeighInKg({
     const ds = new Date(now - i * DAY_MS).toDateString();
     const eaten = mealsByDate[ds] || 0;
     if (eaten <= 0) continue;
-    const activityKcal = activityKcalByDate[ds] || 0;
-    const burn = (activityKcal > 0 && bmr != null) ? bmr + bmr * TEF_RATIO + activityKcal : tdee;
+    const burn = burnForDay({ ds, tdee, bmr, activityKcalByDate, learned, usualActivityKcal });
     loggedDeficit += burn - eaten;
     logged++;
   }

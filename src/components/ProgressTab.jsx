@@ -5,8 +5,8 @@ import Svg, { Path, Circle, Line, Rect, Text as SvgText } from 'react-native-svg
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAccountPref, setAccountPref } from '../lib/accountPrefs';
 import { useTheme, dc } from '../lib/theme';
-import { computeMomentumTimeline, MET, MIN_LOGGED_DAYS } from '../lib/momentum';
-import { computeWeeklyPace, estimateChangeSinceWeighInKg, scaleTrendWeekly, blendWeeklyRate, findOddWeighIns } from '../lib/trajectory';
+import { computeMomentumTimeline, MIN_LOGGED_DAYS } from '../lib/momentum';
+import { computeWeeklyPace, estimateChangeSinceWeighInKg, forecastActivityKcalByDate, scaleTrendWeekly, blendWeeklyRate, findOddWeighIns } from '../lib/trajectory';
 import { computeObservedTdee } from '../lib/observedTdee';
 import { computeBurnoutTimeline } from '../lib/burnout';
 import { publishBurnoutSummary } from '../lib/smartNotifications';
@@ -709,27 +709,14 @@ const ProgressTab = ({
   const momentumColor = !momentumReady ? colors.textMuted : today.band.tone === 'strong' ? accent : today.band.tone === 'drifting' ? WARN : DANGER;
 
 
-  // Measured gym+steps kcal per day, last 7 days -- lets Weekly Pace use BMR + real activity
-  // instead of the PAL guess on days that actually have movement data logged.
-  const activityKcalLast7ByDate = useMemo(() => {
-    const map = {};
-    const weightKg = currentWeightKg || 70;
-    for (let i = 0; i <= 6; i++) map[new Date(now - i * DAY_MS).toDateString()] = 0;
-    activities.forEach((a) => {
-      const ts = a.timestamp || new Date(a.date).getTime();
-      const ds = new Date(ts).toDateString();
-      if (!(ds in map)) return;
-      const met = MET[a.type] || MET.other;
-      map[ds] += (a.durationMin || 0) * met * 3.5 * weightKg / 200;
-    });
-    stepLogs.forEach((s) => {
-      const ts = s.timestamp || new Date(s.date).getTime();
-      const ds = new Date(ts).toDateString();
-      if (!(ds in map)) return;
-      map[ds] += (s.steps || 0) * weightKg * 0.0005;
-    });
-    return map;
-  }, [activities, stepLogs, currentWeightKg, now]);
+  // Gym and steps per day on top of resting burn, last 28 days (see trajectory.js), and the burn learned
+  // from this person's weigh-ins, which takes over from the general estimate as it earns trust.
+  const activityKcalByDate = useMemo(() => forecastActivityKcalByDate({
+    activities, stepLogs, bodyKg: currentWeightKg, now,
+  }), [activities, stepLogs, currentWeightKg, now]);
+  const learnedBurn = useMemo(() => (observedTdee.available
+    ? { burn: observedTdee.observedTdee, share: observedTdee.confidence }
+    : null), [observedTdee]);
 
   // Where the forecast and the Prediction chart start. After more than a week without a weigh-in, the
   // smoothed weight is stale, so it's moved by what the food logged since then suggests, and a note says so.
@@ -741,8 +728,8 @@ const ProgressTab = ({
   const lastWeighIn = sortedWeights.length ? sortedWeights[sortedWeights.length - 1] : null;
   const daysSinceWeighIn = Number.isFinite(today.daysSinceWeighIn) ? today.daysSinceWeighIn : null;
   const sinceWeighIn = useMemo(() => (daysSinceWeighIn == null ? null : estimateChangeSinceWeighInKg({
-    tdee, bmr, recentMeals, activityKcalByDate: activityKcalLast7ByDate, daysSinceWeighIn, calorieGoal: dailyCalorieGoal, now,
-  })), [daysSinceWeighIn, tdee, bmr, recentMeals, activityKcalLast7ByDate, dailyCalorieGoal, now]);
+    tdee, bmr, recentMeals, activityKcalByDate, daysSinceWeighIn, calorieGoal: dailyCalorieGoal, learned: learnedBurn, now,
+  })), [daysSinceWeighIn, tdee, bmr, recentMeals, activityKcalByDate, dailyCalorieGoal, learnedBurn, now]);
   const anchorKg = baseAnchorKg != null && sinceWeighIn != null ? baseAnchorKg + sinceWeighIn.kg : baseAnchorKg;
   const lastWeighInLabel = lastWeighIn ? fmtDayMonth(new Date(lastWeighIn.ts)) : null;
 
@@ -752,16 +739,19 @@ const ProgressTab = ({
     weightEwmaTodayKg: anchorKg,
     confidence: today.confidence,
     daysSinceWeighIn: today.daysSinceWeighIn,
-    activityKcalByDate: activityKcalLast7ByDate,
+    activityKcalByDate,
     calorieGoal: dailyCalorieGoal,
+    learned: learnedBurn,
+    scaleTrend,
     now,
-  }), [tdee, bmr, recentMeals, pacePreference, today, anchorKg, activityKcalLast7ByDate, dailyCalorieGoal, now]);
+  }), [tdee, bmr, recentMeals, pacePreference, today, anchorKg, activityKcalByDate, dailyCalorieGoal, learnedBurn, scaleTrend, now]);
 
   // The one "per week" number: the scale trend only as far as the weigh-ins earn it, the food-based
   // estimate (already calibrated by past weigh-ins) for the rest, so rare weighers still get a fair rate.
+  // Starts from the food-only rate, because weeklyPace.dailyRateKg has the scale blended in already.
   const weeklyRate = useMemo(() => blendWeeklyRate({
     scaleTrend,
-    foodRateKg: weeklyPace.dailyRateKg != null ? weeklyPace.dailyRateKg * 7 : null,
+    foodRateKg: weeklyPace.foodDailyRateKg != null ? weeklyPace.foodDailyRateKg * 7 : null,
     bodyKg: anchorKg,
   }), [scaleTrend, weeklyPace, anchorKg]);
   const weeklyWeightChangeKg = weeklyRate ? weeklyRate.rateKg : null;
@@ -778,9 +768,7 @@ const ProgressTab = ({
     return { label: 'Stalled', color: dc(DANGER, 'text'), bg: DANGER_BG };
   }, [deviationKg, requiredWeeklyRateKg, accent, colors.accentLight]);
 
-  // Forecast shares the same energy-deficit engine as the This Week chart (weeklyPace).
-  // The change in each forecast is the exact same energy maths as the Energy balance card (calories
-  // alone, rate x days), so the two always agree. The absolute weights start from the smoothed weight.
+  // Forecast shares the same rate as the This Week chart (weeklyPace: food and scale together, rate x days).
   const forecastDelta = (days) => {
     const kg = (weeklyPace.dailyRateKg || 0) * days;
     return `${kg <= 0 ? '-' : '+'}${Math.abs(fromKg(kg, weightUnit)).toFixed(2)} ${weightUnit}`;
@@ -798,7 +786,8 @@ const ProgressTab = ({
     const dailyRateKg = weeklyPace.dailyRateKg;
     if ((remainingKg < 0 && dailyRateKg >= 0) || (remainingKg > 0 && dailyRateKg <= 0)) return null;
     const daysNeeded = remainingKg / dailyRateKg;
-    if (!isFinite(daysNeeded) || daysNeeded <= 0) return null;
+    // A near-flat rate would give a date decades away, which only discourages and means nothing.
+    if (!isFinite(daysNeeded) || daysNeeded <= 0 || daysNeeded > 3 * 365) return null;
     return new Date(now + daysNeeded * DAY_MS);
   }, [anchorKg, targetWeightKg, weeklyPace, now]);
 
@@ -843,7 +832,8 @@ const ProgressTab = ({
 
     let note = null;
     let noteSuffix = '';
-    const predictedWeeklyKg = weeklyPace && weeklyPace.dailyRateKg != null ? weeklyPace.dailyRateKg * 7 : null;
+    // Food alone: this note compares the scale with what eating suggests, so the scale can't be part of it.
+    const predictedWeeklyKg = weeklyPace && weeklyPace.foodDailyRateKg != null ? weeklyPace.foodDailyRateKg * 7 : null;
     if (weeklyRate?.tooFast) {
       noteSuffix = ' That is faster than about 1% of your body weight a week, which early on is usually water. Expect it to settle.';
     } else if (scaleTrend && predictedWeeklyKg != null && Math.abs(scaleTrend.rateKg - predictedWeeklyKg) > Math.max(0.5, (currentWeightKg || 70) * 0.006)) {

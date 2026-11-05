@@ -5,8 +5,8 @@
 // The app saves it when Insights is open; api/cron/user-onboarding.js runs it every day on the server for
 // everyone, so a prediction is saved for every day whether or not the person opened the app, and missed days
 // are filled in from the logs as they stood at the end of that day.
-import { computeMomentumTimeline, MET } from './momentum';
-import { computeWeeklyPace, estimateChangeSinceWeighInKg } from './trajectory';
+import { computeMomentumTimeline } from './momentum';
+import { computeWeeklyPace, estimateChangeSinceWeighInKg, forecastActivityKcalByDate, scaleTrendWeekly } from './trajectory';
 import { computeObservedTdee } from './observedTdee';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -92,30 +92,20 @@ export function computePredictionSnapshot({
   const today = timeline[timeline.length - 1];
   if (!today) return null;
 
-  const activityKcalByDate = {};
-  const bodyKg = currentWeightKg || 70;
-  for (let i = 0; i <= 6; i++) activityKcalByDate[new Date(now - i * DAY_MS).toDateString()] = 0;
-  acts.forEach((a) => {
-    const ds = new Date(a.timestamp || new Date(a.date).getTime()).toDateString();
-    if (!(ds in activityKcalByDate)) return;
-    activityKcalByDate[ds] += (a.durationMin || 0) * (MET[a.type] || MET.other) * 3.5 * bodyKg / 200;
-  });
-  steps.forEach((s) => {
-    const ds = new Date(s.timestamp || new Date(s.date).getTime()).toDateString();
-    if (!(ds in activityKcalByDate)) return;
-    activityKcalByDate[ds] += (s.steps || 0) * bodyKg * 0.0005;
-  });
+  const activityKcalByDate = forecastActivityKcalByDate({ activities: acts, stepLogs: steps, bodyKg: currentWeightKg, now });
+  const learned = observed.available ? { burn: observed.observedTdee, share: observed.confidence } : null;
+  const scaleTrend = scaleTrendWeekly(sortedWeights, now);
 
   const baseAnchorKg = currentWeightKg != null ? currentWeightKg : today.weightEwmaKg;
   const daysSinceWeighIn = Number.isFinite(today.daysSinceWeighIn) ? today.daysSinceWeighIn : null;
   const since = daysSinceWeighIn == null ? null : estimateChangeSinceWeighInKg({
-    tdee, bmr, recentMeals: meals, activityKcalByDate, daysSinceWeighIn, calorieGoal: dailyCalorieGoal, now,
+    tdee, bmr, recentMeals: meals, activityKcalByDate, daysSinceWeighIn, calorieGoal: dailyCalorieGoal, learned, now,
   });
   const anchorKg = baseAnchorKg != null && since != null ? baseAnchorKg + since.kg : baseAnchorKg;
 
   const pace = computeWeeklyPace({
     tdee, bmr, recentMeals: meals, pacePreference, weightEwmaTodayKg: anchorKg, confidence: today.confidence,
-    daysSinceWeighIn: today.daysSinceWeighIn, activityKcalByDate, calorieGoal: dailyCalorieGoal, now,
+    daysSinceWeighIn: today.daysSinceWeighIn, activityKcalByDate, calorieGoal: dailyCalorieGoal, learned, scaleTrend, now,
   });
   if (anchorKg == null || pace.dailyRateKg == null) return null;
 
