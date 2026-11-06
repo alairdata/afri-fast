@@ -243,6 +243,8 @@ export const DayMealsCard = ({ date, recentMeals, onViewMeal, onRequestDelete, o
                 activeOpacity={0.85}
                 style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                 onPress={() => onViewMeal && onViewMeal(meal)}
+                onLongPress={() => onRequestDelete(meal.id)}
+                delayLongPress={450}
               >
                 <View style={styles.recentMealLeftClean}>
                   {photo ? (

@@ -3034,6 +3034,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         checkInHistory={checkInHistory}
         mealCheckInSnapshot={mealCheckInSnapshot}
         onQuickCheckIn={(data) => saveCheckIn(data, 'meal')}
+        onRequestDeleteMeal={(id) => setDeletingMealId(id)}
         onOpenCheckIn={() => openCheckInPage('meal')}
         volumeUnit={volumeUnit}
         viewingMeal={viewingMeal}

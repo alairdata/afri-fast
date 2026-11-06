@@ -259,7 +259,7 @@ const ShareCardImage = ({ uri, height, style }) => {
   );
 };
 
-const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, goalHistory = [], dailyGoalLedger = [], recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, chatMealToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null, onQuickCheckIn = null }) => {
+const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGoal = 2000, goalHistory = [], dailyGoalLedger = [], recentMeals = [], viewingMeal = null, selectedMealDate = null, checkInHistory = [], onOpenCheckIn, volumeUnit = 'glasses', recipeToLog = null, chatMealToLog = null, recipes = [], userEmail = null, userCountry = '', mealCheckInSnapshot = null, onQuickCheckIn = null, onRequestDeleteMeal = null }) => {
   // These screens are full-screen layers that sit BELOW the top of the phone (under the notch area), but the
   // keyboard measures from the top of the screen. Without telling it about that gap it lifts the input by too
   // little and the keyboard still covers part of what you type.
@@ -1946,6 +1946,17 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
                   <Text style={styles.shareCardDoneBtnText}>Done</Text>
                 </TouchableOpacity>
               </View>
+              {/* An already-logged meal can be deleted from its own page (asks first, in the Today delete prompt) */}
+              {viewingMeal?.id != null && onRequestDeleteMeal ? (
+                <TouchableOpacity
+                  style={styles.deleteMealBtn}
+                  onPress={() => { const id = viewingMeal.id; resetScan(); onClose(); onRequestDeleteMeal(id); }}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="trash-outline" size={17} color={dc('#DC2626', 'text')} />
+                  <Text style={styles.deleteMealBtnText}>Delete meal</Text>
+                </TouchableOpacity>
+              ) : null}
           </ScrollView>
         )}
 
@@ -2823,6 +2834,8 @@ const styles = themedStyles({
     borderRadius: 24,
     overflow: 'hidden',
   },
+  deleteMealBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'center', marginTop: 14, marginBottom: 8, paddingVertical: 10, paddingHorizontal: 18 },
+  deleteMealBtnText: { color: '#DC2626', fontSize: 15, fontWeight: '600' },
   shareCardActions: {
     flexDirection: 'row',
     gap: 12,
