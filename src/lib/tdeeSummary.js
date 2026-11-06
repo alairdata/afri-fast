@@ -78,6 +78,10 @@ export function computeTdeeSummary({
     tdee: tdee != null ? Math.round(tdee) : null,
     usesLogs,
     floor: calorieFloor(sex),
+    // The lowest target Logga will ever SUGGEST: what this body uses at rest (formula only, never the learned
+    // burn, which can read low when food goes unlogged), and never under 1,200. People may still set lower,
+    // down to MIN_CALORIES; Logga just never nudges them there.
+    safeLow: bmr != null ? Math.max(MIN_CALORIES, Math.round(bmr / 10) * 10) : MIN_CALORIES,
   };
 }
 

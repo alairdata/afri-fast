@@ -93,23 +93,32 @@ const CalorieTargetPage = ({
     weeklyText = 'about the same weight';
   }
 
+  // Safety: Logga never suggests a lower target unless it stays at or above what this body uses at rest.
+  const { safeLow } = summary;
+  const roomToLower = tdee != null && Math.min(draft, tdee) - safeLow >= 100;
+  const learnedLow = usesLogs && tdee != null && tdee - safeLow < 100;
+  const noLowerTxt = `Logga won't suggest going below ${fmt(safeLow)}, about what your body uses at rest. Moving a little more each day is the safer way toward ${goalShown}.`
+    + (learnedLow ? ' Your daily burn is learned from your weigh-ins and meals, so it can read low when some food goes unlogged.' : '');
+  const lowerTxt = (rest) => (roomToLower ? `Lower the target ${rest}` : noLowerTxt);
+  const belowRest = !limitError && draft > 0 && draft < safeLow;
+
   let headline = ''; let detail = ''; let tone = 'neutral';
   if (limitError) {
     headline = 'Choose another target'; detail = ''; tone = 'bad';
   } else if (proj.kind === 'lose' || proj.kind === 'gain') {
     headline = proj.weeks > 156 ? 'More than 3 years' : `About ${proj.weeks} ${proj.weeks === 1 ? 'week' : 'weeks'}`;
     detail = proj.weeks > 156
-      ? `At this target you'd get to ${goalShown} very slowly. ${proj.kind === 'lose' ? 'A lower target' : 'A higher target'} would speed it up.`
+      ? `At this target you'd get to ${goalShown} very slowly. ${proj.kind === 'lose' ? (roomToLower ? 'A lower target would speed it up.' : noLowerTxt) : 'A higher target would speed it up.'}`
       : `At ${fmt(draft)} calories a day you'd reach ${goalShown} around ${dateText}.`;
   } else if (proj.kind === 'away') {
     const losing = !proj.wantsLoss;
     headline = `You'd ${losing ? 'lose' : 'gain'} about ${kgText(proj.weeklyKg)} a week`;
-    detail = `That moves you away from your goal of ${goalShown}. We can't say where it would stop, because your goal isn't to ${losing ? 'lose' : 'gain'} weight. ${proj.wantsLoss ? 'Lower the target to head toward your goal.' : 'Raise the target to head toward your goal.'}`;
+    detail = `That moves you away from your goal of ${goalShown}. We can't say where it would stop, because your goal isn't to ${losing ? 'lose' : 'gain'} weight. ${proj.wantsLoss ? lowerTxt('to head toward your goal.') : 'Raise the target to head toward your goal.'}`;
     tone = 'warn';
   } else if (proj.kind === 'stalled') {
     headline = 'About the same weight';
     detail = proj.wantsLoss
-      ? `This is close to what you burn, so your weight stays about where it is. Lower the target to move toward ${goalShown}.`
+      ? `This is close to what you burn, so your weight stays about where it is. ${lowerTxt(`to move toward ${goalShown}.`)}`
       : `This is close to what you burn, so your weight stays about where it is. Raise the target to move toward ${goalShown}.`;
   } else if (proj.kind === 'maintain') {
     headline = 'Holding steady';
@@ -239,6 +248,9 @@ const CalorieTargetPage = ({
           <View style={[styles.proj, tone === 'warn' && styles.projWarn, tone === 'bad' && styles.projBad]}>
             <Text style={styles.projHead}>{headline}</Text>
             {detail ? <Text style={styles.projTxt}>{detail}</Text> : null}
+            {belowRest ? (
+              <Text style={styles.projNote}>{`${fmt(draft)} is below what your body uses at rest (about ${fmt(safeLow)}). You can still choose it, but eating this low for long often brings tiredness and hunger, and it's hard to keep up.`}</Text>
+            ) : null}
             {proj.fast ? (
               <Text style={styles.projNote}>That's a quick pace. A smaller deficit is usually easier to keep up.</Text>
             ) : null}
