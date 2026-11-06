@@ -14,6 +14,7 @@ import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 import { useVoiceInput } from '../lib/useVoiceInput';
 import { aiHeaders } from '../lib/aiAuth';
 import { dc, themedStyles } from '../lib/theme';
+import { loadChats, saveChat, newChatId } from '../lib/chatHistory';
 
 const INK = '#1F1F1F';
 const MUTED = '#6B7280';
@@ -152,15 +153,32 @@ const ChatScreen = ({
   const [started, setStarted] = useState(!isMeals);
   useEffect(() => { if (show && isMeals) setStarted(false); }, [show, isMeals]);
   const hasConversation = messages.some((m) => m.role === 'user');
-  const askRecents = isMeals
-    ? (recentMeals || []).filter((m) => m.method === 'chat').sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at)).slice(0, 3)
-    : [];
+  // Recents: past chats saved on the account (lib/chatHistory.js); tapping one reopens it exactly as it was.
+  const [chats, setChats] = useState([]);
+  const chatIdRef = useRef(null);
+  useEffect(() => { if (show && isMeals && userId) loadChats(userId).then(setChats); }, [show, isMeals, userId]);
+  useEffect(() => {
+    if (!isMeals || !started || !userId || !messages.some((m) => m.role === 'user')) return undefined;
+    if (!chatIdRef.current) chatIdRef.current = newChatId();
+    const id = chatIdRef.current;
+    const t = setTimeout(() => { saveChat(userId, id, messages).then(setChats); }, 600);
+    return () => clearTimeout(t);
+  }, [messages, started, isMeals, userId]);
+  const askRecents = isMeals ? chats.slice(0, 5) : [];
+  const openChat = (c) => {
+    chatIdRef.current = c.id;
+    setMessages(c.messages || []);
+    setChatInput('');
+    setPhoto(null);
+    setStarted(true);
+  };
   const whenLabel = (iso) => {
     const d = new Date(iso), today = new Date();
     const days = Math.round((new Date(today.toDateString()) - new Date(d.toDateString())) / 86400000);
     return days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? d.toLocaleDateString('en-US', { weekday: 'short' }) : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
   const startChat = (prefill = '') => {
+    chatIdRef.current = newChatId();
     setMessages([{ role: 'assistant', content: 'What are you thinking about your meal today?' }]);
     setChatInput(prefill);
     setPhoto(null);
@@ -357,18 +375,20 @@ const ChatScreen = ({
                 <>
                   <Text style={[styles.kicker, { marginTop: 22 }]}>RECENTS</Text>
                   <View style={styles.whenCard}>
-                    {askRecents.map((m, i) => (
+                    {askRecents.map((c, i) => (
                       <TouchableOpacity
-                        key={m.id}
+                        key={c.id}
                         style={[styles.whenRow, i < askRecents.length - 1 && styles.rowDivider]}
-                        onPress={() => startChat(`I had ${m.name} again`)}
-                        accessibilityLabel={`Log ${m.name} again`}
+                        onPress={() => openChat(c)}
+                        accessibilityLabel={`Open the chat about ${c.title}`}
                       >
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={[styles.whenTitle, { fontSize: 13 }]} numberOfLines={1}>{m.name}</Text>
-                          <Text style={[styles.whenSub, { fontSize: 12 }]}>{Math.round(m.calories || 0).toLocaleString()} cal</Text>
+                          <Text style={[styles.whenTitle, { fontSize: 13 }]} numberOfLines={1}>{c.title}</Text>
+                          <Text style={[styles.whenSub, { fontSize: 12 }]}>
+                            {c.cal != null ? `${c.cal.toLocaleString()} cal` : `${(c.messages || []).filter((m) => m.role === 'user').length} messages`}
+                          </Text>
                         </View>
-                        <Text style={{ fontSize: 12.5, color: dc(MUTED, 'text') }}>{whenLabel(m.logged_at)}</Text>
+                        <Text style={{ fontSize: 12.5, color: dc(MUTED, 'text') }}>{whenLabel(c.updatedAt)}</Text>
                         <Ionicons name="chevron-forward" size={16} color={dc("#C4C8CE", 'text')} />
                       </TouchableOpacity>
                     ))}

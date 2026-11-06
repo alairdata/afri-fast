@@ -152,6 +152,16 @@ const addRecent = async (userId, mode, entry) => {
   setAccountPref(userId, recentsPref(mode), next);
   return next;
 };
+// Keeps a recent up to date with the plate as it is now (weights changed, foods added or removed), so reopening it
+// shows it exactly as it was left.
+const updateRecent = async (userId, mode, at, patch) => {
+  const list = await loadRecents(userId, mode);
+  if (!list.some((r) => r.at === at)) return list;
+  const next = list.map((r) => (r.at === at ? { ...r, ...patch } : r));
+  AsyncStorage.setItem(recentsKey(userId, mode), JSON.stringify(next)).catch(() => {});
+  setAccountPref(userId, recentsPref(mode), next);
+  return next;
+};
 // "Today", "Yesterday", a weekday within the week, else "3 Oct".
 const whenLabel = (at) => {
   const d = new Date(at), now = new Date();
@@ -254,6 +264,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   const [error, setError] = useState(null);
   const [plan, setPlan] = useState(null);
   const [recents, setRecents] = useState([]);
+  const recentAtRef = useRef(null); // which recent the plate on screen belongs to
   // The plate as a list of foods, the same shape (and editing) as a scanned meal's detected foods.
   const [foods, setFoods] = useState([]);
   const resultRef = useRef(null);
@@ -274,6 +285,7 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   useEffect(() => {
     if (!visible) return;
     setStep('input'); setText(''); setPhoto(null); setPlan(null); setError(null); setServings(1); setRecipeImage(null); setSavedRecipe(false);
+    recentAtRef.current = null;
     loadRecents(userId, mode).then(setRecents);
     const left = Math.max(0, Math.round(caloriesLeft));
     setUseAll(false);
@@ -324,8 +336,10 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
       setFoods(builtFoods);
       const recentTitle = built.title || builtFoods.map((x) => x.name).slice(0, 2).join(' and ');
       if (recentTitle) {
+        const at = Date.now();
+        recentAtRef.current = at;
         addRecent(userId, mode, {
-          title: recentTitle, at: Date.now(), budget: chosen, servings,
+          title: recentTitle, at, budget: chosen, servings,
           cal: Math.round(builtFoods.reduce((sum, f) => sum + (f.cal || 0), 0)), plan: built,
         }).then(setRecents);
       }
@@ -364,6 +378,14 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
   // down (never to nothing) and the bar shows how far over it is.
   // Nothing rebalances: changing one food changes only that one (the total and the to-spare bar just update).
   const refit = (list) => list;
+  useEffect(() => {
+    const at = recentAtRef.current;
+    if (step !== 'plate' || !at || !foods.length) return undefined;
+    const t = setTimeout(() => {
+      updateRecent(userId, mode, at, { foods, servings, cal: Math.round(foods.reduce((sum, f) => sum + (f.cal || 0), 0)) }).then(setRecents);
+    }, 800);
+    return () => clearTimeout(t);
+  }, [foods, servings, step]);
   const changeFood = (i, fn) => setFoods((prev) => refit(prev.map((f, idx) => (idx === i ? { ...fn(f), locked: true } : f))));
   const nudgeCal = (i, d) => changeFood(i, (f) => scaleFood(f, Math.max(0, f.cal + d)));
   const resetEditing = () => { setIsFoodEditMode(false); setEditingQtyIdx(null); setEditingCalIdx(null); setShowAddItem(false); setNewItemName(''); };
@@ -530,7 +552,8 @@ const PortionPlanner = ({ visible, onClose, caloriesLeft = 0, userCountry = '', 
                       activeOpacity={0.7}
                       accessibilityLabel={`Open ${r.title}`}
                       onPress={() => {
-                        setPlan(r.plan); setFoods((r.plan.foods || []).map(toFood));
+                        recentAtRef.current = r.at;
+                        setPlan(r.plan); setFoods(Array.isArray(r.foods) && r.foods.length ? r.foods : (r.plan.foods || []).map(toFood));
                         setUseAll(false); setAmount(r.budget || 450); setServings(r.servings || 1);
                         setRecipeImage(null); setSavedRecipe(false); resetEditing(); setStep('plate');
                       }}
