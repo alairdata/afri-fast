@@ -35,7 +35,7 @@ import {
 import { evaluateMilestones } from './lib/milestones';
 import { syncSmartNotifications, clearSmartNotifications, onBurnoutSummaryPublished } from './lib/smartNotifications';
 import { onJustForYouSaved } from './lib/claudeInsights';
-import { showsSmartCardPreview } from './components/SmartCardPreview';
+import { loadSmartCard, onSmartCardChange, markSmartCardSeen } from './lib/smartCard';
 import { appleHealthSupported, connectAppleHealth, readDailySteps } from './lib/appleHealth';
 import { pendingWidgetWater, ackWidgetWater, pushWidgetSnapshot, clearWidgetSnapshot, claimWidgetFor, WIDGET_KEYS_KEPT_ON_LOGOUT } from './lib/widgetSync';
 import { track, EVENTS, startSession, countSessionLog, incrementUserProperty, resetAnalytics } from './lib/analytics';
@@ -223,9 +223,11 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
   // === Navigation state ===
   const [activeTab, setActiveTab] = useState('today');
-  // The dot on Insights goes once it's been opened (preview: it comes back on the next visit)
-  const [insightsSeen, setInsightsSeen] = useState(false);
-  useEffect(() => { if (activeTab === 'progress') setInsightsSeen(true); }, [activeTab]);
+  // The dot on Insights: a smart card the person hasn't seen yet (see lib/smartCard.js). Opening Insights clears it;
+  // the card itself stays until "Got it" or until it goes out of date.
+  const [smartDot, setSmartDot] = useState(false);
+  useEffect(() => onSmartCardChange((s) => setSmartDot(!!s.card && s.card.id !== s.seenId)), []);
+  useEffect(() => { if (activeTab === 'progress' && smartDot) markSmartCardSeen(session?.user?.id); }, [activeTab, smartDot, session?.user?.id]);
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [showPlanPage, setShowPlanPage] = useState(false);
   const [showCheckInPage, setShowCheckInPage] = useState(false);
@@ -1256,6 +1258,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
     if (!uid) return undefined;
     const save = () => {
       deliverNudges(uid); // messages sent from the admin portal (see lib/adminMessages.js)
+      loadSmartCard(uid); // the one card Logga leaves on Insights (see api/_smartCards.js)
       if (Date.now() - lastSeenSaved.current < 5 * 60 * 1000) return;
       lastSeenSaved.current = Date.now();
       setAccountPref(uid, 'device', { platform: Platform.OS, lastSeenAt: new Date().toISOString() });
@@ -1333,7 +1336,8 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       if (data?.type === 'prediction' && data?.cardIndex != null) {
         setActiveTab('today');
         setPendingInsightIndex(data.cardIndex);
-      } else if (data?.type === 'burnout') {
+      } else if (data?.type === 'burnout' || data?.type === 'smart') {
+        if (data?.type === 'smart') loadSmartCard(session?.user?.id);
         setActiveTab('progress');
       } else if (data?.type === 'streak') {
         setActiveTab('today');
@@ -3396,7 +3400,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
         onOpenItem={(item) => {
           setShowNotifications(false);
           if (item.type === 'meal') { setActiveTab('today'); setShowLogMealOptions(true); }
-          else if (item.type === 'burnout') setActiveTab('progress');
+          else if (item.type === 'burnout' || item.type === 'smart') setActiveTab('progress');
           else setActiveTab('today');
         }}
       />
@@ -3405,7 +3409,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
       <BottomTabBar
         activeTab={activeTab}
         onTabChange={(tab) => { setShowFindRecipePage(false); setShowLogMealOptions(false); setShowMealHistory(false); setActiveTab(tab); }}
-        dotTabs={showsSmartCardPreview(session?.user?.id) && !insightsSeen && activeTab !== 'progress' ? ['progress'] : []}
+        dotTabs={smartDot && activeTab !== 'progress' ? ['progress'] : []}
       />
 
       {/* === Chat (above everything incl. tab bar) === */}

@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { CHECKIN_ICON_SECTIONS } from '../lib/checkinIcons';
 import GrowingTextInput from './GrowingTextInput';
+import SupportNote from './SupportNote';
+import { worstWorry } from '../lib/worry';
 import { dc, themedStyles } from '../lib/theme';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -539,6 +541,7 @@ const CheckInPage = ({
                     </TouchableOpacity>
                   )}
                 </View>
+                <SupportNote level={worstWorry((noteEntries || []).map((e) => e.text))} />
               </View>
             </View>
 

@@ -28,19 +28,21 @@ export async function deliverNudges(userId) {
   if (!userId || delivering) return;
   delivering = true;
   try {
-    const { data, error } = await supabase.from('user_nudges').select('id, title, body, created_at, pushed')
+    const { data, error } = await supabase.from('user_nudges').select('id, title, body, created_at, pushed, sent_by')
       .eq('user_id', userId).is('delivered_at', null).order('created_at', { ascending: true }).limit(20);
     if (error || !data?.length) return;
     const now = Date.now();
+    // sent_by 'logga': a smart card from the daily check (api/_smartCards.js); tapping it opens Insights
+    const typeOf = (n) => (n.sent_by === 'logga' ? 'smart' : 'nudge');
     await recordNotifications(data.map((n) => ({
-      date: now, request: { identifier: `nudge-${n.id}`, content: { title: n.title, body: n.body, data: { type: 'nudge' } } },
+      date: now, request: { identifier: `nudge-${n.id}`, content: { title: n.title, body: n.body, data: { type: typeOf(n) } } },
     })));
     if (Platform.OS !== 'web') {
       // one already pushed to the phone was shown then; the rest pop up now
       for (const n of data.filter((x) => !x.pushed)) {
         await Notifications.scheduleNotificationAsync({
           identifier: `nudge-${n.id}`,
-          content: { title: n.title, body: n.body, data: { type: 'nudge' } },
+          content: { title: n.title, body: n.body, data: { type: typeOf(n) } },
           trigger: null,
         }).catch(() => {});
       }

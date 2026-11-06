@@ -56,15 +56,22 @@ export default async function handler(req, res) {
     predictions = await savePredictionsForEveryone();
   } catch (e) { console.error('[cron predictions]', e); predictions = { error: e.message }; }
 
+  // Smart cards: at most one card per person on Insights, after today's predictions are saved (see api/_smartCards.js).
+  let smartCards = null;
+  try {
+    const { runSmartCards } = await import('../_smartCards.js');
+    smartCards = await runSmartCards();
+  } catch (e) { console.error('[cron smart cards]', e); smartCards = { error: e.message }; }
+
   // Micronutrients for every saved meal that doesn't have them yet (see api/_micros.js), so the app only reads them.
   let micros = null;
   try {
     const { fillMissingMicros } = await import('../_micros.js');
     micros = await fillMissingMicros();
   } catch (e) { console.error('[cron micros]', e); micros = { error: e.message }; }
-  if (!configured()) return res.status(200).json({ message: 'Emails not configured; purge, predictions and micros only', purge, predictions, micros });
+  if (!configured()) return res.status(200).json({ message: 'Emails not configured; purge, predictions, smart cards and micros only', purge, predictions, smartCards, micros });
 
-  const results = { purge, predictions, micros, day2: { checked: 0, emailed: 0 }, day7: { checked: 0, emailed: 0 }, errors: [] };
+  const results = { purge, predictions, smartCards, micros, day2: { checked: 0, emailed: 0 }, day7: { checked: 0, emailed: 0 }, errors: [] };
   try {
     for (const u of await usersInWindow(2, 3)) {
       results.day2.checked++;

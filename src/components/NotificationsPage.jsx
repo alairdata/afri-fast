@@ -13,6 +13,7 @@ const ICONS = {
   burnout: { name: 'heart-outline', color: dc('#DB2777', 'text'), bg: '#FDF2F8' },
   insight: { name: 'bulb-outline', color: dc('#CA8A04', 'text'), bg: '#FEFCE8' },
   prediction: { name: 'bulb-outline', color: dc('#CA8A04', 'text'), bg: '#FEFCE8' },
+  smart: { name: 'bulb-outline', color: dc('#059669', 'text'), bg: '#ECFDF5' }, // a smart card on Insights (api/_smartCards.js)
   nudge: { name: 'sparkles-outline', color: dc('#059669', 'text'), bg: '#ECFDF5' }, // a message from the Logga team (admin portal)
 };
 const DEFAULT_ICON = { name: 'notifications-outline', color: dc('#059669', 'text'), bg: '#ECFDF5' };
