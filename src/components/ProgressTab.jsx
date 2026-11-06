@@ -16,7 +16,7 @@ import { fetchSavedBurnoutDays, saveBurnoutDay } from '../lib/burnoutHistory';
 import { savePredictionSnapshot, fetchSavedPredictions } from '../lib/predictionHistory';
 import { saveBurnoutPredictionSnapshot } from '../lib/burnoutPredictionHistory';
 import { computeCurrentMealStreak } from '../lib/mealStreak';
-import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
+import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten, withinGoal } from '../lib/goalHistory';
 import { getCachedMomentumWhy, getMomentumWhy } from '../lib/momentumWhy';
 import { SourcesLink } from './HealthSourcesPage';
 import InfoTip from './InfoTip';
@@ -41,15 +41,31 @@ const WEEK_AHEAD_LEVELS = {
 
 // Seven rounded bars on a grey track (Calories, Hydration, Steps on Insights), oldest day first.
 // The last 7 days as square bars against a dashed goal line (Calories, Hydration, Steps), today's letter bold.
-const GoalBars = ({ values, goal, goalLabel, colorOf, letters, todayIdx, styles, label }) => {
-  const max = Math.max(...values, goal || 0, 1) * 1.1;
+// `goals` (one per day) draws the line at each day's own goal, stepping square where the goal changed.
+const GoalBars = ({ values, goal, goals, goalLabel, colorOf, letters, todayIdx, styles, label }) => {
+  const perDay = Array.isArray(goals) && goals.length === values.length ? goals : null;
+  const max = Math.max(...values, ...(perDay || [goal || 0]), 1) * 1.1;
   const goalPct = goal > 0 ? (goal / max) * 100 : null;
+  const n = values.length;
+  const pct = (g) => (g > 0 ? (g / max) * 100 : null);
   return (
     <View style={{ flex: 1, gap: 6 }} accessible accessibilityLabel={label}>
       <View style={styles.goalBarsBox}>
         <View style={[styles.goalBarsGrid, { top: 0 }]} />
         <View style={[styles.goalBarsGrid, { top: '50%' }]} />
-        {goalPct != null && <View style={[styles.goalBarsGoalLine, { bottom: `${goalPct}%` }]} />}
+        {perDay ? perDay.map((g, i) => {
+          const y = pct(g);
+          if (y == null) return null;
+          const prev = i > 0 ? pct(perDay[i - 1]) : null;
+          return (
+            <React.Fragment key={`g${i}`}>
+              <View style={[styles.goalBarsGoalLine, { left: `${(i / n) * 100}%`, right: undefined, width: `${100 / n}%`, bottom: `${y}%` }]} />
+              {prev != null && Math.abs(prev - y) > 0.5 ? (
+                <View style={[styles.goalBarsGoalStep, { left: `${(i / n) * 100}%`, bottom: `${Math.min(prev, y)}%`, height: `${Math.abs(prev - y)}%` }]} />
+              ) : null}
+            </React.Fragment>
+          );
+        }) : goalPct != null && <View style={[styles.goalBarsGoalLine, { bottom: `${goalPct}%` }]} />}
         {goalPct != null && <Text style={[styles.goalBarsGoalText, { bottom: `${goalPct}%` }]}>{goalLabel}</Text>}
         <View style={styles.goalBarsRow}>
           {values.map((v, i) => (
@@ -1563,7 +1579,8 @@ const ProgressTab = ({
     const goalMl = hydrationGoal > 0 ? hydrationGoal * (UNIT_ML[volumeUnit] ?? 1) : 2000;
     const days = last7Days.map(({ ds, letter }) => {
       const cal = calsLive[ds] ? resolveCaloriesEaten(ledgerMap, ds, calsLive[ds]) : 0;
-      return { ds, letter, cal, calGoal: resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal) || 0, waterL: (waterMl[ds] || 0) / 1000, steps: steps[ds] || 0 };
+      const calGoal = ds === new Date().toDateString() ? (dailyCalorieGoal || 0) : (resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal) || 0);
+      return { ds, letter, cal, calGoal, waterL: (waterMl[ds] || 0) / 1000, steps: steps[ds] || 0 };
     });
     const calDays = days.filter((d) => d.cal > 0);
     const avgCal = calDays.length ? Math.round(calDays.reduce((s, d) => s + d.cal, 0) / calDays.length) : 0;
@@ -1779,7 +1796,7 @@ const ProgressTab = ({
                   <Text style={[styles.statFactLabel, { marginTop: 18 }]}>{week7.gapPct == null ? 'Avg goal gap' : week7.gapPct > 0 ? 'Avg over goal' : week7.gapPct < 0 ? 'Avg under goal' : 'Avg on goal'}</Text>
                   <Text style={styles.statFactValue}>{week7.gapPct == null ? '--' : week7.gapPct > 0 ? `+${week7.gapPct}%` : week7.gapPct < 0 ? `−${Math.abs(week7.gapPct)}%` : '0%'}</Text>
                 </View>
-                <GoalBars values={week7.days.map((d) => d.cal)} goal={week7.days[week7.days.length - 1].calGoal} goalLabel={`Goal ${Math.round(week7.days[week7.days.length - 1].calGoal).toLocaleString()}`} colorOf={(v, i) => (week7.days[i].calGoal > 0 && v > week7.days[i].calGoal ? '#F87171' : '#34D399')} letters={week7.days.map((d) => d.letter)} todayIdx={week7.days.length - 1} styles={styles} label="Calories for the last 7 days against your goal" />
+                <GoalBars values={week7.days.map((d) => d.cal)} goals={week7.days.map((d) => d.calGoal)} goal={week7.days[week7.days.length - 1].calGoal} goalLabel={`Goal ${Math.round(week7.days[week7.days.length - 1].calGoal).toLocaleString()}`} colorOf={(v, i) => (week7.days[i].calGoal > 0 && !withinGoal(v, week7.days[i].calGoal) ? '#F87171' : '#34D399')} letters={week7.days.map((d) => d.letter)} todayIdx={week7.days.length - 1} styles={styles} label="Calories for the last 7 days against your goal" />
               </View>
             </View>
 
@@ -2410,6 +2427,7 @@ const makeStyles = (c) => StyleSheet.create({
   goalBarsBox: { height: 120, position: 'relative', borderBottomWidth: 1, borderBottomColor: c.border },
   goalBarsGrid: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1, borderTopColor: c.border, opacity: 0.5 },
   goalBarsGoalLine: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1.5, borderTopColor: dc('#9CA3AF', 'border'), borderStyle: 'dashed', zIndex: 2 },
+  goalBarsGoalStep: { position: 'absolute', width: 0, borderLeftWidth: 1.5, borderLeftColor: dc('#9CA3AF', 'border'), borderStyle: 'dashed', zIndex: 2 },
   goalBarsGoalText: { position: 'absolute', right: 0, marginBottom: 2, fontSize: 9, fontWeight: '700', color: c.textSecondary, backgroundColor: c.card, paddingLeft: 4, zIndex: 3 },
   goalBarsRow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
   aheadDay: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 6, borderRadius: 10, borderWidth: 1.5, borderColor: 'transparent' },
