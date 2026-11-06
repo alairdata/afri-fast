@@ -7,6 +7,7 @@
 //   admin_revenue                           RevenueCat overview: active subscriptions, trials, MRR, revenue
 //   admin_plans { userIds }                 each person's plan from RevenueCat (Pro or Free), for the Users table
 //   admin_customer { userId }               one person's subscription history and lifetime spend
+//   admin_smart_card { userId, send }       test the daily smart card check for one person (send: deliver it)
 //
 // RevenueCat needs REVENUECAT_API_KEY (a v2 secret key) and REVENUECAT_PROJECT_ID in Vercel.
 import { purgeUser, adminHeaders } from './_purgeUser.js';
@@ -81,6 +82,17 @@ export async function handleAdmin(req, res, user) {
       }).catch(() => {});
     }
     return res.status(200).json({ ok: true, saved: rows.length, pushed: pushedIds.length });
+  }
+
+  if (mode === 'admin_smart_card') {
+    const id = String(body.userId || '');
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Missing user' });
+    try {
+      const { testSmartCard } = await import('./_smartCards.js');
+      return res.status(200).json(await testSmartCard(id, { send: !!body.send, card: body.card || null }));
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
   }
 
   if (mode === 'admin_revenue' || mode === 'admin_plans' || mode === 'admin_customer') {

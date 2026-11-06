@@ -661,6 +661,7 @@
       '<div class="stack"><h3 style="margin:0;font-size:14px;font-weight:600">Recent meals</h3>' + (recent || '<p style="margin:0;font-size:13px" class="muted">No meals logged recently.</p>') + '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:12px;border-top:1px solid #F0EBE0">' +
         '<button type="button" class="btn btn-primary" data-act="askNudge" data-id="' + esc(u.id) + '">Send nudge</button>' +
+        '<button type="button" class="btn" data-act="testSmart" data-id="' + esc(u.id) + '">Test smart card</button>' +
         '<button type="button" class="btn" data-act="toggleFlag" data-id="' + esc(u.id) + '">' + (u.flags.flagged ? 'Remove flag' : 'Flag user') + '</button>' +
         '<button type="button" class="btn" data-act="toggleRestrict" data-id="' + esc(u.id) + '">' + (u.flags.restricted ? 'Lift restriction' : 'Restrict account') + '</button>' +
         '<button type="button" class="btn" style="border-color:#F0C3B0;color:#A3330D;font-weight:600;margin-left:auto" data-act="askDelUser" data-id="' + esc(u.id) + '">Delete user</button></div>';
@@ -678,6 +679,29 @@
     return '<div class="stack"><h3 style="margin:0;font-size:14px;font-weight:600">Subscriptions</h3>' + c.subscriptions.map(function (s) {
       return '<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid #F0EBE0;font-size:13px"><span>' + esc(s.product || 'Subscription') + ' <span class="muted">· ' + esc(s.store || '') + ' · ' + esc(s.status || '') + (s.endsAt ? ' · until ' + esc(dateLabel(s.endsAt)) : '') + '</span></span><span style="font-weight:600">$' + Number(s.gross || 0).toFixed(2) + '</span></div>';
     }).join('') + '</div>';
+  }
+  // Test smart card: what today's daily check decides for this person, and the card it would write.
+  function modalSmart() {
+    var t = S.smart || {};
+    var head = '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 class="display" style="margin:0;font-size:24px;letter-spacing:-.5px">Smart card test</h2>' + xbtn() + '</div>';
+    if (t.loading) return head + '<p class="muted" style="margin:0">Running today\'s check for ' + esc(t.label) + '… this can take up to a minute.</p>';
+    if (t.error) return head + '<p class="alert">' + esc(t.error) + '</p>';
+    var r = t.result || {};
+    var card = r.card;
+    var cardHtml = card
+      ? '<div style="border:1px solid ' + (card.safety ? '#DDD6FE' : '#BFE3CC') + ';background:' + (card.safety ? '#F5F3FF' : '#EEF8F1') + ';border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px">' +
+          '<div style="font-size:16px;font-weight:700">' + esc(card.title) + '</div><div style="font-size:14px;line-height:1.5">' + esc(card.body) + '</div>' +
+          ((card.why || []).length ? '<div style="font-size:12px;font-weight:700;margin-top:4px" class="muted">SHOW ME WHY</div>' + card.why.map(function (w) { return '<div style="font-size:13.5px;line-height:1.5">' + esc(w) + '</div>'; }).join('') : '') +
+          '<div style="font-size:12px" class="muted">Stays up for ' + esc(card.days) + ' days' + (card.safety ? ' · safety card (fixed wording)' : '') + '</div></div>'
+      : '<p style="margin:0;font-size:14px">No card. ' + esc(r.emptyReason || '') + '</p>';
+    return head +
+      '<div style="padding:12px 14px;border-radius:12px;background:#F6F3EC;font-size:14px"><strong>Today\'s check for ' + esc(t.label) + ':</strong> ' + esc(r.outcomeText || '') + '</div>' +
+      (card && r.outcome !== 'insight' && r.outcome !== 'safety' ? '<p class="muted" style="margin:0;font-size:13px">With the pacing rules set aside, this is the card Logga would write:</p>' : '') +
+      cardHtml +
+      (r.facts ? '<details><summary style="cursor:pointer;font-size:13px;font-weight:600">The facts Logga worked from</summary><pre style="white-space:pre-wrap;font-size:12px;background:#F6F3EC;border-radius:10px;padding:12px;max-height:280px;overflow:auto">' + esc(JSON.stringify(r.facts, null, 2)) + '</pre></details>' : '') +
+      (t.sent ? '<p role="status" style="margin:0;font-size:14px;font-weight:600;color:#1F5A36">Sent: it is on their Insights tab now, with the dot, a bell item and a push.</p>' : '') +
+      '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-act="testSmart" data-id="' + esc(t.id) + '">Run again</button>' +
+      (card && !t.sent ? '<button type="button" class="btn btn-primary" data-act="sendSmart"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Sending…' : 'Send it to their app') + '</button>' : '') + '</div>';
   }
   function modalNudge() {
     var n = S.nudge, many = n.userIds.length > 1, presets = NUDGE_PRESETS;
@@ -809,6 +833,7 @@
         else if (m.type === 'addChoice') inner = modalAddChoice();
         else if (m.type === 'bulk') { inner = modalBulk(); width = 720; }
         else if (m.type === 'nudge') inner = modalNudge();
+        else if (m.type === 'smart') { inner = modalSmart(); width = 620; }
         else if (m.type === 'delUser') { var du = D.users.filter(function (x) { return x.id === m.id; })[0]; inner = modalConfirm('Delete ' + (du ? du.name : 'this user') + '?', "This erases their account, meal logs, photos and progress right away. It can't be undone.", 'confirmDelUser', S.busy ? 'Deleting…' : 'Delete user'); width = 460; }
         else if (m.type === 'delRecipe') { var rr = D.recipes.filter(function (x) { return x.id === m.id; })[0]; inner = modalConfirm('Delete ' + (rr ? rr.data.name : 'this recipe') + '?', "It will disappear from the app for everyone. Past logs stay in people's history.", 'confirmDelRecipe', 'Delete recipe'); width = 460; }
         html += '<div class="modal-back"><button type="button" class="shade" aria-label="Close" data-act="closeModal"></button><div class="modal" role="dialog" aria-modal="true" style="max-width:' + width + 'px">' + inner + '</div></div>';
@@ -990,6 +1015,22 @@
       }
     },
     toggleMenu: function (id) { setState({ menuFor: S.menuFor === id ? null : id }); },
+    testSmart: function (id) {
+      var u = S.data.users.filter(function (x) { return x.id === id; })[0];
+      var label = u ? u.name : 'this person';
+      setState({ menuFor: null, modal: { type: 'smart' }, smart: { id: id, label: label, loading: true } });
+      adminApi({ mode: 'admin_smart_card', userId: id }).then(function (res) {
+        S.smart = { id: id, label: label, result: res }; render();
+      }, function (err) { S.smart = { id: id, label: label, error: err.message }; render(); });
+    },
+    sendSmart: async function () {
+      var t = S.smart; if (!t || !t.result || !t.result.card) return;
+      setState({ busy: true });
+      try {
+        var res = await adminApi({ mode: 'admin_smart_card', userId: t.id, send: true, card: t.result.card });
+        S.busy = false; S.smart = { id: t.id, label: t.label, result: res, sent: !!res.sent }; render();
+      } catch (err) { S.busy = false; S.smart = Object.assign({}, t, { error: err.message }); render(); }
+    },
     askNudge: function (id) {
       var u = S.data.users.filter(function (x) { return x.id === id; })[0];
       setState({ menuFor: null, modal: { type: 'nudge' }, nudge: { userIds: [id], label: u ? u.name : 'This person', title: NUDGE_PRESETS[0][0], body: NUDGE_PRESETS[0][1], error: '' } });

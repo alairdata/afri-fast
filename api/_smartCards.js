@@ -235,7 +235,12 @@ async function postCard(p, card, now) {
   return saved;
 }
 
-async function cardForUser(p, now) {
+// opts.post: how a card is delivered (postCard; a preview passes one that only keeps it).
+// opts.skipRules: ignore the pacing rules (one at a time, every few days, quiet after a hard note, owner-only AI),
+// for the admin's test button. AI consent is never skipped.
+async function cardForUser(p, now, opts = {}) {
+  const post = opts.post || postCard;
+  const skip = !!opts.skipRules;
   const prefs = p.app_prefs || {};
   const current = prefs.smart_card;
   const active = current && prefs.smart_card_done !== current.id && Date.parse(current.expiresAt) > now;
@@ -252,17 +257,17 @@ async function cardForUser(p, now) {
   // 1. Safety first: it replaces any other card, but the same safety card never comes back within a week.
   const safety = safetyCard({ worry, meals, now });
   if (safety) {
-    if (active && current.kind === safety.kind) return 'kept';
-    if (log.some((c) => c.kind === safety.kind && now - Date.parse(c.createdAt) < 7 * DAY)) return 'quiet';
-    await postCard(p, safety, now);
+    if (!skip && active && current.kind === safety.kind) return 'kept';
+    if (!skip && log.some((c) => c.kind === safety.kind && now - Date.parse(c.createdAt) < 7 * DAY)) return 'quiet';
+    await post(p, safety, now);
     return 'safety';
   }
 
   // 2. Everything else waits its turn.
-  if (active) return 'kept';
-  if (log.length && now - Date.parse(log[0].createdAt) < MIN_GAP_DAYS * DAY) return 'wait';
-  if (worry.urgentAt || (worry.hardAt && now - worry.hardAt < QUIET_AFTER_HARD_NOTE_DAYS * DAY)) return 'quiet';
-  if (!aiCardsFor(p.id)) return 'not_yet';
+  if (!skip && active) return 'kept';
+  if (!skip && log.length && now - Date.parse(log[0].createdAt) < MIN_GAP_DAYS * DAY) return 'wait';
+  if (!skip && (worry.urgentAt || (worry.hardAt && now - worry.hardAt < QUIET_AFTER_HARD_NOTE_DAYS * DAY))) return 'quiet';
+  if (!skip && !aiCardsFor(p.id)) return 'not_yet';
   if (prefs.consent?.ai !== true) return 'no_ai_consent';
 
   const [weights, preds] = await Promise.all([
@@ -270,15 +275,16 @@ async function cardForUser(p, now) {
     rows(`weight_predictions?user_id=eq.${p.id}&select=daily_rate_kg,badge_label,tdee,bmr&order=created_at.desc&limit=1`),
   ]);
   const facts = buildFacts({ p, meals, weights, prediction: preds[0], now });
+  if (opts.onFacts) opts.onFacts(facts);
   if (!facts) return 'no_data';
   const card = await aiCard(facts, log.slice(0, 5));
   if (!card) return 'silent';
-  await postCard(p, card, now);
+  await post(p, card, now);
   return 'insight';
 }
 
 export async function runSmartCards(now = Date.now()) {
-  const profiles = await rows('profiles?select=id,app_prefs,goal_history,daily_calorie_goal,target_weight,weight_unit,pace_preference');
+  const profiles = await rows(`profiles?select=${PROFILE_COLS}`);
   const result = { users: profiles.length, outcomes: {}, errors: [] };
   for (const p of profiles) {
     try {
@@ -287,6 +293,42 @@ export async function runSmartCards(now = Date.now()) {
     } catch (e) { result.errors.push(`${p.id}: ${e.message}`); }
   }
   return result;
+}
+
+const PROFILE_COLS = 'id,app_prefs,goal_history,daily_calorie_goal,target_weight,weight_unit,pace_preference';
+const OUTCOME_TEXT = {
+  safety: 'A safety card is due.', insight: 'A card is due.', kept: 'They already have a card that is still showing.',
+  wait: 'Their last card was less than 3 days ago, so it waits.', quiet: 'They wrote a hard note recently, so Logga stays quiet for a few days.',
+  not_yet: 'AI cards are only on for the owner account so far.', no_ai_consent: 'They have not said yes to AI, so no AI card.',
+  no_data: 'Not enough logs in the last 2 weeks (needs 5 logged days).', silent: 'Logga looked and found nothing worth saying.',
+};
+
+/** Admin test button: what today's check decides for one person, and the card it would write if the pacing
+ *  rules were set aside. With send, that card is really delivered (Insights, bell, one push). */
+export async function testSmartCard(userId, { send = false, card: previewed = null } = {}, now = Date.now()) {
+  const p = (await rows(`profiles?id=eq.${userId}&select=${PROFILE_COLS}`))[0];
+  if (!p) throw new Error('No such user');
+  // Send exactly the card the admin was shown (cleaned), rather than asking the AI again.
+  if (send && previewed && previewed.title && previewed.body) {
+    const card = {
+      kind: String(previewed.kind || 'insight').slice(0, 20), safety: !!previewed.safety, button: previewed.button === 'helpline' ? 'helpline' : null,
+      title: String(previewed.title).slice(0, 70), body: String(previewed.body).slice(0, 240),
+      why: (Array.isArray(previewed.why) ? previewed.why : []).map((w) => String(w).slice(0, 400)).slice(0, 3),
+      days: Math.min(10, Math.max(2, Number(previewed.days) || 5)),
+      ...(previewed.push?.title ? { push: { title: String(previewed.push.title).slice(0, 80), body: String(previewed.push.body || '').slice(0, 200) } } : {}),
+    };
+    await postCard(p, card, now);
+    return { outcome: 'sent', outcomeText: 'Sent by hand from the admin portal.', card, sent: true };
+  }
+  let wouldSend = null, facts = null;
+  const outcome = await cardForUser(p, now, { post: async (_p, card) => { wouldSend = card; }, onFacts: (f) => { facts = f; } });
+  let suggestion = wouldSend;
+  if (!suggestion) {
+    const again = await cardForUser(p, now, { skipRules: true, post: async (_p, card) => { suggestion = card; }, onFacts: (f) => { facts = f; } });
+    if (!suggestion) return { outcome, outcomeText: OUTCOME_TEXT[outcome] || outcome, card: null, emptyReason: OUTCOME_TEXT[again] || again, facts };
+  }
+  const sent = send ? await postCard(p, suggestion, now) : null;
+  return { outcome, outcomeText: OUTCOME_TEXT[outcome] || outcome, card: suggestion, sent: !!sent, facts };
 }
 
 // For dry runs on real data without saving anything.
