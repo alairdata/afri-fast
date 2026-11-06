@@ -742,11 +742,10 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, userName, onOpen
     await analyseUris(picked.assets.map(a => a.uri));
   };
 
-  // One recipe in a 3-across grid: photo with a save button, name, time and calories.
+  // One recipe in a 3-across grid: photo, name, time and calories (saving is on the recipe's own page).
   const renderRecipeCard = (recipe) => {
     const displayName = getLocalName(recipe, userCountry);
     const locked = isLocked(recipe);
-    const saved = savedIds.includes(recipe.id);
     const time = timeText(recipe);
     return (
       <TouchableOpacity key={recipe.id} style={styles.gridCard} onPress={() => (locked ? unlock('recipe') : openRecipe(recipe))} accessibilityLabel={displayName}>
@@ -760,15 +759,6 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, userName, onOpen
           )}
           {locked ? (
             <View style={styles.gridBadge}><Ionicons name="lock-closed" size={13} color={dc('#16201B', 'text')} /></View>
-          ) : !recipe.custom ? (
-            <TouchableOpacity
-              style={styles.gridBadge}
-              onPress={() => toggleSavedRecipe(userId, recipe.id)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel={saved ? 'Remove from saved' : 'Save recipe'}
-            >
-              <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={14} color={dc(saved ? '#059669' : '#16201B', 'text')} />
-            </TouchableOpacity>
           ) : null}
         </View>
         <Text style={styles.gridName} numberOfLines={2}>{displayName}</Text>
