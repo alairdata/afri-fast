@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { quickWaterLabel } from '../lib/waterQuickAdd';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Image, Modal, Platform, Animated, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, FlatList, StyleSheet, Dimensions, Image, Modal, Platform, Animated, RefreshControl } from 'react-native';
 import { useTheme, dc, themedStyles } from '../lib/theme';
 import { getJustForYou, getCachedJustForYou, getProJustForYou, getCachedProJustForYou, LENS_LABELS } from '../lib/claudeInsights';
 import { getConsent, onConsentChange } from '../lib/consent';
@@ -990,51 +990,44 @@ const TodayTab = ({
   const hourNow = new Date().getHours();
   const greeting = hourNow < 12 ? 'Good morning!' : hourNow < 17 ? 'Good afternoon!' : 'Good evening!';
 
-  // The week strip: this week by default; swipe right for earlier weeks (up to a year back). Days still to come
-  // can't be picked. Each page is one Sunday-to-Saturday week; the last page is this week.
-  const STRIP_WEEKS = 53;
-  const stripWeeks = useMemo(() => {
+  // The day strip: opens on this week (Sunday to Saturday) and scrolls smoothly back, day by day, up to two years.
+  // Days still to come can't be picked. Seven days fill the strip's width.
+  const STRIP_DAYS_BACK = 730;
+  const stripDays = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const sunday = new Date(today);
-    sunday.setDate(today.getDate() - today.getDay());
-    return Array.from({ length: STRIP_WEEKS }, (_, w) => {
-      const start = new Date(sunday);
-      start.setDate(sunday.getDate() - 7 * (STRIP_WEEKS - 1 - w));
-      return Array.from({ length: 7 }, (_, i) => {
-        const date = new Date(start);
-        date.setDate(start.getDate() + i);
-        return {
-          key: date.toDateString(),
-          date,
-          name: date.toLocaleDateString('en-US', { weekday: 'short' }),
-          num: date.getDate(),
-          future: date > today,
-          a11y: date.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' }),
-        };
-      });
+    const saturday = new Date(today);
+    saturday.setDate(today.getDate() + (6 - today.getDay()));
+    const total = STRIP_DAYS_BACK + 7 - ((STRIP_DAYS_BACK) % 7);
+    return Array.from({ length: total }, (_, i) => {
+      const date = new Date(saturday);
+      date.setDate(saturday.getDate() - (total - 1 - i));
+      return {
+        key: date.toDateString(),
+        date,
+        name: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        num: date.getDate(),
+        future: date > today,
+        a11y: date.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+      };
     });
   }, [new Date().toDateString()]);
   const [stripW, setStripW] = useState(0);
-  const [stripPage, setStripPage] = useState(STRIP_WEEKS - 1);
+  const dayW = stripW > 0 ? stripW / 7 : 0;
   const stripRef = useRef(null);
-  const pageOfDay = (ds) => stripWeeks.findIndex((week) => week.some((d) => d.key === ds));
-  const goToStripPage = (page, animated = true) => {
-    if (!stripW || page < 0) return;
-    stripRef.current?.scrollTo({ x: page * stripW, animated });
-    setStripPage(page);
-  };
-  // Opens on the week of the day shown (this week unless a day was picked, e.g. from the calendar).
+  const stripX = useRef(null);
+  // Shows the picked day if it's out of view (e.g. picked from the calendar); otherwise leaves the strip where it is.
   useEffect(() => {
-    const page = pageOfDay(selDateStr);
-    if (page >= 0 && page !== stripPage) goToStripPage(page, false);
-  }, [selDateStr, stripW]);
-  const stripLabel = (() => {
-    const week = stripWeeks[stripPage];
-    if (!week || stripPage === STRIP_WEEKS - 1) return null;
-    const f = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return `${f(week[0].date)} – ${f(week[6].date)}`;
-  })();
+    if (!dayW) return;
+    const i = stripDays.findIndex((d) => d.key === selDateStr);
+    if (i < 0) return;
+    const x = stripX.current;
+    if (x != null && i * dayW >= x - 1 && (i + 1) * dayW <= x + stripW + 1) return;
+    const sunday = i - stripDays[i].date.getDay();
+    const target = Math.max(0, Math.min(sunday, stripDays.length - 7)) * dayW;
+    stripX.current = target;
+    stripRef.current?.scrollToOffset({ offset: target, animated: x != null });
+  }, [selDateStr, dayW]);
 
   // Today's articles for the Based on Your Pattern row (Just for You shows insights only).
   const patternCards = getDailyArticles(5);
@@ -1075,63 +1068,40 @@ const TodayTab = ({
               {notifUnseen > 0 && <View style={styles.greetBellDot} />}
             </TouchableOpacity>
           </View>
-          <View style={styles.weekStrip} onLayout={(e) => setStripW(e.nativeEvent.layout.width - 2)}>
-            {stripW > 0 && (
-              <ScrollView
+          <View style={styles.weekStrip} onLayout={(e) => setStripW(e.nativeEvent.layout.width - 18)}>
+            {dayW > 0 && (
+              <FlatList
                 ref={stripRef}
                 horizontal
-                pagingEnabled
+                data={stripDays}
+                keyExtractor={(d) => d.key}
                 showsHorizontalScrollIndicator={false}
-                contentOffset={{ x: stripPage * stripW, y: 0 }}
-                onMomentumScrollEnd={(e) => setStripPage(Math.round(e.nativeEvent.contentOffset.x / stripW))}
-                onScroll={Platform.OS === 'web' ? (e) => setStripPage(Math.round(e.nativeEvent.contentOffset.x / stripW)) : undefined}
-                scrollEventThrottle={Platform.OS === 'web' ? 100 : undefined}
-              >
-                {stripWeeks.map((week, w) => (
-                  <View key={week[0].key} style={[styles.weekPage, { width: stripW }]}>
-                    {week.map((d) => {
-                      const selected = d.key === selDateStr;
-                      return (
-                        <TouchableOpacity
-                          key={d.key}
-                          style={[styles.weekDay, selected && styles.weekDaySelected]}
-                          disabled={d.future}
-                          onPress={() => onSelectDate && onSelectDate(d.date)}
-                          accessibilityLabel={d.a11y}
-                          accessibilityState={{ selected, disabled: d.future }}
-                        >
-                          <Text style={[styles.weekDayName, selected && styles.weekDayNameSelected]}>{d.name}</Text>
-                          <View style={[styles.weekDayNum, selected && styles.weekDayNumSelected]}>
-                            <Text style={[styles.weekDayNumText, d.future && { color: dc('#9CA3AF', 'text') }, selected && { color: dc('#059669', 'text') }]}>{d.num}</Text>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-          <View style={styles.weekLabelRow}>
-            <TouchableOpacity onPress={() => goToStripPage(stripPage - 1)} disabled={stripPage === 0} accessibilityLabel="Earlier week" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="chevron-back" size={18} color={stripPage === 0 ? dc('#D1D5DB', 'text') : dc('#059669', 'text')} />
-            </TouchableOpacity>
-            <Text style={styles.weekLabel}>{stripLabel || 'This week'}</Text>
-            {stripLabel ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                <TouchableOpacity
-                  onPress={() => { goToStripPage(STRIP_WEEKS - 1); onSelectDate && onSelectDate(new Date()); }}
-                  accessibilityRole="button"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
-                >
-                  <Text style={styles.weekLabelBtn}>Today</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => goToStripPage(stripPage + 1)} accessibilityLabel="Later week" hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}>
-                  <Ionicons name="chevron-forward" size={18} color={dc('#059669', 'text')} />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={{ width: 18 }} />
+                getItemLayout={(_, index) => ({ length: dayW, offset: dayW * index, index })}
+                initialScrollIndex={stripDays.length - 7}
+                initialNumToRender={21}
+                windowSize={7}
+                onScroll={(e) => { stripX.current = e.nativeEvent.contentOffset.x; }}
+                scrollEventThrottle={64}
+                renderItem={({ item: d }) => {
+                  const selected = d.key === selDateStr;
+                  return (
+                    <View style={{ width: dayW, alignItems: 'center' }}>
+                      <TouchableOpacity
+                        style={[styles.weekDay, selected && styles.weekDaySelected]}
+                        disabled={d.future}
+                        onPress={() => onSelectDate && onSelectDate(d.date)}
+                        accessibilityLabel={d.a11y}
+                        accessibilityState={{ selected, disabled: d.future }}
+                      >
+                        <Text style={[styles.weekDayName, selected && styles.weekDayNameSelected]}>{d.name}</Text>
+                        <View style={[styles.weekDayNum, selected && styles.weekDayNumSelected]}>
+                          <Text style={[styles.weekDayNumText, d.future && { color: dc('#9CA3AF', 'text') }, selected && { color: dc('#059669', 'text') }]}>{d.num}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }}
+              />
             )}
           </View>
         </View>
@@ -1504,13 +1474,9 @@ const makeStyles = (c) => StyleSheet.create({
   },
   greetBellDot: { position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: dc('#EF4444', 'bg'), borderWidth: 1.5, borderColor: dc('#fff', 'border') },
   weekStrip: {
-    marginTop: 16, paddingVertical: 10, borderRadius: 24, overflow: 'hidden',
+    marginTop: 16, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 24, overflow: 'hidden',
     backgroundColor: dc('rgba(255,255,255,0.75)', 'bg'), borderWidth: 1, borderColor: dc('rgba(5,150,105,0.08)', 'border'),
   },
-  weekPage: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 8 },
-  weekLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingHorizontal: 6 },
-  weekLabel: { fontSize: 12.5, fontWeight: '600', color: dc('#6B7280', 'text') },
-  weekLabelBtn: { fontSize: 12.5, fontWeight: '700', color: dc('#059669', 'text') },
   weekDay: { width: 42, paddingTop: 9, paddingBottom: 6, borderRadius: 22, backgroundColor: dc('#F1F6F3', 'bg'), alignItems: 'center', gap: 7 },
   weekDaySelected: { backgroundColor: dc('#059669', 'bg'), shadowColor: '#059669', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 14, elevation: 4 },
   weekDayName: { fontSize: 11, fontWeight: '500', color: dc('#9CA3AF', 'text') },
