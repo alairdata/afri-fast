@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, TextInput, Platform } from 'react-native';
 import { dc, themedStyles } from '../lib/theme';
+import { withinGoal } from '../lib/goalHistory';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -54,8 +55,8 @@ function LogHistoryPage({ show, onClose, recentMeals = [], dailyCalorieGoal = 20
       ? allDays.filter(({ date }) => date.toLowerCase().includes(normalizedQuery))
       : allDays;
 
-    const onGoal = filtered.filter((d) => d.cal <= dailyCalorieGoal).length;
-    const overGoal = filtered.filter((d) => d.cal > dailyCalorieGoal).length;
+    const onGoal = filtered.filter((d) => withinGoal(d.cal, dailyCalorieGoal)).length;
+    const overGoal = filtered.filter((d) => !withinGoal(d.cal, dailyCalorieGoal)).length;
 
     const sorted = filtered.sort((a, b) => b.timestamp - a.timestamp);
 
@@ -125,7 +126,7 @@ function LogHistoryPage({ show, onClose, recentMeals = [], dailyCalorieGoal = 20
                 <Text style={styles.emptyText}>Your meal history for this range will appear here.</Text>
               ) : (
                 data.days.map((day, index) => {
-                  const onGoal = day.cal <= dailyCalorieGoal;
+                  const onGoal = withinGoal(day.cal, dailyCalorieGoal);
                   return (
                     <View
                       key={day.date}
@@ -183,7 +184,7 @@ export default function FastingDetailsPage({ show, onClose, recentMeals = [], ch
     const daysLogged = dayArr.length;
     const totalCal = dayArr.reduce((s, d) => s + d.cal, 0);
     const avgDailyCalories = daysLogged > 0 ? Math.round(totalCal / daysLogged) : 0;
-    const goalHitDays = dayArr.filter((d) => d.cal <= dailyCalorieGoal).length;
+    const goalHitDays = dayArr.filter((d) => withinGoal(d.cal, dailyCalorieGoal)).length;
     const goalHitRate = daysLogged > 0 ? `${Math.round((goalHitDays / daysLogged) * 100)}%` : '--';
 
     // Longest consecutive streak of days with meals logged
@@ -231,7 +232,7 @@ export default function FastingDetailsPage({ show, onClose, recentMeals = [], ch
           const dayData = mealsByDate[d.toDateString()];
           const cal = dayData ? dayData.cal : 0;
           values.push(cal);
-          colors.push(cal === 0 ? '#E5E7EB' : cal <= dailyCalorieGoal ? '#10B981' : '#F59E0B');
+          colors.push(cal === 0 ? '#E5E7EB' : withinGoal(cal, dailyCalorieGoal) ? '#10B981' : '#F59E0B');
           labels.push(d.toLocaleDateString('en-US', { weekday: 'narrow' }));
         }
         return { values, colors, labels };
@@ -252,7 +253,7 @@ export default function FastingDetailsPage({ show, onClose, recentMeals = [], ch
       const values = buckets.map((b) => (b.length ? Math.round(b.reduce((s, v) => s + v, 0) / b.length) : 0));
       return {
         values,
-        colors: values.map((v) => v === 0 ? '#E5E7EB' : v <= dailyCalorieGoal ? '#10B981' : '#F59E0B'),
+        colors: values.map((v) => v === 0 ? '#E5E7EB' : withinGoal(v, dailyCalorieGoal) ? '#10B981' : '#F59E0B'),
         labels: emptyLabels,
       };
     };

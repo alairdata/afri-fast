@@ -10,6 +10,11 @@
 // Burnout, streaks, hit-rate dots, recommendations — all of it must grade old days against the
 // goal that was actually active then, not whatever the goal happens to be right now. Changing
 // your goal today must never retroactively repaint your history as on-target (or off-target).
+// A day still counts as on goal when it's at most this many calories over: meal estimates are never exact, so a
+// few calories over is not "over". Used by the calendar, streaks and the details page.
+export const ON_GOAL_ALLOWANCE_KCAL = 50;
+export const withinGoal = (eaten, goal) => eaten <= goal + ON_GOAL_ALLOWANCE_KCAL;
+
 export const resolveGoalForDate = (goalHistory, dateStr, currentValue, field = 'dailyCalorieGoal') => {
   const withField = (goalHistory || []).filter(e => e[field] != null);
   if (!withField.length) return currentValue;

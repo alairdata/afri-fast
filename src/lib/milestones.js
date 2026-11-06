@@ -1,4 +1,4 @@
-import { resolveCalorieGoal, resolveCaloriesEaten } from './goalHistory';
+import { resolveCalorieGoal, resolveCaloriesEaten, withinGoal } from './goalHistory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HYDRATION_STREAK_DAYS = 7;
@@ -26,7 +26,7 @@ export function computeGoalStreak({ recentMeals, ledgerMap, goalHistory, dailyCa
     const live = liveByDate[ds] || 0;
     const eaten = ds === todayDs ? live : resolveCaloriesEaten(ledgerMap, ds, live);
     const goal = resolveCalorieGoal(ledgerMap, goalHistory, ds, dailyCalorieGoal);
-    const onGoal = eaten > 0 && eaten <= goal;
+    const onGoal = eaten > 0 && withinGoal(eaten, goal);
     if (onGoal) { length += 1; startDs = ds; continue; }
     if (i === 0 && eaten === 0) continue;
     break;

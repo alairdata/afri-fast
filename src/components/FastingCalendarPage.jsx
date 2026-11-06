@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten } from '../lib/goalHistory';
+import { buildDailyLedgerMap, resolveCalorieGoal, resolveCaloriesEaten, withinGoal, ON_GOAL_ALLOWANCE_KCAL } from '../lib/goalHistory';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 import { dc, themedStyles } from '../lib/theme';
@@ -105,12 +105,12 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
 
   const isOnGoal = (year, month, day) => {
     const data = getDayData(year, month, day);
-    return data && data.totalCal > 0 && data.totalCal <= data.goal;
+    return data && data.totalCal > 0 && withinGoal(data.totalCal, data.goal);
   };
 
   const isOverGoal = (year, month, day) => {
     const data = getDayData(year, month, day);
-    return data && data.totalCal > data.goal;
+    return data && !withinGoal(data.totalCal, data.goal);
   };
 
   const navigateMonth = (direction) => {
@@ -210,8 +210,10 @@ const FastingCalendarPage = ({ show, onClose, recentMeals = [], dailyCalorieGoal
       const diff = totalCal - dayData.goal;
       if (diff > 300) {
         insights.push({ title: `${diff} cal over goal`, desc: 'Tomorrow, aim for a slightly lighter day to balance it out', color: dc('#FEF2F2', 'text'), accent: '#EF4444' });
-      } else if (diff > 0) {
+      } else if (diff > ON_GOAL_ALLOWANCE_KCAL) {
         insights.push({ title: `${diff} cal over goal`, desc: 'Just slightly over — a short walk can close the gap', color: dc('#FFF7ED', 'text'), accent: '#F59E0B' });
+      } else if (diff > 0) {
+        insights.push({ title: 'On goal', desc: `Just ${diff} cal over, which still counts. Meal estimates are never that exact.`, color: dc('#ECFDF5', 'text'), accent: '#059669' });
       } else if (totalCal > 0) {
         insights.push({ title: 'Goal reached!', desc: `You stayed within ${dayData.goal} cal — great consistency`, color: dc('#ECFDF5', 'text'), accent: '#059669' });
       }
