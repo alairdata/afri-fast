@@ -164,7 +164,7 @@ const ChatScreen = ({
     const t = setTimeout(() => { saveChat(userId, id, messages).then(setChats); }, 600);
     return () => clearTimeout(t);
   }, [messages, started, isMeals, userId]);
-  const askRecents = isMeals ? chats.slice(0, 5) : [];
+  const askRecents = isMeals ? chats.slice(0, 3) : [];
   const openChat = (c) => {
     chatIdRef.current = c.id;
     setMessages(c.messages || []);
