@@ -145,11 +145,16 @@ const usualMealsFrom = (recentMeals) => {
     g.count += 1;
     if (t >= g.latestAt) { g.latest = m; g.latestAt = t; }
   });
+  // At most 3, real meals first: snacks and drinks only fill the spots meals leave empty.
   return Object.values(groups)
     .filter((g) => g.count >= 2)
-    .sort((a, b) => b.count - a.count || b.latestAt - a.latestAt)
-    .slice(0, 5);
+    .sort((a, b) => isSnackLike(a.latest) - isSnackLike(b.latest) || b.count - a.count || b.latestAt - a.latestAt)
+    .slice(0, 3);
 };
+
+// No meal type is saved with a meal, so a snack or drink is told by its size and name.
+const SNACK_WORDS = /\b(snack|tea|coffee|latte|cappuccino|drink|water|juice|smoothie|soda|coke|malt|milo|biscuits?|cookies?|chips|crisps|chin ?chin|popcorn|groundnuts?|peanuts?|nuts|fruit|banana|apple|orange|mango|pineapple|yog(h)?urt|sweets?|candy|chocolate|chewing gum|puff ?puff|doughnut|donut|mandazi|bofrot|kuli ?kuli|plantain chips)\b/i;
+const isSnackLike = (m) => ((Number(m?.calories) || 0) < 250 || SNACK_WORDS.test(String(m?.name || '')) ? 1 : 0);
 
 // Meals card on the Today tab. "Today's Meals": the meals of the day picked in the week strip
 // (swipe a row left to delete it, tap it to open it). "Usual Meals": the ones logged most, with ⊕ to log one again.
