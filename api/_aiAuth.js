@@ -39,9 +39,10 @@ export async function checkAiAuth(req, res, endpoint) {
   let user = null;
   try { user = await userFromRequest(req); } catch (_) { /* Supabase unreachable: treat as unsigned */ }
   if (user) {
-    if (await isRestricted(user.id)) { res.status(403).json({ error: 'This account is on hold.' }); return false; }
-    // Daily cap per account, so one account can't drain the AI credit (AI_DAILY_LIMIT in Vercel, default 300).
-    const calls = await countAiCall(user.id);
+    // Both checks at once, to keep replies quick. Daily cap per account, so one account can't drain the AI
+    // credit (AI_DAILY_LIMIT in Vercel, default 300).
+    const [restricted, calls] = await Promise.all([isRestricted(user.id), countAiCall(user.id)]);
+    if (restricted) { res.status(403).json({ error: 'This account is on hold.' }); return false; }
     const cap = Number(process.env.AI_DAILY_LIMIT) > 0 ? Number(process.env.AI_DAILY_LIMIT) : 300;
     if (calls != null && calls > cap) {
       console.warn(`[ai-auth] ${endpoint}: daily cap reached for ${user.id} (${calls})`);

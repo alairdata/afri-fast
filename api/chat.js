@@ -337,8 +337,13 @@ export default async function handler(req, res) {
     return result.content?.[0]?.text?.trim() || '';
   };
 
-  // The meal chat has to think (ask the right question, keep the meal straight), so it runs on Pro, Flash if busy.
-  const GEMINI_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+  // The meal chat needs a little thinking (ask the right question, keep the meal straight), but Pro took far too
+  // long to answer. Flash with a capped thinking budget answers in a few seconds; Pro and Flash-Lite only if busy.
+  const GEMINI_MODELS = [
+    { model: 'gemini-2.5-flash', thinkingBudget: 1024 },
+    { model: 'gemini-2.5-pro', thinkingBudget: 1024 },
+    { model: 'gemini-2.5-flash-lite', thinkingBudget: 0 },
+  ];
   let answeredBy = null; // which model replied (returned for checking; the app ignores it)
   const callGemini = async (systemPrompt, userMessages, schema) => {
     const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
@@ -347,7 +352,7 @@ export default async function handler(req, res) {
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }, ...(m.image ? [{ inline_data: { mime_type: 'image/jpeg', data: m.image } }] : [])],
     }));
-    for (const model of GEMINI_MODELS) {
+    for (const { model, thinkingBudget } of GEMINI_MODELS) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
       const response = await fetch(url, {
         method: 'POST',
@@ -357,6 +362,7 @@ export default async function handler(req, res) {
           systemInstruction: { parts: [{ text: systemPrompt }] },
           generationConfig: {
             temperature: 0.4,
+            thinkingConfig: { thinkingBudget },
             ...(schema ? { responseMimeType: 'application/json', responseSchema: schema } : {}),
           },
         }),
