@@ -18,6 +18,7 @@ import ShimmerImage from './ShimmerImage';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
 import { aiHeaders } from '../lib/aiAuth';
 import { dc, themedStyles } from '../lib/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // ── Ingredient amount scaler ─────────────────────────────────────────────────
 
@@ -532,7 +533,31 @@ const shuffled = (list, seed) => {
   return out;
 };
 
-const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen }) => {
+// Total time of a recipe in minutes, and as the cards show it ("45 mins", "1h 20m").
+const toMins = (t) => { if (!t) return 0; const n = parseInt(t, 10); return isNaN(n) ? 0 : /hr|hour/i.test(t) ? n * 60 : n; };
+const totalMins = (r) => toMins(r.prepTime) + toMins(r.cookTime);
+const timeText = (r) => {
+  const total = totalMins(r);
+  if (!total) return null;
+  return total >= 60 ? `${Math.floor(total / 60)}h ${total % 60 > 0 ? `${total % 60}m` : ''}`.trim() : `${total} mins`;
+};
+
+// The filter button (search bar and See all pages): how many calories and how much time.
+const CAL_FILTERS = [{ v: null, t: 'Any' }, { v: 300, t: 'Under 300' }, { v: 500, t: 'Under 500' }, { v: 700, t: 'Under 700' }];
+const TIME_FILTERS = [{ v: null, t: 'Any' }, { v: 30, t: 'Under 30 min' }, { v: 60, t: 'Under 1 hour' }];
+const passesFilters = (r, f) => (!f.maxCal || (r.calories || 0) <= f.maxCal) && (!f.maxMins || (totalMins(r) > 0 && totalMins(r) <= f.maxMins));
+
+// Lays cards out three to a row.
+const chunk3 = (list) => { const rows = []; for (let i = 0; i < list.length; i += 3) rows.push(list.slice(i, i + 3)); return rows; };
+
+const greetingFor = (name) => {
+  const h = new Date().getHours();
+  const part = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const first = String(name || '').trim().split(/\s+/)[0];
+  return first ? `${part}, ${first}` : part;
+};
+
+const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, userName, onOpenKitchen }) => {
   const customRecipes = useCustomRecipes(userId);
   const savedIds = useSavedRecipes(userId);
   const [showSaved, setShowSaved] = useState(false);
@@ -554,6 +579,10 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
   const { isPro } = useSubscription();
   const [listOpen, setListOpen] = useState(false);
   const [listText, setListText] = useState('');
+  const [filters, setFilters] = useState({ maxCal: null, maxMins: null });
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [openSection, setOpenSection] = useState(null); // a category's See all page
+  const filtersOn = !!(filters.maxCal || filters.maxMins);
   const cameraRef = useRef(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
@@ -603,14 +632,14 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
-    return visibleRecipes.filter(r =>
+    return visibleRecipes.filter(r => passesFilters(r, filters)).filter(r =>
       r.name.toLowerCase().includes(q) ||
       r.category.toLowerCase().includes(q) ||
       r.description.toLowerCase().includes(q) ||
       Object.values(r.localNames || {}).some(n => n.toLowerCase().includes(q)) ||
       (r.ingredients || []).some(ing => (ing.name || '').toLowerCase().includes(q))
     );
-  }, [searchQuery, visibleRecipes]);
+  }, [searchQuery, visibleRecipes, filters]);
 
   const openRecipe = (recipe) => {
     setSelectedRecipe(recipe);
@@ -713,39 +742,103 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
     await analyseUris(picked.assets.map(a => a.uri));
   };
 
+  // One recipe in a 3-across grid: photo with a save button, name, time and calories.
   const renderRecipeCard = (recipe) => {
     const displayName = getLocalName(recipe, userCountry);
-    const isLocalised = displayName !== recipe.name;
     const locked = isLocked(recipe);
+    const saved = savedIds.includes(recipe.id);
+    const time = timeText(recipe);
     return (
-      <TouchableOpacity key={recipe.id} style={styles.recipeCard} onPress={() => (locked ? unlock('recipe') : openRecipe(recipe))}>
-        {recipe.imageUrl ? (
-          <ShimmerImage uri={recipe.imageUrl} style={styles.recipeCardImg} />
-        ) : (
-          <View style={[styles.recipeCardImg, { alignItems: 'center', justifyContent: 'center' }]}>
-            <Text style={styles.recipeCardEmoji}>🍽️</Text>
-          </View>
-        )}
-        <Text style={styles.recipeCardName} numberOfLines={2}>{displayName}</Text>
-        <View style={styles.recipeCardMeta}>
-          <Text style={styles.recipeCardCal}>{recipe.calories} cal</Text>
-          {(recipe.prepTime || recipe.cookTime) ? (
-            <Text style={styles.recipeCardTime}>
-              {(() => {
-                const toMins = t => {
-                  if (!t) return 0;
-                  const n = parseInt(t);
-                  return isNaN(n) ? 0 : /hr/i.test(t) ? n * 60 : n;
-                };
-                const total = toMins(recipe.prepTime) + toMins(recipe.cookTime);
-                return total >= 60 ? `${Math.floor(total / 60)}h ${total % 60 > 0 ? `${total % 60}m` : ''}`.trim() : `${total} mins`;
-              })()}
-            </Text>
+      <TouchableOpacity key={recipe.id} style={styles.gridCard} onPress={() => (locked ? unlock('recipe') : openRecipe(recipe))} accessibilityLabel={displayName}>
+        <View>
+          {recipe.imageUrl ? (
+            <ShimmerImage uri={recipe.imageUrl} style={styles.gridImg} />
+          ) : (
+            <View style={[styles.gridImg, { alignItems: 'center', justifyContent: 'center' }]}>
+              <Text style={styles.recipeCardEmoji}>🍽️</Text>
+            </View>
+          )}
+          {locked ? (
+            <View style={styles.gridBadge}><Ionicons name="lock-closed" size={13} color={dc('#16201B', 'text')} /></View>
+          ) : !recipe.custom ? (
+            <TouchableOpacity
+              style={styles.gridBadge}
+              onPress={() => toggleSavedRecipe(userId, recipe.id)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel={saved ? 'Remove from saved' : 'Save recipe'}
+            >
+              <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={14} color={dc(saved ? '#059669' : '#16201B', 'text')} />
+            </TouchableOpacity>
           ) : null}
+        </View>
+        <Text style={styles.gridName} numberOfLines={2}>{displayName}</Text>
+        <View style={styles.gridMeta}>
+          {time ? <Text style={styles.gridTime} numberOfLines={1}>{time}</Text> : null}
+          {time ? <View style={styles.gridDot} /> : null}
+          <Text style={styles.gridCal}>{recipe.calories} cal</Text>
         </View>
       </TouchableOpacity>
     );
   };
+  const renderGrid = (list) => chunk3(list).map((row, i) => (
+    <View key={i} style={[styles.gridRow, i > 0 && { marginTop: 22 }]}>
+      {row.map(renderRecipeCard)}
+      {row.length < 3 ? Array.from({ length: 3 - row.length }, (_, k) => <View key={`pad${k}`} style={styles.gridCard} />) : null}
+    </View>
+  ));
+
+  // Recipe of the day: the same one all day, from the recipes this person can open, with a photo.
+  const dayNumber = Math.floor(new Date(new Date().toDateString()).getTime() / 86400000);
+  const recipeOfDay = useMemo(() => {
+    const pool = visibleRecipes.filter((r) => r.imageUrl && !isLocked(r));
+    return pool.length ? pool[dayNumber % pool.length] : null;
+  }, [visibleRecipes, isPro, freeRecipeIds, dayNumber]);
+
+  const filterSheet = (
+    <Modal visible={filterOpen} transparent animationType="fade" onRequestClose={() => setFilterOpen(false)}>
+      <TouchableOpacity style={styles.filterBackdrop} activeOpacity={1} onPress={() => setFilterOpen(false)} accessibilityLabel="Close filters">
+        <TouchableOpacity activeOpacity={1} style={styles.filterSheet}>
+          <Text style={styles.filterTitle}>Filter recipes</Text>
+          <Text style={styles.filterLabel}>Calories per serving</Text>
+          <View style={styles.filterChips}>
+            {CAL_FILTERS.map((o) => {
+              const on = filters.maxCal === o.v;
+              return (
+                <TouchableOpacity key={o.t} style={[styles.filterChip, on && styles.filterChipOn]} onPress={() => setFilters((f) => ({ ...f, maxCal: o.v }))} accessibilityState={{ selected: on }}>
+                  <Text style={[styles.filterChipTxt, on && styles.filterChipTxtOn]}>{o.t}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text style={styles.filterLabel}>Time</Text>
+          <View style={styles.filterChips}>
+            {TIME_FILTERS.map((o) => {
+              const on = filters.maxMins === o.v;
+              return (
+                <TouchableOpacity key={o.t} style={[styles.filterChip, on && styles.filterChipOn]} onPress={() => setFilters((f) => ({ ...f, maxMins: o.v }))} accessibilityState={{ selected: on }}>
+                  <Text style={[styles.filterChipTxt, on && styles.filterChipTxtOn]}>{o.t}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
+            <TouchableOpacity style={styles.filterClear} onPress={() => setFilters({ maxCal: null, maxMins: null })}>
+              <Text style={styles.filterClearTxt}>Clear</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.filterDone} onPress={() => setFilterOpen(false)}>
+              <Text style={styles.filterDoneTxt}>Show recipes</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+  const filterBtn = (style) => (
+    <TouchableOpacity style={style} onPress={() => setFilterOpen(true)} accessibilityLabel={filtersOn ? 'Filters, on' : 'Filters'}>
+      <Ionicons name="options-outline" size={18} color={dc('#16201B', 'text')} />
+      {filtersOn ? <View style={styles.filterOnDot} /> : null}
+    </TouchableOpacity>
+  );
 
   const pageFade = useHeaderFadeScroll();
   if (!show) return null;
@@ -755,13 +848,16 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
     // 20) like a true full-screen capture UI; otherwise this sits below it so
     // the tab bar stays visible, since this now only renders as the Ideas tab.
     <View style={[styles.overlay, showCamera && { zIndex: 9999 }]}>
-      <HeaderFade bg="#F2F2F2" scrollY={pageFade.scrollY} />
+      <HeaderFade bg="#F8F6F1" scrollY={pageFade.scrollY} />
       <View style={styles.page}>
-        {/* Header: Recipes is a tab now, so no back arrow; the bookmark opens saved recipes */}
+        {/* Header: a greeting, the question, and the bookmark that opens saved recipes */}
         <View style={styles.header}>
-          <Text style={styles.pageHeading} accessibilityRole="header">What sounds good today?</Text>
-          <TouchableOpacity style={styles.headerIconBtn} onPress={() => setShowSaved(true)} accessibilityLabel="Saved recipes">
-            <Ionicons name={savedIds.length || customRecipes.length ? 'bookmark' : 'bookmark-outline'} size={19} color={dc("#1F1F1F", 'text')} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.greeting}>{greetingFor(userName)}</Text>
+            <Text style={styles.pageHeading} accessibilityRole="header">What's cooking today?</Text>
+          </View>
+          <TouchableOpacity style={styles.roundBtn} onPress={() => setShowSaved(true)} accessibilityLabel="Saved recipes">
+            <Ionicons name={savedIds.length || customRecipes.length ? 'bookmark' : 'bookmark-outline'} size={19} color={dc("#16201B", 'text')} />
           </TouchableOpacity>
         </View>
 
@@ -776,38 +872,44 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
           stickyHeaderIndices={[0]}
           contentContainerStyle={{ paddingBottom: searchFocused ? 420 : 100 }}
         >
-          {/* Search */}
-          <View style={styles.searchBar} onLayout={(e) => { searchY.current = e.nativeEvent.layout.y; }}>
-            <Ionicons name="search" size={17} color={dc("#4B5563", 'text')} style={{ marginRight: 10 }} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Find a recipe or ingredient..."
-              placeholderTextColor={dc("#9CA3AF", 'text')}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onFocus={() => {
-                setSearchFocused(true);
-                setTimeout(() => pageScrollRef.current?.scrollTo({ y: Math.max(0, searchY.current - 12), animated: true }), 150);
-              }}
-              onBlur={() => setSearchFocused(false)}
-              returnKeyType="search"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityLabel="Clear search">
-                <Ionicons name="close-circle" size={16} color={dc("#ccc", 'text')} />
-              </TouchableOpacity>
-            )}
+          {/* Search, with the filter button */}
+          <View style={styles.searchWrap} onLayout={(e) => { searchY.current = e.nativeEvent.layout.y; }}>
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={18} color={dc("#6F6A60", 'text')} style={{ marginRight: 10 }} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search recipes or ingredients"
+                placeholderTextColor={dc("#A39D92", 'text')}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onFocus={() => {
+                  setSearchFocused(true);
+                  setTimeout(() => pageScrollRef.current?.scrollTo({ y: Math.max(0, searchY.current - 12), animated: true }), 150);
+                }}
+                onBlur={() => setSearchFocused(false)}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityLabel="Clear search" style={{ paddingHorizontal: 6 }}>
+                  <Ionicons name="close-circle" size={16} color={dc("#ccc", 'text')} />
+                </TouchableOpacity>
+              )}
+              {filterBtn(styles.searchFilterBtn)}
+            </View>
           </View>
 
           {/* Build a recipe from my kitchen (Pro): type, snap or say what you have and get a recipe that fits */}
           <TouchableOpacity style={styles.kitchenCard} onPress={() => (isPro ? onOpenKitchen && onOpenKitchen() : unlock('recipe_photo'))} activeOpacity={0.85} accessibilityLabel="Build a recipe from my kitchen">
-            <View style={styles.kitchenIcon}><Ionicons name="restaurant-outline" size={20} color={dc("#16A34A", 'text')} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.kitchenTitle}>Build a recipe from my kitchen</Text>
+            <View style={styles.kitchenIcon}><Ionicons name="restaurant-outline" size={21} color={dc("#059669", 'text')} /></View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.kitchenTitle} numberOfLines={1}>Build a recipe from my kitchen</Text>
               <Text style={styles.actionDesc}>Snap a photo or list what you have</Text>
-              {!isPro && <View style={styles.proPill}><Text style={styles.proPillText}>PRO</Text></View>}
             </View>
-            <Ionicons name="chevron-forward" size={18} color={dc("#6B7280", 'text')} />
+            {!isPro ? (
+              <View style={styles.proPill}><Text style={styles.proPillText}>PRO</Text></View>
+            ) : (
+              <Ionicons name="chevron-forward" size={18} color={dc("#6F6A60", 'text')} />
+            )}
           </TouchableOpacity>
 
           {/* Shop It (a grocery list from the meals you plan to cook) is hidden until it is built */}
@@ -860,9 +962,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
                   <Ionicons name="close-circle" size={22} color={dc("#ccc", 'text')} />
                 </TouchableOpacity>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-                {photoMatches.map(recipe => renderRecipeCard(recipe))}
-              </ScrollView>
+              <View style={{ marginTop: 12 }}>{renderGrid(photoMatches)}</View>
             </View>
           )}
 
@@ -870,31 +970,59 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
           {searchQuery.trim().length > 0 ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>
-                {searchResults.length > 0 ? `${searchResults.length} results` : 'No results found'}
+                {searchResults.length > 0 ? `${searchResults.length} ${searchResults.length === 1 ? 'result' : 'results'}` : 'No results found'}
               </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-                {searchResults.map(renderRecipeCard)}
-              </ScrollView>
+              {filtersOn ? <Text style={styles.sectionSubtitle}>Filters are on</Text> : null}
+              <View style={{ marginTop: 12 }}>{renderGrid(searchResults)}</View>
             </View>
           ) : (
             <>
+              {/* Recipe of the day: tap to open it, + to log it */}
+              {recipeOfDay && !filtersOn ? (
+                <TouchableOpacity style={styles.hero} activeOpacity={0.9} onPress={() => openRecipe(recipeOfDay)} accessibilityLabel={`Recipe of the day: ${getLocalName(recipeOfDay, userCountry)}`}>
+                  <ShimmerImage uri={recipeOfDay.imageUrl} style={StyleSheet.absoluteFillObject} />
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={['rgba(20,16,10,0.78)', 'rgba(20,16,10,0.45)', 'rgba(20,16,10,0.05)']}
+                    locations={[0, 0.55, 1]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                  <View style={styles.heroTag}><Text style={styles.heroTagTxt}>Recipe of the day</Text></View>
+                  <Text style={styles.heroTitle} numberOfLines={3}>{getLocalName(recipeOfDay, userCountry)}</Text>
+                  <View style={styles.heroMeta}>
+                    <Ionicons name="time-outline" size={13} color="#FFFFFF" />
+                    <Text style={styles.heroMetaTxt}>{[timeText(recipeOfDay), `${recipeOfDay.calories} cal`].filter(Boolean).join(' · ')}</Text>
+                  </View>
+                  <TouchableOpacity style={styles.heroAdd} onPress={() => onLogMeal && onLogMeal(recipeOfDay)} accessibilityLabel="Log this recipe">
+                    <Ionicons name="add" size={22} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              ) : null}
+
               {RECIPE_CATEGORIES.map(cat => {
-                const recipes = rowsByCategory[cat] || [];
+                const recipes = (rowsByCategory[cat] || []).filter((r) => passesFilters(r, filters));
                 if (recipes.length === 0) return null;
                 const meta = CATEGORY_META[cat] || {};
                 return (
                   <View key={cat} style={styles.section}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      {meta.icon ? <Ionicons name={meta.icon} size={20} color={dc("#16201b", 'text')} /> : null}
+                    <View style={styles.sectionHead}>
                       <Text style={styles.sectionTitle}>{cat}</Text>
+                      {recipes.length > 3 ? (
+                        <TouchableOpacity onPress={() => setOpenSection(cat)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={`See all ${cat}`}>
+                          <Text style={styles.seeAll}>See all</Text>
+                        </TouchableOpacity>
+                      ) : null}
                     </View>
                     {meta.subtitle && <Text style={styles.sectionSubtitle}>{meta.subtitle}</Text>}
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-                      {recipes.map(renderRecipeCard)}
-                    </ScrollView>
+                    <View style={{ marginTop: 12 }}>{renderGrid(recipes.slice(0, 3))}</View>
                   </View>
                 );
               })}
+              {filtersOn && !RECIPE_CATEGORIES.some((cat) => (rowsByCategory[cat] || []).some((r) => passesFilters(r, filters))) ? (
+                <Text style={[styles.sectionSubtitle, { textAlign: 'center', marginTop: 30 }]}>No recipes match these filters.</Text>
+              ) : null}
             </>
           )}
 
@@ -974,9 +1102,45 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
         </View>
       )}
 
+      {/* See all: every recipe in one section */}
+      <Modal visible={!!openSection} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setOpenSection(null)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: dc('#F8F6F1', 'bg') }}>
+          <HeaderFade bg="#F8F6F1" />
+          <View style={styles.sectionPageTop}>
+            <TouchableOpacity style={styles.roundBtn} onPress={() => setOpenSection(null)} accessibilityLabel="Back">
+              <Ionicons name="chevron-back" size={22} color={dc('#16201B', 'text')} />
+            </TouchableOpacity>
+            {filterBtn(styles.roundBtn)}
+          </View>
+          {openSection ? (() => {
+            const all = (rowsByCategory[openSection] || []).filter((r) => passesFilters(r, filters));
+            const meta = CATEGORY_META[openSection] || {};
+            return (
+              <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+                <Text style={styles.sectionPageTitle} accessibilityRole="header">{openSection}</Text>
+                <Text style={styles.sectionPageSub}>{[meta.subtitle, `${all.length} ${all.length === 1 ? 'recipe' : 'recipes'}`].filter(Boolean).join(' · ')}</Text>
+                <View style={{ marginTop: 20 }}>
+                  {all.length ? renderGrid(all) : <Text style={styles.sectionSubtitle}>No recipes match these filters.</Text>}
+                </View>
+              </ScrollView>
+            );
+          })() : null}
+        </SafeAreaView>
+        {filterSheet}
+        <RecipeDetailModal
+          recipe={selectedRecipe}
+          visible={detailVisible && !!openSection}
+          onClose={() => setDetailVisible(false)}
+          onLogMeal={(r) => { setOpenSection(null); onLogMeal && onLogMeal(r); }}
+          userCountry={userCountry}
+          userId={userId}
+        />
+      </Modal>
+      {!openSection ? filterSheet : null}
+
       {/* Saved recipes */}
       <Modal visible={showSaved} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowSaved(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: dc('#F2F2F2', 'bg') }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: dc('#F8F6F1', 'bg') }}>
           <View style={styles.savedHeader}>
             <TouchableOpacity style={styles.headerIconBtn} onPress={() => setShowSaved(false)} accessibilityLabel="Close">
               <Ionicons name="chevron-down" size={24} color={dc("#1F1F1F", 'text')} />
@@ -994,11 +1158,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
                   <Text style={styles.savedEmptySub}>Tap the bookmark on any recipe to keep it here.</Text>
                 </View>
               );
-              return (
-                <View style={styles.savedGrid}>
-                  {saved.map(recipe => renderRecipeCard(recipe))}
-                </View>
-              );
+              return <View>{renderGrid(saved)}</View>;
             })()}
           </ScrollView>
         </SafeAreaView>
@@ -1016,7 +1176,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, onOpenKitchen })
       {/* Recipe Detail Modal */}
       <RecipeDetailModal
         recipe={selectedRecipe}
-        visible={detailVisible && !showSaved}
+        visible={detailVisible && !showSaved && !openSection}
         onClose={() => setDetailVisible(false)}
         onLogMeal={onLogMeal}
         userCountry={userCountry}
@@ -1032,29 +1192,37 @@ const styles = themedStyles({
   overlay: {
     position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: '#F2F2F2',
+    backgroundColor: '#F8F6F1',
     // Below BottomTabBar's zIndex (20): this is the Recipes tab, so the tab bar stays on top.
     zIndex: 1,
   },
   page: { flex: 1, flexDirection: 'column' },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingLeft: 20, paddingRight: 8, paddingBottom: 10, paddingTop: 10,
+    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingBottom: 4, paddingTop: 10,
+  },
+  greeting: { fontSize: 13.5, fontWeight: '500', color: '#6F6A60' },
+  roundBtn: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#3C2D14', shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
   headerIconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   pageTitle: { fontSize: 17, fontWeight: '600', color: '#1F1F1F' },
-  pageHeading: { flex: 1, fontSize: 20, fontWeight: '700', color: '#1F1F1F', letterSpacing: -0.3 },
+  pageHeading: { fontSize: 26, lineHeight: 32, fontWeight: '800', color: '#16201B', letterSpacing: -0.7, marginTop: 4 },
   content: { flex: 1, paddingHorizontal: 20 },
 
   actionRow: { flexDirection: 'row', gap: 10 },
-  kitchenCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#E2E9E4', borderRadius: 16, padding: 14, marginBottom: 18 },
-  kitchenIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  kitchenTitle: { fontSize: 16, fontWeight: '700', color: '#1F1F1F' },
+  kitchenCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 14, marginTop: 14,
+    shadowColor: '#3C2D14', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  },
+  kitchenIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#E7F7EE', alignItems: 'center', justifyContent: 'center' },
+  kitchenTitle: { fontSize: 14.5, fontWeight: '700', color: '#16201B' },
   actionCard: { flex: 1, backgroundColor: '#E2E9E4', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
   actionTitle: { fontSize: 16, fontWeight: '600', color: '#1F1F1F', marginTop: 8 },
-  actionDesc: { fontSize: 12, color: '#4B5563', marginTop: 3 },
-  proPill: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 3, paddingHorizontal: 9, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.06)' },
-  proPillText: { fontSize: 11, fontWeight: '700', color: '#1F1F1F' },
+  actionDesc: { fontSize: 12, color: '#6F6A60', marginTop: 2 },
+  proPill: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, backgroundColor: '#16201B' },
+  proPillText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
   shopRow: {
     flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 10, marginBottom: 18,
     backgroundColor: '#FCFCFC', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
@@ -1070,18 +1238,59 @@ const styles = themedStyles({
   listBtn: { marginTop: 8, height: 44, borderRadius: 12, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' },
   listBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
+  searchWrap: { paddingTop: 14, paddingBottom: 4 },
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FCFCFC', borderRadius: 10,
-    paddingVertical: 13, paddingHorizontal: 14,
-    marginBottom: 14,
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2,
+    backgroundColor: '#FFFFFF', borderRadius: 999,
+    paddingVertical: 6, paddingLeft: 16, paddingRight: 6,
+    shadowColor: '#3C2D14', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 2,
   },
-  searchInput: { flex: 1, fontSize: 14, color: '#1F1F1F' },
+  searchInput: { flex: 1, fontSize: 14, color: '#16201B', paddingVertical: 8 },
+  searchFilterBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F0EA', alignItems: 'center', justifyContent: 'center' },
+  filterOnDot: { position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#059669' },
+  filterBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
+  filterSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 36, width: '100%', maxWidth: 430, alignSelf: 'center' },
+  filterTitle: { fontSize: 18, fontWeight: '800', color: '#16201B', marginBottom: 6 },
+  filterLabel: { fontSize: 13, fontWeight: '700', color: '#6F6A60', marginTop: 16, marginBottom: 8 },
+  filterChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterChip: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#F3F0EA' },
+  filterChipOn: { backgroundColor: '#059669' },
+  filterChipTxt: { fontSize: 13.5, fontWeight: '600', color: '#16201B' },
+  filterChipTxtOn: { color: '#FFFFFF' },
+  filterClear: { flex: 1, height: 48, borderRadius: 14, backgroundColor: '#F3F0EA', alignItems: 'center', justifyContent: 'center' },
+  filterClearTxt: { fontSize: 15, fontWeight: '700', color: '#16201B' },
+  filterDone: { flex: 2, height: 48, borderRadius: 14, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' },
+  filterDoneTxt: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 
-  section: { marginBottom: 18 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1F1F1F', marginBottom: 4 },
-  sectionSubtitle: { fontSize: 12, color: '#888', marginBottom: 12 },
+  hero: { marginTop: 26, height: 196, borderRadius: 24, overflow: 'hidden', backgroundColor: '#3A2E22' },
+  heroTag: { position: 'absolute', left: 18, top: 18, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)' },
+  heroTagTxt: { fontSize: 11.5, fontWeight: '700', color: '#FFFFFF' },
+  heroTitle: { position: 'absolute', left: 18, top: 58, width: 210, fontSize: 24, lineHeight: 28, fontWeight: '800', letterSpacing: -0.5, color: '#FFFFFF' },
+  heroMeta: { position: 'absolute', left: 18, bottom: 18, flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)' },
+  heroMetaTxt: { fontSize: 12.5, fontWeight: '600', color: '#FFFFFF' },
+  heroAdd: {
+    position: 'absolute', right: 16, bottom: 16, width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#059669', shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 4,
+  },
+
+  section: { marginTop: 26 },
+  sectionHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#16201B', letterSpacing: -0.3 },
+  sectionSubtitle: { fontSize: 12.5, color: '#8A8478', marginTop: 2 },
+  seeAll: { fontSize: 13, fontWeight: '600', color: '#8A8478' },
+  sectionPageTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12 },
+  sectionPageTitle: { marginTop: 16, fontSize: 28, lineHeight: 34, fontWeight: '800', letterSpacing: -0.7, color: '#16201B' },
+  sectionPageSub: { fontSize: 13.5, color: '#6F6A60', marginTop: 4 },
+
+  gridRow: { flexDirection: 'row', gap: 10 },
+  gridCard: { flex: 1, minWidth: 0 },
+  gridImg: { width: '100%', height: 104, borderRadius: 16, backgroundColor: '#E7E3DA', overflow: 'hidden' },
+  gridBadge: { position: 'absolute', top: 6, right: 6, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center' },
+  gridName: { fontSize: 12.5, fontWeight: '700', lineHeight: 16, height: 32, marginTop: 7, color: '#16201B' },
+  gridMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  gridTime: { fontSize: 10.5, color: '#8A8478', flexShrink: 1 },
+  gridDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: '#C9C3B6' },
+  gridCal: { fontSize: 10.5, fontWeight: '700', color: '#059669' },
   cardScroll: { marginHorizontal: -20, paddingHorizontal: 20, marginTop: 8 },
 
   recipeCard: { width: 160, marginRight: 12 },

@@ -3044,6 +3044,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
       <MakeRecipePage
         show={activeTab === 'recipes'}
+        userName={userName}
         userCountry={userCountry}
         userId={session?.user?.id}
         onOpenKitchen={async () => { if (await ensureAiConsent()) setShowKitchen(true); else showToast("AI features are off. Turn them on in Settings › Privacy Settings."); }}
