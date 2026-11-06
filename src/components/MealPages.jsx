@@ -133,20 +133,45 @@ const mealNameKey = (name) => [...new Set(
     .map((w) => (w.length > 3 && w.endsWith('es') && !w.endsWith('ses') ? w.slice(0, -2) : w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w))
 )].sort().join(' ');
 
-// The meals someone logs most: the last 30 days, grouped by name (see mealNameKey), logged at least twice.
+// Words that describe a cut, a cooking method or a size, not a different food: "potatoes and chicken" and
+// "potatoes and chicken leg quarter" are the same usual meal.
+const MEAL_DESCRIPTORS = new Set([
+  'leg', 'quarter', 'thigh', 'breast', 'wing', 'drumstick', 'piece', 'fillet', 'cube', 'slice', 'sliced', 'chunk', 'strip',
+  'grilled', 'fried', 'boiled', 'roasted', 'roast', 'baked', 'stewed', 'steamed', 'smoked', 'pan', 'deep', 'air', 'fresh',
+  'small', 'medium', 'large', 'big', 'mini', 'half', 'full', 'plate', 'bowl', 'portion', 'serving', 'cup', 'plain', 'side',
+  'homemade', 'home', 'made', 'leftover', 'extra', 'skinless', 'boneless', 'whole',
+]);
+const coreWords = (name) => {
+  const all = mealNameKey(name).split(' ').filter(Boolean).filter((w) => !/^\d+$/.test(w));
+  const core = all.filter((w) => !MEAL_DESCRIPTORS.has(w));
+  return core.length ? core : all;
+};
+
+// The meals someone logs most: the last 30 days, grouped by their foods (see coreWords), logged at least twice.
+// A name whose foods all appear in a fuller name joins it ("rice and stew" takes in "rice, stew and fried chicken"
+// only when the shorter one has at least two foods, so plain "rice" never swallows everything).
 const usualMealsFrom = (recentMeals) => {
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-  const groups = {};
+  const byCore = {};
   (recentMeals || []).forEach((m) => {
     const t = m.timestamp || new Date(m.date).getTime();
-    const key = mealNameKey(m.name);
-    if (!key || isNaN(t) || t < cutoff) return;
-    const g = groups[key] || (groups[key] = { count: 0, latest: m, latestAt: 0 });
+    const words = coreWords(m.name);
+    if (!words.length || isNaN(t) || t < cutoff) return;
+    const key = [...words].sort().join(' ');
+    const g = byCore[key] || (byCore[key] = { words: new Set(words), count: 0, latest: m, latestAt: 0 });
     g.count += 1;
     if (t >= g.latestAt) { g.latest = m; g.latestAt = t; }
   });
+  const list = Object.values(byCore).sort((a, b) => a.words.size - b.words.size);
+  const groups = [];
+  list.forEach((g) => {
+    const home = groups.find((h) => h.words.size >= 2 && [...h.words].every((w) => g.words.has(w)));
+    if (!home) { groups.push({ ...g }); return; }
+    home.count += g.count;
+    if (g.latestAt >= home.latestAt) { home.latest = g.latest; home.latestAt = g.latestAt; }
+  });
   // At most 3, real meals first: snacks and drinks only fill the spots meals leave empty.
-  return Object.values(groups)
+  return groups
     .filter((g) => g.count >= 2)
     .sort((a, b) => isSnackLike(a.latest) - isSnackLike(b.latest) || b.count - a.count || b.latestAt - a.latestAt)
     .slice(0, 3);
