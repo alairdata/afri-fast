@@ -18,21 +18,38 @@ export async function isRestricted(userId) {
   }
 }
 
-// Counts this AI call for the account and returns today's total (null when it can't be counted: then it's let through).
-async function countAiCall(userId) {
+// Today's AI uses for the account so far (UTC day, same as the database's current_date), or null if unknown.
+async function usedToday(userId) {
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_KEY;
   if (!url || !key) return null;
   try {
-    const r = await fetch(`${url}/rest/v1/rpc/bump_ai_usage`, {
-      method: 'POST', headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_user: userId }),
-    });
+    const day = new Date().toISOString().slice(0, 10);
+    const r = await fetch(`${url}/rest/v1/ai_usage?user_id=eq.${userId}&day=eq.${day}&select=calls`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
     if (!r.ok) return null;
-    return Number(await r.json());
+    const rows = await r.json();
+    return Number(rows?.[0]?.calls || 0);
   } catch (_) {
     return null;
   }
 }
+
+// Counts one AI use for the account (only uses that were let through are counted).
+async function countAiCall(userId) {
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) return;
+  try {
+    await fetch(`${url}/rest/v1/rpc/bump_ai_usage`, {
+      method: 'POST', headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_user: userId }),
+    });
+  } catch (_) {}
+}
+
+// Logging food is what Logga is for, so it gets the whole day's allowance; everything else (nutrient checks,
+// insights, explanations, recipes from the kitchen) stops a few uses early so there is always room to log meals.
+const MEAL_TYPES = new Set(['scan_photo', 'analyze_text', 'analyze_audio', 'transcribe_audio', 'fix_transcript', 'lookup_nutrition', 'recalculate_portion', 'plan_portions']);
+const isMealUse = (req, endpoint) =>
+  endpoint === 'chat' ? req.body?.action === 'message' && req.body?.variant === 'meals' : endpoint === 'gemini' && MEAL_TYPES.has(req.body?.type);
 
 // Whether this account has Logga Pro right now, from RevenueCat (the app logs in to RevenueCat with the account's
 // id). Uses the app's public key, which can read a subscriber; if RevenueCat can't be reached, Pro is assumed so a
@@ -56,18 +73,24 @@ export async function checkAiAuth(req, res, endpoint) {
   let user = null;
   try { user = await userFromRequest(req); } catch (_) { /* Supabase unreachable: treat as unsigned */ }
   if (user) {
-    // Both checks at once, to keep replies quick. Daily cap per account: 20 AI uses a day on Free, 100 on Pro
-    // (AI_DAILY_LIMIT / AI_DAILY_LIMIT_PRO in Vercel). Pro is only looked up once someone passes the Free cap.
-    const [restricted, calls] = await Promise.all([isRestricted(user.id), countAiCall(user.id)]);
+    // Daily allowance per account: 20 AI uses on Free, 100 on Pro (AI_DAILY_LIMIT / AI_DAILY_LIMIT_PRO in Vercel).
+    // Extras stop 5 early on Free (15) and 20 early on Pro (80), keeping the rest for logging meals.
+    // Pro is only looked up once someone gets near the Free allowance.
+    const [restricted, used] = await Promise.all([isRestricted(user.id), usedToday(user.id)]);
     if (restricted) { res.status(403).json({ error: 'This account is on hold.' }); return false; }
     const freeCap = Number(process.env.AI_DAILY_LIMIT) > 0 ? Number(process.env.AI_DAILY_LIMIT) : 20;
     const proCap = Number(process.env.AI_DAILY_LIMIT_PRO) > 0 ? Number(process.env.AI_DAILY_LIMIT_PRO) : 100;
-    const cap = calls != null && calls > freeCap && (await hasPro(user.id)) ? proCap : freeCap;
-    if (calls != null && calls > cap) {
-      console.warn(`[ai-auth] ${endpoint}: daily cap reached for ${user.id} (${calls})`);
-      res.status(429).json({ error: "You've used Logga's AI a lot today. Please try again tomorrow." });
-      return false;
+    const meal = isMealUse(req, endpoint);
+    if (used != null) {
+      let cap = meal ? freeCap : freeCap - 5;
+      if (used >= cap && (await hasPro(user.id))) cap = meal ? proCap : proCap - 20;
+      if (used >= cap) {
+        console.warn(`[ai-auth] ${endpoint}: daily ${meal ? 'meal' : 'extras'} allowance reached for ${user.id} (${used})`);
+        res.status(429).json({ error: meal ? "You've used today's AI meal logging. It resets tomorrow, and you can still add meals by hand." : 'Saving the rest of today for logging meals.' });
+        return false;
+      }
     }
+    await countAiCall(user.id);
     req.aiUser = user; // the endpoint can tell whose request this is
     return true;
   }

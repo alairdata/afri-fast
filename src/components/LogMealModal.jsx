@@ -169,6 +169,7 @@ const analyzeTextWithGemini = async (mealText, onProgress, userCountry = '') => 
     return result;
   } catch (e) {
     console.log('[Gemini Text] Error:', e.message);
+    if (/tomorrow/i.test(e?.message || '')) return { limit: e.message }; // the day's AI allowance is used up
     return null;
   }
 };
@@ -684,7 +685,7 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
       const results = await analyzeWithGemini(primaryUri, setScanProgress, userCountry);
       if (results?.error) {
         setScanProgress(100);
-        setScanError("Couldn't reach the server. Check your connection and try again.");
+        setScanError(/tomorrow/i.test(results.message || '') ? results.message : "Couldn't reach the server. Check your connection and try again.");
         return;
       }
       if (results?.notFood) {
@@ -859,12 +860,12 @@ const LogMealModal = ({ show, onClose, logMealMethod, onSaveMeal, dailyCalorieGo
     for (let attempt = 0; attempt < 3; attempt++) {
       results = await analyzeTextWithGemini(mealInput.trim(), undefined, userCountry);
       if (results && !results.notFood) break;
-      if (results?.notFood) break; // genuine not-food, no point retrying
+      if (results?.notFood || results?.limit) break; // genuine not-food, or out of AI for today: no point retrying
     }
 
     setWriteDetectProgress(100);
-    if (!results) {
-      setWriteError("Couldn't reach the server. Check your connection and try again.");
+    if (!results || results.limit) {
+      setWriteError(results?.limit || "Couldn't reach the server. Check your connection and try again.");
       setWritePhase('idle');
       return;
     }

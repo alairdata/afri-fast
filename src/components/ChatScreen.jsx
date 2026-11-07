@@ -316,7 +316,8 @@ const ChatScreen = ({
       console.error('[Chat error]', e);
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: "Sorry, I couldn't reach the server right now. Please try again in a moment.",
+        // The day's AI allowance is used up: say so, rather than blaming the connection.
+        content: /tomorrow/i.test(e?.message || '') ? e.message : "Sorry, I couldn't reach the server right now. Please try again in a moment.",
       }]);
     } finally {
       setIsTyping(false);
