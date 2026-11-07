@@ -5,6 +5,7 @@ import { NUTRITION_SYSTEM, callGemini, parseJson } from './_gemini.js';
 import { microsForFoods, microsForMeals } from './_micros.js';
 import { MEDICAL_SAFETY } from './_safety.js';
 import { checkAiAuth } from './_aiAuth.js';
+import { handleRecipes } from './_recipes.js';
 import { toneInstruction } from './_tone.js';
 
 // Lumi's chosen voice for the Insights tab texts (data.coachTone), or nothing.
@@ -241,6 +242,8 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  // Recipes (not AI): cards and one full recipe at a time, see api/_recipes.js.
+  if (req.body?.type === 'recipe_cards' || req.body?.type === 'recipe_detail') return handleRecipes(req, res);
   if (!(await checkAiAuth(req, res, 'gemini'))) return;
 
   const GEMINI_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;

@@ -5,7 +5,7 @@
 // An account restricted from the admin portal (user_admin_flags.restricted) is always refused.
 import { userFromRequest } from './_purgeUser.js';
 
-async function isRestricted(userId) {
+export async function isRestricted(userId) {
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_KEY;
   if (!url || !key) return false;
   try {

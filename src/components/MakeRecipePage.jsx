@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image,
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadRecipeDetail } from '../lib/recipes';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
 import GrowingTextInput from './GrowingTextInput';
@@ -105,6 +106,23 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
 
   // Reset servings + fetch community photos when recipe changes
   useEffect(() => { setServings(1); }, [recipe?.id]);
+
+  // The list only has cards; the amounts and method load from our server when the recipe is opened.
+  const [full, setFull] = useState(null);
+  const [fullError, setFullError] = useState(null);
+  const [fullTry, setFullTry] = useState(0);
+  useEffect(() => {
+    if (!recipe || !visible) return undefined;
+    let live = true;
+    setFullError(null);
+    if (!recipe.partial) { setFull(recipe); return undefined; }
+    setFull(null);
+    loadRecipeDetail(recipe).then((r) => {
+      if (!live) return;
+      if (r.recipe) setFull(r.recipe); else setFullError(r.error);
+    });
+    return () => { live = false; };
+  }, [recipe?.id, visible, fullTry]);
   useEffect(() => {
     if (!recipe?.id || !visible) return;
     setCommunityPhotos([]);
@@ -178,7 +196,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
             </TouchableOpacity>
           ) : null}
           {onLogMeal && (
-            <TouchableOpacity style={detail.logBtn} onPress={() => { onLogMeal({ ...recipe, name: displayName, calories: scaled(recipe.calories), protein: scaled(recipe.protein), carbs: scaled(recipe.carbs), fats: scaled(recipe.fats), servings }); onClose(); }}>
+            <TouchableOpacity style={detail.logBtn} onPress={() => { onLogMeal({ ...(full || recipe), name: displayName, calories: scaled(recipe.calories), protein: scaled(recipe.protein), carbs: scaled(recipe.carbs), fats: scaled(recipe.fats), servings }); onClose(); }}>
               <Text style={detail.logBtnText}>Log Meal</Text>
             </TouchableOpacity>
           )}
@@ -273,12 +291,30 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
               </View>
             )}
 
+            {/* Loading the amounts and method */}
+            {!full ? (
+              <View style={detail.section}>
+                {fullError ? (
+                  <>
+                    <Text style={detail.description}>{fullError}</Text>
+                    {!/tomorrow/.test(fullError) ? (
+                      <TouchableOpacity onPress={() => setFullTry((n) => n + 1)} accessibilityRole="button">
+                        <Text style={[detail.sectionTitle, { color: dc('#059669', 'text'), fontSize: 15 }]}>Try again</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </>
+                ) : (
+                  <Text style={detail.description}>Loading the recipe…</Text>
+                )}
+              </View>
+            ) : null}
+
             {/* Ingredients */}
-            {recipe.ingredients?.length > 0 && (
+            {full?.ingredients?.length > 0 && (
               <View style={detail.section}>
                 <Text style={detail.sectionTitle}>Ingredients</Text>
                 <View style={detail.ingredientsGrid}>
-                  {recipe.ingredients.map((ing, i) => (
+                  {full.ingredients.map((ing, i) => (
                     <View key={i} style={detail.ingredientRow}>
                       <View style={detail.ingredientDot} />
                       <Text style={detail.ingredientName}>{ing.name}</Text>
@@ -290,10 +326,10 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
             )}
 
             {/* Instructions */}
-            {recipe.instructions?.length > 0 && (
+            {full?.instructions?.length > 0 && (
               <View style={detail.section}>
                 <Text style={detail.sectionTitle}>Instructions</Text>
-                {recipe.instructions.map((step, i) => (
+                {full.instructions.map((step, i) => (
                   <View key={i} style={detail.stepRow}>
                     <View style={detail.stepNum}>
                       <Text style={detail.stepNumText}>{i + 1}</Text>
@@ -305,9 +341,9 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
             )}
 
             {/* Note */}
-            {recipe.note && (
+            {full?.note && (
               <View style={detail.noteBox}>
-                <Text style={detail.noteText}>📝 {recipe.note}</Text>
+                <Text style={detail.noteText}>📝 {full.note}</Text>
               </View>
             )}
 
