@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image, Modal, SafeAreaView, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
 import GrowingTextInput from './GrowingTextInput';
@@ -549,6 +550,14 @@ const recipesForCountry = (country) => {
   return [...matched, ...AFRICAN_RECIPES.filter(r => !matched.includes(r))];
 };
 
+// A small, steady number for a piece of text (the same text always gives the same number).
+const hashText = (text) => {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+};
+const DAY_PICK_KEY = (userId) => `logga-recipe-of-day-${userId || 'anon'}`;
+
 // A shuffled copy of a list, the same for the same seed (so a row doesn't reshuffle on every redraw).
 const shuffled = (list, seed) => {
   let s = seed >>> 0;
@@ -620,10 +629,10 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, userName, onOpen
   }, [visibleRecipes]);
   const isLocked = (recipe) => !recipe.custom && !isPro && !freeRecipeIds.has(recipe.id);
 
-  // Each visit to Recipes shuffles every row, so the page looks new each time. Their country's dishes still
-  // come first, and on Free the row's free recipe stays at the front.
-  const [shuffleSeed, setShuffleSeed] = useState(() => Math.floor(Math.random() * 1e9));
-  useEffect(() => { if (show) setShuffleSeed(Math.floor(Math.random() * 1e9)); }, [show]);
+  // Rows are shuffled once a day (the same order all day, a new one tomorrow), different for each person.
+  // Their country's dishes still come first, and on Free the row's free recipe stays at the front.
+  const dayNumber = Math.floor(new Date(new Date().toDateString()).getTime() / 86400000);
+  const shuffleSeed = (dayNumber * 7919 + hashText(userId || '')) >>> 0;
   const likedCountries = useMemo(() => [...new Set((cuisines || []).flatMap(c => CUISINE_COUNTRIES[c] || []))].filter(c => c !== userCountry), [cuisines, userCountry]);
   const rowsByCategory = useMemo(() => {
     const rows = {};
@@ -809,12 +818,34 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, userName, onOpen
     </View>
   ));
 
-  // Recipe of the day: the same one all day, from the recipes this person can open, with a photo.
-  const dayNumber = Math.floor(new Date(new Date().toDateString()).getTime() / 86400000);
+  // Recipe of the day: one a day, a new one tomorrow, from the recipes this person can open, with a photo.
+  // Today's pick is remembered on the phone, so it stays put even if the recipe list changes during the day.
+  const [dayPick, setDayPick] = useState({ loaded: false, day: null, id: null });
+  useEffect(() => {
+    let live = true;
+    AsyncStorage.getItem(DAY_PICK_KEY(userId))
+      .then((raw) => { let p = null; try { p = raw ? JSON.parse(raw) : null; } catch (_) {} if (live) setDayPick({ loaded: true, day: p?.day ?? null, id: p?.id ?? null }); })
+      .catch(() => { if (live) setDayPick((d) => ({ ...d, loaded: true })); });
+    return () => { live = false; };
+  }, [userId]);
   const recipeOfDay = useMemo(() => {
     const pool = visibleRecipes.filter((r) => r.imageUrl && !isLocked(r));
-    return pool.length ? pool[dayNumber % pool.length] : null;
-  }, [visibleRecipes, isPro, freeRecipeIds, dayNumber]);
+    if (!pool.length) return null;
+    if (dayPick.day === dayNumber) {
+      const kept = pool.find((r) => String(r.id) === String(dayPick.id));
+      if (kept) return kept;
+    }
+    // Otherwise the day's pick by a hash of (recipe, day), so it doesn't depend on the order of the list.
+    const score = (r) => hashText(`${r.id}|${dayNumber}|${userId || ''}`);
+    return pool.reduce((best, r) => (score(r) < score(best) ? r : best));
+  }, [visibleRecipes, isPro, freeRecipeIds, dayNumber, dayPick, userId]);
+  useEffect(() => {
+    if (!dayPick.loaded || !recipeOfDay) return;
+    if (dayPick.day === dayNumber && String(dayPick.id) === String(recipeOfDay.id)) return;
+    const p = { day: dayNumber, id: recipeOfDay.id };
+    setDayPick({ loaded: true, ...p });
+    AsyncStorage.setItem(DAY_PICK_KEY(userId), JSON.stringify(p)).catch(() => {});
+  }, [dayPick, recipeOfDay, dayNumber, userId]);
 
   const filterSheet = (
     <Modal visible={filterOpen} transparent animationType="fade" onRequestClose={() => setFilterOpen(false)}>

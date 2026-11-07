@@ -29,7 +29,7 @@ export function loadRecipes() {
   }).catch(() => {});
   Promise.resolve(supabase.from('recipes').select('id, data').eq('published', true).order('sort', { ascending: true }))
     .then(({ data, error }) => {
-      if (error || !data?.length) { started = !error; return; } // an error (offline) tries again next time
+      if (error || !data?.length) { started = false; return; } // offline, or not signed in yet: try again next time
       const list = data.map((r) => ({ ...r.data, id: r.id }));
       fromServer = true;
       apply(list);
