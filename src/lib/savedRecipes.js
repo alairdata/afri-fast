@@ -10,7 +10,8 @@ const KEY = (userId) => `saved_recipes_${userId || 'anon'}`;
 const CUSTOM_KEY = (userId) => `saved_kitchen_recipes_${userId || 'anon'}`;
 const TABLE = 'saved_recipes';
 
-let state = { userId: undefined, ids: [], list: [] };
+let state = { userId: undefined, ids: [], list: [], names: {} };
+const NAMES_KEY = (userId) => `saved_recipe_names_${userId || 'anon'}`;
 let loading = null;
 const listeners = new Set();
 const customListeners = new Set();
@@ -18,19 +19,20 @@ const emit = () => {
   listeners.forEach((fn) => { try { fn(state.ids); } catch (_) {} });
   customListeners.forEach((fn) => { try { fn(state.list); } catch (_) {} });
 };
-const cache = () => AsyncStorage.multiSet([[KEY(state.userId), JSON.stringify(state.ids)], [CUSTOM_KEY(state.userId), JSON.stringify(state.list)]]).catch(() => {});
+const cache = () => AsyncStorage.multiSet([[KEY(state.userId), JSON.stringify(state.ids)], [CUSTOM_KEY(state.userId), JSON.stringify(state.list)], [NAMES_KEY(state.userId), JSON.stringify(state.names)]]).catch(() => {});
 const remote = (q, label) => Promise.resolve(q).then(({ error } = {}) => { if (error) console.warn(`[Saved recipes] ${label}`, error.message); }, () => {});
 
 async function load(userId) {
   if (state.userId === userId) return loading;
-  state = { userId, ids: [], list: [] };
+  state = { userId, ids: [], list: [], names: {} };
   loading = (async () => {
     // 1. the phone's copy, shown straight away
     try {
-      const [[, rawIds], [, rawList]] = await AsyncStorage.multiGet([KEY(userId), CUSTOM_KEY(userId)]);
+      const [[, rawIds], [, rawList], [, rawNames]] = await AsyncStorage.multiGet([KEY(userId), CUSTOM_KEY(userId), NAMES_KEY(userId)]);
       const ids = rawIds ? JSON.parse(rawIds) : [];
       const list = rawList ? JSON.parse(rawList) : [];
-      if (state.userId === userId) state = { userId, ids: Array.isArray(ids) ? ids : [], list: Array.isArray(list) ? list : [] };
+      const names = rawNames ? JSON.parse(rawNames) : {};
+      if (state.userId === userId) state = { userId, ids: Array.isArray(ids) ? ids : [], list: Array.isArray(list) ? list : [], names: names && typeof names === 'object' ? names : {} };
     } catch (_) {}
     emit();
     if (!userId) return;
@@ -46,9 +48,11 @@ async function load(userId) {
       await remote(supabase.from(TABLE).upsert(rows), 'move phone copy to account');
       return;
     }
+    const toId = (r) => (/^\d+$/.test(r.recipe_id) ? Number(r.recipe_id) : r.recipe_id);
     state = {
       userId,
-      ids: data.filter((r) => r.kind === 'bookmark').map((r) => (/^\d+$/.test(r.recipe_id) ? Number(r.recipe_id) : r.recipe_id)),
+      names: Object.fromEntries(data.filter((r) => r.kind === 'bookmark' && r.data?.name).map((r) => [toId(r), r.data.name])),
+      ids: data.filter((r) => r.kind === 'bookmark').map(toId),
       list: data.filter((r) => r.kind === 'custom' && r.data).map((r) => ({ ...r.data, custom: true })),
     };
     emit();
@@ -57,16 +61,22 @@ async function load(userId) {
   return loading;
 }
 
-export async function toggleSavedRecipe(userId, recipeId) {
+// The name a bookmarked recipe was saved under ("Browny" when found by that name), or undefined.
+export const savedRecipeName = (recipeId) => state.names?.[recipeId];
+
+// `name` is the name the recipe showed when it was saved; the Saved list keeps showing it.
+export async function toggleSavedRecipe(userId, recipeId, name) {
   await load(userId);
   const has = state.ids.includes(recipeId);
-  state = { ...state, ids: has ? state.ids.filter((id) => id !== recipeId) : [recipeId, ...state.ids] };
+  const names = { ...(state.names || {}) };
+  if (has) delete names[recipeId]; else if (name) names[recipeId] = name;
+  state = { ...state, names, ids: has ? state.ids.filter((id) => id !== recipeId) : [recipeId, ...state.ids] };
   emit();
   cache();
   if (userId) {
     await remote(has
       ? supabase.from(TABLE).delete().eq('user_id', userId).eq('kind', 'bookmark').eq('recipe_id', String(recipeId))
-      : supabase.from(TABLE).upsert({ user_id: userId, kind: 'bookmark', recipe_id: String(recipeId) }), 'bookmark');
+      : supabase.from(TABLE).upsert({ user_id: userId, kind: 'bookmark', recipe_id: String(recipeId), ...(name ? { data: { name } } : {}) }), 'bookmark');
   }
   return !has;
 }

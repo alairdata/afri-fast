@@ -3044,6 +3044,7 @@ const FastingApp = ({ session, pendingPreAuthData, onPreAuthDataApplied, onAccou
 
       <MakeRecipePage
         show={activeTab === 'recipes'}
+        cuisines={cuisines}
         userName={userName}
         userCountry={userCountry}
         userId={session?.user?.id}

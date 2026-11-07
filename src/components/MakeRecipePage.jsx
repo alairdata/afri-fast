@@ -12,7 +12,7 @@ import { useRecipesVersion } from '../lib/recipes';
 import { useSubscription } from '../lib/subscription';
 import { unlock } from './ProLock';
 import LumiRive from './LumiRive';
-import { useSavedRecipes, toggleSavedRecipe, useCustomRecipes, removeCustomRecipe } from '../lib/savedRecipes';
+import { useSavedRecipes, toggleSavedRecipe, useCustomRecipes, removeCustomRecipe, savedRecipeName } from '../lib/savedRecipes';
 import { showAlert } from '../lib/alert';
 import ShimmerImage from './ShimmerImage';
 import HeaderFade, { useHeaderFadeScroll } from './HeaderFade';
@@ -170,14 +170,14 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
           {userId ? (
             <TouchableOpacity
               style={[detail.closeBtn, { marginRight: onLogMeal ? 10 : 0 }]}
-              onPress={() => (recipe.custom ? (removeCustomRecipe(userId, recipe.id), onClose()) : toggleSavedRecipe(userId, recipe.id))}
+              onPress={() => (recipe.custom ? (removeCustomRecipe(userId, recipe.id), onClose()) : toggleSavedRecipe(userId, recipe.id, displayName))}
               accessibilityLabel={recipe.custom || savedIds.includes(recipe.id) ? 'Remove from saved recipes' : 'Save recipe'}
             >
               <Ionicons name={recipe.custom || savedIds.includes(recipe.id) ? 'bookmark' : 'bookmark-outline'} size={17} color={recipe.custom || savedIds.includes(recipe.id) ? dc('#059669', 'text') : dc('#4B5563', 'text')} />
             </TouchableOpacity>
           ) : null}
           {onLogMeal && (
-            <TouchableOpacity style={detail.logBtn} onPress={() => { onLogMeal({ ...recipe, calories: scaled(recipe.calories), protein: scaled(recipe.protein), carbs: scaled(recipe.carbs), fats: scaled(recipe.fats), servings }); onClose(); }}>
+            <TouchableOpacity style={detail.logBtn} onPress={() => { onLogMeal({ ...recipe, name: displayName, calories: scaled(recipe.calories), protein: scaled(recipe.protein), carbs: scaled(recipe.carbs), fats: scaled(recipe.fats), servings }); onClose(); }}>
               <Text style={detail.logBtnText}>Log Meal</Text>
             </TouchableOpacity>
           )}
@@ -262,12 +262,12 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onLogMeal, userCou
               ) : null}
             </View>
 
-            {/* Also known as — other countries' names */}
-            {Object.keys(recipe.localNames || {}).length > 0 && (
+            {/* Also known as: the dish's other names, each with the countries that use it */}
+            {otherNames(recipe, displayName).length > 0 && (
               <View style={detail.localNamesRow}>
                 <Text style={detail.localNamesLabel}>Also known as: </Text>
                 <Text style={detail.localNamesText}>
-                  {[...new Set(Object.values(recipe.localNames))].filter(n => n !== displayName).join(' · ')}
+                  {otherNames(recipe, displayName).map(o => (o.countries.length ? `${o.name} (${o.countries.join(', ')})` : o.name)).join(' · ')}
                 </Text>
               </View>
             )}
@@ -448,8 +448,33 @@ const CATEGORY_META = {
   'High Protein': { icon: 'barbell-outline', subtitle: 'Fuel your muscles' },
 };
 
+// The name a person sees: the name they searched or saved it under, else their country's name for it, else the
+// dish's own name (a dish their country has no name for keeps the name from where it comes from).
 const getLocalName = (recipe, userCountry) =>
-  (userCountry && recipe.localNames?.[userCountry]) || recipe.name;
+  recipe.shownName || (userCountry && recipe.localNames?.[userCountry]) || recipe.name;
+
+// The dish's other names for "Also known as", each with the countries that call it that. Leaves out the name shown
+// and any name the title already contains ("Tom Brown" under "Tom Brown Porridge").
+const otherNames = (recipe, shown) => {
+  const title = String(shown || '').toLowerCase();
+  const byName = new Map();
+  const add = (name, country) => {
+    const n = String(name || '').trim();
+    if (!n || title.includes(n.toLowerCase())) return;
+    const key = n.toLowerCase();
+    if (!byName.has(key)) byName.set(key, { name: n, countries: [] });
+    if (country && !byName.get(key).countries.includes(country)) byName.get(key).countries.push(country);
+  };
+  Object.entries(recipe.localNames || {}).forEach(([country, name]) => add(name, country));
+  add(recipe.name, null);
+  return [...byName.values()];
+};
+
+// Cuisines picked in onboarding, as the countries whose dishes they bring forward on Recipes.
+const CUISINE_COUNTRIES = {
+  Nigerian: ['Nigeria'], Ghanaian: ['Ghana'], Kenyan: ['Kenya'], Swahili: ['Kenya', 'Tanzania'],
+  Ethiopian: ['Ethiopia'], Senegalese: ['Senegal'], 'South African': ['South Africa'],
+};
 
 export const RecipeCard = ({ recipe, onPress, userCountry }) => {
   const [imgError, setImgError] = useState(false);
@@ -557,7 +582,7 @@ const greetingFor = (name) => {
   return first ? `${part}, ${first}` : part;
 };
 
-const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, userName, onOpenKitchen }) => {
+const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, userName, onOpenKitchen, cuisines = [] }) => {
   const customRecipes = useCustomRecipes(userId);
   const savedIds = useSavedRecipes(userId);
   const [showSaved, setShowSaved] = useState(false);
@@ -599,6 +624,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, userName, onOpen
   // come first, and on Free the row's free recipe stays at the front.
   const [shuffleSeed, setShuffleSeed] = useState(() => Math.floor(Math.random() * 1e9));
   useEffect(() => { if (show) setShuffleSeed(Math.floor(Math.random() * 1e9)); }, [show]);
+  const likedCountries = useMemo(() => [...new Set((cuisines || []).flatMap(c => CUISINE_COUNTRIES[c] || []))].filter(c => c !== userCountry), [cuisines, userCountry]);
   const rowsByCategory = useMemo(() => {
     const rows = {};
     RECIPE_CATEGORIES.forEach((cat, k) => {
@@ -606,11 +632,12 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, userName, onOpen
       const pinned = isPro ? [] : inCat.filter(r => freeRecipeIds.has(r.id));
       const rest = inCat.filter(r => !pinned.includes(r));
       const local = userCountry ? rest.filter(r => recipeMatchesCountry(r, userCountry)) : [];
-      const others = rest.filter(r => !local.includes(r));
-      rows[cat] = [...pinned, ...shuffled(local, shuffleSeed + k), ...shuffled(others, shuffleSeed + 100 + k)];
+      const liked = rest.filter(r => !local.includes(r) && likedCountries.some(c => recipeMatchesCountry(r, c)));
+      const others = rest.filter(r => !local.includes(r) && !liked.includes(r));
+      rows[cat] = [...pinned, ...shuffled(local, shuffleSeed + k), ...shuffled(liked, shuffleSeed + 50 + k), ...shuffled(others, shuffleSeed + 100 + k)];
     });
     return rows;
-  }, [visibleRecipes, freeRecipeIds, isPro, userCountry, shuffleSeed]);
+  }, [visibleRecipes, freeRecipeIds, isPro, userCountry, likedCountries, shuffleSeed]);
 
   // 'List it': match recipes to the ingredients you type (no AI needed).
   const findFromList = () => {
@@ -638,8 +665,13 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, userName, onOpen
       r.description.toLowerCase().includes(q) ||
       Object.values(r.localNames || {}).some(n => n.toLowerCase().includes(q)) ||
       (r.ingredients || []).some(ing => (ing.name || '').toLowerCase().includes(q))
-    );
-  }, [searchQuery, visibleRecipes, filters]);
+    ).map(r => {
+      // Found by another country's name ("Browny" for a Ghanaian): show that name, so it reads as the match.
+      if (getLocalName(r, userCountry).toLowerCase().includes(q)) return r;
+      const hit = Object.values(r.localNames || {}).find(n => n.toLowerCase().includes(q));
+      return hit ? { ...r, shownName: hit } : r;
+    });
+  }, [searchQuery, visibleRecipes, filters, userCountry]);
 
   const openRecipe = (recipe) => {
     setSelectedRecipe(recipe);
@@ -1140,7 +1172,7 @@ const MakeRecipePage = ({ show, onLogMeal, userCountry, userId, userName, onOpen
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
             {(() => {
-              const saved = [...customRecipes, ...savedIds.map(id => AFRICAN_RECIPES.find(r => r.id === id)).filter(Boolean)];
+              const saved = [...customRecipes, ...savedIds.map(id => AFRICAN_RECIPES.find(r => r.id === id)).filter(Boolean).map(r => (savedRecipeName(r.id) ? { ...r, shownName: savedRecipeName(r.id) } : r))];
               if (!saved.length) return (
                 <View style={{ alignItems: 'center', paddingVertical: 80 }}>
                   <Ionicons name="bookmark-outline" size={32} color={dc("#9CA3AF", 'text')} />
