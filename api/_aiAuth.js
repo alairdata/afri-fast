@@ -34,16 +34,35 @@ async function countAiCall(userId) {
   }
 }
 
+// Whether this account has Logga Pro right now, from RevenueCat (the app logs in to RevenueCat with the account's
+// id). Uses the app's public key, which can read a subscriber; if RevenueCat can't be reached, Pro is assumed so a
+// paying person is never cut off by our mistake.
+const RC_PUBLIC_KEY = () => process.env.REVENUECAT_IOS_PUBLIC_KEY || process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || 'appl_vZinLvIPrzgYbpiLBwZItkfHBHV';
+async function hasPro(userId) {
+  try {
+    const r = await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(userId)}`, { headers: { Authorization: `Bearer ${RC_PUBLIC_KEY()}` } });
+    if (!r.ok) return true;
+    const ent = (await r.json())?.subscriber?.entitlements?.logga_pro;
+    if (!ent) return false;
+    const until = ent.grace_period_expires_date || ent.expires_date;
+    return !until || new Date(until).getTime() > Date.now();
+  } catch (_) {
+    return true;
+  }
+}
+
 /** Returns true when the request may go on; otherwise it has already answered (401, 403 or 429). */
 export async function checkAiAuth(req, res, endpoint) {
   let user = null;
   try { user = await userFromRequest(req); } catch (_) { /* Supabase unreachable: treat as unsigned */ }
   if (user) {
-    // Both checks at once, to keep replies quick. Daily cap per account, so one account can't drain the AI
-    // credit (AI_DAILY_LIMIT in Vercel, default 300).
+    // Both checks at once, to keep replies quick. Daily cap per account: 20 AI uses a day on Free, 100 on Pro
+    // (AI_DAILY_LIMIT / AI_DAILY_LIMIT_PRO in Vercel). Pro is only looked up once someone passes the Free cap.
     const [restricted, calls] = await Promise.all([isRestricted(user.id), countAiCall(user.id)]);
     if (restricted) { res.status(403).json({ error: 'This account is on hold.' }); return false; }
-    const cap = Number(process.env.AI_DAILY_LIMIT) > 0 ? Number(process.env.AI_DAILY_LIMIT) : 300;
+    const freeCap = Number(process.env.AI_DAILY_LIMIT) > 0 ? Number(process.env.AI_DAILY_LIMIT) : 20;
+    const proCap = Number(process.env.AI_DAILY_LIMIT_PRO) > 0 ? Number(process.env.AI_DAILY_LIMIT_PRO) : 100;
+    const cap = calls != null && calls > freeCap && (await hasPro(user.id)) ? proCap : freeCap;
     if (calls != null && calls > cap) {
       console.warn(`[ai-auth] ${endpoint}: daily cap reached for ${user.id} (${calls})`);
       res.status(429).json({ error: "You've used Logga's AI a lot today. Please try again tomorrow." });
