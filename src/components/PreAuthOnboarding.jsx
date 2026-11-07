@@ -967,7 +967,7 @@ export function FoodScreen(p) {
     { v: 'out',  t: 'Mostly bought or eating out', icon: 'restaurant-outline' },
     { v: 'mix',  t: 'A mix of both',               icon: 'swap-horizontal-outline' },
   ];
-  const cuisines = ['Nigerian', 'Ghanaian', 'Kenyan', 'Swahili', 'Ethiopian', 'Senegalese', 'Continental', 'Fast food'];
+  const cuisines = ['Nigerian', 'Ghanaian', 'Kenyan', 'Swahili', 'Ethiopian', 'Senegalese', 'South African', 'Continental', 'Fast food'];
   const toggleC = (c) => {
     tap();
     const has = d.cuisines.includes(c);
